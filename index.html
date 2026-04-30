@@ -28,13 +28,23 @@
   <main>
     <section id="practice" class="panel active">
       <div class="card">
-        <h2>Start practice</h2>
+        <h2>Start planned practice</h2>
         <label>Training plan</label>
         <select id="planSelect"></select>
         <div class="row">
-          <button id="startSessionBtn">Start Session</button>
+          <button id="startSessionBtn">Start Planned Session</button>
           <button id="resetSessionBtn" class="secondary">Reset</button>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Start free training</h2>
+        <p>Use this when you do not want a fixed plan. Pick any routine, log it, then either choose another routine or end today’s training.</p>
+        <label>First routine</label>
+        <select id="freeRoutineSelect"></select>
+        <label>Session name</label>
+        <input id="freeSessionName" placeholder="e.g. Free training — today" />
+        <button id="startFreeSessionBtn">Start Free Training</button>
       </div>
 
       <div id="activeSession" class="card hidden">
@@ -60,6 +70,18 @@
         <div class="row">
           <button id="saveNextBtn">Save & Next</button>
           <button id="skipBtn" class="secondary">Skip</button>
+          <button id="endSessionBtn" class="danger hidden">End Training</button>
+        </div>
+      </div>
+
+      <div id="freeNextChooser" class="card hidden">
+        <h2>Free training: next step</h2>
+        <p>The last routine has been logged. Choose another routine or end today’s training session.</p>
+        <label>Next routine</label>
+        <select id="nextFreeRoutineSelect"></select>
+        <div class="row">
+          <button id="continueFreeSessionBtn">Start Selected Routine</button>
+          <button id="finishFreeSessionBtn" class="danger">End Training Session</button>
         </div>
       </div>
 
@@ -140,6 +162,7 @@
         <label>Routine</label>
         <select id="statsRoutineSelect"></select>
         <div id="statsOutput" class="stats"></div>
+        <canvas id="progressChart" class="progress-chart hidden" width="860" height="320"></canvas>
       </div>
     </section>
 

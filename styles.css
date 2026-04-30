@@ -260,6 +260,16 @@ button:hover, .file-btn:hover { background: var(--primary-2); }
 
 .file-btn input { display: none; }
 
+
+.progress-chart {
+  width: 100%;
+  height: auto;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
 footer {
   text-align: center;
   padding: 20px 16px 30px;

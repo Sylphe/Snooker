@@ -140,6 +140,8 @@ document.querySelectorAll(".tab").forEach(btn => {
 function renderRoutineSelects() {
   const routineOptions = data.routines.map(r => `<option value="${r.id}">${escapeHtml(r.name)} — ${fmtScoring(r.scoring)}</option>`).join("");
   $("routineToAdd").innerHTML = routineOptions || `<option>No routines yet</option>`;
+  $("freeRoutineSelect").innerHTML = routineOptions || `<option>No routines yet</option>`;
+  $("nextFreeRoutineSelect").innerHTML = routineOptions || `<option>No routines yet</option>`;
 
   const planOptions = data.plans.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   $("planSelect").innerHTML = planOptions || `<option>No plans yet</option>`;
@@ -298,6 +300,7 @@ $("startSessionBtn").addEventListener("click", () => {
   if (!plan) return alert("Create or select a plan first.");
   activeSession = {
     id: crypto.randomUUID(),
+    mode: "planned",
     planId: plan.id,
     planName: plan.name,
     routineIds: plan.routineIds.filter(id => data.routines.some(r => r.id === id)),
@@ -310,24 +313,56 @@ $("startSessionBtn").addEventListener("click", () => {
   $("activeSession").classList.remove("hidden");
   renderCurrentRoutine();
 });
+$("startFreeSessionBtn").addEventListener("click", () => {
+  const routineId = $("freeRoutineSelect").value;
+  const r = data.routines.find(x => x.id === routineId);
+  if (!r) return alert("Create or select a routine first.");
+  const today = new Date().toLocaleDateString();
+  activeSession = {
+    id: crypto.randomUUID(),
+    mode: "free",
+    planId: "",
+    planName: $("freeSessionName").value.trim() || `Free training — ${today}`,
+    routineIds: [],
+    currentRoutineId: routineId,
+    index: 0,
+    startedAt: new Date().toISOString(),
+    completedLogs: []
+  };
+  elapsedSeconds = 0;
+  $("sessionSummary").classList.add("hidden");
+  $("freeNextChooser").classList.add("hidden");
+  $("activeSession").classList.remove("hidden");
+  renderCurrentRoutine();
+});
+
 
 $("resetSessionBtn").addEventListener("click", () => {
   activeSession = null;
   stopTimer();
   elapsedSeconds = 0;
   $("activeSession").classList.add("hidden");
+  $("freeNextChooser").classList.add("hidden");
   $("sessionSummary").classList.add("hidden");
 });
 
 function renderCurrentRoutine() {
-  if (!activeSession || activeSession.index >= activeSession.routineIds.length) return completeSession();
-  const r = data.routines.find(x => x.id === activeSession.routineIds[activeSession.index]);
+  if (!activeSession) return;
+  if (activeSession.mode === "planned" && activeSession.index >= activeSession.routineIds.length) return completeSession();
+  const routineId = activeSession.mode === "free" ? activeSession.currentRoutineId : activeSession.routineIds[activeSession.index];
+  const r = data.routines.find(x => x.id === routineId);
   if (!r) return;
   $("currentRoutineName").textContent = r.name;
-  $("currentRoutineMeta").textContent = `${activeSession.index + 1}/${activeSession.routineIds.length} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min`;
+  $("currentRoutineMeta").textContent = activeSession.mode === "free"
+    ? `Free training · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min`
+    : `${activeSession.index + 1}/${activeSession.routineIds.length} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min`;
+  $("saveNextBtn").textContent = activeSession.mode === "free" ? "Save Routine" : "Save & Next";
+  $("endSessionBtn").classList.toggle("hidden", activeSession.mode !== "free");
   $("practiceNotes").value = "";
   elapsedSeconds = 0;
   updateTimerDisplay();
+  $("freeNextChooser").classList.add("hidden");
+  $("activeSession").classList.remove("hidden");
   renderScoreInputs(r);
 }
 
@@ -348,7 +383,8 @@ function renderScoreInputs(r) {
 
 $("saveNextBtn").addEventListener("click", () => {
   if (!activeSession) return;
-  const r = data.routines.find(x => x.id === activeSession.routineIds[activeSession.index]);
+  const routineId = activeSession.mode === "free" ? activeSession.currentRoutineId : activeSession.routineIds[activeSession.index];
+  const r = data.routines.find(x => x.id === routineId);
   if (!r) return;
   const score = Number($("scoreValue")?.value || 0);
   const attempts = r.scoring === "success_rate" ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
@@ -375,17 +411,46 @@ $("saveNextBtn").addEventListener("click", () => {
   log.normalizedScore = normalizeScore(log);
   data.logs.push(log);
   activeSession.completedLogs.push(log);
-  activeSession.index += 1;
   stopTimer();
   saveData();
+  if (activeSession.mode === "free") {
+    $("activeSession").classList.add("hidden");
+    $("freeNextChooser").classList.remove("hidden");
+    return;
+  }
+  activeSession.index += 1;
   renderCurrentRoutine();
 });
 
 $("skipBtn").addEventListener("click", () => {
   if (!activeSession) return;
-  activeSession.index += 1;
   stopTimer();
+  if (activeSession.mode === "free") {
+    $("activeSession").classList.add("hidden");
+    $("freeNextChooser").classList.remove("hidden");
+    return;
+  }
+  activeSession.index += 1;
   renderCurrentRoutine();
+});
+
+$("continueFreeSessionBtn").addEventListener("click", () => {
+  if (!activeSession || activeSession.mode !== "free") return;
+  const routineId = $("nextFreeRoutineSelect").value;
+  if (!data.routines.some(r => r.id === routineId)) return alert("Select a valid routine.");
+  activeSession.currentRoutineId = routineId;
+  activeSession.index += 1;
+  renderCurrentRoutine();
+});
+
+$("finishFreeSessionBtn").addEventListener("click", () => {
+  if (!activeSession) return;
+  completeSession();
+});
+
+$("endSessionBtn").addEventListener("click", () => {
+  if (!activeSession) return;
+  completeSession();
 });
 
 function completeSession() {
@@ -443,8 +508,10 @@ $("statsRoutineSelect").addEventListener("change", renderStats);
 function renderStats() {
   const rid = $("statsRoutineSelect").value;
   const logs = data.logs.filter(l => l.routineId === rid).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const chart = $("progressChart");
   if (!rid || !logs.length) {
     $("statsOutput").innerHTML = "<p>No logs yet for this routine.</p>";
+    chart.classList.add("hidden");
     return;
   }
   const vals = logs.map(l => Number(l.normalizedScore || 0));
@@ -475,6 +542,98 @@ function renderStats() {
         </tr>`).join("")}</tbody>
     </table>
   `;
+  chart.classList.remove("hidden");
+  drawProgressChart(logs);
+}
+
+function drawProgressChart(logs) {
+  const canvas = $("progressChart");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(320, Math.floor(rect.width || canvas.width));
+  const height = 320;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  ctx.clearRect(0, 0, width, height);
+  const pad = { left: 46, right: 18, top: 22, bottom: 54 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const vals = logs.map(l => Number(l.normalizedScore || 0));
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const range = maxVal === minVal ? 1 : maxVal - minVal;
+  const yMin = minVal - range * 0.12;
+  const yMax = maxVal + range * 0.12;
+
+  const x = i => pad.left + (logs.length === 1 ? plotW / 2 : (i / (logs.length - 1)) * plotW);
+  const y = v => pad.top + (1 - ((v - yMin) / (yMax - yMin))) * plotH;
+
+  ctx.strokeStyle = "#dce4de";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) {
+    const yy = pad.top + (i / 4) * plotH;
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(width - pad.right, yy);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = "#637168";
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i++) {
+    const val = yMax - (i / 4) * (yMax - yMin);
+    ctx.fillText(val.toFixed(1), pad.left - 8, pad.top + (i / 4) * plotH);
+  }
+
+  ctx.strokeStyle = "#0f3d2e";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  vals.forEach((v, i) => {
+    if (i === 0) ctx.moveTo(x(i), y(v));
+    else ctx.lineTo(x(i), y(v));
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = "#0f3d2e";
+  vals.forEach((v, i) => {
+    ctx.beginPath();
+    ctx.arc(x(i), y(v), 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  if (logs.length >= 5) {
+    const ma = vals.map((_, i) => {
+      const start = Math.max(0, i - 4);
+      return avg(vals.slice(start, i + 1));
+    });
+    ctx.strokeStyle = "#5f7f6f";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ma.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(x(i), y(v));
+      else ctx.lineTo(x(i), y(v));
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.fillStyle = "#637168";
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const firstDate = new Date(logs[0].createdAt).toLocaleDateString();
+  const lastDate = new Date(logs[logs.length - 1].createdAt).toLocaleDateString();
+  ctx.fillText(firstDate, pad.left, height - 36);
+  ctx.fillText(lastDate, width - pad.right, height - 36);
+
+  ctx.textAlign = "left";
+  ctx.fillText("Normalized score progression; dashed line = 5-session moving average", pad.left, height - 18);
 }
 
 $("exportCsvBtn").addEventListener("click", () => {

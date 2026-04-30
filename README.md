@@ -4,6 +4,13 @@ A small installable Android-compatible web app for logging snooker practice rout
 
 ## Features
 
+Version 2 additions:
+
+- More snooker-specific app icon
+- Free training mode: choose any routine, log it, continue with another routine or end training
+- Progression graph by routine/date in the stats screen
+
+
 - Save/load custom routine templates
 - Build daily training plans from saved routines
 - Practice screen with timer
