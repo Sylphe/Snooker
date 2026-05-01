@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.2</title>
+  <title>Snooker Practice Log v3.3</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.2" />
-  <link rel="stylesheet" href="styles.css?v=3.2" />
-  <link rel="icon" href="icon.svg?v=3.2" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.3" />
+  <link rel="stylesheet" href="styles.css?v=3.3" />
+  <link rel="icon" href="icon.svg?v=3.3" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.2 — folder pickers, period stats, exercise views, and charts.</p>
+      <p>v3.3 — targets, consistency, allocation, session rating, progression suggestions, charts.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -70,7 +70,7 @@
 
         <div id="scoreInputs" class="score-grid"></div>
 
-        <label>Notes</label>
+        <label>Session rating (1–5)</label><input id="sessionRating" type="number" min="1" max="5" step="1" placeholder="e.g. 4"/><label>Session tags</label><input id="sessionTags" placeholder="e.g. focus,fatigue,good_rhythm"/><label>Notes</label>
         <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
 
         <div class="row">
@@ -296,6 +296,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.2"></script>
+  <script src="app.js?v=3.3"></script>
 </body>
 </html>

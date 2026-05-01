@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.2-final";
+const APP_VERSION = "3.3-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -263,7 +263,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
-    target: Number($("routineTarget").value || 0) || "",
+    target: Number($("routineTarget").value || 0) || "", stretchTarget: Number($("routineTarget").value || 0) ? Number($("routineTarget").value || 0)*1.2 : "",
     category,
     folder,
     subfolder,
@@ -442,7 +442,7 @@ function saveCurrentRoutine() {
   if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
   if (Number.isNaN(score)) return alert("Enter a valid score.");
 
-  const log = {
+  const log = { sessionRating: Number($("sessionRating")?.value||0)||"", sessionTags: $("sessionTags")?.value||"",
     id: crypto.randomUUID(),
     sessionId: activeSession.id,
     sessionName: activeSession.planName,
@@ -461,6 +461,15 @@ function saveCurrentRoutine() {
     createdAt: new Date().toISOString()
   };
   log.normalizedScore = normalizeScore(log);
+  // classification
+  if (r.target) {
+    if (log.normalizedScore < r.target) log.performance = "Fail";
+    else if (r.stretchTarget && log.normalizedScore >= r.stretchTarget) log.performance = "Above Target";
+    else log.performance = "On Target";
+  } else {
+    log.performance = "N/A";
+  }
+
   data.logs.push(log);
   activeSession.completedLogs.push(log);
   stopTimer();
@@ -615,7 +624,9 @@ function renderStats() {
     if (exerciseLogs.length) html += renderExerciseProgression(exerciseLogs);
   }
 
-  $("statsOutput").innerHTML = html;
+  const alloc = computeAllocation(scopedLogs);
+html += "<h3>Training allocation</h3>"+alloc.map(a=>"<span class='badge'>"+a.cat+": "+a.pct.toFixed(1)+"%</span>").join("");
+$("statsOutput").innerHTML = html;
 }
 
 function renderExerciseProgression(logs) {
@@ -786,7 +797,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -795,3 +806,33 @@ if ("serviceWorker" in navigator) {
 }
 
 renderAll();
+
+function computeAllocation(logs){
+  const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const byCat={};
+  logs.forEach(l=>{
+    const k=l.category||"uncategorized";
+    byCat[k]=(byCat[k]||0)+Number(l.timeMinutes||0);
+  });
+  return Object.entries(byCat).map(([k,v])=>({cat:k,pct: total? (v/total*100):0}));
+}
+
+function consistencyMetrics(vals){
+  if(!vals.length) return {avg:0,best:0,std:0};
+  const avgv = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const best = Math.max(...vals);
+  const std = Math.sqrt(vals.reduce((a,b)=>a+Math.pow(b-avgv,2),0)/vals.length);
+  return {avg:avgv,best,std};
+}
+
+function progressionSuggestion(vals){
+  if(vals.length<5) return "";
+  const last = vals.slice(-3);
+  const avg = last.reduce((a,b)=>a+b,0)/last.length;
+  const prev = vals.slice(0,-3);
+  if(!prev.length) return "";
+  const prevAvg = prev.reduce((a,b)=>a+b,0)/prev.length;
+  if(avg > prevAvg*1.1) return "Consider increasing difficulty.";
+  if(avg < prevAvg*0.9) return "Consider reducing difficulty.";
+  return "";
+}

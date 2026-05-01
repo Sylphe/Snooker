@@ -1,55 +1,18 @@
-# Snooker Practice Log — v3.2 final
+# Snooker Practice Log — v3.3
 
-Built from the working v3.1 package.
+## Added (A–F)
 
-## New in v3.2
+- Target-based classification:
+  - Fail / On Target / Above Target
+- Consistency vs ceiling:
+  - avg / best / volatility (std dev)
+- Training allocation:
+  - % time per category
+- Session rating & tags
+- Progressive overload suggestions
+- Improved KPI normalization
 
-- Exercise folder selector:
-  - select existing folder
-  - or create a new folder
-- Exercise subfolder selector:
-  - select existing subfolder
-  - or create a new subfolder
-- Stats view selector:
-  - daily
-  - weekly
-  - monthly
-  - yearly
-  - overall
-  - per exercise
-- Charts:
-  - Stats tab: volume chart and exercise-mix chart
-  - Stats per exercise: progression curve
-  - Today tab: exercise-mix chart
+## Confirm version
 
-## Confirm version after deployment
+Header must show v3.3.
 
-The app header should say:
-
-`v3.2 — folder pickers, period stats, exercise views, and charts.`
-
-If it does not, your phone or GitHub Pages is still serving the old cached app.
-
-## Deployment
-
-Replace these root files in GitHub:
-
-- index.html
-- styles.css
-- app.js
-- manifest.json
-- service-worker.js
-- icon.svg
-- README.md
-
-Then commit and push.
-
-## Cache note
-
-Open:
-
-`https://Sylphe.github.io/Snooker/index.html?v=3.2`
-
-Refresh. If needed, remove the Android installed app and reinstall from Chrome.
-
-Existing records remain in localStorage and migrate automatically as long as the GitHub Pages URL is unchanged.
