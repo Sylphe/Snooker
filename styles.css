@@ -58,3 +58,17 @@ footer{text-align:center;padding:20px 16px 30px;color:var(--muted);font-size:13p
 .analytics-note{background:#f8faf8;border:1px solid var(--line);border-radius:14px;padding:12px;margin:12px 0;color:var(--text)}
 .warning-note{background:#fff8e8;border:1px solid #ead59b;border-radius:14px;padding:12px;margin:12px 0;color:#5c4310}
 @media(max-width:760px){.log-edit-grid{grid-template-columns:1fr}}
+
+/* v3.5 compact analytical styling */
+.chart-wrap{padding:8px;margin-top:10px;border-radius:12px}
+svg.chart{height:170px!important;min-width:280px}
+.chart-line{stroke-width:1.6!important}
+.chart-point{r:2}
+.chart-axis{stroke-width:.7!important}
+.chart-grid{stroke-width:.5!important}
+.chart-label{font-size:9px!important}
+.chart-bar,.chart-bar-alt{opacity:.72}
+.history-table{font-size:12px}
+.history-table th,.history-table td{padding:6px}
+.analytics-note,.warning-note{padding:9px;border-radius:10px}
+.mini-kpi{display:inline-block;min-width:92px;border:1px solid var(--line);border-radius:10px;padding:7px;margin:4px;background:#fbfcfb}

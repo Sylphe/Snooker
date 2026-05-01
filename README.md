@@ -1,41 +1,39 @@
-# Snooker Practice Log — v3.4 final
+# Snooker Practice Log — v3.5 final
 
-Built from the stable v3.2 structure and includes v3.3 training logic plus the advanced analytics layer.
+Built from v3.4.
 
-## New in v3.4
+## New in v3.5
 
-Advanced analytics:
-- Rolling average trend detection
-- Momentum status
-- Correlation analysis:
-  - duration vs performance
-  - session rating vs performance
-- Personal benchmark:
-  - latest score vs configurable baseline window
-- Streak tracking:
-  - current training streak
-  - best training streak
-- Target hit rate
-- Progressive overload suggestion
-- Ceiling vs baseline gap
-- Consistency score / volatility
-- Rolling average chart
+General app improvements:
+- Lightweight session data layer:
+  - sessions are tracked separately from logs
+  - legacy sessions are rebuilt from existing logs during migration
+- Versioned backups:
+  - JSON backup filename now includes app version and export date
+  - backup JSON includes backupVersion and exportedAt
 
-Log management:
-- Edit session logs directly from Today and Stats
-- Edit:
-  - date/time
-  - score
-  - attempts
-  - time
-  - rating
-  - tags
-  - notes
-- Delete individual session logs
+Smart defaults / recommendations:
+- Practice tab now shows a smart recommendation
+- Recommendation prioritizes:
+  - low target hit rate
+  - recent underperformance
+  - undertrained categories
 
-Existing data:
-- Existing logs should migrate automatically if the app URL/domain is unchanged.
-- Export a JSON backup before deploying if you want a safety copy.
+Constraint-based session templates:
+- Generate a draft training session from:
+  - total minutes
+  - main focus
+  - number of exercises
+  - allocation percentages by category
+
+Graph / UI tweaks:
+- Charts are more compact and thinner
+- Tables are denser
+- Analytics cards are more compact
+
+Log editing:
+- Edit log category from existing categories
+- Useful for recategorizing uncategorized historical logs
 
 Confirm version:
-The header should show v3.4.
+The header should show v3.5.

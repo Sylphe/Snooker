@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.4</title>
+  <title>Snooker Practice Log v3.5</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.4" />
-  <link rel="stylesheet" href="styles.css?v=3.4" />
-  <link rel="icon" href="icon.svg?v=3.4" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.5" />
+  <link rel="stylesheet" href="styles.css?v=3.5" />
+  <link rel="icon" href="icon.svg?v=3.5" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.4 — advanced analytics, targets, streaks, correlations, and log editing.</p>
+      <p>v3.5 — sessions layer, smart recommendations, constraint templates, compact charts.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -46,6 +46,11 @@
           <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
           <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Smart recommendation</h2>
+        <div id="smartRecommendationBox" class="analytics-note">Recommendation will appear after you log enough sessions.</div>
       </div>
 
       <div id="activeSession" class="card hidden">
@@ -242,6 +247,42 @@
           </div>
         </div>
 
+        <div class="card nested">
+          <h3>Constraint-based session generator</h3>
+          <p class="muted">Build a session by time allocation rather than fixed exercises.</p>
+          <div class="grid three">
+            <div>
+              <label>Total minutes</label>
+              <input id="constraintTotalMinutes" type="number" min="10" value="60" />
+            </div>
+            <div>
+              <label>Main focus</label>
+              <select id="constraintFocusType"></select>
+            </div>
+            <div>
+              <label>Number of exercises</label>
+              <input id="constraintExerciseCount" type="number" min="1" value="4" />
+            </div>
+          </div>
+          <div class="grid three">
+            <div>
+              <label>Potting %</label>
+              <input id="allocPotting" type="number" min="0" max="100" value="40" />
+            </div>
+            <div>
+              <label>Break-building %</label>
+              <input id="allocBreak" type="number" min="0" max="100" value="35" />
+            </div>
+            <div>
+              <label>Safety / other %</label>
+              <input id="allocOther" type="number" min="0" max="100" value="25" />
+            </div>
+          </div>
+          <div class="row">
+            <button id="generateConstraintPlanBtn" class="secondary">Generate Session Draft</button>
+          </div>
+        </div>
+
         <div id="planBuilderList" class="list compact"></div>
         <button id="savePlanBtn">Save Plan</button>
       </div>
@@ -316,6 +357,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.4"></script>
+  <script src="app.js?v=3.5"></script>
 </body>
 </html>
