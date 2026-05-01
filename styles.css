@@ -46,7 +46,9 @@ button:hover,.file-btn:hover{background:var(--primary-2)}
 .history-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
 .history-table th,.history-table td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
 .chart-wrap{margin-top:14px;border:1px solid var(--line);border-radius:16px;padding:12px;background:#fbfcfb;overflow-x:auto}
-svg.chart{width:100%;min-width:320px;height:240px}.chart-axis{stroke:#a9b6ae;stroke-width:1}.chart-line{fill:none;stroke:var(--felt);stroke-width:3}.chart-point{fill:var(--gold);stroke:var(--primary);stroke-width:1.5}.chart-label{fill:var(--muted);font-size:11px}.chart-grid{stroke:#edf1ee;stroke-width:1}
+svg.chart{width:100%;min-width:320px;height:260px}.chart-axis{stroke:#a9b6ae;stroke-width:1}.chart-line{fill:none;stroke:var(--felt);stroke-width:3}.chart-point{fill:var(--gold);stroke:var(--primary);stroke-width:1.5}.chart-label{fill:var(--muted);font-size:11px}.chart-grid{stroke:#edf1ee;stroke-width:1}
 .hidden{display:none!important}.file-btn input{display:none}.muted{color:var(--muted);font-size:14px}
 footer{text-align:center;padding:20px 16px 30px;color:var(--muted);font-size:13px}
 @media(max-width:760px){.app-header{align-items:flex-start;flex-direction:column}.tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.tab{font-size:11px;padding:10px 2px}.grid.two,.grid.three,.score-grid,.stats-grid{grid-template-columns:1fr}.session-top{flex-direction:column}.timer,.timer-sub{text-align:left}.row>*{flex:1 1 100%}}
+
+.chart-bar{fill:#0d4c35;opacity:.82}.chart-bar-alt{fill:#c7a753;opacity:.85}

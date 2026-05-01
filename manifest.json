@@ -1,12 +1,12 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.1",
+  "start_url": "./index.html?v=3.2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Log snooker practice routines, scores, timing, and progression.",
+  "description": "Log snooker practice routines, folders, free sessions, period stats, and progression charts.",
   "icons": [
     {
       "src": "icon.svg?v=3.1",

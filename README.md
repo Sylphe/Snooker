@@ -1,50 +1,38 @@
-# Snooker Practice Log — v3.1 final
+# Snooker Practice Log — v3.2 final
 
-This is the corrected v3 package.
+Built from the working v3.1 package.
 
-## Confirm you installed the right version
+## New in v3.2
 
-After deploying, the header should say:
+- Exercise folder selector:
+  - select existing folder
+  - or create a new folder
+- Exercise subfolder selector:
+  - select existing subfolder
+  - or create a new subfolder
+- Stats view selector:
+  - daily
+  - weekly
+  - monthly
+  - yearly
+  - overall
+  - per exercise
+- Charts:
+  - Stats tab: volume chart and exercise-mix chart
+  - Stats per exercise: progression curve
+  - Today tab: exercise-mix chart
 
-`v3.1 — folders, free sessions, daily view, date stats, randomizer, reliable timer.`
+## Confirm version after deployment
 
-If you do not see this text, GitHub Pages or your phone is still serving the old cached version.
+The app header should say:
 
-## Included changes
+`v3.2 — folder pickers, period stats, exercise views, and charts.`
 
-- Fixed timer logic using timestamp-based timing.
-- New snooker-specific SVG icon.
-- Free training mode:
-  - choose any exercise
-  - save it
-  - choose another exercise or end training
-- Today view:
-  - number of exercises done today
-  - exercise types
-  - total training time
-  - session-by-session breakdown
-- Stats:
-  - date view for all exercises done on a selected day
-  - routine progression view
-  - progression chart by date/score
-- Exercise database:
-  - edit existing exercises
-  - duplicate exercises
-  - delete exercises
-  - folders and subfolders
-  - existing category or create new category
-  - filter by type/folder/search
-- Daily plans:
-  - filter exercise picker by type/folder
-  - randomizer that selects X exercises
-  - replace or append random exercises
-- Data:
-  - CSV export
-  - JSON backup/export/import
+If it does not, your phone or GitHub Pages is still serving the old cached app.
 
 ## Deployment
 
-Replace the files in the root of the GitHub repository with these files:
+Replace these root files in GitHub:
 
 - index.html
 - styles.css
@@ -56,14 +44,12 @@ Replace the files in the root of the GitHub repository with these files:
 
 Then commit and push.
 
-## Cache warning
+## Cache note
 
-If the old version still appears:
+Open:
 
-1. Go to `https://Sylphe.github.io/Snooker/index.html?v=3.1`
-2. Refresh several times.
-3. Remove the old installed app from Android home screen.
-4. Clear Chrome site data for the GitHub Pages URL if needed.
-5. Add to home screen again.
+`https://Sylphe.github.io/Snooker/index.html?v=3.2`
 
-Existing data should migrate automatically from v1/v2 localStorage if the URL/domain is unchanged.
+Refresh. If needed, remove the Android installed app and reinstall from Chrome.
+
+Existing records remain in localStorage and migrate automatically as long as the GitHub Pages URL is unchanged.

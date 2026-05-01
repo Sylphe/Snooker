@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.1</title>
+  <title>Snooker Practice Log v3.2</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.1" />
-  <link rel="stylesheet" href="styles.css?v=3.1" />
-  <link rel="icon" href="icon.svg?v=3.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.2" />
+  <link rel="stylesheet" href="styles.css?v=3.2" />
+  <link rel="icon" href="icon.svg?v=3.2" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.1 — folders, free sessions, daily view, date stats, randomizer, reliable timer.</p>
+      <p>v3.2 — folder pickers, period stats, exercise views, and charts.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -130,14 +130,20 @@
             <input id="routineCategoryNew" placeholder="e.g. cue ball control" />
           </div>
           <div>
-            <label>Folder</label>
-            <input id="routineFolder" list="folderSuggestions" placeholder="e.g. Potting" />
-            <datalist id="folderSuggestions"></datalist>
+            <label>Existing folder</label>
+            <select id="routineFolderSelect"></select>
           </div>
           <div>
-            <label>Subfolder</label>
-            <input id="routineSubfolder" list="subfolderSuggestions" placeholder="e.g. Long pots" />
-            <datalist id="subfolderSuggestions"></datalist>
+            <label>Or create new folder</label>
+            <input id="routineFolderNew" placeholder="e.g. Potting" />
+          </div>
+          <div>
+            <label>Existing subfolder</label>
+            <select id="routineSubfolderSelect"></select>
+          </div>
+          <div>
+            <label>Or create new subfolder</label>
+            <input id="routineSubfolderNew" placeholder="e.g. Long pots" />
           </div>
           <div>
             <label>Default attempts</label>
@@ -239,14 +245,25 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <div class="grid two">
+        <div class="grid three">
           <div>
-            <label>Routine progression</label>
-            <select id="statsRoutineSelect"></select>
+            <label>Stats view</label>
+            <select id="statsPeriodSelect">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="overall">Overall</option>
+              <option value="exercise">Per exercise</option>
+            </select>
           </div>
           <div>
-            <label>Training date view</label>
+            <label>Reference date</label>
             <input id="statsDateSelect" type="date" />
+          </div>
+          <div>
+            <label>Exercise filter</label>
+            <select id="statsRoutineSelect"></select>
           </div>
         </div>
         <div id="statsOutput" class="stats"></div>
@@ -279,6 +296,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.1"></script>
+  <script src="app.js?v=3.2"></script>
 </body>
 </html>

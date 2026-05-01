@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.1-final";
+const APP_VERSION = "3.2-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -134,8 +134,8 @@ function renderRoutineSelects() {
   const cats = categories(), flds = folders(), subs = subfolders();
 
   setSelectOptions($("routineCategorySelect"), cats, "Select existing type/category", $("routineCategorySelect").value || "all");
-  $("folderSuggestions").innerHTML = flds.map(f => `<option value="${escapeAttr(f)}"></option>`).join("");
-  $("subfolderSuggestions").innerHTML = subs.map(f => `<option value="${escapeAttr(f)}"></option>`).join("");
+  setSelectOptions($("routineFolderSelect"), flds, "Select existing folder", $("routineFolderSelect").value || "all");
+  setSelectOptions($("routineSubfolderSelect"), subs, "Select existing subfolder", $("routineSubfolderSelect").value || "all");
 
   setSelectOptions($("exerciseTypeFilter"), cats, "All types", $("exerciseTypeFilter").value || "all");
   setSelectOptions($("exerciseFolderFilter"), flds, "All folders", $("exerciseFolderFilter").value || "all");
@@ -206,8 +206,10 @@ function editRoutine(id) {
   $("routineScoring").value = r.scoring;
   $("routineCategorySelect").value = categories().includes(r.category) ? r.category : "all";
   $("routineCategoryNew").value = "";
-  $("routineFolder").value = r.folder || "";
-  $("routineSubfolder").value = r.subfolder || "";
+  $("routineFolderSelect").value = folders().includes(r.folder) ? r.folder : "all";
+  $("routineFolderNew").value = "";
+  $("routineSubfolderSelect").value = subfolders().includes(r.subfolder) ? r.subfolder : "all";
+  $("routineSubfolderNew").value = "";
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
   $("routineTarget").value = r.target || "";
@@ -219,9 +221,11 @@ function editRoutine(id) {
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolder","routineSubfolder","routineAttempts","routineDuration","routineTarget","routineDescription"].forEach(id => $(id).value = "");
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   $("routineCategorySelect").value = "all";
+  $("routineFolderSelect").value = "all";
+  $("routineSubfolderSelect").value = "all";
 }
 $("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
 
@@ -245,6 +249,14 @@ $("saveRoutineBtn").addEventListener("click", () => {
   const selectedCategory = $("routineCategorySelect").value;
   const category = newCategory || (selectedCategory !== "all" ? selectedCategory : "uncategorized");
 
+  const newFolder = $("routineFolderNew").value.trim();
+  const selectedFolder = $("routineFolderSelect").value;
+  const folder = newFolder || (selectedFolder !== "all" ? selectedFolder : (category || "Unfiled"));
+
+  const newSubfolder = $("routineSubfolderNew").value.trim();
+  const selectedSubfolder = $("routineSubfolderSelect").value;
+  const subfolder = newSubfolder || (selectedSubfolder !== "all" ? selectedSubfolder : "General");
+
   const routine = {
     id: $("routineEditId").value || crypto.randomUUID(),
     name,
@@ -253,8 +265,8 @@ $("saveRoutineBtn").addEventListener("click", () => {
     duration: Number($("routineDuration").value || 0) || "",
     target: Number($("routineTarget").value || 0) || "",
     category,
-    folder: $("routineFolder").value.trim() || category || "Unfiled",
-    subfolder: $("routineSubfolder").value.trim() || "General",
+    folder,
+    subfolder,
     description: $("routineDescription").value.trim()
   };
 
@@ -512,24 +524,109 @@ function displayScore(l) {
 
 $("statsRoutineSelect").addEventListener("change", renderStats);
 $("statsDateSelect").addEventListener("change", renderStats);
+$("statsPeriodSelect").addEventListener("change", renderStats);
+function getPeriodRange(period, dateKey) {
+  const d = dateKey ? new Date(dateKey + "T00:00:00") : new Date();
+  let start, end, label;
+  if (period === "daily" || period === "exercise") {
+    start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    end = new Date(start); end.setDate(end.getDate() + 1);
+    label = localDateKey(start);
+  } else if (period === "weekly") {
+    start = new Date(d);
+    const day = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - day);
+    start.setHours(0,0,0,0);
+    end = new Date(start); end.setDate(end.getDate() + 7);
+    label = `Week of ${localDateKey(start)}`;
+  } else if (period === "monthly") {
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    label = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  } else if (period === "yearly") {
+    start = new Date(d.getFullYear(), 0, 1);
+    end = new Date(d.getFullYear() + 1, 0, 1);
+    label = `${d.getFullYear()}`;
+  } else {
+    start = new Date(0);
+    end = new Date(8640000000000000);
+    label = "Overall";
+  }
+  return {start, end, label};
+}
+
+function logsInRange(logs, start, end) {
+  return logs.filter(l => {
+    const d = new Date(l.createdAt);
+    return d >= start && d < end;
+  });
+}
+
+function bucketLogs(logs, period) {
+  const buckets = {};
+  logs.forEach(l => {
+    const d = new Date(l.createdAt);
+    let key;
+    if (period === "weekly") {
+      const s = new Date(d);
+      const day = (s.getDay() + 6) % 7;
+      s.setDate(s.getDate() - day);
+      key = localDateKey(s);
+    } else if (period === "monthly") {
+      key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    } else if (period === "yearly") {
+      key = String(d.getFullYear());
+    } else {
+      key = localDateKey(d);
+    }
+    buckets[key] ||= {label:key, logs:[], time:0, avg:0, count:0};
+    buckets[key].logs.push(l);
+    buckets[key].time += Number(l.timeMinutes || 0);
+  });
+  Object.values(buckets).forEach(b => {
+    b.count = b.logs.length;
+    b.avg = avg(b.logs.map(l => Number(l.normalizedScore || 0)));
+  });
+  return Object.values(buckets).sort((a,b) => a.label.localeCompare(b.label));
+}
+
 function renderStats() {
+  const period = $("statsPeriodSelect").value || "daily";
   const rid = $("statsRoutineSelect").value;
   const dateKey = $("statsDateSelect").value || localDateKey();
-  const dateLogs = data.logs.filter(l => sameDate(l, dateKey)).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
-  let html = `<h3>Training date view — ${escapeHtml(dateKey)}</h3>` + renderDateView(dateLogs);
+  const range = getPeriodRange(period, dateKey);
 
-  if (!rid) { $("statsOutput").innerHTML = html + "<p>No routine selected for progression.</p>"; return; }
+  let scopedLogs = period === "overall" ? data.logs.slice() : logsInRange(data.logs, range.start, range.end);
+  scopedLogs = scopedLogs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-  const logs = data.logs.filter(l => l.routineId === rid).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
-  if (!logs.length) { $("statsOutput").innerHTML = html + "<h3>Routine progression</h3><p>No logs yet for this routine.</p>"; return; }
+  let html = `<h3>${period === "exercise" ? "Per exercise view" : "Training view"} — ${escapeHtml(range.label)}</h3>`;
+  html += renderDateView(scopedLogs);
 
+  if (scopedLogs.length) {
+    html += `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(scopedLogs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
+    html += `<h3>Exercise mix</h3>${renderCategoryChart(scopedLogs)}`;
+  }
+
+  if (period === "exercise" && rid) {
+    const exerciseLogs = data.logs.filter(l => l.routineId === rid).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+    html += renderExerciseProgression(exerciseLogs);
+  } else if (rid) {
+    const exerciseLogs = scopedLogs.filter(l => l.routineId === rid);
+    if (exerciseLogs.length) html += renderExerciseProgression(exerciseLogs);
+  }
+
+  $("statsOutput").innerHTML = html;
+}
+
+function renderExerciseProgression(logs) {
+  if (!logs.length) return `<h3>Routine progression</h3><p>No logs for this exercise in the selected view.</p>`;
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const last5 = vals.slice(-5);
   const best = Math.max(...vals);
   const latest = vals[vals.length - 1];
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
 
-  html += `<h3>Routine progression</h3><div class="stats-grid">
+  return `<h3>Routine progression</h3><div class="stats-grid">
     <div class="stat-card"><span>Latest</span><div class="value">${latest.toFixed(2)}</div></div>
     <div class="stat-card"><span>Average</span><div class="value">${avg(vals).toFixed(2)}</div></div>
     <div class="stat-card"><span>Best</span><div class="value">${best.toFixed(2)}</div></div>
@@ -538,9 +635,8 @@ function renderStats() {
     <div class="stat-card"><span>Total time</span><div class="value">${totalTime.toFixed(1)}m</div></div>
   </div><div class="trend">${trendLabel(vals)}</div>${renderChart(logs)}
   <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Time</th><th>Notes</th></tr></thead><tbody>${logs.slice(-15).reverse().map(l => `<tr><td>${new Date(l.createdAt).toLocaleDateString()}</td><td>${displayScore(l)}</td><td>${Number(l.normalizedScore || 0).toFixed(2)}</td><td>${l.timeMinutes}m</td><td>${escapeHtml(l.notes || "")}</td></tr>`).join("")}</tbody></table>`;
-
-  $("statsOutput").innerHTML = html;
 }
+
 function renderDateView(logs) {
   if (!logs.length) return "<p>No exercises logged for this date.</p>";
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
@@ -570,13 +666,62 @@ function renderToday() {
     <div class="stat-card"><span>Exercises</span><div class="value">${logs.length}</div></div>
     <div class="stat-card"><span>Total time</span><div class="value">${totalTime.toFixed(1)}m</div></div>
     <div class="stat-card"><span>Exercise types</span><div class="value">${Object.keys(byType).length}</div></div>
-  </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>${
+  </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
+  <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
+  ${
     Object.values(bySession).map(s => {
       const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
       return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Time</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(l.routineName)}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${l.timeMinutes}m</td></tr>`).join("")}</tbody></table></div>`;
     }).join("")
   }`;
 }
+function renderVolumeChart(buckets, metric, title) {
+  if (!buckets.length) return `<div class="chart-wrap"><p class="muted">No data for chart.</p></div>`;
+  const w=720,h=260,padL=44,padR=18,padT=20,padB=54;
+  const values = buckets.map(b => metric === "count" ? b.count : b.time);
+  const maxV = Math.max(...values, 1);
+  const barW = Math.max(8, (w-padL-padR) / buckets.length * 0.65);
+  const step = (w-padL-padR) / buckets.length;
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <line class="chart-axis" x1="${padL}" x2="${padL}" y1="${padT}" y2="${h-padB}"></line>
+    <line class="chart-axis" x1="${padL}" x2="${w-padR}" y1="${h-padB}" y2="${h-padB}"></line>
+    ${buckets.map((b,i) => {
+      const v = metric === "count" ? b.count : b.time;
+      const bh = (v / maxV) * (h-padT-padB);
+      const x = padL + i*step + (step-barW)/2;
+      const y = h-padB-bh;
+      return `<rect class="chart-bar" x="${x}" y="${y}" width="${barW}" height="${bh}"><title>${b.label}: ${v.toFixed ? v.toFixed(1) : v}</title></rect>`;
+    }).join("")}
+    ${buckets.filter((_,i)=> i===0 || i===buckets.length-1 || i===Math.floor((buckets.length-1)/2)).map((b,i,arr) => {
+      const idx = buckets.indexOf(b); const x = padL + idx*step + step/2 - 22;
+      return `<text class="chart-label" x="${x}" y="${h-18}">${escapeHtml(b.label.slice(-10))}</text>`;
+    }).join("")}
+    <text class="chart-label" x="5" y="18">${escapeHtml(title)}</text>
+  </svg></div>`;
+}
+
+function renderCategoryChart(logs) {
+  if (!logs.length) return `<div class="chart-wrap"><p class="muted">No data for chart.</p></div>`;
+  const grouped = {};
+  logs.forEach(l => {
+    const k = l.category || "uncategorized";
+    grouped[k] ||= {label:k, count:0, time:0};
+    grouped[k].count += 1;
+    grouped[k].time += Number(l.timeMinutes || 0);
+  });
+  const buckets = Object.values(grouped).sort((a,b)=>b.time-a.time);
+  const w=720,h=260,padL=120,padR=18,padT=20,padB=28;
+  const maxV = Math.max(...buckets.map(b=>b.time), 1);
+  const rowH = Math.max(22, Math.min(38, (h-padT-padB)/Math.max(1,buckets.length)));
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    ${buckets.map((b,i) => {
+      const y = padT + i*rowH;
+      const bw = (b.time / maxV) * (w-padL-padR);
+      return `<text class="chart-label" x="5" y="${y+15}">${escapeHtml(b.label.slice(0,16))}</text><rect class="chart-bar-alt" x="${padL}" y="${y}" width="${bw}" height="${rowH*0.65}"><title>${b.label}: ${b.time.toFixed(1)} min, ${b.count} exercises</title></rect><text class="chart-label" x="${padL+bw+5}" y="${y+15}">${b.time.toFixed(1)}m</text>`;
+    }).join("")}
+  </svg></div>`;
+}
+
 function renderChart(logs) {
   if (logs.length < 2) return `<div class="chart-wrap"><p class="muted">Add at least two logs to display a progression curve.</p></div>`;
   const points = logs.map((l,i) => ({i, y: Number(l.normalizedScore || 0), label: localDateKey(l.createdAt)}));
@@ -641,7 +786,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
