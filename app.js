@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.13-final";
+const APP_VERSION = "3.13.1-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -1769,6 +1769,23 @@ const FIELD_HELP = {
 
 };
 
+
+FIELD_HELP.targetScoreMode = {
+  title:"Target score",
+  body:`
+  <p><strong>Meaning:</strong> performance threshold for success.</p>
+  <p><strong>Use %</strong> for success-rate or completion drills.</p>
+  <p><strong>Use number</strong> for highest break or raw score drills.</p>
+  <div class="example"><strong>Example:</strong> 50% = 7/14 pots; 35 = break of 35.</div>`
+};
+FIELD_HELP.stretchScoreMode = {
+  title:"Stretch target",
+  body:`
+  <p><strong>Meaning:</strong> higher performance goal above target.</p>
+  <p>Same input logic as target score.</p>
+  <div class="example"><strong>Example:</strong> Target 50%, Stretch 75% or Target 35, Stretch 50.</div>`
+};
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -1798,7 +1815,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.13");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.13.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -1957,3 +1974,20 @@ document.addEventListener("DOMContentLoaded",()=>{
   const loadBtn = document.getElementById("loadGeneratedPlanBtn");
   if(loadBtn) loadBtn.onclick=loadGeneratedPlan;
 });
+
+
+function updateTargetHints(){
+  const scoring = $("routineScoring")?.value || "";
+  let txt = "";
+  if(scoring === "success_rate" || scoring === "progressive_completion"){
+    txt = "(use %)";
+  } else {
+    txt = "(use number)";
+  }
+  if($("targetScoreHint")) $("targetScoreHint").textContent = txt;
+  if($("stretchScoreHint")) $("stretchScoreHint").textContent = txt;
+}
+document.addEventListener("change", e=>{
+  if(e.target && e.target.id==="routineScoring") updateTargetHints();
+});
+document.addEventListener("DOMContentLoaded", updateTargetHints);

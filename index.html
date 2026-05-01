@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.13</title>
+  <title>Snooker Practice Log v3.13.1</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.13" />
-  <link rel="stylesheet" href="styles.css?v=3.13" />
-  <link rel="icon" href="icon.svg?v=3.13" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.13.1" />
+  <link rel="stylesheet" href="styles.css?v=3.13.1" />
+  <link rel="icon" href="icon.svg?v=3.13.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.13 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.13.1 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -212,7 +212,7 @@
             <input id="routineTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div>
-            <label>Stretch target</label>
+            <label>Stretch target <button type="button" class="help-dot" onclick="showFieldHelp('stretchScoreMode')">?</button> <span id="stretchScoreHint" class="hint-text"></span></label>
             <input id="routineStretchTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div>
@@ -467,6 +467,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.13"></script>
+  <script src="app.js?v=3.13.1"></script>
 </body>
 </html>
