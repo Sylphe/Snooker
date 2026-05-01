@@ -1,29 +1,30 @@
-# Snooker Practice Log — v3.12 final
+# Snooker Practice Log — v3.13 final
 
-Built from v3.11.1.
+Built from v3.12.
 
-## New in v3.12
+## New in v3.13
 
-Constraint-aware exercises:
+Target / difficulty versioning:
 
-- Added exercise-level Target Colour field
-- Supported colours:
-  - red
-  - yellow
-  - green
-  - brown
-  - blue
-  - pink
-  - black
-  - custom / other
-- Existing `blacks_only` target mode automatically maps to target colour = black
-- Progressive completion logs now store target colour
-- Display and CSV export include target colour
-- Added contextual help for Target Colour
+- Each exercise now has a target profile history
+- When target, stretch target, total units, attempts, or scoring type changes, the app asks:
+  - OK = create a new target version from today
+  - Cancel = correct the existing active target profile
+- Logs store:
+  - targetProfileId
+  - targetAtLog
+  - stretchTargetAtLog
+  - totalUnitsAtLog
+  - attemptsPerSessionAtLog
+  - difficultyLabelAtLog
+- Historical performance remains evaluated against the target that was active when the log was created
+- Current-target performance can also be calculated separately
+- Stats show target-version summaries where multiple versions exist
+- CSV export includes target-at-log and current-target performance
 
 ## Why this matters
 
-A blue-only break-building drill and a black-only line-up drill have different technical constraints. Tracking the colour at exercise level keeps the data useful without adding ball-by-ball logging friction.
+If you raise a target after performing well, old logs remain fairly classified against the old target, while new logs are evaluated against the new difficulty level.
 
 Confirm version:
-The header should show v3.12.
+The header should show v3.13.

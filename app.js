@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.12-final";
+const APP_VERSION = "3.13-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -54,6 +54,7 @@ function migrateData(d) {
     category: r.category || "uncategorized",
     stretchTarget: r.stretchTarget || ""
   }));
+  d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
   d.tagHistory = d.tagHistory || [];
   d.sessions = d.sessions || [];
@@ -144,19 +145,14 @@ function subfolders() { return [...new Set(data.routines.map(r => r.subfolder ||
 function routineById(id) { return data.routines.find(r => r.id === id); }
 
 function normalizeScore(log) {
-  if (log.scoring === "progressive_completion") return Number(log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnits || 0)) * 100 : 0;
+  if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
   if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
   if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? Number(log.score || 0) / Number(log.timeMinutes || 0) : 0;
   return Number(log.score || 0);
 }
 function classifyPerformance(log, routine) {
-  const target = Number(routine?.target || 0);
-  const stretch = Number(routine?.stretchTarget || 0);
-  const s = Number(log.normalizedScore || 0);
-  if (!target) return "N/A";
-  if (stretch && s >= stretch) return "Above Target";
-  if (s >= target) return "On Target";
-  return "Fail";
+  const p = getActiveTargetProfile(routine);
+  return classifyPerformanceAgainstTarget(log.normalizedScore, log.targetAtLog || p?.target || routine?.target, log.stretchTargetAtLog || p?.stretchTarget || routine?.stretchTarget);
 }
 
 function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
@@ -305,6 +301,7 @@ function editRoutine(id) {
   $("routineDuration").value = r.duration || "";
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
+  $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
   $("routineTotalUnits").value = r.totalUnits || "";
   $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
   $("routineUnitType").value = r.unitType || "balls_cleared";
@@ -318,7 +315,7 @@ function editRoutine(id) {
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDescription"].forEach(id => $(id).value = "");
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
@@ -365,12 +362,44 @@ $("saveRoutineBtn").addEventListener("click", () => {
     targetMode: $("routineTargetMode").value || "custom",
     targetColour: $("routineTargetColour").value || inferTargetColour($("routineTargetMode").value) || "",
     trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
+    difficultyLabel: $("routineDifficultyLabel").value.trim() || "Base target",
     category, folder, subfolder,
     description: $("routineDescription").value.trim()
   };
 
-  if ($("routineEditId").value) data.routines = data.routines.map(r => r.id === routine.id ? routine : r);
-  else data.routines.push(routine);
+  if ($("routineEditId").value) {
+    const oldRoutine = data.routines.find(r => r.id === routine.id);
+    if (oldRoutine) {
+      routine.targetHistory = oldRoutine.targetHistory || [];
+      routine.activeTargetProfileId = oldRoutine.activeTargetProfileId || "";
+      const targetChanged = hasTargetProfileChanged(oldRoutine, routine);
+      if (targetChanged) {
+        const createVersion = confirm("Target / difficulty fields changed. Recommended: OK = create a new target version from today. Cancel = correct the existing active target profile.");
+        if (createVersion) {
+          const profile = makeTargetProfile(routine, routine.difficultyLabel || "Updated target");
+          routine.targetHistory.push(profile);
+          routine.activeTargetProfileId = profile.id;
+        } else {
+          ensureTargetHistory(routine);
+          const p = getActiveTargetProfile(routine);
+          if (p) {
+            p.target = routine.target;
+            p.stretchTarget = routine.stretchTarget;
+            p.totalUnits = routine.totalUnits;
+            p.attemptsPerSession = routine.attemptsPerSession || routine.attempts;
+            p.difficultyLabel = routine.difficultyLabel || p.difficultyLabel || "Corrected target";
+            p.scoring = routine.scoring;
+          }
+        }
+      } else {
+        ensureTargetHistory(routine);
+      }
+    }
+    data.routines = data.routines.map(r => r.id === routine.id ? routine : r);
+  } else {
+    ensureTargetHistory(routine);
+    data.routines.push(routine);
+  }
 
   clearRoutineForm();
   saveData();
@@ -601,6 +630,7 @@ function saveCurrentRoutine() {
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
   if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
   if (Number.isNaN(score)) return alert("Enter a valid score.");
+  const activeProfile = getActiveTargetProfile(r);
 
   const log = {
     id: crypto.randomUUID(),
@@ -627,6 +657,12 @@ function saveCurrentRoutine() {
     totalUnits: r.totalUnits || "",
     unitType: r.unitType || "",
     targetMode: r.targetMode || "",
+    targetProfileId: activeProfile?.id || "",
+    targetAtLog: activeProfile?.target || r.target || "",
+    stretchTargetAtLog: activeProfile?.stretchTarget || r.stretchTarget || "",
+    totalUnitsAtLog: activeProfile?.totalUnits || r.totalUnits || "",
+    attemptsPerSessionAtLog: activeProfile?.attemptsPerSession || r.attemptsPerSession || r.attempts || "",
+    difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
     targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
     performance: "N/A",
     sessionRating: Number($("sessionRating")?.value || 0) || "",
@@ -1245,6 +1281,31 @@ function renderSecondOrderAnalytics(logs, selectedRid, rollingWindow=10) {
   return `<h3>Second-order analytics</h3><div class="diagnostic-grid">${cards.map(c=>`<div class="diagnostic-card ${c.cls}"><strong>${escapeHtml(c.title)}</strong>${escapeHtml(c.text)}</div>`).join("")}</div>`;
 }
 
+
+function targetHitRateCurrentTarget(logs) {
+  const evaluated = logs.filter(l => routineById(l.routineId));
+  if (!evaluated.length) return null;
+  const hits = evaluated.filter(l => {
+    const perf = currentTargetPerformance(l);
+    return perf === "On Target" || perf === "Above Target";
+  }).length;
+  return hits / evaluated.length * 100;
+}
+function renderTargetProfileSummary(logs) {
+  const groups = {};
+  logs.forEach(l => {
+    const label = getTargetProfileLabel(l);
+    groups[label] ||= [];
+    groups[label].push(l);
+  });
+  const entries = Object.entries(groups);
+  if (entries.length <= 1) return "";
+  return `<div class="analytics-note"><strong>Target versions:</strong>${entries.map(([label, arr]) => {
+    const hr = targetHitRate(arr);
+    return `<span class="target-profile-badge">${escapeHtml(label)} · ${arr.length} logs · hit rate ${hr === null ? "N/A" : hr.toFixed(1)+"%"}</span>`;
+  }).join("")}</div>`;
+}
+
 function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const durations = logs.map(l => Number(l.timeMinutes || 0));
@@ -1257,7 +1318,7 @@ function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
   return `<h3>Advanced analytics</h3>
     <div class="stats-grid">
       <div class="stat-card"><span>Momentum</span><div class="value">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
-      <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+      <div class="stat-card"><span>Hit rate at-time target</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div><div class="stat-card"><span>Hit rate current target</span><div class="value">${targetHitRateCurrentTarget(logs) === null ? "N/A" : targetHitRateCurrentTarget(logs).toFixed(1)+"%"}</div></div>
       <div class="stat-card"><span>Current streak</span><div class="value">${st.current}d</div></div>
       <div class="stat-card"><span>Best streak</span><div class="value">${st.best}d</div></div>
       <div class="stat-card"><span>Duration correlation</span><div class="value">${escapeHtml(corrText(corrTime))}</div></div>
@@ -1367,7 +1428,8 @@ function renderDateView(logs) {
     <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="8">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
+  ${renderTargetProfileSummary(logs)}
+  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="9">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderToday() {
   const today = localDateKey();
@@ -1391,7 +1453,7 @@ function renderToday() {
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
     const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
   }).join("")}`;
 }
 
@@ -1464,11 +1526,12 @@ function exportValue(log, field) {
   if (field === "currentPlanName") return getPlanName(log);
   if (field === "sessionName") return getPlanName(log);
   if (field === "routineName") return getRoutineName(log);
+  if (field === "currentTargetPerformance") return currentTargetPerformance(log);
   return log[field] ?? "";
 }
 
 $("exportCsvBtn").addEventListener("click", () => {
-  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","notes"];
+  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
@@ -1562,6 +1625,60 @@ function fmtTargetMode(mode) {
     nominated_colour:"Nominated colour",
     custom:"Custom"
   })[mode || ""] || "Custom";
+}
+
+
+function makeTargetProfile(routine, label) {
+  return {
+    id: crypto.randomUUID(),
+    effectiveFrom: new Date().toISOString(),
+    target: Number(routine.target || 0) || "",
+    stretchTarget: Number(routine.stretchTarget || 0) || "",
+    totalUnits: Number(routine.totalUnits || 0) || "",
+    attemptsPerSession: Number(routine.attemptsPerSession || routine.attempts || 0) || "",
+    difficultyLabel: label || routine.difficultyLabel || "Base target",
+    scoring: routine.scoring || "raw"
+  };
+}
+function ensureTargetHistory(routine) {
+  routine.targetHistory = routine.targetHistory || [];
+  if (!routine.targetHistory.length) {
+    routine.targetHistory.push(makeTargetProfile(routine, routine.difficultyLabel || "Base target"));
+    routine.activeTargetProfileId = routine.targetHistory[0].id;
+  }
+  if (!routine.activeTargetProfileId) routine.activeTargetProfileId = routine.targetHistory[routine.targetHistory.length-1].id;
+  return routine;
+}
+function getActiveTargetProfile(routine) {
+  if (!routine) return null;
+  ensureTargetHistory(routine);
+  return routine.targetHistory.find(p => p.id === routine.activeTargetProfileId) || routine.targetHistory[routine.targetHistory.length-1] || null;
+}
+function hasTargetProfileChanged(oldRoutine, newRoutine) {
+  if (!oldRoutine) return false;
+  return Number(oldRoutine.target || 0) !== Number(newRoutine.target || 0)
+    || Number(oldRoutine.stretchTarget || 0) !== Number(newRoutine.stretchTarget || 0)
+    || Number(oldRoutine.totalUnits || 0) !== Number(newRoutine.totalUnits || 0)
+    || Number(oldRoutine.attemptsPerSession || oldRoutine.attempts || 0) !== Number(newRoutine.attemptsPerSession || newRoutine.attempts || 0)
+    || (oldRoutine.scoring || "") !== (newRoutine.scoring || "");
+}
+function classifyPerformanceAgainstTarget(normalizedScore, targetAtLog, stretchTargetAtLog) {
+  const target = Number(targetAtLog || 0);
+  const stretch = Number(stretchTargetAtLog || 0);
+  const s = Number(normalizedScore || 0);
+  if (!target) return "N/A";
+  if (stretch && s >= stretch) return "Above Target";
+  if (s >= target) return "On Target";
+  return "Fail";
+}
+function currentTargetPerformance(log) {
+  const r = routineById(log.routineId);
+  if (!r) return log.performance || "N/A";
+  const p = getActiveTargetProfile(r);
+  return classifyPerformanceAgainstTarget(log.normalizedScore, p?.target || r.target, p?.stretchTarget || r.stretchTarget);
+}
+function getTargetProfileLabel(log) {
+  return log.difficultyLabelAtLog || log.targetProfileLabel || "Legacy / unversioned";
 }
 
 function planById(id) {
@@ -1681,7 +1798,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.12");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.13");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
