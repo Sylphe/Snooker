@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.6</title>
+  <title>Snooker Practice Log v3.7</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.6" />
-  <link rel="stylesheet" href="styles.css?v=3.6" />
-  <link rel="icon" href="icon.svg?v=3.6" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.7" />
+  <link rel="stylesheet" href="styles.css?v=3.7" />
+  <link rel="icon" href="icon.svg?v=3.7" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.6 — faster input, repeat last exercise, quick scores, streamlined logging.</p>
+      <p>v3.7 — coaching insights, focused stats overview, advanced stats view.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -299,6 +299,10 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
+        <div class="stats-subtabs">
+          <button id="statsOverviewBtn" class="secondary active-subtab" type="button">Overview</button>
+          <button id="statsAdvancedBtn" class="secondary" type="button">Advanced Stats</button>
+        </div>
         <div class="grid three">
           <div>
             <label>Stats view</label>
@@ -360,6 +364,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.6"></script>
+  <script src="app.js?v=3.7"></script>
 </body>
 </html>

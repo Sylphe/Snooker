@@ -1,22 +1,28 @@
-# Snooker Practice Log — v3.6 final
+# Snooker Practice Log — v3.7 final
 
-Built from v3.5.
+Built from v3.6.
 
-## New in v3.6 — General App Improvement D: Faster input UX
+## New in v3.7
 
-- Repeat Last Exercise button
-- Quick score buttons:
-  - +1 / -1
-  - +5 / +10 for raw/points exercises
-  - Half / Max presets for success-rate exercises
-- Score input auto-focuses when a routine starts
-- Enter key saves the current routine
-- Numeric mobile keyboard hints
-- Sticky save/action bar at bottom of active routine screen
-- Smart default placeholders:
-  - last logged time for the same exercise
-  - last used session rating
+Coaching engine:
+- Skill Gap Index
+- Weakness Concentration Index
+- Fatigue / performance curve
+- Coaching insights box with concrete recommendations
 
-## Confirm version
+Stats UX:
+- Stats Overview subtab:
+  - only core signals
+  - coaching insights
+  - weakest area
+  - fatigue curve
+  - compact charts
+- Advanced Stats subtab:
+  - all detailed analytics retained
+  - rolling averages
+  - correlations
+  - benchmarks
+  - detailed logs and edit/delete
 
-The header should show v3.6.
+Confirm version:
+The header should show v3.7.

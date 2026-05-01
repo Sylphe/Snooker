@@ -80,3 +80,16 @@ svg.chart{height:170px!important;min-width:280px}
 input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);border-color:#c7a753}
 .sticky-log-actions{position:sticky;bottom:0;background:rgba(244,246,242,.94);backdrop-filter:blur(4px);padding:10px;border-top:1px solid var(--line);margin:12px -18px -18px}
 @media(max-width:760px){.quick-score button{flex:1 1 28%}.sticky-log-actions{margin-left:-18px;margin-right:-18px}}
+
+/* v3.7 coaching engine / stats overview */
+.stats-subtabs{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.stats-subtabs button{padding:9px 12px;flex:0 0 auto}
+.active-subtab{background:var(--primary)!important;color:#fff!important}
+.coaching-box{border:1px solid #d7e5dc;background:#f7fbf8;border-radius:14px;padding:12px;margin:12px 0}
+.coaching-box h3{margin-bottom:8px}
+.insight{padding:8px 10px;border-left:4px solid var(--gold);background:#fff;border-radius:8px;margin:8px 0}
+.insight strong{display:block;margin-bottom:3px}
+.overview-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.overview-card{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px}
+.overview-card .big{font-size:24px;font-weight:850;margin-top:5px}
+@media(max-width:760px){.overview-grid{grid-template-columns:1fr}}
