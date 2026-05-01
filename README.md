@@ -1,33 +1,27 @@
-# Snooker Practice Log — v3.10 final
+# Snooker Practice Log — v3.11 final
 
-Built from v3.9.1.
+Built from v3.10.1.
 
-## New in v3.10
+## New in v3.11
 
-Progressive Completion scoring:
-- New scoring type: Progressive completion
-- Exercise configuration:
-  - total units / completion size
-  - attempts per session
-  - unit type: balls cleared, points scored, pairs completed, steps completed
-  - target colour mode: blacks only, mixed colours, nominated colour, custom
-  - track highest break
-- Logging fields:
-  - average units completed per attempt
-  - best attempt
-  - completion count
-  - optional highest break
-- KPIs:
-  - average completion %
-  - best attempt
-  - completions
-  - highest break
+Consistent historical references:
 
-UX / data quality:
-- Delete confirmation wrapper
-- Session rating is now a controlled 1–5 dropdown
-- Session tags can be selected from previously used tags
-- Tag history is stored in app data and JSON backups
+- Logs now resolve the current exercise name dynamically through `routineId`
+- Logs keep `routineNameSnapshot` only as a fallback if the exercise is deleted
+- Logs now resolve the current daily plan name dynamically through `planId`
+- Logs keep `planNameSnapshot` only as a fallback if the plan is deleted
+- Sessions also preserve plan IDs and plan snapshots
+- CSV export now includes:
+  - current routine name
+  - routine snapshot name
+  - current plan name
+  - plan snapshot name
+
+## Why this matters
+
+If you rename an exercise or daily plan later, historical records stay analytically continuous and display the updated name.
+
+If you delete an exercise or plan, the snapshot name remains available as fallback.
 
 Confirm version:
-The header should show v3.10.
+The header should show v3.11.

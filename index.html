@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.10</title>
+  <title>Snooker Practice Log v3.11</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.10" />
-  <link rel="stylesheet" href="styles.css?v=3.10" />
-  <link rel="icon" href="icon.svg?v=3.10" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.11" />
+  <link rel="stylesheet" href="styles.css?v=3.11" />
+  <link rel="icon" href="icon.svg?v=3.11" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.10 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.11 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -208,7 +208,7 @@
             <input id="routineDuration" type="number" min="0" placeholder="e.g. 10" />
           </div>
           <div>
-            <label>Target score</label>
+            <label>Target score <button type="button" class="help-dot" onclick="showFieldHelp('targetScore')">?</button></label>
             <input id="routineTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div>
@@ -216,15 +216,15 @@
             <input id="routineStretchTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div class="progressive-config">
-            <label>Total units / completion size</label>
+            <label>Total units / completion size <button type="button" class="help-dot" onclick="showFieldHelp('totalUnits')">?</button></label>
             <input id="routineTotalUnits" type="number" min="1" step="1" placeholder="e.g. 30 balls, 15 pairs, 147 points" />
           </div>
           <div class="progressive-config">
-            <label>Attempts per session</label>
+            <label>Attempts per session <button type="button" class="help-dot" onclick="showFieldHelp('attemptsPerSession')">?</button></label>
             <input id="routineAttemptsPerSession" type="number" min="1" step="1" placeholder="e.g. 10" />
           </div>
           <div class="progressive-config">
-            <label>Unit type</label>
+            <label>Unit type <button type="button" class="help-dot" onclick="showFieldHelp('unitType')">?</button></label>
             <select id="routineUnitType">
               <option value="balls_cleared">Balls cleared</option>
               <option value="points_scored">Points scored</option>
@@ -233,7 +233,7 @@
             </select>
           </div>
           <div class="progressive-config">
-            <label>Target colour mode</label>
+            <label>Target colour mode <button type="button" class="help-dot" onclick="showFieldHelp('targetColourMode')">?</button></label>
             <select id="routineTargetMode">
               <option value="blacks_only">Blacks only</option>
               <option value="mixed_colours">Mixed colours</option>
@@ -433,10 +433,22 @@
     </section>
   </main>
 
+
+  <div id="fieldHelpModal" class="modal-backdrop hidden" onclick="closeFieldHelp(event)">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fieldHelpTitle">
+      <div class="modal-header">
+        <h2 id="fieldHelpTitle">Field help</h2>
+        <button type="button" class="modal-close" onclick="hideFieldHelp()">×</button>
+      </div>
+      <div id="fieldHelpBody" class="modal-body"></div>
+      <button type="button" class="secondary" onclick="hideFieldHelp()">Close</button>
+    </div>
+  </div>
+
   <footer>
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.10"></script>
+  <script src="app.js?v=3.11"></script>
 </body>
 </html>

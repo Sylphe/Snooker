@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.10-final";
+const APP_VERSION = "3.11-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -92,7 +92,9 @@ function migrateData(d) {
       });
     }
   });
-  return d;
+  data = d;
+  refreshReferenceNames();
+  return data;
 }
 
 function loadData() {
@@ -121,6 +123,7 @@ function loadData() {
 
 function saveData() {
   data.appVersion = APP_VERSION;
+  refreshReferenceNames();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   renderAll();
 }
@@ -602,8 +605,12 @@ function saveCurrentRoutine() {
     sessionId: activeSession.id,
     sessionName: activeSession.planName,
     sessionType: activeSession.type,
+    planId: activeSession.planId || "",
+    sessionPlanId: activeSession.planId || "",
+    planNameSnapshot: activeSession.type === "plan" ? activeSession.planName : "",
     routineId: r.id,
     routineName: r.name,
+    routineNameSnapshot: r.name,
     folder: r.folder || "Unfiled",
     subfolder: r.subfolder || "General",
     category: r.category || "uncategorized",
@@ -648,13 +655,15 @@ function completeSession() {
   $("freeNextCard").classList.add("hidden");
   const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(activeSession.planName)}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(l.routineName)}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
+  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
   $("sessionSummary").classList.remove("hidden");
   data.sessions = data.sessions || [];
   const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
   const sessionRecord = {
     id: activeSession.id,
-    name: activeSession.planName,
+    name: getPlanName(activeSession),
+    planNameSnapshot: activeSession.planName,
+    planId: activeSession.planId || "",
     type: activeSession.type,
     startedAt: activeSession.startedAt,
     endedAt: new Date().toISOString(),
@@ -1355,7 +1364,7 @@ function renderDateView(logs) {
     <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(l.sessionName || "")}</td><td>${escapeHtml(l.routineName)}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="8">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
+  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="8">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderToday() {
   const today = localDateKey();
@@ -1366,7 +1375,7 @@ function renderToday() {
   const byType = {}, bySession = {};
   logs.forEach(l => {
     byType[l.category || "uncategorized"] = (byType[l.category || "uncategorized"] || 0) + 1;
-    bySession[l.sessionId] ||= {name: l.sessionName || "Session", type: l.sessionType || "", logs: []};
+    bySession[l.sessionId] ||= {name: getPlanName(l), type: l.sessionType || "", logs: []};
     bySession[l.sessionId].logs.push(l);
   });
   const hit = targetHitRate(logs);
@@ -1379,7 +1388,7 @@ function renderToday() {
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
     const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(l.routineName)}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
   }).join("")}`;
 }
 
@@ -1446,9 +1455,18 @@ function renderRollingChart(logs, rollingVals) {
   return `<h3>Rolling average</h3>${renderChart(fakeLogs)}`;
 }
 
+
+function exportValue(log, field) {
+  if (field === "currentRoutineName") return getRoutineName(log);
+  if (field === "currentPlanName") return getPlanName(log);
+  if (field === "sessionName") return getPlanName(log);
+  if (field === "routineName") return getRoutineName(log);
+  return log[field] ?? "";
+}
+
 $("exportCsvBtn").addEventListener("click", () => {
-  const headers = ["createdAt","sessionName","sessionType","routineName","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","notes"];
-  const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(l[h] ?? "")).join(",")));
+  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","notes"];
+  const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
 $("exportJsonBtn").addEventListener("click", () => downloadFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"));
@@ -1515,6 +1533,101 @@ function progressiveStatsForLogs(logs) {
   return {avgCompletion, bestAttempt, completionCount, highestBreak, count:pc.length};
 }
 
+
+
+function planById(id) {
+  return (data.plans || []).find(p => p.id === id);
+}
+function getRoutineName(logOrId) {
+  const id = typeof logOrId === "string" ? logOrId : logOrId?.routineId;
+  const fallback = typeof logOrId === "string" ? "" : (logOrId?.routineName || logOrId?.routineNameSnapshot || "");
+  return routineById(id)?.name || fallback || "Deleted exercise";
+}
+function getPlanName(logOrSessionOrId) {
+  const id = typeof logOrSessionOrId === "string" ? logOrSessionOrId : (logOrSessionOrId?.planId || logOrSessionOrId?.sessionPlanId);
+  const fallback = typeof logOrSessionOrId === "string" ? "" : (logOrSessionOrId?.sessionName || logOrSessionOrId?.planNameSnapshot || logOrSessionOrId?.name || "");
+  return planById(id)?.name || fallback || "Deleted / free session";
+}
+function enrichLogReferences(log) {
+  const r = routineById(log.routineId);
+  if (r) {
+    log.routineNameSnapshot = log.routineNameSnapshot || log.routineName || r.name;
+    log.routineName = r.name;
+    log.category = log.category || r.category || "uncategorized";
+    log.folder = log.folder || r.folder || "Unfiled";
+    log.subfolder = log.subfolder || r.subfolder || "General";
+  }
+  const p = planById(log.planId || log.sessionPlanId);
+  if (p) {
+    log.planNameSnapshot = log.planNameSnapshot || log.sessionName || p.name;
+    log.sessionName = p.name;
+  }
+  return log;
+}
+function refreshReferenceNames() {
+  data.logs = (data.logs || []).map(enrichLogReferences);
+  data.sessions = (data.sessions || []).map(s => {
+    const p = planById(s.planId);
+    if (p) {
+      s.planNameSnapshot = s.planNameSnapshot || s.name || p.name;
+      s.name = p.name;
+    }
+    return s;
+  });
+}
+
+const FIELD_HELP = {
+  targetScore: {
+    title: "Target score",
+    body: `
+      <p><strong>What it means:</strong> the minimum normalized score that counts as a good result for this exercise.</p>
+      <div class="example"><strong>Example:</strong> for long potting 10 attempts, a target score of 70 means 7/10 or better.</div>
+      <p><strong>Best use:</strong> set a realistic threshold that you can hit around 40–70% of the time. If you hit it almost always, increase difficulty.</p>`
+  },
+  totalUnits: {
+    title: "Total units / completion size",
+    body: `
+      <p><strong>What it means:</strong> the full size of the drill when completed. This is used to calculate completion percentage.</p>
+      <div class="example"><strong>Example:</strong> for a T line-up with 15 reds + 15 blacks, total units could be 30 balls, or 15 red-black pairs if you prefer pair-based scoring.</div>
+      <p><strong>Best use:</strong> choose the unit that best reflects the drill objective. For black-only line-up work, pairs completed is often cleaner than points.</p>`
+  },
+  attemptsPerSession: {
+    title: "Attempts per session",
+    body: `
+      <p><strong>What it means:</strong> the number of tries you normally give yourself in one logged session.</p>
+      <div class="example"><strong>Example:</strong> 10 attempts to complete the T line-up.</div>
+      <p><strong>Best use:</strong> keep this stable across sessions so the statistics are comparable. Change it only if you deliberately change the drill format.</p>`
+  },
+  unitType: {
+    title: "Unit type",
+    body: `
+      <p><strong>What it means:</strong> the way progress is counted inside a progressive completion exercise.</p>
+      <div class="example"><strong>Example:</strong> balls cleared, points scored, red-colour pairs completed, or steps completed.</div>
+      <p><strong>Best use:</strong> use balls or pairs for completion drills. Use points only when scoring output is the real objective, because points can hide different technical difficulty.</p>`
+  },
+  targetColourMode: {
+    title: "Target colour mode",
+    body: `
+      <p><strong>What it means:</strong> describes the colour rule of the exercise, so similar-looking drills do not get mixed statistically.</p>
+      <div class="example"><strong>Example:</strong> “blacks only” for red-black-red-black line-up practice; “mixed colours” for general clearance work.</div>
+      <p><strong>Best use:</strong> create separate exercises for materially different colour rules. A black-only line-up and a mixed-colour line-up should not share the same data series.</p>`
+  }
+};
+
+function showFieldHelp(key) {
+  const item = FIELD_HELP[key];
+  if (!item) return;
+  $("fieldHelpTitle").textContent = item.title;
+  $("fieldHelpBody").innerHTML = item.body;
+  $("fieldHelpModal").classList.remove("hidden");
+}
+function hideFieldHelp() {
+  $("fieldHelpModal").classList.add("hidden");
+}
+function closeFieldHelp(event) {
+  if (event.target && event.target.id === "fieldHelpModal") hideFieldHelp();
+}
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
@@ -1530,7 +1643,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.10");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.11");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
