@@ -1,28 +1,40 @@
-# Snooker Practice Log — v3.7 final
+# Snooker Practice Log — v3.9.1 final
 
-Built from v3.6.
+Built from v3.9.
 
-## New in v3.7
+## Orchestrator upgrade
 
-Coaching engine:
-- Skill Gap Index
-- Weakness Concentration Index
-- Fatigue / performance curve
-- Coaching insights box with concrete recommendations
+This version upgrades the Training Orchestrator from simple routine picking to a structured rule-based training engine.
 
-Stats UX:
-- Stats Overview subtab:
-  - only core signals
-  - coaching insights
-  - weakest area
-  - fatigue curve
-  - compact charts
-- Advanced Stats subtab:
-  - all detailed analytics retained
-  - rolling averages
-  - correlations
-  - benchmarks
-  - detailed logs and edit/delete
+## Added
+
+Weighted selection logic:
+- low target hit rate
+- negative recent momentum
+- undertrained category
+- recency since last trained
+- consistency / volatility
+
+Block-based session design:
+- Block 1: fresh-skill priority
+- Block 2: weakness volume
+- Block 3: pressure / transfer
+
+Intensity modes:
+- Technical
+- Balanced
+- Pressure
+
+Focus override:
+- force the orchestrator to bias toward a selected category
+
+Difficulty calibration:
+- >80% hit rate: increase difficulty
+- <35% hit rate: simplify drill
+- middle zone: repeat and stabilize
+
+Load as draft plan:
+- generated session can be transferred directly into the Plans tab
 
 Confirm version:
-The header should show v3.7.
+The header should show v3.9.1.
