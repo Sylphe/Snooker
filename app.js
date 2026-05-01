@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.11.1-final";
+const APP_VERSION = "3.12-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -280,7 +280,7 @@ function renderRoutineItem(r) {
     <span class="badge">${r.duration || 0} min</span>
     ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}
-    ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span>` : ""}
+    ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span><span class="badge">Colour: ${fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode))}</span>` : ""}
     <div class="small-actions">
       <button class="secondary" onclick="editRoutine('${r.id}')">Edit</button>
       <button class="secondary" onclick="duplicateRoutine('${r.id}')">Duplicate</button>
@@ -309,6 +309,7 @@ function editRoutine(id) {
   $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
   $("routineUnitType").value = r.unitType || "balls_cleared";
   $("routineTargetMode").value = r.targetMode || "custom";
+  $("routineTargetColour").value = r.targetColour || inferTargetColour(r.targetMode) || "";
   $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
   $("routineDescription").value = r.description || "";
   document.querySelector('[data-tab="templates"]').click();
@@ -362,6 +363,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
     attemptsPerSession: Number($("routineAttemptsPerSession").value || 0) || "",
     unitType: $("routineUnitType").value || "balls_cleared",
     targetMode: $("routineTargetMode").value || "custom",
+    targetColour: $("routineTargetColour").value || inferTargetColour($("routineTargetMode").value) || "",
     trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
     category, folder, subfolder,
     description: $("routineDescription").value.trim()
@@ -625,6 +627,7 @@ function saveCurrentRoutine() {
     totalUnits: r.totalUnits || "",
     unitType: r.unitType || "",
     targetMode: r.targetMode || "",
+    targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
     performance: "N/A",
     sessionRating: Number($("sessionRating")?.value || 0) || "",
     sessionTags: $("sessionTags")?.value || "",
@@ -705,7 +708,7 @@ function updateTimerDisplay() {
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
-  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
+  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${l.targetColour ? " · "+fmtTargetColour(l.targetColour) : ""}${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
   if (l.scoring === "success_rate") return `${l.score}/${l.attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
   if (l.scoring === "score_per_minute") return `${l.score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
   return `${l.score}`;
@@ -1465,7 +1468,7 @@ function exportValue(log, field) {
 }
 
 $("exportCsvBtn").addEventListener("click", () => {
-  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","notes"];
+  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
@@ -1534,6 +1537,32 @@ function progressiveStatsForLogs(logs) {
 }
 
 
+
+
+function inferTargetColour(targetMode) {
+  if (targetMode === "blacks_only") return "black";
+  return "";
+}
+function fmtTargetColour(colour) {
+  return ({
+    red:"Red",
+    yellow:"Yellow",
+    green:"Green",
+    brown:"Brown",
+    blue:"Blue",
+    pink:"Pink",
+    black:"Black",
+    custom:"Custom / other"
+  })[colour || ""] || "Not applicable";
+}
+function fmtTargetMode(mode) {
+  return ({
+    blacks_only:"Blacks only",
+    mixed_colours:"Mixed colours",
+    nominated_colour:"Nominated colour",
+    custom:"Custom"
+  })[mode || ""] || "Custom";
+}
 
 function planById(id) {
   return (data.plans || []).find(p => p.id === id);
@@ -1612,7 +1641,15 @@ const FIELD_HELP = {
       <p><strong>What it means:</strong> describes the colour rule of the exercise, so similar-looking drills do not get mixed statistically.</p>
       <div class="example"><strong>Example:</strong> “blacks only” for red-black-red-black line-up practice; “mixed colours” for general clearance work.</div>
       <p><strong>Best use:</strong> create separate exercises for materially different colour rules. A black-only line-up and a mixed-colour line-up should not share the same data series.</p>`
+  },
+  targetColour: {
+    title: "Target colour",
+    body: `
+      <p><strong>What it means:</strong> the specific colour constraint when the drill is built around one colour.</p>
+      <div class="example"><strong>Example:</strong> choose Blue for a blue-only break-building drill; choose Black for a black-only line-up.</div>
+      <p><strong>Best use:</strong> set this at exercise level when the colour changes the technical demand. Do not track colour ball-by-ball unless you are doing match analysis.</p>`
   }
+
 };
 
 function showFieldHelp(key) {
@@ -1644,7 +1681,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.11.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.12");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

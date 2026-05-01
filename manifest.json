@@ -1,12 +1,12 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.11.1",
+  "start_url": "./index.html?v=3.12",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Snooker practice log with fixed startup and consistent historical references.",
+  "description": "Snooker practice log with constraint-aware exercises and target colour selection.",
   "icons": [
     {
       "src": "icon.svg?v=3.1",

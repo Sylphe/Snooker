@@ -189,3 +189,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
   padding:10px;
   margin:10px 0;
 }
+
+/* v3.12 target colour constraints */
+.colour-badge{display:inline-block;border:1px solid var(--line);border-radius:999px;background:#fbfcfb;padding:4px 8px;margin:4px;font-size:12px}

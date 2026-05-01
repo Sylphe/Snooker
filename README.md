@@ -1,20 +1,29 @@
-# Snooker Practice Log — v3.11.1 final
+# Snooker Practice Log — v3.12 final
 
-Built from v3.11.
+Built from v3.11.1.
 
-## Fix
+## New in v3.12
 
-v3.11 had a startup error caused by calling the reference-refresh logic before the global app data object was initialized. This stopped JavaScript execution, which meant tabs and buttons did not respond.
+Constraint-aware exercises:
 
-v3.11.1 fixes that initialization order.
+- Added exercise-level Target Colour field
+- Supported colours:
+  - red
+  - yellow
+  - green
+  - brown
+  - blue
+  - pink
+  - black
+  - custom / other
+- Existing `blacks_only` target mode automatically maps to target colour = black
+- Progressive completion logs now store target colour
+- Display and CSV export include target colour
+- Added contextual help for Target Colour
 
-## Keeps v3.11 features
+## Why this matters
 
-- Current exercise names resolve dynamically through routineId
-- Current daily plan names resolve dynamically through planId
-- Snapshot fallback if exercise/plan is deleted
-- CSV export includes current and snapshot names
-- Existing logs are refreshed safely after data loads
+A blue-only break-building drill and a black-only line-up drill have different technical constraints. Tracking the colour at exercise level keeps the data useful without adding ball-by-ball logging friction.
 
 Confirm version:
-The header should show v3.11.1.
+The header should show v3.12.

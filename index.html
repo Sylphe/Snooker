@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.11.1</title>
+  <title>Snooker Practice Log v3.12</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.11.1" />
-  <link rel="stylesheet" href="styles.css?v=3.11.1" />
-  <link rel="icon" href="icon.svg?v=3.11.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.12" />
+  <link rel="stylesheet" href="styles.css?v=3.12" />
+  <link rel="icon" href="icon.svg?v=3.12" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.11.1 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.12 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -242,6 +242,20 @@
             </select>
           </div>
           <div class="progressive-config">
+            <label>Target colour <button type="button" class="help-dot" onclick="showFieldHelp('targetColour')">?</button></label>
+            <select id="routineTargetColour">
+              <option value="">Not applicable</option>
+              <option value="red">Red</option>
+              <option value="yellow">Yellow</option>
+              <option value="green">Green</option>
+              <option value="brown">Brown</option>
+              <option value="blue">Blue</option>
+              <option value="pink">Pink</option>
+              <option value="black">Black</option>
+              <option value="custom">Custom / other</option>
+            </select>
+          </div>
+          <div class="progressive-config">
             <label>Track highest break?</label>
             <select id="routineTrackHighestBreak">
               <option value="yes">Yes</option>
@@ -449,6 +463,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.11.1"></script>
+  <script src="app.js?v=3.12"></script>
 </body>
 </html>
