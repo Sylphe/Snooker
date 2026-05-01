@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.7-final";
+const APP_VERSION = "3.9.1-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -228,6 +228,7 @@ function renderRoutineSelects() {
   setSelectOptions($("randomTypeFilter"), cats, "All types", $("randomTypeFilter")?.value || "all");
   setSelectOptions($("randomFolderFilter"), flds, "All folders", $("randomFolderFilter")?.value || "all");
   setSelectOptions($("constraintFocusType"), cats, "No specific focus", $("constraintFocusType")?.value || "all");
+  setSelectOptions($("orchestratorFocus"), cats, "Auto focus", $("orchestratorFocus")?.value || "all");
 
   const planPickerRoutines = visibleRoutines($("planTypeFilter")?.value || "all", $("planFolderFilter")?.value || "all");
   $("routineToAdd").innerHTML = planPickerRoutines.map(r => `<option value="${r.id}">${escapeHtml(r.folder || "Unfiled")} / ${escapeHtml(r.subfolder || "General")} — ${escapeHtml(r.name)}</option>`).join("") || `<option value="">No matching exercises</option>`;
@@ -909,6 +910,7 @@ function renderStats() {
     html += `<h3>Exercise mix</h3>${renderCategoryChart(scopedLogs)}`;
     const alloc = computeAllocation(scopedLogs); html += `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
     html += renderAdvancedAnalytics(scopedLogs, rollingWindow, benchmarkWindow);
+    html += renderSecondOrderAnalytics(scopedLogs, rid, rollingWindow);
     html += renderCoachingEngine(scopedLogs);
   }
 
@@ -943,6 +945,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
     </div>`;
 
   html += renderCoachingEngine(logs);
+  html += renderSecondOrderAnalytics(logs, rid, rollingWindow);
 
   if (weak) {
     html += `<div class="analytics-note"><strong>Weakest area:</strong> ${escapeHtml(weak.category)} · hit rate ${weak.hitRate === null ? "N/A" : weak.hitRate.toFixed(1)+"%"} · vs overall ${weak.delta === null ? "N/A" : weak.delta.toFixed(1)+" pts"}</div>`;
@@ -1041,12 +1044,161 @@ function renderCoachingEngine(logs) {
     if (hit >= 80) insights.push({title:"Progressive overload", text:"Target hit rate is high. Increase difficulty, stretch target, or reduce allowed attempts."});
     if (hit <= 35) insights.push({title:"Regression recommended", text:"Target hit rate is low. Simplify the drill and isolate the technical constraint."});
   }
+  const plateau = plateauDetector(logs, 8);
+  if (plateau && plateau.isPlateau) insights.push({title:"Plateau detected", text:"Performance has flattened. Change constraint, drill format, or intensity rather than repeating identical volume."});
+  const over = overtrainingSignal(logs, 8);
+  if (over && over.signal === "Risk") insights.push({title:"Possible overtraining / low yield", text:"Recent volume increased without matching performance gain. Reduce volume or increase rest between sets."});
 
   if (!insights.length) {
     insights.push({title:"Maintain current structure", text:"No strong bottleneck detected. Continue logging to improve signal quality."});
   }
 
   return `<div class="coaching-box"><h3>Coaching insights</h3>${insights.slice(0,4).map(i=>`<div class="insight"><strong>${escapeHtml(i.title)}</strong>${escapeHtml(i.text)}</div>`).join("")}</div>`;
+}
+
+
+function performanceDrift(logs, windowSize=10) {
+  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  if (vals.length < windowSize * 2) return null;
+  const recent = avg(vals.slice(-windowSize));
+  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
+  if (!prior) return null;
+  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  return {recent, prior, deltaPct};
+}
+
+function sessionQualityImpact(logs) {
+  const high = logs.filter(l=>Number(l.sessionRating||0) >= 4).map(l=>Number(l.normalizedScore||0));
+  const low = logs.filter(l=>Number(l.sessionRating||0) > 0 && Number(l.sessionRating||0) <= 2).map(l=>Number(l.normalizedScore||0));
+  if (high.length < 2 || low.length < 2) return null;
+  const highAvg = avg(high), lowAvg = avg(low);
+  const deltaPct = lowAvg ? ((highAvg-lowAvg)/Math.abs(lowAvg))*100 : 0;
+  return {highAvg, lowAvg, deltaPct, highN:high.length, lowN:low.length};
+}
+
+function optimalSessionLength(logs) {
+  const sessionGroups = {};
+  logs.forEach(l => {
+    const sid = l.sessionId || "unknown";
+    sessionGroups[sid] ||= [];
+    sessionGroups[sid].push(l);
+  });
+  const sessions = Object.values(sessionGroups).map(arr => {
+    const time = arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+    const perf = avg(arr.map(l=>Number(l.normalizedScore||0)));
+    return {time, perf};
+  }).filter(s=>s.time>0 && Number.isFinite(s.perf));
+  if (sessions.length < 4) return null;
+  const bands = [
+    {label:"<30m", min:0, max:30},
+    {label:"30–60m", min:30, max:60},
+    {label:"60–90m", min:60, max:90},
+    {label:">90m", min:90, max:9999}
+  ].map(b => {
+    const arr = sessions.filter(s=>s.time>=b.min && s.time<b.max);
+    return {...b, n:arr.length, avgPerf:arr.length?avg(arr.map(s=>s.perf)):null};
+  }).filter(b=>b.n>0);
+  if (!bands.length) return null;
+  const best = bands.slice().sort((a,b)=>(b.avgPerf??-999)-(a.avgPerf??-999))[0];
+  const corr = correlation(sessions.map(s=>s.time), sessions.map(s=>s.perf));
+  return {bands, best, corr};
+}
+
+function exerciseTransferEffect(allLogs, targetRid) {
+  if (!targetRid) return null;
+  const targetLogs = allLogs.filter(l=>l.routineId===targetRid).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if (targetLogs.length < 4) return null;
+  const targetRoutine = routineById(targetRid);
+  const targetCategory = targetRoutine?.category;
+  const candidates = {};
+  allLogs.forEach(l => {
+    if (l.routineId !== targetRid && l.category && l.category !== targetCategory) {
+      const day = localDateKey(l.createdAt);
+      candidates[l.category] ||= {};
+      candidates[l.category][day] ||= [];
+      candidates[l.category][day].push(Number(l.normalizedScore||0));
+    }
+  });
+  const targetByDay = {};
+  targetLogs.forEach(l => {
+    const day = localDateKey(l.createdAt);
+    targetByDay[day] ||= [];
+    targetByDay[day].push(Number(l.normalizedScore||0));
+  });
+  const results = Object.entries(candidates).map(([cat, byDay]) => {
+    const xs=[], ys=[];
+    Object.keys(targetByDay).forEach(day => {
+      const prev = new Date(day+"T00:00:00");
+      prev.setDate(prev.getDate()-1);
+      const prevKey = localDateKey(prev);
+      if (byDay[prevKey]) {
+        xs.push(avg(byDay[prevKey]));
+        ys.push(avg(targetByDay[day]));
+      }
+    });
+    return {category:cat, corr:correlation(xs,ys), n:xs.length};
+  }).filter(r=>r.corr!==null).sort((a,b)=>Math.abs(b.corr)-Math.abs(a.corr));
+  return results[0] || null;
+}
+
+function progressVelocity(logs, windowSize=10) {
+  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  if (vals.length < 3) return null;
+  const use = vals.slice(-windowSize);
+  const n = use.length;
+  const xs = use.map((_,i)=>i+1);
+  const mx = avg(xs), my = avg(use);
+  const num = xs.reduce((a,x,i)=>a+(x-mx)*(use[i]-my),0);
+  const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
+  const slope = den ? num/den : 0;
+  return {slope, n, label: slope>0.5?"Improving":slope<-0.5?"Declining":"Flat"};
+}
+
+function plateauDetector(logs, windowSize=8, thresholdPct=3) {
+  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  if (vals.length < windowSize*2) return null;
+  const recent = avg(vals.slice(-windowSize));
+  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
+  if (!prior) return null;
+  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  return {isPlateau: Math.abs(deltaPct) < thresholdPct, deltaPct, recent, prior};
+}
+
+function overtrainingSignal(logs, windowSize=8) {
+  if (logs.length < windowSize*2) return null;
+  const recent = logs.slice(-windowSize);
+  const prior = logs.slice(-(windowSize*2), -windowSize);
+  const recentTime = recent.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const priorTime = prior.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const recentPerf = avg(recent.map(l=>Number(l.normalizedScore||0)));
+  const priorPerf = avg(prior.map(l=>Number(l.normalizedScore||0)));
+  if (!priorTime || !priorPerf) return null;
+  const volumeDelta = ((recentTime-priorTime)/Math.abs(priorTime))*100;
+  const perfDelta = ((recentPerf-priorPerf)/Math.abs(priorPerf))*100;
+  return {volumeDelta, perfDelta, signal: volumeDelta > 20 && perfDelta < 3 ? "Risk" : "Normal"};
+}
+
+function renderSecondOrderAnalytics(logs, selectedRid, rollingWindow=10) {
+  if (!logs.length) return "";
+  const drift = performanceDrift(logs, Math.max(5, rollingWindow));
+  const quality = sessionQualityImpact(logs);
+  const optimal = optimalSessionLength(logs);
+  const velocity = progressVelocity(logs, Math.max(5, rollingWindow));
+  const plateau = plateauDetector(logs, Math.max(5, rollingWindow));
+  const overtraining = overtrainingSignal(logs, Math.max(5, rollingWindow));
+  const transfer = selectedRid ? exerciseTransferEffect(data.logs, selectedRid) : null;
+
+  const cards = [];
+  if (drift) cards.push({cls: drift.deltaPct < -7 ? "signal-risk" : drift.deltaPct > 7 ? "signal-good" : "signal-watch", title:"Performance drift", text:`Recent ${drift.recent.toFixed(2)} vs prior ${drift.prior.toFixed(2)} (${drift.deltaPct>=0?"+":""}${drift.deltaPct.toFixed(1)}%).`});
+  if (quality) cards.push({cls: quality.deltaPct > 10 ? "signal-good" : "signal-watch", title:"Session quality impact", text:`High-rated sessions average ${quality.highAvg.toFixed(2)} vs low-rated ${quality.lowAvg.toFixed(2)} (${quality.deltaPct>=0?"+":""}${quality.deltaPct.toFixed(1)}%).`});
+  if (optimal) cards.push({cls:"signal-watch", title:"Optimal session length", text:`Best band: ${optimal.best.label} (${optimal.best.avgPerf.toFixed(2)} avg). Time/performance correlation: ${corrText(optimal.corr)}.`});
+  if (velocity) cards.push({cls: velocity.slope > .5 ? "signal-good" : velocity.slope < -.5 ? "signal-risk" : "signal-watch", title:"Progress velocity", text:`Slope over last ${velocity.n}: ${velocity.slope.toFixed(2)} per log (${velocity.label}).`});
+  if (plateau) cards.push({cls: plateau.isPlateau ? "signal-risk" : "signal-watch", title:"Plateau detector", text: plateau.isPlateau ? `Plateau detected: only ${plateau.deltaPct.toFixed(1)}% change.` : `No plateau: ${plateau.deltaPct>=0?"+":""}${plateau.deltaPct.toFixed(1)}% change.`});
+  if (overtraining) cards.push({cls: overtraining.signal==="Risk" ? "signal-risk" : "signal-good", title:"Overtraining signal", text:`Volume ${overtraining.volumeDelta>=0?"+":""}${overtraining.volumeDelta.toFixed(1)}%, performance ${overtraining.perfDelta>=0?"+":""}${overtraining.perfDelta.toFixed(1)}% → ${overtraining.signal}.`});
+  if (transfer) cards.push({cls: transfer.corr > .35 ? "signal-good" : transfer.corr < -.35 ? "signal-risk" : "signal-watch", title:"Exercise transfer effect", text:`Previous-day ${transfer.category} vs selected exercise: ${corrText(transfer.corr)} over ${transfer.n} paired days.`});
+
+  if (!cards.length) return `<h3>Second-order analytics</h3><p class="muted">More logs are needed for drift, quality impact, optimal session length, transfer, plateau, and overtraining diagnostics.</p>`;
+  return `<h3>Second-order analytics</h3><div class="diagnostic-grid">${cards.map(c=>`<div class="diagnostic-card ${c.cls}"><strong>${escapeHtml(c.title)}</strong>${escapeHtml(c.text)}</div>`).join("")}</div>`;
 }
 
 function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
@@ -1305,7 +1457,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.7");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.9.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -1313,3 +1465,154 @@ if ("serviceWorker" in navigator) {
   });
 }
 renderAll();
+
+let generatedPlanDraft = [];
+
+function routineStats(routineId) {
+  const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const vals = logs.map(l => Number(l.normalizedScore || 0));
+  const hit = targetHitRate(logs);
+  const recent = vals.length ? avg(vals.slice(-3)) : null;
+  const prior = vals.length > 3 ? avg(vals.slice(0,-3)) : null;
+  const momentumPenalty = prior && recent !== null && recent < prior ? 18 : 0;
+  const lowHitPenalty = hit === null ? 8 : Math.max(0, 80-hit) * 0.7;
+  const undertrainedBonus = undertrainedCategoryBonus(routineId);
+  const recencyBonus = logs.length ? Math.min(12, daysSince(logs[logs.length-1].createdAt) * 1.5) : 15;
+  const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, avg(vals)) * 30) : 5;
+  return {
+    logs, vals, hit, recent, prior,
+    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty
+  };
+}
+
+function daysSince(dateIso) {
+  const d = new Date(dateIso);
+  const now = new Date();
+  return Math.max(0, Math.floor((now-d)/86400000));
+}
+
+function undertrainedCategoryBonus(routineId) {
+  const routine = routineById(routineId);
+  if (!routine) return 0;
+  const recent = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,30);
+  const alloc = computeAllocation(recent);
+  const cat = alloc.find(a => a.cat === routine.category);
+  if (!cat) return 12;
+  if (cat.pct < 15) return 14;
+  if (cat.pct < 25) return 7;
+  return 0;
+}
+
+function rankRoutines(focusOverride="all") {
+  return data.routines.map(r => {
+    const s = routineStats(r.id);
+    let score = s.score;
+    if (focusOverride !== "all" && r.category === focusOverride) score += 25;
+    return {routine:r, stats:s, score};
+  }).sort((a,b)=>b.score-a.score);
+}
+
+function pickByCategory(ranked, category, usedIds, fallback=true) {
+  let item = ranked.find(x => x.routine.category === category && !usedIds.has(x.routine.id));
+  if (!item && fallback) item = ranked.find(x => !usedIds.has(x.routine.id));
+  if (item) usedIds.add(item.routine.id);
+  return item;
+}
+
+function difficultyGuidance(item) {
+  if (!item) return "";
+  const r = item.routine;
+  const hit = item.stats.hit;
+  const vals = item.stats.vals;
+  const latest = vals.length ? vals[vals.length-1] : null;
+  if (hit !== null && hit >= 80) return "Increase difficulty: tighter position, fewer attempts, or higher target.";
+  if (hit !== null && hit <= 35) return "Reduce difficulty: simplify layout, isolate mechanic, or lower target.";
+  if (latest !== null && r.target && latest >= r.target) return "Keep target, add mild pressure constraint.";
+  return "Keep current difficulty and build clean repetitions.";
+}
+
+function composeBlocks(length, intensity, ranked, focusOverride) {
+  const used = new Set();
+  const total = Number(length || 60);
+
+  let blocks;
+  if (intensity === "technical") {
+    blocks = [
+      {name:"Block 1 — Precision / technique", pct:.45, category: focusOverride !== "all" ? focusOverride : "potting", intent:"clean execution while fresh"},
+      {name:"Block 2 — Volume / consistency", pct:.35, category:"break-building", intent:"repeatable baseline"},
+      {name:"Block 3 — Controlled pressure", pct:.20, category:"safety", intent:"finish with decision quality"}
+    ];
+  } else if (intensity === "pressure") {
+    blocks = [
+      {name:"Block 1 — Calibration", pct:.25, category: focusOverride !== "all" ? focusOverride : "potting", intent:"warm-up with measured scoring"},
+      {name:"Block 2 — Pressure reps", pct:.45, category:"break-building", intent:"1-attempt or stop-rule constraints"},
+      {name:"Block 3 — Match-control", pct:.30, category:"safety", intent:"decision quality under fatigue"}
+    ];
+  } else {
+    blocks = [
+      {name:"Block 1 — Fresh-skill priority", pct:.35, category: focusOverride !== "all" ? focusOverride : "potting", intent:"highest-skill work before fatigue"},
+      {name:"Block 2 — Weakness volume", pct:.40, category:null, intent:"main bottleneck by data"},
+      {name:"Block 3 — Pressure / transfer", pct:.25, category:"safety", intent:"convert skill into control"}
+    ];
+  }
+
+  return blocks.map((b, idx) => {
+    const mins = Math.max(5, Math.round(total*b.pct));
+    const picks = [];
+    const targetCategory = b.category || (ranked[0]?.routine.category);
+    const first = pickByCategory(ranked, targetCategory, used, true);
+    if (first) picks.push(first);
+    if (mins >= 20) {
+      const second = pickByCategory(ranked, targetCategory, used, false) || pickByCategory(ranked, null, used, true);
+      if (second) picks.push(second);
+    }
+    return {...b, minutes: mins, picks};
+  });
+}
+
+function generateNextSession(){
+  if(!data.routines.length){$("orchestratorBox").innerHTML="Create exercises first.";return;}
+  const length = $("orchestratorLength")?.value || "60";
+  const intensity = $("orchestratorIntensity")?.value || "balanced";
+  const focus = $("orchestratorFocus")?.value || "all";
+  const ranked = rankRoutines(focus);
+  const blocks = composeBlocks(length, intensity, ranked, focus);
+
+  generatedPlanDraft = blocks.flatMap(b => b.picks.map(p => p.routine.id));
+
+  const weak = weaknessConcentration(data.logs)[0];
+  const fatigue = fatigueCurve(data.logs);
+  const context = [];
+  if (weak) context.push(`Weakest area: ${weak.category}`);
+  if (fatigue && fatigue.deltaPct < -12) context.push(`Fatigue risk: final third ${Math.abs(fatigue.deltaPct).toFixed(1)}% below early session`);
+  if (focus !== "all") context.push(`Focus override: ${focus}`);
+
+  $("orchestratorBox").innerHTML =
+    `<div class="analytics-note"><strong>Session logic:</strong> ${context.length ? context.map(escapeHtml).join(" · ") : "balanced from available data"}</div>` +
+    blocks.map(b => `<div class="training-block">
+      <h3>${escapeHtml(b.name)}</h3>
+      <div class="block-meta">${b.minutes} min · ${escapeHtml(b.intent)}</div>
+      ${b.picks.map(p => `<div class="drill-line">
+        <span><strong>${escapeHtml(p.routine.name)}</strong><br><span class="reason">${escapeHtml(p.routine.category || "uncategorized")} · priority score ${p.score.toFixed(1)}</span></span>
+        <span>${p.routine.duration || Math.round(b.minutes / Math.max(1,b.picks.length))} min</span>
+        <span>${escapeHtml(difficultyGuidance(p))}</span>
+      </div>`).join("")}
+    </div>`).join("") +
+    `<div class="difficulty-note"><strong>Difficulty calibration rule:</strong> 80%+ target hit rate = increase difficulty; below 35% = simplify; middle zone = repeat and stabilize.</div>`;
+}
+
+function loadGeneratedPlan(){
+  if(!generatedPlanDraft.length) generateNextSession();
+  if(!generatedPlanDraft.length) return;
+  planDraft = [...generatedPlanDraft];
+  if ($("planName") && !$("planName").value.trim()) $("planName").value = `Orchestrated session — ${new Date().toLocaleDateString()}`;
+  renderPlanBuilder();
+  document.querySelector('[data-tab="plans"]').click();
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const btn = document.getElementById("generateSessionBtn");
+  if(btn) btn.onclick=generateNextSession;
+  const loadBtn = document.getElementById("loadGeneratedPlanBtn");
+  if(loadBtn) loadBtn.onclick=loadGeneratedPlan;
+});
