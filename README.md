@@ -1,18 +1,41 @@
-# Snooker Practice Log — v3.3
+# Snooker Practice Log — v3.4 final
 
-## Added (A–F)
+Built from the stable v3.2 structure and includes v3.3 training logic plus the advanced analytics layer.
 
-- Target-based classification:
-  - Fail / On Target / Above Target
-- Consistency vs ceiling:
-  - avg / best / volatility (std dev)
-- Training allocation:
-  - % time per category
-- Session rating & tags
-- Progressive overload suggestions
-- Improved KPI normalization
+## New in v3.4
 
-## Confirm version
+Advanced analytics:
+- Rolling average trend detection
+- Momentum status
+- Correlation analysis:
+  - duration vs performance
+  - session rating vs performance
+- Personal benchmark:
+  - latest score vs configurable baseline window
+- Streak tracking:
+  - current training streak
+  - best training streak
+- Target hit rate
+- Progressive overload suggestion
+- Ceiling vs baseline gap
+- Consistency score / volatility
+- Rolling average chart
 
-Header must show v3.3.
+Log management:
+- Edit session logs directly from Today and Stats
+- Edit:
+  - date/time
+  - score
+  - attempts
+  - time
+  - rating
+  - tags
+  - notes
+- Delete individual session logs
 
+Existing data:
+- Existing logs should migrate automatically if the app URL/domain is unchanged.
+- Export a JSON backup before deploying if you want a safety copy.
+
+Confirm version:
+The header should show v3.4.
