@@ -1,12 +1,12 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.9.1",
+  "start_url": "./index.html?v=3.10",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Snooker practice log with weighted training orchestrator, block-based sessions, and adaptive difficulty guidance.",
+  "description": "Snooker practice log with progressive completion scoring, reusable tags, controlled ratings, and safer delete confirmations.",
   "icons": [
     {
       "src": "icon.svg?v=3.1",

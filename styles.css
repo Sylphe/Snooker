@@ -115,3 +115,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .reason{color:var(--muted)}
 .difficulty-note{background:#fff8e8;border:1px solid #ead59b;border-radius:12px;padding:9px;margin-top:8px}
 @media(max-width:760px){.drill-line{grid-template-columns:1fr}.drill-line span{display:block}}
+
+/* v3.10 progressive completion + safer UX */
+.progressive-config{display:block}
+.pc-kpi{display:inline-block;border:1px solid var(--line);border-radius:10px;background:#fbfcfb;padding:7px 9px;margin:4px;font-size:12px}

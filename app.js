@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.9.1-final";
+const APP_VERSION = "3.10-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -28,7 +28,8 @@ const defaultData = {
   ],
   plans: [],
   sessions: [],
-  logs: []
+  logs: [],
+  tagHistory: []
 };
 
 let data = loadData();
@@ -52,6 +53,7 @@ function migrateData(d) {
     stretchTarget: r.stretchTarget || ""
   }));
   d.plans = d.plans || [];
+  d.tagHistory = d.tagHistory || [];
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -129,7 +131,8 @@ function fmtScoring(type) {
     success_rate:"Success rate",
     highest_break:"Highest break",
     points:"Points system",
-    score_per_minute:"Time-based score"
+    score_per_minute:"Time-based score",
+    progressive_completion:"Progressive completion"
   }[type] || type;
 }
 function categories() { return [...new Set(data.routines.map(r => r.category || "uncategorized"))].sort(); }
@@ -138,6 +141,7 @@ function subfolders() { return [...new Set(data.routines.map(r => r.subfolder ||
 function routineById(id) { return data.routines.find(r => r.id === id); }
 
 function normalizeScore(log) {
+  if (log.scoring === "progressive_completion") return Number(log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnits || 0)) * 100 : 0;
   if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
   if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? Number(log.score || 0) / Number(log.timeMinutes || 0) : 0;
   return Number(log.score || 0);
@@ -212,6 +216,7 @@ function renderAll() {
   renderStats();
   renderToday();
   renderSmartRecommendation();
+  renderTagSuggestions();
 }
 
 function renderRoutineSelects() {
@@ -272,7 +277,7 @@ function renderRoutineItem(r) {
     <span class="badge">${r.duration || 0} min</span>
     ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}
-    ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}
+    ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span>` : ""}
     <div class="small-actions">
       <button class="secondary" onclick="editRoutine('${r.id}')">Edit</button>
       <button class="secondary" onclick="duplicateRoutine('${r.id}')">Duplicate</button>
@@ -297,6 +302,11 @@ function editRoutine(id) {
   $("routineDuration").value = r.duration || "";
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
+  $("routineTotalUnits").value = r.totalUnits || "";
+  $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
+  $("routineUnitType").value = r.unitType || "balls_cleared";
+  $("routineTargetMode").value = r.targetMode || "custom";
+  $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
   $("routineDescription").value = r.description || "";
   document.querySelector('[data-tab="templates"]').click();
   window.scrollTo({top: 0, behavior: "smooth"});
@@ -304,7 +314,7 @@ function editRoutine(id) {
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineDescription"].forEach(id => $(id).value = "");
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
@@ -318,10 +328,11 @@ function duplicateRoutine(id) {
   saveData();
 }
 function deleteRoutine(id) {
-  if (!confirm("Delete this exercise template? Existing historical logs will remain.")) return;
-  data.routines = data.routines.filter(r => r.id !== id);
-  data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
-  saveData();
+  return confirmDeleteAction("this exercise template", () => {
+    data.routines = data.routines.filter(r => r.id !== id);
+    data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
+    saveData();
+  });
 }
 $("saveRoutineBtn").addEventListener("click", () => {
   const name = $("routineName").value.trim();
@@ -344,6 +355,11 @@ $("saveRoutineBtn").addEventListener("click", () => {
     duration: Number($("routineDuration").value || 0) || "",
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
+    totalUnits: Number($("routineTotalUnits").value || 0) || "",
+    attemptsPerSession: Number($("routineAttemptsPerSession").value || 0) || "",
+    unitType: $("routineUnitType").value || "balls_cleared",
+    targetMode: $("routineTargetMode").value || "custom",
+    trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
     category, folder, subfolder,
     description: $("routineDescription").value.trim()
   };
@@ -429,9 +445,10 @@ function loadPlanToBuilder(id) {
   document.querySelector('[data-tab="plans"]').click();
 }
 function deletePlan(id) {
-  if (!confirm("Delete this training plan?")) return;
-  data.plans = data.plans.filter(p => p.id !== id);
-  saveData();
+  return confirmDeleteAction("this training plan", () => {
+    data.plans = data.plans.filter(p => p.id !== id);
+    saveData();
+  });
 }
 
 $("startSessionBtn").addEventListener("click", () => {
@@ -491,7 +508,16 @@ function renderCurrentRoutine() {
 }
 function renderScoreInputs(r) {
   let html = "";
-  if (r.scoring === "success_rate") {
+  if (r.scoring === "progressive_completion") {
+    html += `<div><label>Average ${progressiveUnitLabel(r)} per attempt</label><input id="scoreValue" type="number" min="0" step="0.01" placeholder="e.g. 8" inputmode="decimal"></div>`;
+    html += `<div><label>Best attempt (${progressiveUnitLabel(r)})</label><input id="bestAttemptValue" type="number" min="0" step="0.01" placeholder="e.g. 12" inputmode="decimal"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attemptsPerSession || r.attempts || ""}" inputmode="numeric"></div>`;
+    html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
+    if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  } else if (r.scoring === "progressive_completion") {
+    box.innerHTML = `<button class="secondary" onclick="decrementScore()">-1</button><button class="secondary" onclick="incrementScore()">+1</button><button class="secondary" onclick="adjustScore(5)">+5</button><button class="secondary" onclick="setScoreValue(${r.totalUnits || 0})">Complete</button><button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
+  } else if (r.scoring === "success_rate") {
     html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attempts || ""}" placeholder="e.g. 10" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
@@ -502,11 +528,9 @@ function renderScoreInputs(r) {
   $("scoreInputs").innerHTML = html;
   renderQuickScoreControls(r);
   setTimeout(() => $("scoreValue")?.focus(), 120);
-  ["scoreValue","attemptsValue","manualTimeValue"].forEach(id => {
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue"].forEach(id => {
     const el = $(id);
-    if (el) el.addEventListener("keydown", e => {
-      if (e.key === "Enter") saveCurrentRoutine();
-    });
+    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
   });
 }
 function renderQuickScoreControls(r) {
@@ -588,6 +612,12 @@ function saveCurrentRoutine() {
     attempts,
     timeMinutes: Math.round(timeMinutes * 10) / 10,
     normalizedScore: 0,
+    bestAttempt: Number($("bestAttemptValue")?.value || 0) || "",
+    completionCount: Number($("completionCountValue")?.value || 0) || "",
+    highestBreak: Number($("highestBreakValue")?.value || 0) || "",
+    totalUnits: r.totalUnits || "",
+    unitType: r.unitType || "",
+    targetMode: r.targetMode || "",
     performance: "N/A",
     sessionRating: Number($("sessionRating")?.value || 0) || "",
     sessionTags: $("sessionTags")?.value || "",
@@ -596,6 +626,7 @@ function saveCurrentRoutine() {
   };
   log.normalizedScore = normalizeScore(log);
   log.performance = classifyPerformance(log, r);
+  updateTagHistoryFromInput(log.sessionTags);
   data.logs.push(log);
   activeSession.completedLogs.push(log);
   stopTimer();
@@ -665,6 +696,7 @@ function updateTimerDisplay() {
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
+  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
   if (l.scoring === "success_rate") return `${l.score}/${l.attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
   if (l.scoring === "score_per_minute") return `${l.score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
   return `${l.score}`;
@@ -1263,7 +1295,7 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div>
+      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
       <div><label>Tags</label><input id="edit-tags-${l.id}" value="${escapeAttr(l.sessionTags || "")}"></div>
@@ -1294,6 +1326,10 @@ function saveEditedLog(id) {
   l.sessionRating = Number($("edit-rating-"+id).value || 0) || "";
   l.category = $("edit-category-"+id).value || l.category || "uncategorized";
   l.sessionTags = $("edit-tags-"+id).value || "";
+  if ($("edit-best-"+id)) l.bestAttempt = Number($("edit-best-"+id).value || 0) || "";
+  if ($("edit-completions-"+id)) l.completionCount = Number($("edit-completions-"+id).value || 0) || "";
+  if ($("edit-break-"+id)) l.highestBreak = Number($("edit-break-"+id).value || 0) || "";
+  updateTagHistoryFromInput(l.sessionTags);
   l.notes = $("edit-notes-"+id).value || "";
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
@@ -1301,9 +1337,10 @@ function saveEditedLog(id) {
   saveData();
 }
 function deleteLog(id) {
-  if (!confirm("Delete this session log? This cannot be undone unless you have a JSON backup.")) return;
-  data.logs = data.logs.filter(l => l.id !== id);
-  saveData();
+  return confirmDeleteAction("this session log", () => {
+    data.logs = data.logs.filter(l => l.id !== id);
+    saveData();
+  });
 }
 
 function renderDateView(logs) {
@@ -1317,6 +1354,7 @@ function renderDateView(logs) {
     <div class="stat-card"><span>Total time</span><div class="value">${totalTime.toFixed(1)}m</div></div>
     <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
+  ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(l.sessionName || "")}</td><td>${escapeHtml(l.routineName)}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="8">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderToday() {
@@ -1409,7 +1447,7 @@ function renderRollingChart(logs, rollingVals) {
 }
 
 $("exportCsvBtn").addEventListener("click", () => {
-  const headers = ["createdAt","sessionName","sessionType","routineName","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","notes"];
+  const headers = ["createdAt","sessionName","sessionType","routineName","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(l[h] ?? "")).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
@@ -1442,6 +1480,41 @@ function csvEscape(value) { return `"${String(value).replaceAll('"','""')}"`; }
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
 function escapeAttr(str) { return escapeHtml(str).replaceAll("`","&#096;"); }
 
+
+function confirmDeleteAction(label, callback) {
+  const msg = `Delete ${label}? This cannot be undone unless you have a JSON backup.`;
+  if (confirm(msg)) callback();
+}
+function updateTagHistoryFromInput(raw) {
+  data.tagHistory = data.tagHistory || [];
+  String(raw || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => {
+    if (!data.tagHistory.includes(t)) data.tagHistory.push(t);
+  });
+  data.tagHistory.sort();
+}
+function renderTagSuggestions() {
+  const dl = $("tagSuggestions");
+  if (!dl) return;
+  dl.innerHTML = (data.tagHistory || []).map(t => `<option value="${escapeAttr(t)}"></option>`).join("");
+}
+function progressiveUnitLabel(r) {
+  return ({
+    balls_cleared:"balls cleared",
+    points_scored:"points scored",
+    pairs_completed:"pairs completed",
+    steps_completed:"steps completed"
+  })[r.unitType || "balls_cleared"] || "units";
+}
+function progressiveStatsForLogs(logs) {
+  const pc = logs.filter(l => l.scoring === "progressive_completion");
+  if (!pc.length) return null;
+  const avgCompletion = avg(pc.map(l => Number(l.normalizedScore || 0)));
+  const bestAttempt = Math.max(...pc.map(l => Number(l.bestAttempt || l.score || 0)));
+  const completionCount = pc.filter(l => Number(l.completionCount || 0) > 0 || Number(l.normalizedScore || 0) >= 100).length;
+  const highestBreak = Math.max(0, ...pc.map(l => Number(l.highestBreak || 0)));
+  return {avgCompletion, bestAttempt, completionCount, highestBreak, count:pc.length};
+}
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
@@ -1457,7 +1530,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.9.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.10");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
