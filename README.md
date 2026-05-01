@@ -1,45 +1,69 @@
-# Snooker Practice Log — PWA
+# Snooker Practice Log — v3.1 final
 
-A small installable Android-compatible web app for logging snooker practice routines.
+This is the corrected v3 package.
 
-## Features
+## Confirm you installed the right version
 
-Version 2 additions:
+After deploying, the header should say:
 
-- More snooker-specific app icon
-- Free training mode: choose any routine, log it, continue with another routine or end training
-- Progression graph by routine/date in the stats screen
+`v3.1 — folders, free sessions, daily view, date stats, randomizer, reliable timer.`
 
+If you do not see this text, GitHub Pages or your phone is still serving the old cached version.
 
-- Save/load custom routine templates
-- Build daily training plans from saved routines
-- Practice screen with timer
-- Score entry and automatic move to next routine
-- Standardized scoring types:
-  - Raw score
-  - Success rate
-  - Highest break
-  - Points system
-  - Score per minute
-- Performance dashboard by routine
-- Moving average / trend signal
-- CSV export for Excel / Power BI
-- JSON backup import/export
-- Offline support after first load
+## Included changes
 
-## How to use locally
+- Fixed timer logic using timestamp-based timing.
+- New snooker-specific SVG icon.
+- Free training mode:
+  - choose any exercise
+  - save it
+  - choose another exercise or end training
+- Today view:
+  - number of exercises done today
+  - exercise types
+  - total training time
+  - session-by-session breakdown
+- Stats:
+  - date view for all exercises done on a selected day
+  - routine progression view
+  - progression chart by date/score
+- Exercise database:
+  - edit existing exercises
+  - duplicate exercises
+  - delete exercises
+  - folders and subfolders
+  - existing category or create new category
+  - filter by type/folder/search
+- Daily plans:
+  - filter exercise picker by type/folder
+  - randomizer that selects X exercises
+  - replace or append random exercises
+- Data:
+  - CSV export
+  - JSON backup/export/import
 
-Open `index.html` in a browser.
+## Deployment
 
-For full PWA install behavior, host the folder with any static hosting service, e.g. GitHub Pages, Netlify, or Vercel.
+Replace the files in the root of the GitHub repository with these files:
 
-## Android installation
+- index.html
+- styles.css
+- app.js
+- manifest.json
+- service-worker.js
+- icon.svg
+- README.md
 
-1. Open the hosted link in Chrome on Android.
-2. Tap the menu button.
-3. Tap "Add to Home screen" or "Install app".
-4. Launch it like a normal app.
+Then commit and push.
 
-## Data storage
+## Cache warning
 
-The app stores data in browser localStorage. Export JSON backups regularly if you care about preserving history.
+If the old version still appears:
+
+1. Go to `https://Sylphe.github.io/Snooker/index.html?v=3.1`
+2. Refresh several times.
+3. Remove the old installed app from Android home screen.
+4. Clear Chrome site data for the GitHub Pages URL if needed.
+5. Add to home screen again.
+
+Existing data should migrate automatically from v1/v2 localStorage if the URL/domain is unchanged.

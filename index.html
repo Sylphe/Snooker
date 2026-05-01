@@ -3,24 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log</title>
-  <meta name="theme-color" content="#0f3d2e" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>Snooker Practice Log v3.1</title>
+  <meta name="theme-color" content="#102b22" />
+  <link rel="manifest" href="manifest.json?v=3.1" />
+  <link rel="stylesheet" href="styles.css?v=3.1" />
+  <link rel="icon" href="icon.svg?v=3.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>Routine templates, daily plans, scores, timing, and progression tracking.</p>
+      <p>v3.1 — folders, free sessions, daily view, date stats, randomizer, reliable timer.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
 
   <nav class="tabs">
     <button class="tab active" data-tab="practice">Practice</button>
-    <button class="tab" data-tab="templates">Routines</button>
-    <button class="tab" data-tab="plans">Daily Plans</button>
+    <button class="tab" data-tab="today">Today</button>
+    <button class="tab" data-tab="templates">Exercises</button>
+    <button class="tab" data-tab="plans">Plans</button>
     <button class="tab" data-tab="stats">Stats</button>
     <button class="tab" data-tab="data">Data</button>
   </nav>
@@ -28,23 +30,22 @@
   <main>
     <section id="practice" class="panel active">
       <div class="card">
-        <h2>Start planned practice</h2>
-        <label>Training plan</label>
-        <select id="planSelect"></select>
-        <div class="row">
-          <button id="startSessionBtn">Start Planned Session</button>
-          <button id="resetSessionBtn" class="secondary">Reset</button>
+        <h2>Start practice</h2>
+        <div class="grid two">
+          <div>
+            <label>Daily training plan</label>
+            <select id="planSelect"></select>
+          </div>
+          <div>
+            <label>Free training routine</label>
+            <select id="freeRoutineSelect"></select>
+          </div>
         </div>
-      </div>
-
-      <div class="card">
-        <h2>Start free training</h2>
-        <p>Use this when you do not want a fixed plan. Pick any routine, log it, then either choose another routine or end today’s training.</p>
-        <label>First routine</label>
-        <select id="freeRoutineSelect"></select>
-        <label>Session name</label>
-        <input id="freeSessionName" placeholder="e.g. Free training — today" />
-        <button id="startFreeSessionBtn">Start Free Training</button>
+        <div class="row">
+          <button id="startSessionBtn">Start Plan Session</button>
+          <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
+          <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
+        </div>
       </div>
 
       <div id="activeSession" class="card hidden">
@@ -53,8 +54,13 @@
             <h2 id="currentRoutineName">Routine</h2>
             <p id="currentRoutineMeta"></p>
           </div>
-          <div class="timer" id="timerDisplay">00:00</div>
+          <div>
+            <div class="timer" id="timerDisplay">00:00</div>
+            <p class="timer-sub" id="timerState">timer stopped</p>
+          </div>
         </div>
+
+        <div id="routineDescriptionBox" class="description-box hidden"></div>
 
         <div class="row">
           <button id="timerStartBtn" class="secondary">Start timer</button>
@@ -68,32 +74,41 @@
         <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
 
         <div class="row">
-          <button id="saveNextBtn">Save & Next</button>
+          <button id="saveNextBtn">Save</button>
           <button id="skipBtn" class="secondary">Skip</button>
-          <button id="endSessionBtn" class="danger hidden">End Training</button>
+          <button id="endFreeSessionBtn" class="danger hidden">End Free Training</button>
         </div>
       </div>
 
-      <div id="freeNextChooser" class="card hidden">
-        <h2>Free training: next step</h2>
-        <p>The last routine has been logged. Choose another routine or end today’s training session.</p>
+      <div id="freeNextCard" class="card hidden">
+        <h2>Free training</h2>
+        <p>Routine saved. Choose the next exercise or end today’s free training session.</p>
         <label>Next routine</label>
         <select id="nextFreeRoutineSelect"></select>
         <div class="row">
-          <button id="continueFreeSessionBtn">Start Selected Routine</button>
-          <button id="finishFreeSessionBtn" class="danger">End Training Session</button>
+          <button id="continueFreeBtn">Start Selected Routine</button>
+          <button id="endFreeFromNextBtn" class="danger">End Training Session</button>
         </div>
       </div>
 
       <div id="sessionSummary" class="card hidden"></div>
     </section>
 
+    <section id="today" class="panel">
+      <div class="card">
+        <h2>Today’s training</h2>
+        <p class="muted">Shows all exercises logged today, grouped by training session.</p>
+        <div id="todaySummary"></div>
+      </div>
+    </section>
+
     <section id="templates" class="panel">
       <div class="card">
-        <h2>Save a routine template</h2>
+        <h2 id="routineFormTitle">Create exercise</h2>
+        <input id="routineEditId" type="hidden" />
         <div class="grid two">
           <div>
-            <label>Routine name</label>
+            <label>Exercise name</label>
             <input id="routineName" placeholder="e.g. Long Potting — 10 reds from baulk" />
           </div>
           <div>
@@ -107,6 +122,24 @@
             </select>
           </div>
           <div>
+            <label>Existing type/category</label>
+            <select id="routineCategorySelect"></select>
+          </div>
+          <div>
+            <label>Or create new type/category</label>
+            <input id="routineCategoryNew" placeholder="e.g. cue ball control" />
+          </div>
+          <div>
+            <label>Folder</label>
+            <input id="routineFolder" list="folderSuggestions" placeholder="e.g. Potting" />
+            <datalist id="folderSuggestions"></datalist>
+          </div>
+          <div>
+            <label>Subfolder</label>
+            <input id="routineSubfolder" list="subfolderSuggestions" placeholder="e.g. Long pots" />
+            <datalist id="subfolderSuggestions"></datalist>
+          </div>
+          <div>
             <label>Default attempts</label>
             <input id="routineAttempts" type="number" min="0" placeholder="e.g. 10" />
           </div>
@@ -118,19 +151,32 @@
             <label>Target score</label>
             <input id="routineTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
-          <div>
-            <label>Category</label>
-            <input id="routineCategory" placeholder="e.g. potting, safety, break-building" />
-          </div>
         </div>
         <label>Description / rules</label>
-        <textarea id="routineDescription" rows="3" placeholder="Define exactly how to score the routine."></textarea>
-        <button id="saveRoutineBtn">Save Routine</button>
+        <textarea id="routineDescription" rows="3" placeholder="Define exactly how to score the exercise."></textarea>
+        <div class="row">
+          <button id="saveRoutineBtn">Save Exercise</button>
+          <button id="clearRoutineFormBtn" class="secondary">Clear Form</button>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Routine library</h2>
-        <div id="routineList" class="list"></div>
+        <h2>Exercise database</h2>
+        <div class="grid three">
+          <div>
+            <label>Filter by type</label>
+            <select id="exerciseTypeFilter"></select>
+          </div>
+          <div>
+            <label>Filter by folder</label>
+            <select id="exerciseFolderFilter"></select>
+          </div>
+          <div>
+            <label>Search</label>
+            <input id="exerciseSearch" placeholder="Search exercise name..." />
+          </div>
+        </div>
+        <div id="routineList" class="list grouped"></div>
       </div>
     </section>
 
@@ -140,10 +186,44 @@
         <label>Plan name</label>
         <input id="planName" placeholder="e.g. Tuesday 60 min — Break-building focus" />
 
+        <div class="grid two">
+          <div>
+            <label>Filter routine picker by type</label>
+            <select id="planTypeFilter"></select>
+          </div>
+          <div>
+            <label>Filter routine picker by folder</label>
+            <select id="planFolderFilter"></select>
+          </div>
+        </div>
+
         <label>Add routine</label>
         <div class="row">
           <select id="routineToAdd"></select>
           <button id="addRoutineToPlanBtn" class="secondary">Add</button>
+        </div>
+
+        <div class="card nested">
+          <h3>Randomizer</h3>
+          <p class="muted">Pick X exercises at random using the filters below.</p>
+          <div class="grid three">
+            <div>
+              <label>Number of exercises</label>
+              <input id="randomCount" type="number" min="1" value="4" />
+            </div>
+            <div>
+              <label>Type filter</label>
+              <select id="randomTypeFilter"></select>
+            </div>
+            <div>
+              <label>Folder filter</label>
+              <select id="randomFolderFilter"></select>
+            </div>
+          </div>
+          <div class="row">
+            <button id="randomizePlanBtn" class="secondary">Randomize Draft Plan</button>
+            <button id="appendRandomPlanBtn" class="secondary">Append Random Exercises</button>
+          </div>
         </div>
 
         <div id="planBuilderList" class="list compact"></div>
@@ -158,11 +238,18 @@
 
     <section id="stats" class="panel">
       <div class="card">
-        <h2>Performance dashboard</h2>
-        <label>Routine</label>
-        <select id="statsRoutineSelect"></select>
+        <h2>Stats</h2>
+        <div class="grid two">
+          <div>
+            <label>Routine progression</label>
+            <select id="statsRoutineSelect"></select>
+          </div>
+          <div>
+            <label>Training date view</label>
+            <input id="statsDateSelect" type="date" />
+          </div>
+        </div>
         <div id="statsOutput" class="stats"></div>
-        <canvas id="progressChart" class="progress-chart hidden" width="860" height="320"></canvas>
       </div>
     </section>
 
@@ -182,16 +269,16 @@
 
       <div class="card danger-zone">
         <h2>Reset app data</h2>
-        <p>This deletes saved routines, plans, and logs from this browser.</p>
+        <p>This deletes saved exercises, plans, and logs from this browser.</p>
         <button id="clearDataBtn" class="danger">Clear All Data</button>
       </div>
     </section>
   </main>
 
   <footer>
-    <span>Local-first PWA. No account. No backend. Data remains on your device unless exported.</span>
+    <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3.1"></script>
 </body>
 </html>
