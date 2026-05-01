@@ -1,39 +1,22 @@
-# Snooker Practice Log — v3.5 final
+# Snooker Practice Log — v3.6 final
 
-Built from v3.4.
+Built from v3.5.
 
-## New in v3.5
+## New in v3.6 — General App Improvement D: Faster input UX
 
-General app improvements:
-- Lightweight session data layer:
-  - sessions are tracked separately from logs
-  - legacy sessions are rebuilt from existing logs during migration
-- Versioned backups:
-  - JSON backup filename now includes app version and export date
-  - backup JSON includes backupVersion and exportedAt
+- Repeat Last Exercise button
+- Quick score buttons:
+  - +1 / -1
+  - +5 / +10 for raw/points exercises
+  - Half / Max presets for success-rate exercises
+- Score input auto-focuses when a routine starts
+- Enter key saves the current routine
+- Numeric mobile keyboard hints
+- Sticky save/action bar at bottom of active routine screen
+- Smart default placeholders:
+  - last logged time for the same exercise
+  - last used session rating
 
-Smart defaults / recommendations:
-- Practice tab now shows a smart recommendation
-- Recommendation prioritizes:
-  - low target hit rate
-  - recent underperformance
-  - undertrained categories
+## Confirm version
 
-Constraint-based session templates:
-- Generate a draft training session from:
-  - total minutes
-  - main focus
-  - number of exercises
-  - allocation percentages by category
-
-Graph / UI tweaks:
-- Charts are more compact and thinner
-- Tables are denser
-- Analytics cards are more compact
-
-Log editing:
-- Edit log category from existing categories
-- Useful for recategorizing uncategorized historical logs
-
-Confirm version:
-The header should show v3.5.
+The header should show v3.6.

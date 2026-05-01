@@ -72,3 +72,11 @@ svg.chart{height:170px!important;min-width:280px}
 .history-table th,.history-table td{padding:6px}
 .analytics-note,.warning-note{padding:9px;border-radius:10px}
 .mini-kpi{display:inline-block;min-width:92px;border:1px solid var(--line);border-radius:10px;padding:7px;margin:4px;background:#fbfcfb}
+
+/* v3.6 faster input UX */
+.quick-score{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.quick-score button{padding:8px 10px;font-size:13px;flex:0 0 auto}
+.primary-action-row button:first-child{flex:2}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);border-color:#c7a753}
+.sticky-log-actions{position:sticky;bottom:0;background:rgba(244,246,242,.94);backdrop-filter:blur(4px);padding:10px;border-top:1px solid var(--line);margin:12px -18px -18px}
+@media(max-width:760px){.quick-score button{flex:1 1 28%}.sticky-log-actions{margin-left:-18px;margin-right:-18px}}

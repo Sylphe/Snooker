@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.5-final";
+const APP_VERSION = "3.6-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -444,6 +444,15 @@ $("startFreeSessionBtn").addEventListener("click", () => {
   activeSession = { id: crypto.randomUUID(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
   startRoutineScreen();
 });
+$("repeatLastExerciseBtn").addEventListener("click", () => {
+  const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
+  if (!last) return alert("No previous exercise to repeat yet.");
+  const routine = routineById(last.routineId);
+  if (!routine) return alert("The last exercise template no longer exists.");
+  activeSession = { id: crypto.randomUUID(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  startRoutineScreen();
+});
+
 function startRoutineScreen() {
   resetTimerState();
   $("sessionSummary").classList.add("hidden");
@@ -473,6 +482,7 @@ function renderCurrentRoutine() {
   else $("routineDescriptionBox").classList.add("hidden");
   resetTimerState();
   renderScoreInputs(r);
+  prefillSmartDefaults(r);
   $("saveNextBtn").textContent = activeSession.type === "free" ? "Save Routine" : "Save & Next";
   $("skipBtn").classList.toggle("hidden", activeSession.type === "free");
   $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
@@ -480,15 +490,61 @@ function renderCurrentRoutine() {
 function renderScoreInputs(r) {
   let html = "";
   if (r.scoring === "success_rate") {
-    html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7"></div>`;
-    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attempts || ""}" placeholder="e.g. 10"></div>`;
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty"></div>`;
+    html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attempts || ""}" placeholder="e.g. 10" inputmode="numeric"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else {
-    html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score"></div>`;
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty"></div>`;
+    html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   }
   $("scoreInputs").innerHTML = html;
+  renderQuickScoreControls(r);
+  setTimeout(() => $("scoreValue")?.focus(), 120);
+  ["scoreValue","attemptsValue","manualTimeValue"].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener("keydown", e => {
+      if (e.key === "Enter") saveCurrentRoutine();
+    });
+  });
 }
+function renderQuickScoreControls(r) {
+  const box = $("quickScoreControls");
+  if (!box) return;
+  box.classList.remove("hidden");
+  if (r.scoring === "success_rate") {
+    const attempts = Number(r.attempts || 10);
+    box.innerHTML = `
+      <button class="secondary" onclick="setScoreValue(0)">0</button>
+      <button class="secondary" onclick="decrementScore()">-1</button>
+      <button class="secondary" onclick="incrementScore()">+1</button>
+      <button class="secondary" onclick="setScoreValue(${Math.floor(attempts/2)})">Half</button>
+      <button class="secondary" onclick="setScoreValue(${attempts})">Max</button>`;
+  } else {
+    box.innerHTML = `
+      <button class="secondary" onclick="decrementScore()">-1</button>
+      <button class="secondary" onclick="incrementScore()">+1</button>
+      <button class="secondary" onclick="adjustScore(5)">+5</button>
+      <button class="secondary" onclick="adjustScore(10)">+10</button>
+      <button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
+  }
+}
+function scoreNumber() { return Number($("scoreValue")?.value || 0); }
+function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; $("scoreValue").focus(); } }
+function adjustScore(delta) { setScoreValue(scoreNumber() + delta); }
+function incrementScore() { adjustScore(1); }
+function decrementScore() { adjustScore(-1); }
+
+
+function prefillSmartDefaults(r) {
+  const similar = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const last = similar[0];
+  if (last && $("manualTimeValue") && !Number($("manualTimeValue").value)) {
+    $("manualTimeValue").placeholder = `last: ${last.timeMinutes} min`;
+  }
+  const recentRating = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).find(l => l.sessionRating);
+  if (recentRating && $("sessionRating")) $("sessionRating").placeholder = `last: ${recentRating.sessionRating}`;
+}
+
 $("saveNextBtn").addEventListener("click", saveCurrentRoutine);
 $("skipBtn").addEventListener("click", () => { if (!activeSession) return; activeSession.index += 1; stopTimer(); renderCurrentRoutine(); });
 $("endFreeSessionBtn").addEventListener("click", completeSession);
@@ -1101,7 +1157,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.5");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.6");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

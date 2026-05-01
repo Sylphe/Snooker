@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.5</title>
+  <title>Snooker Practice Log v3.6</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.5" />
-  <link rel="stylesheet" href="styles.css?v=3.5" />
-  <link rel="icon" href="icon.svg?v=3.5" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.6" />
+  <link rel="stylesheet" href="styles.css?v=3.6" />
+  <link rel="icon" href="icon.svg?v=3.6" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.5 — sessions layer, smart recommendations, constraint templates, compact charts.</p>
+      <p>v3.6 — faster input, repeat last exercise, quick scores, streamlined logging.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -44,6 +44,7 @@
         <div class="row">
           <button id="startSessionBtn">Start Plan Session</button>
           <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
+          <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
           <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
         </div>
       </div>
@@ -75,6 +76,8 @@
 
         <div id="scoreInputs" class="score-grid"></div>
 
+        <div id="quickScoreControls" class="quick-score hidden"></div>
+
         <label>Session quality rating (1–5)</label>
         <input id="sessionRating" type="number" min="1" max="5" step="1" placeholder="Optional" />
 
@@ -84,7 +87,7 @@
         <label>Notes</label>
         <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
 
-        <div class="row">
+        <div class="row sticky-log-actions primary-action-row">
           <button id="saveNextBtn">Save</button>
           <button id="skipBtn" class="secondary">Skip</button>
           <button id="endFreeSessionBtn" class="danger hidden">End Free Training</button>
@@ -357,6 +360,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.5"></script>
+  <script src="app.js?v=3.6"></script>
 </body>
 </html>

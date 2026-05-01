@@ -1,10 +1,10 @@
-const CACHE_NAME = "snooker-practice-log-v3-5-final";
+const CACHE_NAME = "snooker-practice-log-v3-6-final";
 const ASSETS = [
-  "./index.html?v=3.5",
-  "./styles.css?v=3.5",
-  "./app.js?v=3.5",
-  "./manifest.json?v=3.5",
-  "./icon.svg?v=3.5"
+  "./index.html?v=3.6",
+  "./styles.css?v=3.6",
+  "./app.js?v=3.6",
+  "./manifest.json?v=3.6",
+  "./icon.svg?v=3.6"
 ];
 
 self.addEventListener("install", event => {
