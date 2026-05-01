@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.13.1</title>
+  <title>Snooker Practice Log v3.16</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.13.1" />
-  <link rel="stylesheet" href="styles.css?v=3.13.1" />
-  <link rel="icon" href="icon.svg?v=3.13.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.16" />
+  <link rel="stylesheet" href="styles.css?v=3.16" />
+  <link rel="icon" href="icon.svg?v=3.16" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.13.1 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.16 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -26,6 +26,8 @@
     <button class="tab" data-tab="stats">Stats</button>
     <button class="tab" data-tab="data">Data</button>
   </nav>
+
+  <div id="backupReminderBanner" class="backup-banner hidden"></div>
 
   <main>
     <section id="practice" class="panel active">
@@ -152,6 +154,7 @@
         <h2>Today’s training</h2>
         <p class="muted">Shows all exercises logged today, grouped by training session.</p>
         <div id="todaySummary"></div>
+        <div id="trainingLoadBox"></div>
       </div>
     </section>
 
@@ -206,6 +209,13 @@
           <div>
             <label>Default duration, minutes</label>
             <input id="routineDuration" type="number" min="0" placeholder="e.g. 10" />
+          </div>
+          <div>
+            <label>Anchor drill?</label>
+            <select id="routineIsAnchor">
+              <option value="no">No</option>
+              <option value="yes">Yes — include in baseline tracking</option>
+            </select>
           </div>
           <div>
             <label>Target score <button type="button" class="help-dot" onclick="showFieldHelp('targetScore')">?</button></label>
@@ -425,6 +435,42 @@
             <input id="benchmarkWindowInput" type="number" min="3" max="30" value="10" />
           </div>
         </div>
+        
+        <div class="card nested">
+          <h3>A/B period comparison</h3>
+          <div class="grid three">
+            <div>
+              <label>Compare mode</label>
+              <select id="compareToggle">
+                <option value="off">Off</option>
+                <option value="last4">Last 4 weeks vs previous 4 weeks</option>
+                <option value="last2">Last 2 weeks vs previous 2 weeks</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </div>
+            <div>
+              <label>Period A start</label>
+              <input id="compareAStart" type="date" />
+            </div>
+            <div>
+              <label>Period A end</label>
+              <input id="compareAEnd" type="date" />
+            </div>
+          </div>
+          <div class="grid two">
+            <div>
+              <label>Period B start</label>
+              <input id="compareBStart" type="date" />
+            </div>
+            <div>
+              <label>Period B end</label>
+              <input id="compareBEnd" type="date" />
+            </div>
+          </div>
+          <div id="compareOutput"></div>
+        </div>
+
+        <div id="weeklyReviewBox"></div>
         <div id="statsOutput" class="stats"></div>
       </div>
     </section>
@@ -436,6 +482,7 @@
         <div class="row">
           <button id="exportCsvBtn">Export CSV</button>
           <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
+          <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
           <label class="file-btn secondary">
             Import JSON Backup
             <input id="importJsonInput" type="file" accept="application/json" />
@@ -463,10 +510,48 @@
     </div>
   </div>
 
+
+  <div id="reflectionModal" class="modal-backdrop hidden" onclick="closeReflectionModal(event)">
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Post-session reflection</h2>
+        <button type="button" class="modal-close" onclick="skipReflection()">×</button>
+      </div>
+      <div class="modal-body">
+        <label>Main technical focus</label>
+        <select id="reflectionFocus">
+          <option value="">Select focus</option>
+          <option value="potting">Potting</option>
+          <option value="cue_ball_control">Cue ball control</option>
+          <option value="break_building">Break-building</option>
+          <option value="safety">Safety</option>
+          <option value="tempo">Tempo / rhythm</option>
+          <option value="pressure">Pressure</option>
+        </select>
+        <label>Main limiter</label>
+        <select id="reflectionLimiter">
+          <option value="">Select limiter</option>
+          <option value="fatigue">Fatigue</option>
+          <option value="concentration">Concentration</option>
+          <option value="technique">Technique</option>
+          <option value="table_conditions">Table conditions</option>
+          <option value="confidence">Confidence</option>
+          <option value="shot_selection">Shot selection</option>
+        </select>
+        <label>Reflection note</label>
+        <textarea id="reflectionNote" rows="3" placeholder="Short note: what would improve the next session?"></textarea>
+      </div>
+      <div class="row">
+        <button type="button" onclick="saveReflection()">Save reflection</button>
+        <button type="button" class="secondary" onclick="skipReflection()">Skip</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.13.1"></script>
+  <script src="app.js?v=3.16"></script>
 </body>
 </html>

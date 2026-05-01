@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.16-final";
+const APP_VERSION = "3.13.1-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -41,7 +41,7 @@ let timerInterval = null;
 let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
 let deferredInstallPrompt = null;
-let statsMode = localStorage.getItem("snookerPracticePWA.statsMode") || "overview";
+let statsMode = "overview";
 
 function $(id) { return document.getElementById(id); }
 
@@ -99,33 +99,14 @@ function migrateData(d) {
 }
 
 function loadData() {
-  try {
-    let raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      for (const k of OLD_KEYS) {
-        const old = localStorage.getItem(k);
-        if (old) { raw = old; break; }
-      }
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    for (const k of OLD_KEYS) {
+      const old = localStorage.getItem(k);
+      if (old) { raw = old; break; }
     }
-    if (!raw) {
-      const seeded = structuredClone(defaultData);
-      seeded.plans.push({
-        id: crypto.randomUUID(),
-        name: "Default 60 min practice",
-        routineIds: seeded.routines.map(r => r.id),
-        createdAt: new Date().toISOString()
-      });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-    const parsedRaw = safeParseData(raw);
-    if (!parsedRaw) throw new Error("Stored app data is not valid JSON.");
-    const parsed = migrateData(parsedRaw);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-    return parsed;
-  } catch(e) {
-    logAppError(e, "loadData");
-    alert("The app detected corrupted local data and loaded a clean default set. If you have a JSON backup, import it from the Data tab.");
+  }
+  if (!raw) {
     const seeded = structuredClone(defaultData);
     seeded.plans.push({
       id: crypto.randomUUID(),
@@ -136,6 +117,9 @@ function loadData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
     return seeded;
   }
+  const parsed = migrateData(JSON.parse(raw));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  return parsed;
 }
 
 function saveData() {
@@ -232,10 +216,6 @@ function renderAll() {
   renderToday();
   renderSmartRecommendation();
   renderTagSuggestions();
-  renderBackupReminder();
-  renderTrainingLoad();
-  renderWeeklyReview();
-  renderABComparison();
 }
 
 function renderRoutineSelects() {
@@ -295,7 +275,7 @@ function renderRoutineItem(r) {
     <span class="badge">Type: ${escapeHtml(r.category || "uncategorized")}</span>
     <span class="badge">${r.duration || 0} min</span>
     ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
-    ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
+    ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}
     ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span><span class="badge">Colour: ${fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode))}</span>` : ""}
     <div class="small-actions">
       <button class="secondary" onclick="editRoutine('${r.id}')">Edit</button>
@@ -319,7 +299,6 @@ function editRoutine(id) {
   $("routineSubfolderNew").value = "";
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
-  $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
@@ -338,7 +317,6 @@ function clearRoutineForm() {
   $("routineEditId").value = "";
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
-  $("routineIsAnchor").value = "no";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
@@ -376,7 +354,6 @@ $("saveRoutineBtn").addEventListener("click", () => {
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
-    isAnchor: $("routineIsAnchor").value === "yes",
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -511,7 +488,7 @@ function deletePlan(id) {
 $("startSessionBtn").addEventListener("click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
-  activeSession = { id: crypto.randomUUID(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  activeSession = { id: crypto.randomUUID(), type: "plan", planId: plan.id, planName: plan.name, routineIds: plan.routineIds.filter(id => data.routines.some(r => r.id === id)), index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
   startRoutineScreen();
 });
 $("startFreeSessionBtn").addEventListener("click", () => {
@@ -590,23 +567,6 @@ function renderScoreInputs(r) {
     if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
   });
 }
-
-function fillSameAsLastTime() {
-  if (!activeSession) return;
-  const rid = activeSession.routineIds[activeSession.index];
-  const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).find(l => l.routineId === rid);
-  if (!last) return alert("No previous log for this exercise.");
-  if (!confirm("Fill the score fields with the last logged values for this exercise?")) return;
-  if ($("scoreValue")) $("scoreValue").value = last.score || 0;
-  if ($("attemptsValue")) $("attemptsValue").value = last.attempts || last.attemptsPerSessionAtLog || "";
-  if ($("manualTimeValue")) $("manualTimeValue").value = last.timeMinutes || "";
-  if ($("bestAttemptValue")) $("bestAttemptValue").value = last.bestAttempt || "";
-  if ($("completionCountValue")) $("completionCountValue").value = last.completionCount || "";
-  if ($("highestBreakValue")) $("highestBreakValue").value = last.highestBreak || "";
-  if ($("sessionRating") && last.sessionRating) $("sessionRating").value = last.sessionRating;
-  if ($("sessionTags") && last.sessionTags) $("sessionTags").value = last.sessionTags;
-}
-
 function renderQuickScoreControls(r) {
   const box = $("quickScoreControls");
   if (!box) return;
@@ -627,7 +587,6 @@ function renderQuickScoreControls(r) {
       <button class="secondary" onclick="adjustScore(10)">+10</button>
       <button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
   }
-  box.innerHTML += `<button class="secondary" onclick="fillSameAsLastTime()">Same as last</button>`;
 }
 function scoreNumber() { return Number($("scoreValue")?.value || 0); }
 function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; $("scoreValue").focus(); } }
@@ -671,7 +630,6 @@ function saveCurrentRoutine() {
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
   if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
   if (Number.isNaN(score)) return alert("Enter a valid score.");
-  if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
 
   const log = {
@@ -740,7 +698,6 @@ function completeSession() {
   $("sessionSummary").classList.remove("hidden");
   data.sessions = data.sessions || [];
   const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
-  const completedSessionId = activeSession.id;
   const sessionRecord = {
     id: activeSession.id,
     name: getPlanName(activeSession),
@@ -754,10 +711,8 @@ function completeSession() {
   if (existingIdx >= 0) data.sessions[existingIdx] = sessionRecord;
   else data.sessions.push(sessionRecord);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  resetTimerState();
   activeSession = null;
   renderToday();
-  openReflectionModal(completedSessionId);
   renderStats();
 }
 
@@ -947,131 +902,6 @@ $("generateConstraintPlanBtn").addEventListener("click", () => {
 });
 
 
-
-let pendingReflectionSessionId = "";
-
-function anchorRoutines() {
-  return (data.routines || []).filter(r => r.isAnchor);
-}
-function anchorPerformanceSummary(logs) {
-  const anchors = anchorRoutines();
-  if (!anchors.length) return "";
-  const rows = anchors.map(r => {
-    const rLogs = logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-    const allLogs = (data.logs || []).filter(l => l.routineId === r.id).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-    const todayAvg = rLogs.length ? avg(rLogs.map(l=>Number(l.normalizedScore||0))) : null;
-    const baseline = allLogs.length ? avg(allLogs.slice(-10).map(l=>Number(l.normalizedScore||0))) : null;
-    return {name:r.name, todayAvg, baseline};
-  });
-  return `<div class="review-box"><h3>Anchor drill baseline</h3>${rows.map(row => `<div class="reflection-row"><strong>${escapeHtml(row.name)}</strong>: ${row.todayAvg === null ? "not logged in this view" : row.todayAvg.toFixed(1)}${row.baseline === null ? "" : " vs baseline "+row.baseline.toFixed(1)}</div>`).join("")}</div>`;
-}
-
-function weekStart(dateLike) {
-  const d = new Date(dateLike);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  d.setHours(0,0,0,0);
-  return d;
-}
-function trainingLoadByDay(days=14) {
-  const out = [];
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  for (let i=days-1;i>=0;i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate()-i);
-    const key = localDateKey(d);
-    const logs = (data.logs || []).filter(l => localDateKey(l.createdAt) === key);
-    out.push({key, label:key.slice(5), time:logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0), count:logs.length});
-  }
-  return out;
-}
-function renderTrainingLoad() {
-  const box = $("trainingLoadBox");
-  if (!box) return;
-  const load = trainingLoadByDay(14);
-  const max = Math.max(1, ...load.map(d=>d.time));
-  const total7 = load.slice(-7).reduce((a,b)=>a+b.time,0);
-  const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
-  const delta = prev7 ? ((total7-prev7)/Math.abs(prev7))*100 : null;
-  box.innerHTML = `<div class="load-card"><h3>Training load — last 14 days</h3>
-    <div class="stats-grid"><div class="stat-card"><span>Last 7 days</span><div class="value">${total7.toFixed(1)}m</div></div><div class="stat-card"><span>Previous 7 days</span><div class="value">${prev7.toFixed(1)}m</div></div><div class="stat-card"><span>Volume change</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
-    <div class="load-bars">${load.map(d=>`<div class="load-bar" title="${d.key}: ${d.time.toFixed(1)} min" style="height:${Math.max(3,(d.time/max)*90)}px"></div>`).join("")}</div>
-    <div class="load-labels">${load.map(d=>`<span>${d.label}</span>`).join("")}</div>
-    ${renderLoadAdvice(total7, prev7)}
-  </div>`;
-}
-function renderLoadAdvice(total7, prev7) {
-  if (!prev7) return `<div class="analytics-note">Build a baseline first. Log at least two weeks for load guidance.</div>`;
-  const delta = ((total7-prev7)/Math.abs(prev7))*100;
-  if (delta > 35) return `<div class="warning-note">Training load increased sharply. If performance is flat, consider a lighter session or deload.</div>`;
-  if (delta < -35) return `<div class="analytics-note">Training load dropped materially. If this was not deliberate, schedule an anchor session.</div>`;
-  return `<div class="analytics-note">Training load is relatively stable. Good for comparing performance trends.</div>`;
-}
-function warmupSuggestion(logs=data.logs || []) {
-  const f = fatigueCurve(logs);
-  if (f && f.deltaPct < -15) return "Warm-up suggestion: add 5 minutes of light potting before scored drills, then shorten the final block or add a break.";
-  if (f && f.deltaPct > 10) return "Warm-up suggestion: you appear to start slowly. Add an unscored calibration block before logging.";
-  return "Warm-up suggestion: keep a short consistent warm-up so scored drills remain comparable.";
-}
-function variationSuggestionForRoutine(routineId) {
-  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const plateau = plateauDetector(logs, 6);
-  const r = routineById(routineId);
-  if (!r || !plateau || !plateau.isPlateau) return "";
-  if ((r.category || "").toLowerCase().includes("potting")) return "Variation suggestion: keep the same drill but move the cue ball 2 inches closer to cushion or reduce attempts by 20% to raise focus.";
-  if ((r.category || "").toLowerCase().includes("safety")) return "Variation suggestion: add a stricter leave condition or score only outcomes that create clear advantage.";
-  return "Variation suggestion: change one constraint only — target, position, or attempts — and keep the rest stable.";
-}
-function renderWeeklyReview() {
-  const box = $("weeklyReviewBox");
-  if (!box) return;
-  const today = new Date();
-  const start = weekStart(today);
-  const prev = new Date(start); prev.setDate(start.getDate()-7);
-  const thisLogs = logsInRange(data.logs || [], start, new Date());
-  const prevLogs = logsInRange(data.logs || [], prev, start);
-  const thisAvg = thisLogs.length ? avg(thisLogs.map(l=>Number(l.normalizedScore||0))) : null;
-  const prevAvg = prevLogs.length ? avg(prevLogs.map(l=>Number(l.normalizedScore||0))) : null;
-  const delta = thisAvg !== null && prevAvg ? ((thisAvg-prevAvg)/Math.abs(prevAvg))*100 : null;
-  box.innerHTML = `<div class="review-box"><h3>Weekly review</h3>
-    <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
-    <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : data.logs))}</div>
-    ${anchorPerformanceSummary(thisLogs)}
-  </div>`;
-}
-function openReflectionModal(sessionId) {
-  pendingReflectionSessionId = sessionId || "";
-  if (!$("reflectionModal")) return;
-  $("reflectionFocus").value = "";
-  $("reflectionLimiter").value = "";
-  $("reflectionNote").value = "";
-  $("reflectionModal").classList.remove("hidden");
-}
-function closeReflectionModal(event) {
-  if (event.target && event.target.id === "reflectionModal") skipReflection();
-}
-function saveReflection() {
-  if (!pendingReflectionSessionId) return skipReflection();
-  const idx = (data.sessions || []).findIndex(s => s.id === pendingReflectionSessionId);
-  if (idx >= 0) {
-    data.sessions[idx].reflection = {
-      focus: $("reflectionFocus").value || "",
-      limiter: $("reflectionLimiter").value || "",
-      note: $("reflectionNote").value || "",
-      createdAt: new Date().toISOString()
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
-  skipReflection();
-  renderAll();
-}
-function skipReflection() {
-  pendingReflectionSessionId = "";
-  if ($("reflectionModal")) $("reflectionModal").classList.add("hidden");
-}
-
-
 function renderSmartRecommendation() {
   const box = $("smartRecommendationBox");
   if (!box) return;
@@ -1106,7 +936,7 @@ function renderSmartRecommendation() {
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p><div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p>`;
 }
 function computeAllocation(logs){
   const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -1120,23 +950,16 @@ function computeAllocation(logs){
 
 $("statsOverviewBtn").addEventListener("click", () => {
   statsMode = "overview";
-  localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
   $("statsOverviewBtn").classList.add("active-subtab");
   $("statsAdvancedBtn").classList.remove("active-subtab");
   renderStats();
 });
 $("statsAdvancedBtn").addEventListener("click", () => {
   statsMode = "advanced";
-  localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
   $("statsAdvancedBtn").classList.add("active-subtab");
   $("statsOverviewBtn").classList.remove("active-subtab");
   renderStats();
 });
-["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
-  const el = $(id);
-  if (el) el.addEventListener("change", renderABComparison);
-});
-
 $("statsRoutineSelect").addEventListener("change", renderStats);
 $("statsDateSelect").addEventListener("change", renderStats);
 $("statsPeriodSelect").addEventListener("change", renderStats);
@@ -1168,9 +991,6 @@ function renderStats() {
     const alloc = computeAllocation(scopedLogs); html += `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
     html += renderAdvancedAnalytics(scopedLogs, rollingWindow, benchmarkWindow);
     html += renderSecondOrderAnalytics(scopedLogs, rid, rollingWindow);
-    html += renderPerformanceStability(scopedLogs);
-    html += renderFatigueSlope(scopedLogs);
-    html += renderDifficultyLadder(scopedLogs);
     html += renderCoachingEngine(scopedLogs);
   }
 
@@ -1205,9 +1025,6 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
     </div>`;
 
   html += renderCoachingEngine(logs);
-  html += renderPerformanceStability(logs);
-  html += renderFatigueSlope(logs);
-  html += renderDifficultyLadder(logs);
   html += renderSecondOrderAnalytics(logs, rid, rollingWindow);
 
   if (weak) {
@@ -1311,9 +1128,6 @@ function renderCoachingEngine(logs) {
   if (plateau && plateau.isPlateau) insights.push({title:"Plateau detected", text:"Performance has flattened. Change constraint, drill format, or intensity rather than repeating identical volume."});
   const over = overtrainingSignal(logs, 8);
   if (over && over.signal === "Risk") insights.push({title:"Possible overtraining / low yield", text:"Recent volume increased without matching performance gain. Reduce volume or increase rest between sets."});
-
-  const ladder = difficultyLadderRecommendation(logs);
-  if (ladder && ladder.type !== "maintain") insights.push({title:"Difficulty ladder", text: ladder.text});
 
   if (!insights.length) {
     insights.push({title:"Maintain current structure", text:"No strong bottleneck detected. Continue logging to improve signal quality."});
@@ -1443,158 +1257,6 @@ function overtrainingSignal(logs, windowSize=8) {
   const perfDelta = ((recentPerf-priorPerf)/Math.abs(priorPerf))*100;
   return {volumeDelta, perfDelta, signal: volumeDelta > 20 && perfDelta < 3 ? "Risk" : "Normal"};
 }
-
-
-function performanceStabilityIndex(logs, windowSize=10) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
-  if (vals.length < 3) return null;
-  const recent = vals.slice(-windowSize);
-  const mean = avg(recent);
-  const cv = mean ? stdDev(recent) / Math.abs(mean) : 0;
-  const hitSeries = logs.slice(-windowSize).map(l => {
-    const p = l.performance || "N/A";
-    return (p === "On Target" || p === "Above Target") ? 1 : 0;
-  });
-  const hitVol = hitSeries.length > 1 ? stdDev(hitSeries) : 0;
-  const psi = Math.max(0, 100 - (cv*65 + hitVol*35));
-  let label = "Stable";
-  if (psi < 45) label = "Unstable";
-  else if (psi < 70) label = "Watch";
-  return {psi, cv, hitVol, label, mean, n: recent.length};
-}
-
-function renderPerformanceStability(logs) {
-  const psi = performanceStabilityIndex(logs, 10);
-  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index</strong><br>Not enough data yet.</div>`;
-  const cls = psi.psi >= 70 ? "psi-good" : psi.psi >= 45 ? "psi-watch" : "psi-risk";
-  return `<div class="psi-card ${cls}">
-    <strong>Performance Stability Index: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
-    <span class="muted">CV ${(psi.cv*100).toFixed(1)}% · hit-rate volatility ${(psi.hitVol*100).toFixed(1)}% · ${psi.n} recent logs.</span>
-  </div>`;
-}
-
-function fatigueSlope(logs) {
-  if (!logs.length) return null;
-  let cumulative = 0;
-  const xs = [], ys = [];
-  logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(l => {
-    cumulative += Number(l.timeMinutes || 0);
-    xs.push(cumulative);
-    ys.push(Number(l.normalizedScore || 0));
-  });
-  if (xs.length < 3) return null;
-  const mx = avg(xs), my = avg(ys);
-  const num = xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0);
-  const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
-  const slope = den ? num/den : 0;
-  const corr = correlation(xs, ys);
-  return {slope, corr, n: xs.length};
-}
-
-function renderFatigueSlope(logs) {
-  const f = fatigueSlope(logs);
-  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope</strong><br>Not enough data yet.</div>`;
-  const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
-  const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
-  return `<div class="psi-card ${cls}">
-    <strong>Fatigue slope: ${f.slope.toFixed(2)} pts/min — ${direction}</strong><br>
-    <span class="muted">Correlation ${corrText(f.corr)} over ${f.n} logs.</span>
-  </div>`;
-}
-
-function difficultyLadderRecommendation(logs) {
-  if (!logs.length) return null;
-  const hit = targetHitRate(logs);
-  const drift = performanceDrift(logs, Math.min(10, Math.max(5, Math.floor(logs.length/2))));
-  const gap = skillGapIndex(logs);
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  const mean = avg(vals);
-  const psi = performanceStabilityIndex(logs, 10);
-  if (hit !== null && hit >= 80 && gap !== null && gap < Math.max(5, mean*0.10) && drift && drift.deltaPct > 5) {
-    return {type:"increase", text:"Increase difficulty: hit rate is high, skill gap is tight, and recent drift is positive. Suggested new target: +5 to +10 points or harder constraint."};
-  }
-  if (hit !== null && hit <= 35) {
-    return {type:"reduce", text:"Reduce difficulty: hit rate is low. Simplify the drill or lower the target until you reach the learning zone."};
-  }
-  if (psi && psi.psi < 45) {
-    return {type:"stabilize", text:"Stabilize before raising target: performance is volatile. Repeat the same setup until PSI improves."};
-  }
-  if (drift && drift.deltaPct < -10) {
-    return {type:"recover", text:"Do not increase difficulty: recent performance drift is negative. Consider a lighter session or technique block."};
-  }
-  return {type:"maintain", text:"Maintain current difficulty: no strong signal to increase or reduce yet."};
-}
-
-function renderDifficultyLadder(logs) {
-  const rec = difficultyLadderRecommendation(logs);
-  if (!rec) return "";
-  return `<div class="ladder-action"><strong>Difficulty ladder:</strong> ${escapeHtml(rec.text)}</div>`;
-}
-
-function dateFromKey(key) {
-  return new Date(key + "T00:00:00");
-}
-function metricsForLogs(logs) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  const totalTime = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
-  const hit = targetHitRate(logs);
-  const psi = performanceStabilityIndex(logs, 10);
-  return {
-    logs: logs.length,
-    time: totalTime,
-    avg: vals.length ? avg(vals) : null,
-    hit,
-    psi: psi ? psi.psi : null,
-    best: vals.length ? Math.max(...vals) : null
-  };
-}
-function deltaFmt(a,b, suffix="") {
-  if (a === null || a === undefined || b === null || b === undefined) return "N/A";
-  const d = a-b;
-  return `${d>=0?"+":""}${d.toFixed(1)}${suffix}`;
-}
-function renderABComparison() {
-  const out = $("compareOutput");
-  if (!out) return;
-  const mode = $("compareToggle")?.value || "off";
-  if (mode === "off") { out.innerHTML = ""; return; }
-
-  let aStart, aEnd, bStart, bEnd;
-  const today = new Date(); today.setHours(0,0,0,0);
-  if (mode === "last4" || mode === "last2") {
-    const weeks = mode === "last4" ? 4 : 2;
-    aEnd = new Date(today); aEnd.setDate(aEnd.getDate()+1);
-    aStart = new Date(today); aStart.setDate(aStart.getDate()-(weeks*7)+1);
-    bEnd = new Date(aStart);
-    bStart = new Date(bEnd); bStart.setDate(bStart.getDate()-(weeks*7));
-  } else {
-    if (!$("compareAStart").value || !$("compareAEnd").value || !$("compareBStart").value || !$("compareBEnd").value) {
-      out.innerHTML = `<p class="muted">Select all custom dates to compare.</p>`;
-      return;
-    }
-    aStart = dateFromKey($("compareAStart").value);
-    aEnd = dateFromKey($("compareAEnd").value); aEnd.setDate(aEnd.getDate()+1);
-    bStart = dateFromKey($("compareBStart").value);
-    bEnd = dateFromKey($("compareBEnd").value); bEnd.setDate(bEnd.getDate()+1);
-  }
-
-  const logsA = logsInRange(data.logs || [], aStart, aEnd);
-  const logsB = logsInRange(data.logs || [], bStart, bEnd);
-  const A = metricsForLogs(logsA), B = metricsForLogs(logsB);
-
-  out.innerHTML = `<table class="compare-table">
-    <thead><tr><th>KPI</th><th>Period A</th><th>Period B</th><th>Delta A-B</th></tr></thead>
-    <tbody>
-      <tr><td>Logs</td><td>${A.logs}</td><td>${B.logs}</td><td>${A.logs-B.logs}</td></tr>
-      <tr><td>Training time</td><td>${A.time.toFixed(1)}m</td><td>${B.time.toFixed(1)}m</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
-      <tr><td>Average performance</td><td>${A.avg===null?"N/A":A.avg.toFixed(1)}</td><td>${B.avg===null?"N/A":B.avg.toFixed(1)}</td><td>${deltaFmt(A.avg,B.avg)}</td></tr>
-      <tr><td>Target hit rate</td><td>${A.hit===null?"N/A":A.hit.toFixed(1)+"%"}</td><td>${B.hit===null?"N/A":B.hit.toFixed(1)+"%"}</td><td>${deltaFmt(A.hit,B.hit," pts")}</td></tr>
-      <tr><td>PSI</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
-      <tr><td>Best score</td><td>${A.best===null?"N/A":A.best.toFixed(1)}</td><td>${B.best===null?"N/A":B.best.toFixed(1)}</td><td>${deltaFmt(A.best,B.best)}</td></tr>
-    </tbody>
-  </table>`;
-}
-
 
 function renderSecondOrderAnalytics(logs, selectedRid, rollingWindow=10) {
   if (!logs.length) return "";
@@ -1873,8 +1535,7 @@ $("exportCsvBtn").addEventListener("click", () => {
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
-$("exportJsonBtn").addEventListener("click", () => { markBackupExported(); downloadFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
-$("exportDebugBtn").addEventListener("click", exportDebugInfo);
+$("exportJsonBtn").addEventListener("click", () => downloadFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"));
 $("importJsonInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -2062,68 +1723,6 @@ function refreshReferenceNames() {
   });
 }
 
-
-function logAppError(error, context="runtime") {
-  try {
-    const errors = JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]");
-    errors.unshift({
-      at: new Date().toISOString(),
-      context,
-      message: error?.message || String(error),
-      stack: error?.stack || ""
-    });
-    localStorage.setItem("snookerPracticePWA.errorLog", JSON.stringify(errors.slice(0,10)));
-  } catch(e) {}
-}
-window.addEventListener("error", e => logAppError(e.error || e.message, "window.error"));
-window.addEventListener("unhandledrejection", e => logAppError(e.reason || "Unhandled promise rejection", "unhandledrejection"));
-
-function safeParseData(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch(e) {
-    logAppError(e, "JSON.parse localStorage");
-    return null;
-  }
-}
-function markBackupExported() {
-  localStorage.setItem("snookerPracticePWA.lastBackupAt", new Date().toISOString());
-}
-function daysSinceIso(iso) {
-  if (!iso) return Infinity;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-}
-function renderBackupReminder() {
-  const el = $("backupReminderBanner");
-  if (!el) return;
-  const last = localStorage.getItem("snookerPracticePWA.lastBackupAt");
-  const days = daysSinceIso(last);
-  if (days >= 30 && (data.logs || []).length) {
-    el.classList.remove("hidden");
-    el.innerHTML = `Backup reminder: you have not exported a JSON backup ${Number.isFinite(days) ? "in "+days+" days" : "yet"}. <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Go to Data</button>`;
-  } else {
-    el.classList.add("hidden");
-    el.innerHTML = "";
-  }
-}
-function exportDebugInfo() {
-  const payload = {
-    appVersion: APP_VERSION,
-    exportedAt: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    location: location.href,
-    counts: {
-      routines: (data.routines || []).length,
-      plans: (data.plans || []).length,
-      sessions: (data.sessions || []).length,
-      logs: (data.logs || []).length
-    },
-    errors: JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]"),
-    lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || ""
-  };
-  downloadFile(`snooker-debug-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
-}
-
 const FIELD_HELP = {
   targetScore: {
     title: "Target score",
@@ -2216,7 +1815,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.16");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.13.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2363,7 +1962,7 @@ function generateNextSession(){
 function loadGeneratedPlan(){
   if(!generatedPlanDraft.length) generateNextSession();
   if(!generatedPlanDraft.length) return;
-  planDraft = [...anchorRoutines().map(r=>r.id), ...generatedPlanDraft.filter(id => !anchorRoutines().some(r=>r.id===id))];
+  planDraft = [...generatedPlanDraft];
   if ($("planName") && !$("planName").value.trim()) $("planName").value = `Orchestrated session — ${new Date().toLocaleDateString()}`;
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
@@ -2392,15 +1991,3 @@ document.addEventListener("change", e=>{
   if(e.target && e.target.id==="routineScoring") updateTargetHints();
 });
 document.addEventListener("DOMContentLoaded", updateTargetHints);
-
-function applyStoredStatsModeVisual() {
-  if (!$("statsOverviewBtn") || !$("statsAdvancedBtn")) return;
-  if (statsMode === "advanced") {
-    $("statsAdvancedBtn").classList.add("active-subtab");
-    $("statsOverviewBtn").classList.remove("active-subtab");
-  } else {
-    $("statsOverviewBtn").classList.add("active-subtab");
-    $("statsAdvancedBtn").classList.remove("active-subtab");
-  }
-}
-document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
