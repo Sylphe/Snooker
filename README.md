@@ -1,33 +1,20 @@
-# Snooker Practice Log — v3.10 final
+# Snooker Practice Log — v3.11.1 final
 
-Built from v3.9.1.
+Built from v3.11.
 
-## New in v3.10
+## Fix
 
-Progressive Completion scoring:
-- New scoring type: Progressive completion
-- Exercise configuration:
-  - total units / completion size
-  - attempts per session
-  - unit type: balls cleared, points scored, pairs completed, steps completed
-  - target colour mode: blacks only, mixed colours, nominated colour, custom
-  - track highest break
-- Logging fields:
-  - average units completed per attempt
-  - best attempt
-  - completion count
-  - optional highest break
-- KPIs:
-  - average completion %
-  - best attempt
-  - completions
-  - highest break
+v3.11 had a startup error caused by calling the reference-refresh logic before the global app data object was initialized. This stopped JavaScript execution, which meant tabs and buttons did not respond.
 
-UX / data quality:
-- Delete confirmation wrapper
-- Session rating is now a controlled 1–5 dropdown
-- Session tags can be selected from previously used tags
-- Tag history is stored in app data and JSON backups
+v3.11.1 fixes that initialization order.
+
+## Keeps v3.11 features
+
+- Current exercise names resolve dynamically through routineId
+- Current daily plan names resolve dynamically through planId
+- Snapshot fallback if exercise/plan is deleted
+- CSV export includes current and snapshot names
+- Existing logs are refreshed safely after data loads
 
 Confirm version:
-The header should show v3.10.
+The header should show v3.11.1.
