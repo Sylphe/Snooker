@@ -1,4 +1,4 @@
-const CACHE_NAME = "snooker-practice-log-v3-16-final";
+const CACHE_NAME = "snooker-practice-log-v3-18-final";
 const ASSETS = [
   "./index.html?v=3.8",
   "./styles.css?v=3.8",

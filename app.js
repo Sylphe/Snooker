@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.16-final";
+const APP_VERSION = "3.18-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -91,7 +91,8 @@ function migrateData(d) {
         type: first.sessionType || "legacy",
         startedAt: first.createdAt,
         endedAt: logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0].createdAt,
-        logIds: logs.map(l => l.id)
+        logIds: logs.map(l => l.id),
+    plannedRoutineIds: activeSession.plannedRoutineIds || activeSession.routineIds || []
       });
     }
   });
@@ -236,6 +237,8 @@ function renderAll() {
   renderTrainingLoad();
   renderWeeklyReview();
   renderABComparison();
+  renderResumeCard();
+  renderTableStats();
 }
 
 function renderRoutineSelects() {
@@ -297,6 +300,7 @@ function renderRoutineItem(r) {
     ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
     ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span><span class="badge">Colour: ${fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode))}</span>` : ""}
+    ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
       <button class="secondary" onclick="editRoutine('${r.id}')">Edit</button>
       <button class="secondary" onclick="duplicateRoutine('${r.id}')">Duplicate</button>
@@ -508,17 +512,22 @@ function deletePlan(id) {
   });
 }
 
+$("resumeSessionBtn").addEventListener("click", resumePersistedSession);
+$("discardSessionBtn").addEventListener("click", discardPersistedSession);
+
 $("startSessionBtn").addEventListener("click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
-  activeSession = { id: crypto.randomUUID(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  activeSession = { id: crypto.randomUUID(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
+  persistActiveSession();
 });
 $("startFreeSessionBtn").addEventListener("click", () => {
   const rid = $("freeRoutineSelect").value;
   if (!rid) return alert("Create at least one exercise first.");
   activeSession = { id: crypto.randomUUID(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
   startRoutineScreen();
+  persistActiveSession();
 });
 $("repeatLastExerciseBtn").addEventListener("click", () => {
   const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
@@ -530,6 +539,7 @@ $("repeatLastExerciseBtn").addEventListener("click", () => {
 });
 
 function startRoutineScreen() {
+  persistActiveSession();
   resetTimerState();
   $("sessionSummary").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
@@ -538,6 +548,7 @@ function startRoutineScreen() {
 }
 $("resetSessionBtn").addEventListener("click", () => {
   activeSession = null;
+  clearPersistedActiveSession();
   stopTimer();
   resetTimerState();
   $("activeSession").classList.add("hidden");
@@ -545,6 +556,7 @@ $("resetSessionBtn").addEventListener("click", () => {
   $("sessionSummary").classList.add("hidden");
 });
 function renderCurrentRoutine() {
+  persistActiveSession();
   if (!activeSession || activeSession.index >= activeSession.routineIds.length) return completeSession();
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
@@ -552,6 +564,10 @@ function renderCurrentRoutine() {
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
   $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   $("practiceNotes").value = "";
+  $("sessionVenueTable").value = activeSession.venueTable || "";
+  $("sessionTableNote").value = activeSession.tableNote || "";
+  $("sessionIntervention").value = "";
+  $("sessionInterventionNote").value = "";
   $("sessionRating").value = "";
   $("sessionTags").value = "";
   if (r.description) { $("routineDescriptionBox").textContent = r.description; $("routineDescriptionBox").classList.remove("hidden"); }
@@ -647,7 +663,7 @@ function prefillSmartDefaults(r) {
 }
 
 $("saveNextBtn").addEventListener("click", saveCurrentRoutine);
-$("skipBtn").addEventListener("click", () => { if (!activeSession) return; activeSession.index += 1; stopTimer(); renderCurrentRoutine(); });
+$("skipBtn").addEventListener("click", () => { if (!activeSession) return; activeSession.index += 1; persistActiveSession(); stopTimer(); renderCurrentRoutine(); });
 $("endFreeSessionBtn").addEventListener("click", completeSession);
 $("endFreeFromNextBtn").addEventListener("click", completeSession);
 $("continueFreeBtn").addEventListener("click", () => {
@@ -673,6 +689,9 @@ function saveCurrentRoutine() {
   if (Number.isNaN(score)) return alert("Enter a valid score.");
   if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
+
+  activeSession.venueTable = $("sessionVenueTable")?.value || activeSession.venueTable || "";
+  activeSession.tableNote = $("sessionTableNote")?.value || activeSession.tableNote || "";
 
   const log = {
     id: crypto.randomUUID(),
@@ -707,6 +726,10 @@ function saveCurrentRoutine() {
     difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
     targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
     performance: "N/A",
+    venueTable: $("sessionVenueTable")?.value || activeSession.venueTable || "",
+    tableNote: $("sessionTableNote")?.value || activeSession.tableNote || "",
+    sessionIntervention: $("sessionIntervention")?.value || "",
+    sessionInterventionNote: $("sessionInterventionNote")?.value || "",
     sessionRating: Number($("sessionRating")?.value || 0) || "",
     sessionTags: $("sessionTags")?.value || "",
     notes: $("practiceNotes").value.trim(),
@@ -725,6 +748,7 @@ function saveCurrentRoutine() {
     $("freeNextCard").classList.remove("hidden");
   } else {
     activeSession.index += 1;
+    persistActiveSession();
     saveData();
     renderCurrentRoutine();
   }
@@ -736,7 +760,7 @@ function completeSession() {
   $("freeNextCard").classList.add("hidden");
   const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
+  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
   $("sessionSummary").classList.remove("hidden");
   data.sessions = data.sessions || [];
   const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
@@ -747,6 +771,8 @@ function completeSession() {
     planNameSnapshot: activeSession.planName,
     planId: activeSession.planId || "",
     type: activeSession.type,
+    venueTable: activeSession.venueTable || "",
+    tableNote: activeSession.tableNote || "",
     startedAt: activeSession.startedAt,
     endedAt: new Date().toISOString(),
     logIds: logs.map(l => l.id)
@@ -756,6 +782,7 @@ function completeSession() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   resetTimerState();
   activeSession = null;
+  clearPersistedActiveSession();
   renderToday();
   openReflectionModal(completedSessionId);
   renderStats();
@@ -1204,6 +1231,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
       <div class="overview-card"><span>Streak</span><div class="big">${st.current}d</div></div>
     </div>`;
 
+  renderTableStats(logs);
   html += renderCoachingEngine(logs);
   html += renderPerformanceStability(logs);
   html += renderFatigueSlope(logs);
@@ -1468,7 +1496,7 @@ function renderPerformanceStability(logs) {
   if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index</strong><br>Not enough data yet.</div>`;
   const cls = psi.psi >= 70 ? "psi-good" : psi.psi >= 45 ? "psi-watch" : "psi-risk";
   return `<div class="psi-card ${cls}">
-    <strong>Performance Stability Index: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
+    <strong>Performance Stability Index ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
     <span class="muted">CV ${(psi.cv*100).toFixed(1)}% · hit-rate volatility ${(psi.hitVol*100).toFixed(1)}% · ${psi.n} recent logs.</span>
   </div>`;
 }
@@ -1497,7 +1525,7 @@ function renderFatigueSlope(logs) {
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
   return `<div class="psi-card ${cls}">
-    <strong>Fatigue slope: ${f.slope.toFixed(2)} pts/min — ${direction}</strong><br>
+    <strong>Fatigue slope ${statHelpButton("fatigueSlope")}: ${f.slope.toFixed(2)} pts/min — ${direction}</strong><br>
     <span class="muted">Correlation ${corrText(f.corr)} over ${f.n} logs.</span>
   </div>`;
 }
@@ -1686,9 +1714,9 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   </div>
   <div class="trend">${escapeHtml(movingTrend(vals, rollingWindow))}</div>
   <div class="analytics-note"><strong>Benchmark:</strong> ${escapeHtml(benchmarkText(vals, benchmarkWindow))}<br><strong>Progression suggestion:</strong> ${escapeHtml(suggestion)}</div>
-  ${renderChart(logs)}
+  ${renderTargetUpgradeButton(logs[0]?.routineId)}${renderChart(logs)}
   ${renderRollingChart(logs, rolling)}
-  <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
+  <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
 }
 function renderLogRow(l) {
   return `<tr>
@@ -1698,7 +1726,7 @@ function renderLogRow(l) {
     <td>${escapeHtml(l.performance || "N/A")}</td>
     <td>${l.timeMinutes}m</td>
     <td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td>
-  </tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`;
+  </tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
 }
 function renderEditLogForm(l) {
   return `<div class="log-edit">
@@ -1791,7 +1819,7 @@ function renderToday() {
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
     const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="6">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
   }).join("")}`;
 }
 
@@ -2187,6 +2215,18 @@ FIELD_HELP.stretchScoreMode = {
   <div class="example"><strong>Example:</strong> Target 50%, Stretch 75% or Target 35, Stretch 50.</div>`
 };
 
+
+FIELD_HELP.psi = {title:"Performance Stability Index (PSI)",body:`<p><strong>What it means:</strong> a 0-100 stability score combining score variability and hit-rate volatility.</p>`};
+FIELD_HELP.fatigueSlope = {title:"Fatigue slope",body:`<p><strong>What it means:</strong> the relationship between accumulated session time and performance.</p>`};
+FIELD_HELP.difficultyLadder = {title:"Difficulty ladder",body:`<p><strong>What it means:</strong> recommendation to increase, reduce, stabilize, or maintain difficulty.</p>`};
+FIELD_HELP.abComparison = {title:"A/B period comparison",body:`<p><strong>What it means:</strong> compares two periods to show whether training volume and performance improved or declined.</p>`};
+FIELD_HELP.drift = {title:"Performance drift",body:`<p><strong>What it means:</strong> compares recent performance against a prior window.</p>`};
+FIELD_HELP.qualityImpact = {title:"Session quality impact",body:`<p><strong>What it means:</strong> compares high-rated sessions against low-rated sessions.</p>`};
+FIELD_HELP.optimalLength = {title:"Optimal session length",body:`<p><strong>What it means:</strong> groups sessions by duration and identifies which band performs best.</p>`};
+FIELD_HELP.velocity = {title:"Progress velocity",body:`<p><strong>What it means:</strong> estimates the recent slope of improvement.</p>`};
+FIELD_HELP.plateau = {title:"Plateau detector",body:`<p><strong>What it means:</strong> flags flat recent performance despite continued practice.</p>`};
+FIELD_HELP.overtraining = {title:"Overtraining signal",body:`<p><strong>What it means:</strong> flags when volume rises but performance does not improve.</p>`};
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2216,7 +2256,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.16");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2226,6 +2266,80 @@ if ("serviceWorker" in navigator) {
 renderAll();
 
 let generatedPlanDraft = [];
+let lastGeneratedPlannedRoutineIds = [];
+
+
+const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
+
+function statHelpButton(key){return `<button type="button" class="stat-help" onclick="showFieldHelp('${key}')">?</button>`;}
+function getRoutinePriorityReasons(item){
+  const r=item.routine,s=item.stats,reasons=[];
+  if(s.hit!==null&&s.hit<55) reasons.push("low target hit rate");
+  if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
+  if(undertrainedCategoryBonus(r.id)>=7) reasons.push("undertrained category");
+  if(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7) reasons.push("not practiced recently");
+  if(r.isAnchor) reasons.push("anchor drill");
+  if(!reasons.length) reasons.push("balanced rotation");
+  return reasons;
+}
+function routineMixedStrategyScore(routine,stats,strategy){
+  let score=stats.score||0; const days=stats.logs.length?daysSince(stats.logs[stats.logs.length-1].createdAt):30;
+  if(strategy==="exploit") score+=(stats.hit===null?5:Math.max(0,80-stats.hit)*0.55);
+  else if(strategy==="explore"){score+=Math.min(35,days*2); score+=undertrainedCategoryBonus(routine.id)*1.3;}
+  else {score+=Math.min(20,days); score+=routine.isAnchor?8:0;}
+  return score;
+}
+function weightedPick(items,usedIds){
+  const pool=items.filter(x=>!usedIds.has(x.routine.id)); if(!pool.length) return null;
+  const weights=pool.map(x=>Math.max(1,x.score)), total=weights.reduce((a,b)=>a+b,0); let rnd=Math.random()*total;
+  for(let i=0;i<pool.length;i++){rnd-=weights[i]; if(rnd<=0){usedIds.add(pool[i].routine.id); return pool[i];}}
+  usedIds.add(pool[pool.length-1].routine.id); return pool[pool.length-1];
+}
+function targetUpgradeSuggestionForRoutine(routineId){
+  const r=routineById(routineId); if(!r) return null;
+  const logs=(data.logs||[]).filter(l=>l.routineId===routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if(logs.length<5) return null;
+  const hit=targetHitRate(logs.slice(-8)), psi=performanceStabilityIndex(logs.slice(-10),10), drift=performanceDrift(logs,Math.min(8,Math.max(5,Math.floor(logs.length/2))));
+  if(hit!==null&&hit>=80&&psi&&psi.psi>=70&&(!drift||drift.deltaPct>=-2)){
+    const ct=Number(r.target||0), cs=Number(r.stretchTarget||0), bump=5;
+    return {routine:r,suggestedTarget:ct?ct+bump:bump,suggestedStretch:cs?cs+bump:(ct?ct+bump*2:bump*2),reason:`Hit rate ${hit.toFixed(1)}%, PSI ${psi.psi.toFixed(0)}, performance stable/improving.`};
+  }
+  return null;
+}
+function renderTargetUpgradeButton(routineId){
+  const sug=targetUpgradeSuggestionForRoutine(routineId); if(!sug) return "";
+  return `<div class="target-upgrade"><strong>Target upgrade suggested</strong><br><span class="muted">${escapeHtml(sug.reason)}</span><div class="upgrade-row"><div><label>New target</label><input id="upgrade-target-${sug.routine.id}" type="number" step="0.01" value="${sug.suggestedTarget}"></div><div><label>New stretch</label><input id="upgrade-stretch-${sug.routine.id}" type="number" step="0.01" value="${sug.suggestedStretch}"></div><button class="secondary" onclick="applyTargetUpgrade('${sug.routine.id}')">Apply as new target version</button></div></div>`;
+}
+function applyTargetUpgrade(routineId){
+  const r=routineById(routineId); if(!r) return;
+  const nt=Number($("upgrade-target-"+routineId)?.value||0), ns=Number($("upgrade-stretch-"+routineId)?.value||0);
+  if(!nt) return alert("Enter a valid new target.");
+  r.target=nt; r.stretchTarget=ns||""; r.difficultyLabel=`Target upgrade ${new Date().toLocaleDateString()}`;
+  ensureTargetHistory(r); const profile=makeTargetProfile(r,r.difficultyLabel); r.targetHistory.push(profile); r.activeTargetProfileId=profile.id; saveData(); alert("New target version applied.");
+}
+function persistActiveSession(){try{if(activeSession)localStorage.setItem(ACTIVE_SESSION_KEY,JSON.stringify({...activeSession,savedAt:new Date().toISOString()}));}catch(e){logAppError(e,"persistActiveSession");}}
+function clearPersistedActiveSession(){localStorage.removeItem(ACTIVE_SESSION_KEY);}
+function getPersistedActiveSession(){try{const raw=localStorage.getItem(ACTIVE_SESSION_KEY); if(!raw)return null; const s=JSON.parse(raw); if(!s||!s.routineIds||Number(s.index||0)>=s.routineIds.length)return null; return s;}catch(e){logAppError(e,"getPersistedActiveSession");return null;}}
+function renderResumeCard(){const card=$("resumeSessionCard"),box=$("resumeSessionBox"); if(!card||!box)return; const s=getPersistedActiveSession(); if(!s||activeSession){card.classList.add("hidden");box.innerHTML="";return;} const r=routineById(s.routineIds[s.index]); card.classList.remove("hidden"); box.innerHTML=`<div class="resume-detail"><strong>${escapeHtml(s.planName||"Unfinished session")}</strong></div><div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name||"Missing exercise")}</div><div class="resume-detail">Started: ${new Date(s.startedAt||s.savedAt).toLocaleString()}</div>`;}
+function resumePersistedSession(){const s=getPersistedActiveSession(); if(!s)return alert("No unfinished session to resume."); activeSession=s; startRoutineScreen();}
+function discardPersistedSession(){if(!confirm("Discard unfinished session? Existing saved logs will remain."))return; clearPersistedActiveSession(); renderResumeCard();}
+function plannedVsCompletedSummary(){
+  const recent=(data.sessions||[]).slice().sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
+  const rows=recent.filter(s=>(s.plannedRoutineIds||[]).length).map(s=>{const planned=new Set(s.plannedRoutineIds||[]); const completed=new Set((s.logIds||[]).map(id=>(data.logs||[]).find(l=>l.id===id)?.routineId).filter(Boolean)); const done=[...planned].filter(id=>completed.has(id)).length; const skipped=[...planned].filter(id=>!completed.has(id)); return {planned:planned.size,done,skipped,rate:planned.size?done/planned.size*100:null};});
+  if(!rows.length)return ""; const avgRate=avg(rows.map(r=>r.rate).filter(x=>x!==null)); const skippedCounts={}; rows.forEach(r=>r.skipped.forEach(id=>skippedCounts[id]=(skippedCounts[id]||0)+1)); const mostSkipped=Object.entries(skippedCounts).sort((a,b)=>b[1]-a[1])[0];
+  return `<div class="planned-box"><strong>Planned vs completed</strong><br>Completion rate last ${rows.length} planned sessions: ${avgRate.toFixed(1)}%. ${mostSkipped?`<div class="reflection-row">Most skipped: ${escapeHtml(routineById(mostSkipped[0])?.name||"Deleted exercise")} (${mostSkipped[1]}x).</div>`:""}</div>`;
+}
+function interventionImpactSummary(logs=data.logs||[]){
+  const interventions=logs.filter(l=>l.sessionIntervention); if(!interventions.length)return "";
+  const last=interventions.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0], d=new Date(last.createdAt);
+  const beforeStart=new Date(d); beforeStart.setDate(beforeStart.getDate()-30); const afterEnd=new Date(d); afterEnd.setDate(afterEnd.getDate()+30);
+  const before=logsInRange(logs,beforeStart,d), after=logsInRange(logs,d,afterEnd);
+  if(before.length<2||after.length<2)return `<div class="intervention-card"><strong>Intervention logged:</strong> ${escapeHtml(last.sessionIntervention)}. More before/after data needed.</div>`;
+  const b=metricsForLogs(before), a=metricsForLogs(after);
+  return `<div class="intervention-card"><strong>Before / after intervention: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
+}
+function tableStats(logs){const groups={}; logs.filter(l=>l.venueTable).forEach(l=>{groups[l.venueTable]||=[];groups[l.venueTable].push(l);}); return Object.entries(groups).map(([table,arr])=>{const vals=arr.map(l=>Number(l.normalizedScore||0)),hit=targetHitRate(arr); return {table,logs:arr.length,time:arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0),avg:vals.length?avg(vals):null,hit};}).sort((a,b)=>b.logs-a.logs);}
+function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${r.time.toFixed(1)}m</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
 function routineStats(routineId) {
   const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
@@ -2262,19 +2376,19 @@ function undertrainedCategoryBonus(routineId) {
   return 0;
 }
 
-function rankRoutines(focusOverride="all") {
+function rankRoutines(focusOverride="all", strategy="balanced") {
   return data.routines.map(r => {
     const s = routineStats(r.id);
-    let score = s.score;
+    let score = routineMixedStrategyScore(r, s, strategy);
     if (focusOverride !== "all" && r.category === focusOverride) score += 25;
-    return {routine:r, stats:s, score};
+    return {routine:r, stats:s, score, reasons:getRoutinePriorityReasons({routine:r, stats:s})};
   }).sort((a,b)=>b.score-a.score);
 }
 
 function pickByCategory(ranked, category, usedIds, fallback=true) {
-  let item = ranked.find(x => x.routine.category === category && !usedIds.has(x.routine.id));
-  if (!item && fallback) item = ranked.find(x => !usedIds.has(x.routine.id));
-  if (item) usedIds.add(item.routine.id);
+  const filtered = category ? ranked.filter(x => x.routine.category === category) : ranked;
+  let item = weightedPick(filtered, usedIds);
+  if (!item && fallback) item = weightedPick(ranked, usedIds);
   return item;
 }
 
@@ -2334,10 +2448,12 @@ function generateNextSession(){
   const length = $("orchestratorLength")?.value || "60";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
   const focus = $("orchestratorFocus")?.value || "all";
-  const ranked = rankRoutines(focus);
+  const strategy = $("orchestratorStrategy")?.value || "balanced";
+  const ranked = rankRoutines(focus, strategy);
   const blocks = composeBlocks(length, intensity, ranked, focus);
 
   generatedPlanDraft = blocks.flatMap(b => b.picks.map(p => p.routine.id));
+  lastGeneratedPlannedRoutineIds = [...generatedPlanDraft];
 
   const weak = weaknessConcentration(data.logs)[0];
   const fatigue = fatigueCurve(data.logs);
@@ -2345,6 +2461,7 @@ function generateNextSession(){
   if (weak) context.push(`Weakest area: ${weak.category}`);
   if (fatigue && fatigue.deltaPct < -12) context.push(`Fatigue risk: final third ${Math.abs(fatigue.deltaPct).toFixed(1)}% below early session`);
   if (focus !== "all") context.push(`Focus override: ${focus}`);
+  context.push(`Strategy: ${strategy}`);
 
   $("orchestratorBox").innerHTML =
     `<div class="analytics-note"><strong>Session logic:</strong> ${context.length ? context.map(escapeHtml).join(" · ") : "balanced from available data"}</div>` +
@@ -2354,7 +2471,7 @@ function generateNextSession(){
       ${b.picks.map(p => `<div class="drill-line">
         <span><strong>${escapeHtml(p.routine.name)}</strong><br><span class="reason">${escapeHtml(p.routine.category || "uncategorized")} · priority score ${p.score.toFixed(1)}</span></span>
         <span>${p.routine.duration || Math.round(b.minutes / Math.max(1,b.picks.length))} min</span>
-        <span>${escapeHtml(difficultyGuidance(p))}</span>
+        <span>${escapeHtml(difficultyGuidance(p))}<ul class="reason-list">${(p.reasons || getRoutinePriorityReasons(p)).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></span>
       </div>`).join("")}
     </div>`).join("") +
     `<div class="difficulty-note"><strong>Difficulty calibration rule:</strong> 80%+ target hit rate = increase difficulty; below 35% = simplify; middle zone = repeat and stabilize.</div>`;

@@ -1,26 +1,22 @@
-# Snooker Practice Log — v3.16 final
+# Snooker Practice Log — v3.18 final
 
-Built from v3.15.
+Built from v3.16 and includes v3.17 + v3.18 changes.
 
-## New in v3.16 — Analytics Refinement
+## Included from v3.17
+- Mixed-strategy orchestrator
+- Exploit / balanced / explore mode
+- Recommendation explanations
+- Planned vs completed tracking
+- Intervention tracking and before/after comparison
+- Target upgrade marker and one-click new target version
+- Advanced-stat help buttons
 
-Performance Stability Index (PSI):
-- Combines coefficient of variation and hit-rate volatility
-- Classifies performance as Stable / Watch / Unstable
-
-A/B period comparison:
-- Compare last 4 weeks vs previous 4 weeks
-- Compare last 2 weeks vs previous 2 weeks
-- Custom period A vs period B
-- Shows deltas for logs, training time, average performance, hit rate, PSI, and best score
-
-Fatigue slope:
-- Estimates performance slope versus accumulated session time
-- Detects fatigue drag or slow-start pattern more precisely than simple first-third vs last-third comparison
-
-Difficulty ladder:
-- Recommends whether to increase, reduce, stabilize, or maintain difficulty
-- Uses hit rate, skill gap, performance drift, and PSI
+## New in v3.18
+- Resume unfinished sessions
+- Training venue / table selector
+- Table note
+- Table / venue performance stats
+- Fixed Today session table alignment by adding Target version consistently
 
 Confirm version:
-The header should show v3.16.
+The header should show v3.18.

@@ -220,3 +220,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .compare-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
 .compare-table th,.compare-table td{border-bottom:1px solid var(--line);padding:7px;text-align:left}
 .ladder-action{background:#fff8e8;border:1px solid #ead59b;border-radius:12px;padding:10px;margin:8px 0}
+
+/* v3.18 */
+.reason-list{margin:6px 0 0;padding-left:16px;color:var(--muted);font-size:12px}
+.target-upgrade{border:1px solid #ead59b;background:#fff8e8;border-radius:12px;padding:10px;margin-top:8px}
+.target-upgrade input{max-width:90px;padding:7px;font-size:13px}
+.upgrade-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px}
+.stat-help{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:11px;margin-left:4px;padding:0;background:#e9efeb;color:var(--primary);border:1px solid #cddbd2}
+.planned-box,.table-stats{border:1px solid var(--line);background:#fbfcfb;border-radius:14px;padding:10px;margin-top:10px}
+.intervention-card{border:1px solid #d7e5dc;background:#f7fbf8;border-radius:14px;padding:10px;margin:10px 0}
+.resume-detail{font-size:13px;color:var(--muted);margin:6px 0}
+.table-stats table{width:100%;border-collapse:collapse;font-size:12px}.table-stats th,.table-stats td{border-bottom:1px solid var(--line);padding:7px;text-align:left}
+.today-table th,.today-table td{vertical-align:top}

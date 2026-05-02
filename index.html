@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.16</title>
+  <title>Snooker Practice Log v3.18</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.16" />
-  <link rel="stylesheet" href="styles.css?v=3.16" />
-  <link rel="icon" href="icon.svg?v=3.16" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.18" />
+  <link rel="stylesheet" href="styles.css?v=3.18" />
+  <link rel="icon" href="icon.svg?v=3.18" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.16 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.18 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -51,6 +51,15 @@
         </div>
       </div>
 
+      <div id="resumeSessionCard" class="card hidden">
+        <h2>Resume unfinished session</h2>
+        <div id="resumeSessionBox"></div>
+        <div class="row">
+          <button id="resumeSessionBtn">Resume Session</button>
+          <button id="discardSessionBtn" class="secondary">Discard</button>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Smart recommendation</h2>
         <div class="card">
@@ -75,6 +84,14 @@
             </select>
           </div>
           <div>
+            <label>Training strategy</label>
+            <select id="orchestratorStrategy">
+              <option value="exploit">Exploit weaknesses</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="explore">Explore neglected drills</option>
+            </select>
+          </div>
+          <div>
             <label>Focus override</label>
             <select id="orchestratorFocus"></select>
           </div>
@@ -84,6 +101,7 @@
           <button id="loadGeneratedPlanBtn" class="secondary">Load as Draft Plan</button>
         </div>
         <div id="orchestratorBox" class="orchestrator-box">Generate next session based on your data.</div>
+        <div id="plannedCompletionBox"></div>
       </div><div id="smartRecommendationBox" class="analytics-note">Recommendation will appear after you log enough sessions.</div>
       </div>
 
@@ -110,6 +128,34 @@
         <div id="scoreInputs" class="score-grid"></div>
 
         <div id="quickScoreControls" class="quick-score hidden"></div>
+
+        <label>Training venue / table</label>
+        <select id="sessionVenueTable">
+          <option value="">Not specified</option>
+          <option value="Home table">Home table</option>
+          <option value="Club table 1">Club table 1</option>
+          <option value="Club table 2">Club table 2</option>
+          <option value="Club table 3">Club table 3</option>
+          <option value="Club table 4">Club table 4</option>
+          <option value="Other">Other / custom</option>
+        </select>
+        <label>Table note</label>
+        <input id="sessionTableNote" placeholder="Optional: cloth, pockets, speed, conditions" />
+
+        <label>Training intervention</label>
+        <select id="sessionIntervention">
+          <option value="">None</option>
+          <option value="new_cue">New cue</option>
+          <option value="new_stance">New stance</option>
+          <option value="aiming_method">New aiming method</option>
+          <option value="coaching_lesson">Coaching lesson</option>
+          <option value="pre_shot_routine">New pre-shot routine</option>
+          <option value="table_change">Table change</option>
+          <option value="equipment_change">Equipment change</option>
+          <option value="custom">Custom</option>
+        </select>
+        <label>Intervention note</label>
+        <input id="sessionInterventionNote" placeholder="Optional: what changed?" />
 
         <label>Session quality rating (1–5)</label>
         <select id="sessionRating">
@@ -471,6 +517,7 @@
         </div>
 
         <div id="weeklyReviewBox"></div>
+        <div id="tableStatsBox"></div>
         <div id="statsOutput" class="stats"></div>
       </div>
     </section>
@@ -552,6 +599,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.16"></script>
+  <script src="app.js?v=3.18"></script>
 </body>
 </html>
