@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.18-final";
+const APP_VERSION = "3.18.1-final";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -238,6 +238,7 @@ function renderAll() {
   renderWeeklyReview();
   renderABComparison();
   renderResumeCard();
+  renderTodayResumeCard();
   renderTableStats();
 }
 
@@ -514,6 +515,8 @@ function deletePlan(id) {
 
 $("resumeSessionBtn").addEventListener("click", resumePersistedSession);
 $("discardSessionBtn").addEventListener("click", discardPersistedSession);
+$("todayResumeSessionBtn").addEventListener("click", resumePersistedSession);
+$("todayDiscardSessionBtn").addEventListener("click", discardPersistedSession);
 
 $("startSessionBtn").addEventListener("click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
@@ -564,8 +567,8 @@ function renderCurrentRoutine() {
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
   $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   $("practiceNotes").value = "";
-  $("sessionVenueTable").value = activeSession.venueTable || "";
-  $("sessionTableNote").value = activeSession.tableNote || "";
+  $("sessionVenueTable").value = activeSession.venueTable || getLastVenueTable() || "";
+  $("sessionTableNote").value = activeSession.tableNote || getLastTableNote() || "";
   $("sessionIntervention").value = "";
   $("sessionInterventionNote").value = "";
   $("sessionRating").value = "";
@@ -692,6 +695,7 @@ function saveCurrentRoutine() {
 
   activeSession.venueTable = $("sessionVenueTable")?.value || activeSession.venueTable || "";
   activeSession.tableNote = $("sessionTableNote")?.value || activeSession.tableNote || "";
+  rememberVenueTable(activeSession.venueTable, activeSession.tableNote);
 
   const log = {
     id: crypto.randomUUID(),
@@ -760,7 +764,7 @@ function completeSession() {
   $("freeNextCard").classList.add("hidden");
   const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
+  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}${l.venueTable ? `<br><span class="venue-pill">${escapeHtml(l.venueTable)}</span>` : ""}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
   $("sessionSummary").classList.remove("hidden");
   data.sessions = data.sessions || [];
   const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
@@ -1734,7 +1738,16 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
+      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">
+        <option value="">Not specified</option>
+        <option value="Home table" ${l.venueTable === "Home table" ? "selected" : ""}>Home table</option>
+        <option value="Club table 1" ${l.venueTable === "Club table 1" ? "selected" : ""}>Club table 1</option>
+        <option value="Club table 2" ${l.venueTable === "Club table 2" ? "selected" : ""}>Club table 2</option>
+        <option value="Club table 3" ${l.venueTable === "Club table 3" ? "selected" : ""}>Club table 3</option>
+        <option value="Club table 4" ${l.venueTable === "Club table 4" ? "selected" : ""}>Club table 4</option>
+        <option value="Other" ${l.venueTable === "Other" ? "selected" : ""}>Other / custom</option>
+      </select></div>
+      <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
       <div><label>Tags</label><input id="edit-tags-${l.id}" value="${escapeAttr(l.sessionTags || "")}"></div>
@@ -2256,7 +2269,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2270,6 +2283,39 @@ let lastGeneratedPlannedRoutineIds = [];
 
 
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
+
+const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
+const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
+
+function getLastVenueTable() {
+  return localStorage.getItem(LAST_VENUE_KEY) || "";
+}
+function getLastTableNote() {
+  return localStorage.getItem(LAST_TABLE_NOTE_KEY) || "";
+}
+function rememberVenueTable(venue, note) {
+  if (venue !== undefined) localStorage.setItem(LAST_VENUE_KEY, venue || "");
+  if (note !== undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY, note || "");
+}
+function renderTodayResumeCard() {
+  const card = $("todayResumeSessionCard");
+  const box = $("todayResumeSessionBox");
+  const actions = $("todayResumeActions");
+  if (!card || !box || !actions) return;
+  const s = getPersistedActiveSession();
+  if (!s) {
+    box.innerHTML = `<div class="session-status-empty">No unfinished session detected. Completed training logs for today are shown below.</div>`;
+    actions.classList.add("hidden");
+    return;
+  }
+  actions.classList.remove("hidden");
+  const r = routineById(s.routineIds[s.index]);
+  box.innerHTML = `<div class="resume-detail"><strong>${escapeHtml(s.planName || "Unfinished session")}</strong></div>
+    <div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name || "Missing exercise")}</div>
+    <div class="resume-detail">Venue/table: ${escapeHtml(s.venueTable || getLastVenueTable() || "Not specified")}</div>
+    <div class="resume-detail">Started: ${new Date(s.startedAt || s.savedAt).toLocaleString()}</div>`;
+}
+
 
 function statHelpButton(key){return `<button type="button" class="stat-help" onclick="showFieldHelp('${key}')">?</button>`;}
 function getRoutinePriorityReasons(item){

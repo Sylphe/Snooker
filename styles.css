@@ -232,3 +232,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .resume-detail{font-size:13px;color:var(--muted);margin:6px 0}
 .table-stats table{width:100%;border-collapse:collapse;font-size:12px}.table-stats th,.table-stats td{border-bottom:1px solid var(--line);padding:7px;text-align:left}
 .today-table th,.today-table td{vertical-align:top}
+
+/* v3.18.1 visible resume + legacy venue editing */
+.session-status-empty{color:var(--muted);font-size:13px}
+.venue-pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:#fbfcfb;font-size:12px;margin:3px}
