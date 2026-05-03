@@ -262,3 +262,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .regret-positive{border-left:4px solid #9f1d1d}
 .regret-neutral{border-left:4px solid #c7a753}
 .regret-good{border-left:4px solid #2b8a57}
+
+/* v3.21 phase 1 analytics */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:10px 0}
+.insight-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px}
+.insight-card.good{border-left:4px solid #2b8a57}
+.insight-card.watch{border-left:4px solid #c7a753}
+.insight-card.risk{border-left:4px solid #9f1d1d}
+.insight-card .value{font-size:22px;font-weight:700;margin:4px 0}
+.context-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;border-bottom:1px solid var(--line);padding:7px 0;font-size:13px}
+.context-row:last-child{border-bottom:0}

@@ -1,32 +1,33 @@
-# Snooker Practice Log — v3.20
+# Snooker Practice Log — v3.21
 
-Built from v3.19.3.
+Built from v3.20.
 
-## New in v3.20
+## New in v3.21 — Phase 1 statistical insights
 
-Training periodization:
-- Adds training phase to the Adaptive Training Engine:
-  - Auto
-  - Skill acquisition
-  - Stabilization
-  - Performance / competition prep
-  - Deload / recovery
-- Adds phase horizon and optional competition date.
-- Periodization modifies the adaptive session goal and duration logic.
+Residual analysis:
+- Adds expected vs actual performance using exponential moving average.
+- Shows recent residuals by routine.
+- Positive residuals suggest potential target increase.
+- Negative residuals suggest difficulty/fatigue/context issues.
 
-Regret / Counterfactual Engine:
-- Compares a chosen routine against an alternative routine.
-- Estimates expected score from recent history, PSI, and drift.
-- Outputs a simple regret estimate and interpretation.
+Session peak window:
+- Detects the approximate session time range where performance is strongest.
+- Helps place difficult drills at the right point in the session.
 
-New helpers:
-- Adaptive Engine: Session goal
-- Adaptive Engine: Strictness
-- Periodization phase
-- Regret engine
-- Training Orchestrator: Intensity
-- Training Orchestrator: Training strategy
-- Training Orchestrator: Focus override
+Contextual factor analysis:
+- Shows performance lifters/drags by:
+  - table
+  - intervention
+  - time of day
+- Uses simple grouped effect size versus global average.
+
+Venue/table cleanup:
+- Removed duplicated table note editing from previous-session log edits.
+- Kept one coherent table model:
+  - stable table ID
+  - table name
+  - table info stored in the Tables / venues database
+- Logs keep table ID and table-name snapshot for historical continuity.
 
 Confirm version:
-The header should show v3.20.
+The header should show v3.21.

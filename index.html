@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.20</title>
+  <title>Snooker Practice Log v3.21</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.20" />
-  <link rel="stylesheet" href="styles.css?v=3.20" />
-  <link rel="icon" href="icon.svg?v=3.20" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.21" />
+  <link rel="stylesheet" href="styles.css?v=3.21" />
+  <link rel="icon" href="icon.svg?v=3.21" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.20 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.21 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -204,10 +204,7 @@
           <option value="Club table 4">Club table 4</option>
           <option value="Other">Other / custom</option>
         </select>
-        <label>Table note</label>
-        <input id="sessionTableNote" placeholder="Optional: cloth, pockets, speed, conditions" />
-
-        <label>Training intervention</label>
+<label>Training intervention</label>
         <select id="sessionIntervention">
           <option value="">None</option>
           <option value="new_cue">New cue</option>
@@ -636,6 +633,12 @@
           <div id="regretOutput" class="analytics-note">Select two routines to compare.</div>
         </div>
         
+        <div class="card nested" id="phaseOneInsightsPanel">
+          <h3>Phase 1 Training Insights <button type="button" class="stat-help" onclick="showFieldHelp('phaseOneInsights')">?</button></h3>
+          <p class="muted">Expected vs actual performance, session peak window, and context effects.</p>
+          <div id="phaseOneInsightsOutput"></div>
+        </div>
+        
         <div id="tableStatsBox"></div>
         <div id="statsOutput" class="stats"></div>
       </div>
@@ -729,6 +732,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.20"></script>
+  <script src="app.js?v=3.21"></script>
 </body>
 </html>

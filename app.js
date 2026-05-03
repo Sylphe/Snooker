@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.20-final";
+const APP_VERSION = "3.21-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -255,6 +255,7 @@ function renderAll() {
   renderResumeCard();
   renderTodayResumeCard();
   renderTableStats();
+  renderPhaseOneInsights();
 }
 
 function renderRoutineSelects() {
@@ -583,7 +584,7 @@ function renderCurrentRoutine() {
   $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   $("practiceNotes").value = "";
   $("sessionVenueTable").value = activeSession.tableId || getLastTableId() || "";
-  $("sessionTableNote").value = activeSession.tableNote || getLastTableNote() || "";
+  
   $("sessionIntervention").value = "";
   $("sessionInterventionNote").value = "";
   $("sessionRating").value = "";
@@ -708,9 +709,9 @@ function saveCurrentRoutine() {
 
   activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
   activeSession.venueTable = getTableName(activeSession.tableId) || activeSession.venueTable || "";
-  activeSession.tableNote = $("sessionTableNote")?.value || activeSession.tableNote || "";
+  activeSession.tableNote = tableById(activeSession.tableId)?.info || activeSession.tableNote || "";
   rememberVenueTable(activeSession.venueTable, activeSession.tableNote);
-  rememberTableId(activeSession.tableId, activeSession.tableNote);
+  rememberTableId(activeSession.tableId, "");
 
   const log = {
     id: uuid(),
@@ -748,7 +749,7 @@ function saveCurrentRoutine() {
     tableId: activeSession.tableId || $("sessionVenueTable")?.value || "",
     venueTable: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || activeSession.venueTable || "",
     venueTableSnapshot: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || "",
-    tableNote: $("sessionTableNote")?.value || activeSession.tableNote || "",
+    tableNote: tableById(activeSession.tableId)?.info || activeSession.tableNote || "",
     sessionIntervention: $("sessionIntervention")?.value || "",
     sessionInterventionNote: $("sessionInterventionNote")?.value || "",
     sessionRating: Number($("sessionRating")?.value || 0) || "",
@@ -795,7 +796,7 @@ function completeSession() {
     tableId: activeSession.tableId || "",
     venueTable: getTableName(activeSession.tableId) || activeSession.venueTable || "",
     venueTableSnapshot: getTableName(activeSession.tableId) || activeSession.venueTable || "",
-    tableNote: activeSession.tableNote || "",
+    tableNote: tableById(activeSession.tableId)?.info || activeSession.tableNote || "",
     startedAt: activeSession.startedAt,
     endedAt: new Date().toISOString(),
     logIds: logs.map(l => l.id)
@@ -1633,11 +1634,144 @@ $("statsAdvancedBtn").addEventListener("click", () => {
   if (el) el.addEventListener("change", renderABComparison);
 });
 
-$("statsRoutineSelect").addEventListener("change", renderStats);
+$("statsRoutineSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("statsDateSelect").addEventListener("change", renderStats);
-$("statsPeriodSelect").addEventListener("change", renderStats);
+$("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("rollingWindowInput").addEventListener("input", renderStats);
 $("benchmarkWindowInput").addEventListener("input", renderStats);
+
+
+function emaExpectedSeries(logs, alpha=0.35) {
+  const sorted = logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  let ema = null;
+  return sorted.map((l, idx) => {
+    const actual = Number(l.normalizedScore || 0);
+    const expected = ema === null ? actual : ema;
+    const residual = idx === 0 ? 0 : actual - expected;
+    ema = ema === null ? actual : alpha * actual + (1 - alpha) * ema;
+    return {...l, expected, residual, ema};
+  });
+}
+function routineResidualInsight(routineId) {
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if (logs.length < 5) return null;
+  const series = emaExpectedSeries(logs);
+  const recent = series.slice(-5);
+  const residualMean = avg(recent.map(x => Number(x.residual || 0)));
+  const residualStd = stdDev(recent.map(x => Number(x.residual || 0)));
+  let signal = "neutral";
+  let action = "Keep collecting data.";
+  if (residualMean > Math.max(4, residualStd * 0.6)) {
+    signal = "positive";
+    action = "You are outperforming expectation. Consider a target increase or added constraint.";
+  } else if (residualMean < -Math.max(4, residualStd * 0.6)) {
+    signal = "negative";
+    action = "You are underperforming expectation. Hold difficulty, check fatigue/table/context.";
+  } else {
+    action = "Performance is close to expectation. Maintain current progression.";
+  }
+  return {routine:routineById(routineId), logs, series, recent, residualMean, residualStd, signal, action};
+}
+function renderResidualInsights(logs) {
+  const scopedRoutineIds = [...new Set(logs.map(l => l.routineId).filter(Boolean))];
+  const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
+  if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history yet.</div></div>`;
+  return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
+    <strong>Expected vs actual residuals</strong>
+    ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.residualMean>=0?"+":""}${i.residualMean.toFixed(1)}</strong><span>n=${i.logs.length}</span></div>`).join("")}
+  </div>`;
+}
+function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15) {
+  const logs = Array.isArray(sessionIdOrLogs)
+    ? sessionIdOrLogs.slice()
+    : (data.logs || []).filter(l => l.sessionId === sessionIdOrLogs);
+  const sorted = logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if (sorted.length < 3) return null;
+  let cumulative = 0;
+  const points = sorted.map(l => {
+    const start = cumulative;
+    cumulative += Number(l.timeMinutes || 0);
+    return {log:l, mid:start + Number(l.timeMinutes || 0)/2, score:Number(l.normalizedScore || 0)};
+  });
+  let best = null;
+  for (let i=0; i<points.length; i++) {
+    const start = Math.max(0, points[i].mid - windowMinutes/2);
+    const end = start + windowMinutes;
+    const included = points.filter(p => p.mid >= start && p.mid <= end);
+    if (included.length < 2) continue;
+    const score = avg(included.map(p=>p.score));
+    if (!best || score > best.score) best = {start, end, score, n:included.length};
+  }
+  return best;
+}
+function renderPeakWindowInsight(logs) {
+  const sessions = [...new Set(logs.map(l => l.sessionId).filter(Boolean))];
+  const peaks = sessions.map(id => sessionPeakWindow(id)).filter(Boolean);
+  if (!peaks.length) {
+    const fallback = sessionPeakWindow(logs);
+    if (!fallback) return `<div class="insight-card watch"><strong>Peak window</strong><div class="muted">Not enough within-session data yet.</div></div>`;
+    peaks.push(fallback);
+  }
+  const avgStart = avg(peaks.map(p=>p.start));
+  const avgEnd = avg(peaks.map(p=>p.end));
+  const avgScore = avg(peaks.map(p=>p.score));
+  return `<div class="insight-card good"><strong>Session peak window</strong>
+    <div class="value">${formatDurationHuman(avgStart)}–${formatDurationHuman(avgEnd)}</div>
+    <div class="muted">Average peak-window score: ${avgScore.toFixed(1)} across ${peaks.length} session${peaks.length>1?"s":""}.</div>
+    <div class="adaptive-rationale">Place demanding drills in this window when possible.</div>
+  </div>`;
+}
+function groupContextEffects(logs, keyFn, label) {
+  const globalVals = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+  if (globalVals.length < 5) return [];
+  const globalMean = avg(globalVals);
+  const groups = {};
+  logs.forEach(l => {
+    const key = keyFn(l);
+    if (!key) return;
+    groups[key] ||= [];
+    groups[key].push(l);
+  });
+  return Object.entries(groups).map(([key, arr]) => {
+    const vals = arr.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+    if (vals.length < 3) return null;
+    return {label, key, n:vals.length, avg:avg(vals), delta:avg(vals)-globalMean};
+  }).filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+}
+function timeOfDayBucket(l) {
+  const h = new Date(l.createdAt).getHours();
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  if (h < 21) return "Evening";
+  return "Late";
+}
+function renderContextEffects(logs) {
+  const effects = [
+    ...groupContextEffects(logs, l => getTableName(l) !== "Not specified" ? getTableName(l) : "", "Table"),
+    ...groupContextEffects(logs, l => l.sessionIntervention || "", "Intervention"),
+    ...groupContextEffects(logs, l => timeOfDayBucket(l), "Time")
+  ].filter(e => e.n >= 3).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,8);
+  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects</strong><div class="muted">Need more logs by table/time/intervention.</div></div>`;
+  return `<div class="insight-card ${effects[0].delta<0?"risk":"good"}"><strong>Context effects</strong>
+    ${effects.map(e => `<div class="context-row"><span>${escapeHtml(e.label)}: ${escapeHtml(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>n=${e.n}</span></div>`).join("")}
+    <div class="adaptive-rationale">Shows performance lifters/drags versus your overall average. Minimum threshold is deliberately low for visibility; treat small samples cautiously.</div>
+  </div>`;
+}
+function renderPhaseOneInsights() {
+  const box = $("phaseOneInsightsOutput");
+  if (!box) return;
+  const rid = $("statsRoutineSelect")?.value || "all";
+  const logs = getScopedStatsLogs ? getScopedStatsLogs() : ((data.logs || []).filter(l => rid === "all" || l.routineId === rid));
+  if (!logs.length) {
+    box.innerHTML = `<div class="insight-card watch">No logs available for selected scope.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="insight-grid">
+    ${renderResidualInsights(logs)}
+    ${renderPeakWindowInsight(logs)}
+    ${renderContextEffects(logs)}
+  </div>`;
+}
 
 function renderStats() {
   const period = $("statsPeriodSelect").value || "daily";
@@ -2203,9 +2337,7 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
-      <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
-      <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
+      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
       <div><label>Tags</label><input id="edit-tags-${l.id}" value="${escapeAttr(l.sessionTags || "")}"></div>
@@ -2249,7 +2381,6 @@ function saveEditedLog(id) {
     l.venueTable = getTableName(l.tableId);
     l.venueTableSnapshot = getTableName(l.tableId);
   }
-  if ($("edit-table-note-"+id)) l.tableNote = $("edit-table-note-"+id).value || "";
   saveData();
 }
 function deleteLog(id) {
@@ -2878,6 +3009,17 @@ FIELD_HELP.orchestratorFocusOverride = {
   </div>`
 };
 
+
+FIELD_HELP.phaseOneInsights = {
+  title:"Phase 1 Training Insights",
+  body:`<div class="help-rich">
+    <p><strong>Expected vs actual:</strong> compares your actual score against an exponential moving average expectation. Persistent positive residuals suggest a drill may be ready for higher target or harder constraint.</p>
+    <p><strong>Peak window:</strong> estimates the time range in a session where performance is highest. Use it to place harder drills at the right moment.</p>
+    <p><strong>Context effects:</strong> compares performance by table, intervention, and time of day against your overall average.</p>
+    <div class="example"><strong>Use:</strong> these insights help decide when to increase difficulty, when to place demanding drills, and which conditions help or hurt performance.</div>
+  </div>`
+};
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2907,7 +3049,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.20");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.21");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
