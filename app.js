@@ -1,9 +1,9 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.19.2-final";
+const APP_VERSION = "3.19.3-final";
 
 function uuid() {
-  if (crypto && crypto.randomUUID) return uuid();
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10);
 }
 function structuredCloneSafe(obj) {
@@ -49,7 +49,7 @@ const defaultData = {
 let data = loadData();
 ensureTablesDatabase();
 refreshReferenceNames();
-localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
 let planDraft = [];
 let activeSession = null;
 let timerInterval = null;
@@ -800,7 +800,7 @@ function completeSession() {
   };
   if (existingIdx >= 0) data.sessions[existingIdx] = sessionRecord;
   else data.sessions.push(sessionRecord);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
   resetTimerState();
   activeSession = null;
   clearPersistedActiveSession();
@@ -1109,7 +1109,7 @@ function saveReflection() {
       note: $("reflectionNote").value || "",
       createdAt: new Date().toISOString()
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
   }
   skipReflection();
   renderAll();
@@ -2677,7 +2677,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
