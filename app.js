@@ -1,6 +1,11 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.18.1-final";
+const APP_VERSION = "3.18.3-final";
+
+const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
+const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
+const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
+
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -100,8 +105,9 @@ function migrateData(d) {
 }
 
 function loadData() {
+  let raw = null;
   try {
-    let raw = localStorage.getItem(STORAGE_KEY);
+    raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       for (const k of OLD_KEYS) {
         const old = localStorage.getItem(k);
@@ -126,16 +132,9 @@ function loadData() {
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
-    alert("The app detected corrupted local data and loaded a clean default set. If you have a JSON backup, import it from the Data tab.");
-    const seeded = structuredClone(defaultData);
-    seeded.plans.push({
-      id: crypto.randomUUID(),
-      name: "Default 60 min practice",
-      routineIds: seeded.routines.map(r => r.id),
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-    return seeded;
+    alert("Startup/migration error detected. Your stored data was NOT overwritten. Export Debug Info and Raw Local Data from the Data tab before making changes.");
+    const fallback = raw ? safeParseData(raw) : null;
+    return fallback || structuredClone(defaultData);
   }
 }
 
@@ -1914,8 +1913,10 @@ $("exportCsvBtn").addEventListener("click", () => {
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
+$("exportBackupPackBtn").addEventListener("click", exportBackupPackZip);
 $("exportJsonBtn").addEventListener("click", () => { markBackupExported(); downloadFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
 $("exportDebugBtn").addEventListener("click", exportDebugInfo);
+$("exportRawStorageBtn").addEventListener("click", exportRawLocalData);
 $("importJsonInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -2138,15 +2139,153 @@ function renderBackupReminder() {
   const el = $("backupReminderBanner");
   if (!el) return;
   const last = localStorage.getItem("snookerPracticePWA.lastBackupAt");
+  const lastLogCount = Number(localStorage.getItem("snookerPracticePWA.lastBackupLogCount") || 0);
+  const currentLogCount = (data.logs || []).length;
   const days = daysSinceIso(last);
-  if (days >= 30 && (data.logs || []).length) {
+  const newLogs = currentLogCount - lastLogCount;
+  if ((days >= 7 || newLogs >= 10) && currentLogCount) {
     el.classList.remove("hidden");
-    el.innerHTML = `Backup reminder: you have not exported a JSON backup ${Number.isFinite(days) ? "in "+days+" days" : "yet"}. <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Go to Data</button>`;
+    const reason = days >= 7 ? `${Number.isFinite(days) ? days : "many"} days since last backup` : `${newLogs} new logs since last backup`;
+    el.innerHTML = `Backup recommended: ${reason}. <button onclick="exportBackupPackZip()">Export Backup Pack ZIP</button> <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Open Data</button>`;
   } else {
     el.classList.add("hidden");
     el.innerHTML = "";
   }
 }
+
+
+function crc32(str) {
+  const table = crc32.table || (crc32.table = (() => {
+    let c, table = [];
+    for (let n = 0; n < 256; n++) {
+      c = n;
+      for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+      table[n] = c >>> 0;
+    }
+    return table;
+  })());
+  let crc = 0 ^ (-1);
+  for (let i = 0; i < str.length; i++) {
+    crc = (crc >>> 8) ^ table[(crc ^ str.charCodeAt(i)) & 0xFF];
+  }
+  return (crc ^ (-1)) >>> 0;
+}
+function strToBytes(str) {
+  return new TextEncoder().encode(str);
+}
+function dosDateTime(date = new Date()) {
+  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+  const d = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  return {time, date:d};
+}
+function u16(n) { return [n & 255, (n >>> 8) & 255]; }
+function u32(n) { return [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]; }
+function makeZip(files) {
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const dt = dosDateTime();
+  files.forEach(file => {
+    const nameBytes = strToBytes(file.name);
+    const content = typeof file.content === "string" ? file.content : JSON.stringify(file.content, null, 2);
+    const data = strToBytes(content);
+    const crc = crc32(String.fromCharCode(...data));
+    const local = new Uint8Array([
+      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(dt.time), ...u16(dt.date),
+      ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), ...u16(0)
+    ]);
+    chunks.push(local, nameBytes, data);
+    const centralHeader = new Uint8Array([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(dt.time), ...u16(dt.date),
+      ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), ...u16(0), ...u16(0),
+      ...u16(0), ...u16(0), ...u32(0), ...u32(offset)
+    ]);
+    central.push(centralHeader, nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  });
+  const centralSize = central.reduce((a,b)=>a+b.length,0);
+  const centralOffset = offset;
+  const end = new Uint8Array([
+    ...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length),
+    ...u32(centralSize), ...u32(centralOffset), ...u16(0)
+  ]);
+  const all = [...chunks, ...central, end];
+  return new Blob(all, {type:"application/zip"});
+}
+function currentBackupJsonPayload() {
+  return {
+    ...data,
+    backupVersion: APP_VERSION,
+    exportedAt: new Date().toISOString()
+  };
+}
+function currentDebugPayload() {
+  return {
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    location: location.href,
+    counts: {
+      routines: (data.routines || []).length,
+      plans: (data.plans || []).length,
+      sessions: (data.sessions || []).length,
+      logs: (data.logs || []).length
+    },
+    errors: JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]"),
+    lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || "",
+    lastBackupLogCount: localStorage.getItem("snookerPracticePWA.lastBackupLogCount") || ""
+  };
+}
+function currentRawLocalPayload() {
+  return {
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    storageKey: STORAGE_KEY,
+    rawMainData: localStorage.getItem(STORAGE_KEY),
+    activeSessionDraft: localStorage.getItem("snookerPracticePWA.activeSessionDraft"),
+    lastVenueTable: localStorage.getItem("snookerPracticePWA.lastVenueTable"),
+    lastTableNote: localStorage.getItem("snookerPracticePWA.lastTableNote"),
+    errorLog: localStorage.getItem("snookerPracticePWA.errorLog")
+  };
+}
+function markBackupPackExported() {
+  localStorage.setItem("snookerPracticePWA.lastBackupAt", new Date().toISOString());
+  localStorage.setItem("snookerPracticePWA.lastBackupLogCount", String((data.logs || []).length));
+}
+function exportBackupPackZip() {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const files = [
+    {name:"json-backup.json", content:JSON.stringify(currentBackupJsonPayload(), null, 2)},
+    {name:"debug-info.json", content:JSON.stringify(currentDebugPayload(), null, 2)},
+    {name:"raw-local-data.json", content:JSON.stringify(currentRawLocalPayload(), null, 2)}
+  ];
+  const zip = makeZip(files);
+  const url = URL.createObjectURL(zip);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `snooker-backup-pack-${APP_VERSION}-${stamp}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  markBackupPackExported();
+  renderBackupReminder();
+}
+
+function exportRawLocalData() {
+  const payload = {
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    storageKey: STORAGE_KEY,
+    rawMainData: localStorage.getItem(STORAGE_KEY),
+    activeSessionDraft: localStorage.getItem("snookerPracticePWA.activeSessionDraft"),
+    lastVenueTable: localStorage.getItem("snookerPracticePWA.lastVenueTable"),
+    lastTableNote: localStorage.getItem("snookerPracticePWA.lastTableNote"),
+    errorLog: localStorage.getItem("snookerPracticePWA.errorLog")
+  };
+  downloadFile(`snooker-raw-local-data-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
+}
+
 function exportDebugInfo() {
   const payload = {
     appVersion: APP_VERSION,
@@ -2269,7 +2408,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2282,11 +2421,6 @@ let generatedPlanDraft = [];
 let lastGeneratedPlannedRoutineIds = [];
 
 
-const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
-
-const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
-const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
-
 function getLastVenueTable() {
   return localStorage.getItem(LAST_VENUE_KEY) || "";
 }
@@ -2298,6 +2432,7 @@ function rememberVenueTable(venue, note) {
   if (note !== undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY, note || "");
 }
 function renderTodayResumeCard() {
+  try {
   const card = $("todayResumeSessionCard");
   const box = $("todayResumeSessionBox");
   const actions = $("todayResumeActions");
@@ -2314,6 +2449,10 @@ function renderTodayResumeCard() {
     <div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name || "Missing exercise")}</div>
     <div class="resume-detail">Venue/table: ${escapeHtml(s.venueTable || getLastVenueTable() || "Not specified")}</div>
     <div class="resume-detail">Started: ${new Date(s.startedAt || s.savedAt).toLocaleString()}</div>`;
+
+  } catch(e) {
+    logAppError(e, "renderTodayResumeCard");
+  }
 }
 
 
@@ -2567,3 +2706,30 @@ function applyStoredStatsModeVisual() {
   }
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
+
+function getPersistedActiveSession() {
+  try {
+    const raw = localStorage.getItem("snookerPracticePWA.activeSessionDraft");
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.routineIds) || Number(s.index || 0) >= s.routineIds.length) return null;
+    return s;
+  } catch(e) {
+    logAppError(e, "getPersistedActiveSession");
+    return null;
+  }
+}
+
+function persistActiveSession() {
+  try {
+    if (typeof activeSession !== "undefined" && activeSession) {
+      localStorage.setItem("snookerPracticePWA.activeSessionDraft", JSON.stringify({...activeSession, savedAt:new Date().toISOString()}));
+    }
+  } catch(e) {
+    logAppError(e, "persistActiveSession");
+  }
+}
+
+function clearPersistedActiveSession() {
+  localStorage.removeItem("snookerPracticePWA.activeSessionDraft");
+}

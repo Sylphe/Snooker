@@ -236,3 +236,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 /* v3.18.1 visible resume + legacy venue editing */
 .session-status-empty{color:var(--muted);font-size:13px}
 .venue-pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:#fbfcfb;font-size:12px;margin:3px}
+
+/* v3.18.3 backup pack */
+.backup-pack-note{font-size:12px;color:var(--muted);margin-top:6px}

@@ -1,24 +1,24 @@
-# Snooker Practice Log — v3.18.1 final
+# Snooker Practice Log — v3.18.3
 
-Built from v3.18.
+Built from v3.18.2.
 
-## Fixes / UX refinements
+## New backup features
 
-Resume unfinished session:
-- Resume status now appears visibly in the Today tab
-- If no unfinished session exists, Today shows a clear "No unfinished session" status
-- Resume and Discard buttons are available from Today when a session draft exists
+Backup Pack ZIP:
+- One-click export of a ZIP file containing:
+  - json-backup.json
+  - debug-info.json
+  - raw-local-data.json
 
-Venue / table:
-- Venue/table now remembers the last selected value
-- New sessions and new exercise logs default to the last venue/table
-- Table note is also remembered
-- Venue/table is shown on log rows as a small pill
+Backup reminder:
+- Reminder now triggers after:
+  - 7 days since last backup, or
+  - 10 new logs since last backup
+- Reminder button exports the Backup Pack ZIP directly.
 
-Legacy log backfill:
-- Edit log form now includes Venue / table
-- Edit log form now includes Table note
-- This allows older logs to be manually backfilled for table/venue analysis
+Why:
+- A browser/PWA generally cannot silently create a phone folder and auto-save files.
+- The backup pack is the safest practical approach on Android.
 
 Confirm version:
-The header should show v3.18.1.
+The header should show v3.18.3.
