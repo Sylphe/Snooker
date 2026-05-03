@@ -237,5 +237,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .session-status-empty{color:var(--muted);font-size:13px}
 .venue-pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:#fbfcfb;font-size:12px;margin:3px}
 
-/* v3.18.3 backup pack */
-.backup-pack-note{font-size:12px;color:var(--muted);margin-top:6px}
+/* v3.18.4 */
+.export-folder-ok{border-left:4px solid #2b8a57}
+.export-folder-fallback{border-left:4px solid #c7a753}
+.table-db-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px;margin:8px 0}
+.table-db-row .meta{font-size:12px;color:var(--muted);margin-top:4px}
+.help-rich p{margin:7px 0}
+.help-rich .example{background:#f8faf8;border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0}
+.duration-human{color:var(--muted);font-size:12px}

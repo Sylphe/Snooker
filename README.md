@@ -1,24 +1,28 @@
-# Snooker Practice Log — v3.18.3
+# Snooker Practice Log — v3.18.4
 
-Built from v3.18.2.
+Built from v3.18.1 and includes emergency startup safety, export folder, analytics help, duration formatting, and table database features.
 
-## New backup features
+## New in v3.18.4
 
-Backup Pack ZIP:
-- One-click export of a ZIP file containing:
-  - json-backup.json
-  - debug-info.json
-  - raw-local-data.json
+Analytics explainability:
+- Adds question-mark helpers for main and advanced analytics.
+- Explains what each metric measures, how it is calculated, how to interpret it, and when to use it.
 
-Backup reminder:
-- Reminder now triggers after:
-  - 7 days since last backup, or
-  - 10 new logs since last backup
-- Reminder button exports the Backup Pack ZIP directly.
+Duration display:
+- Training durations now use human-readable hour/minute format where relevant.
+- Example: 209 minutes appears as 3h 29m.
 
-Why:
-- A browser/PWA generally cannot silently create a phone folder and auto-save files.
-- The backup pack is the safest practical approach on Android.
+Tables / venues database:
+- Added expandable Tables / venues database in the Exercises tab.
+- Create/edit table names, type, and info.
+- Logs now use stable table IDs.
+- If “Home table” is renamed to “Riley – Home table”, historical stats remain linked to the same actual table.
+- Log edit form can backfill legacy table IDs.
+
+Also retained:
+- Non-destructive startup recovery
+- Raw Local Data export
+- Export folder selection with fallback to normal downloads
 
 Confirm version:
-The header should show v3.18.3.
+The header should show v3.18.4.

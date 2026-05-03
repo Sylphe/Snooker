@@ -1,12 +1,12 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.18.3",
+  "start_url": "./index.html?v=3.18.4",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Backup pack ZIP, stricter backup reminder, and local data recovery tools.",
+  "description": "Snooker practice log with emergency safe startup, export folder, analytics help, duration formatting, and stable table database.",
   "icons": [
     {
       "src": "icon.svg?v=3.1",
@@ -19,19 +19,19 @@
     {
       "name": "Free training",
       "short_name": "Free",
-      "url": "./index.html?v=3.18.3#practice",
+      "url": "./index.html?v=3.18.4#practice",
       "description": "Open practice screen"
     },
     {
       "name": "Stats overview",
       "short_name": "Stats",
-      "url": "./index.html?v=3.18.3#stats",
+      "url": "./index.html?v=3.18.4#stats",
       "description": "Open stats overview"
     },
     {
       "name": "Data backup",
       "short_name": "Backup",
-      "url": "./index.html?v=3.18.3#data",
+      "url": "./index.html?v=3.18.4#data",
       "description": "Open data backup tools"
     }
   ]

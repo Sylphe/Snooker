@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.18.3</title>
+  <title>Snooker Practice Log v3.18.4</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.18.3" />
-  <link rel="stylesheet" href="styles.css?v=3.18.3" />
-  <link rel="icon" href="icon.svg?v=3.18.3" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.18.4" />
+  <link rel="stylesheet" href="styles.css?v=3.18.4" />
+  <link rel="icon" href="icon.svg?v=3.18.4" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.18.3 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.18.4 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -341,6 +341,25 @@
 
       <div class="card">
         <h2>Exercise database</h2>
+        <div class="card nested" id="tableDatabasePanel">
+          <details>
+            <summary><strong>Tables / venues database</strong></summary>
+            <p class="muted">Create and edit table names. Historical logs use a stable table ID, so renaming a table keeps stats linked to the same actual table.</p>
+            <div class="grid two">
+              <div><label>Table name</label><input id="tableNameInput" placeholder="e.g. Riley – Home table" /></div>
+              <div><label>Table type / venue</label><input id="tableTypeInput" placeholder="e.g. Home, Club, Match table" /></div>
+            </div>
+            <label>Table info</label>
+            <textarea id="tableInfoInput" rows="3" placeholder="Optional: cloth, pockets, speed, lighting, notes"></textarea>
+            <input id="tableEditId" type="hidden" />
+            <div class="row">
+              <button id="saveTableBtn" type="button">Save Table</button>
+              <button id="clearTableFormBtn" type="button" class="secondary">Clear</button>
+            </div>
+            <div id="tableList"></div>
+          </details>
+        </div>
+        
         <div class="grid three">
           <div>
             <label>Filter by type</label>
@@ -536,7 +555,16 @@
         <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
         <div class="row">
           <button id="exportCsvBtn">Export CSV</button>
-          <button id="exportBackupPackBtn">Export Backup Pack ZIP</button>
+          <div class="card nested">
+          <h3>Export folder</h3>
+          <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
+          <div id="exportFolderStatus" class="analytics-note">Export folder not selected.</div>
+          <div class="row">
+            <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Export Folder</button>
+            <button id="clearExportFolderBtn" class="secondary" type="button">Clear Export Folder</button>
+          </div>
+        </div>
+
           <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
           <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
           <button id="exportRawStorageBtn" class="secondary">Export Raw Local Data</button>
@@ -609,6 +637,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.18.3"></script>
+  <script src="app.js?v=3.18.4"></script>
 </body>
 </html>

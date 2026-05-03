@@ -1,7 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.18.3-final";
-
+const APP_VERSION = "3.18.4-final";
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
@@ -38,6 +37,7 @@ const defaultData = {
 };
 
 let data = loadData();
+ensureTablesDatabase();
 refreshReferenceNames();
 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 let planDraft = [];
@@ -116,12 +116,7 @@ function loadData() {
     }
     if (!raw) {
       const seeded = structuredClone(defaultData);
-      seeded.plans.push({
-        id: crypto.randomUUID(),
-        name: "Default 60 min practice",
-        routineIds: seeded.routines.map(r => r.id),
-        createdAt: new Date().toISOString()
-      });
+      seeded.plans.push({id: crypto.randomUUID(), name: "Default 60 min practice", routineIds: seeded.routines.map(r => r.id), createdAt: new Date().toISOString()});
       localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
       return seeded;
     }
@@ -233,6 +228,9 @@ function renderAll() {
   renderSmartRecommendation();
   renderTagSuggestions();
   renderBackupReminder();
+  renderExportFolderStatus();
+  renderTableDatabase();
+  renderTableSelects();
   renderTrainingLoad();
   renderWeeklyReview();
   renderABComparison();
@@ -566,7 +564,7 @@ function renderCurrentRoutine() {
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
   $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   $("practiceNotes").value = "";
-  $("sessionVenueTable").value = activeSession.venueTable || getLastVenueTable() || "";
+  $("sessionVenueTable").value = activeSession.tableId || getLastTableId() || "";
   $("sessionTableNote").value = activeSession.tableNote || getLastTableNote() || "";
   $("sessionIntervention").value = "";
   $("sessionInterventionNote").value = "";
@@ -692,9 +690,11 @@ function saveCurrentRoutine() {
   if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
 
-  activeSession.venueTable = $("sessionVenueTable")?.value || activeSession.venueTable || "";
+  activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
+  activeSession.venueTable = getTableName(activeSession.tableId) || activeSession.venueTable || "";
   activeSession.tableNote = $("sessionTableNote")?.value || activeSession.tableNote || "";
   rememberVenueTable(activeSession.venueTable, activeSession.tableNote);
+  rememberTableId(activeSession.tableId, activeSession.tableNote);
 
   const log = {
     id: crypto.randomUUID(),
@@ -729,7 +729,9 @@ function saveCurrentRoutine() {
     difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
     targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
     performance: "N/A",
-    venueTable: $("sessionVenueTable")?.value || activeSession.venueTable || "",
+    tableId: activeSession.tableId || $("sessionVenueTable")?.value || "",
+    venueTable: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || activeSession.venueTable || "",
+    venueTableSnapshot: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || "",
     tableNote: $("sessionTableNote")?.value || activeSession.tableNote || "",
     sessionIntervention: $("sessionIntervention")?.value || "",
     sessionInterventionNote: $("sessionInterventionNote")?.value || "",
@@ -763,7 +765,7 @@ function completeSession() {
   $("freeNextCard").classList.add("hidden");
   const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}${l.venueTable ? `<br><span class="venue-pill">${escapeHtml(l.venueTable)}</span>` : ""}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
+  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}${(l.tableId || l.venueTable) ? `<br><span class="venue-pill">${escapeHtml(getTableName(l))}</span>` : ""}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
   $("sessionSummary").classList.remove("hidden");
   data.sessions = data.sessions || [];
   const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
@@ -774,7 +776,9 @@ function completeSession() {
     planNameSnapshot: activeSession.planName,
     planId: activeSession.planId || "",
     type: activeSession.type,
-    venueTable: activeSession.venueTable || "",
+    tableId: activeSession.tableId || "",
+    venueTable: getTableName(activeSession.tableId) || activeSession.venueTable || "",
+    venueTableSnapshot: getTableName(activeSession.tableId) || activeSession.venueTable || "",
     tableNote: activeSession.tableNote || "",
     startedAt: activeSession.startedAt,
     endedAt: new Date().toISOString(),
@@ -1025,7 +1029,7 @@ function renderTrainingLoad() {
   const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
   const delta = prev7 ? ((total7-prev7)/Math.abs(prev7))*100 : null;
   box.innerHTML = `<div class="load-card"><h3>Training load — last 14 days</h3>
-    <div class="stats-grid"><div class="stat-card"><span>Last 7 days</span><div class="value">${total7.toFixed(1)}m</div></div><div class="stat-card"><span>Previous 7 days</span><div class="value">${prev7.toFixed(1)}m</div></div><div class="stat-card"><span>Volume change</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
+    <div class="stats-grid"><div class="stat-card"><span>Last 7 days</span><div class="value">${formatDurationHuman(total7)}</div></div><div class="stat-card"><span>Previous 7 days</span><div class="value">${formatDurationHuman(prev7)}</div></div><div class="stat-card"><span>Volume change</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
     <div class="load-bars">${load.map(d=>`<div class="load-bar" title="${d.key}: ${d.time.toFixed(1)} min" style="height:${Math.max(3,(d.time/max)*90)}px"></div>`).join("")}</div>
     <div class="load-labels">${load.map(d=>`<span>${d.label}</span>`).join("")}</div>
     ${renderLoadAdvice(total7, prev7)}
@@ -1065,7 +1069,7 @@ function renderWeeklyReview() {
   const prevAvg = prevLogs.length ? avg(prevLogs.map(l=>Number(l.normalizedScore||0))) : null;
   const delta = thisAvg !== null && prevAvg ? ((thisAvg-prevAvg)/Math.abs(prevAvg))*100 : null;
   box.innerHTML = `<div class="review-box"><h3>Weekly review</h3>
-    <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
+    <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance ${statHelpButton("avgPerformance")}</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
     <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : data.logs))}</div>
     ${anchorPerformanceSummary(thisLogs)}
   </div>`;
@@ -1101,6 +1105,61 @@ function skipReflection() {
   if ($("reflectionModal")) $("reflectionModal").classList.add("hidden");
 }
 
+
+
+function formatDurationHuman(minutes) {
+  const m = Math.round(Number(minutes || 0));
+  if (!m) return "0 min";
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if (!h) return `${rem} min`;
+  if (!rem) return `${h}h`;
+  return `${h}h ${rem}m`;
+}
+
+const EXPORT_FOLDER_DB = "snookerPracticePWA.exportFolderDB";
+const EXPORT_FOLDER_STORE = "handles";
+const EXPORT_FOLDER_KEY = "exportFolder";
+function supportsExportFolderPicker(){ return "showDirectoryPicker" in window && "indexedDB" in window; }
+function openExportFolderDB(){ return new Promise((resolve,reject)=>{ const req=indexedDB.open(EXPORT_FOLDER_DB,1); req.onupgradeneeded=()=>req.result.createObjectStore(EXPORT_FOLDER_STORE); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error); }); }
+async function saveExportFolderHandle(handle){ const db=await openExportFolderDB(); return new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).put(handle,EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }
+async function getExportFolderHandle(){ if(!supportsExportFolderPicker()) return null; try{ const db=await openExportFolderDB(); return await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readonly"); const req=tx.objectStore(EXPORT_FOLDER_STORE).get(EXPORT_FOLDER_KEY); req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error); }); }catch(e){ logAppError(e,"getExportFolderHandle"); return null; } }
+async function clearExportFolderHandle(){ if(!("indexedDB" in window)) return; try{ const db=await openExportFolderDB(); await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).delete(EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }catch(e){ logAppError(e,"clearExportFolderHandle"); } }
+async function ensureExportFolderPermission(handle){ if(!handle) return false; try{ const opts={mode:"readwrite"}; if((await handle.queryPermission(opts))==="granted") return true; return (await handle.requestPermission(opts))==="granted"; }catch(e){ logAppError(e,"ensureExportFolderPermission"); return false; } }
+async function chooseExportFolder(){ if(!supportsExportFolderPicker()){ alert("Folder selection is not supported in this browser. Exports will continue using normal downloads."); renderExportFolderStatus(); return; } try{ const handle=await window.showDirectoryPicker({mode:"readwrite"}); await saveExportFolderHandle(handle); localStorage.setItem("snookerPracticePWA.exportFolderName", handle.name || "Selected folder"); renderExportFolderStatus(); }catch(e){ if(e&&e.name!=="AbortError") logAppError(e,"chooseExportFolder"); } }
+async function clearExportFolder(){ await clearExportFolderHandle(); localStorage.removeItem("snookerPracticePWA.exportFolderName"); renderExportFolderStatus(); }
+async function renderExportFolderStatus(){ const el=$("exportFolderStatus"); if(!el) return; if(!supportsExportFolderPicker()){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Folder export is not supported by this browser. Files will use normal Downloads."; return; } const handle=await getExportFolderHandle(); if(!handle){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Export folder not selected. Files will use normal Downloads."; return; } const name=localStorage.getItem("snookerPracticePWA.exportFolderName") || handle.name || "Selected folder"; el.className="analytics-note export-folder-ok"; el.innerHTML=`Selected export folder: <strong>${escapeHtml(name)}</strong>.`; }
+async function saveTextFileToExportFolder(filename,text,mimeType="application/octet-stream"){ const handle=await getExportFolderHandle(); if(!handle) return false; const ok=await ensureExportFolderPermission(handle); if(!ok) return false; try{ const fileHandle=await handle.getFileHandle(filename,{create:true}); const writable=await fileHandle.createWritable(); await writable.write(new Blob([text],{type:mimeType})); await writable.close(); return true; }catch(e){ logAppError(e,"saveTextFileToExportFolder"); return false; } }
+async function exportFile(filename,text,mimeType="application/octet-stream"){ const saved=await saveTextFileToExportFolder(filename,text,mimeType); if(!saved) downloadFile(filename,text,mimeType); }
+
+function ensureTablesDatabase() {
+  data.tables = data.tables || [];
+  const defaults = ["Home table", "Club table 1", "Club table 2", "Club table 3", "Club table 4", "Other"];
+  defaults.forEach(name => {
+    if (!data.tables.some(t => t.name === name)) {
+      data.tables.push({id: crypto.randomUUID(), name, type:name.includes("Club")?"Club":(name==="Home table"?"Home":"Other"), info:"", createdAt:new Date().toISOString(), nameHistory:[]});
+    }
+  });
+  (data.logs || []).forEach(l => {
+    if (l.venueTable && !l.tableId) {
+      const found = data.tables.find(t => t.name === l.venueTable);
+      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; }
+    }
+  });
+}
+function tableById(id){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.id===id); }
+function tableByName(name){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.name===name); }
+function getTableName(logOrId){ const id=typeof logOrId==="string"?logOrId:(logOrId?.tableId||""); const fallback=typeof logOrId==="string"?"":(logOrId?.venueTable||logOrId?.venueTableSnapshot||""); return tableById(id)?.name || fallback || "Not specified"; }
+function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastTableId") || ""; }
+function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
+function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
+function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
+function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||crypto.randomUUID(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
+function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
+function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
+function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}" ${t.id===selectedId?"selected":""}>${escapeHtml(t.name)}</option>`).join(""); }
+function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${escapeHtml(t.name)}</strong><div class="meta">${escapeHtml(t.type||"No type")} · ${escapeHtml(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>escapeHtml(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" onclick="editTableDefinition('${t.id}')">Edit</button><button class="secondary" onclick="deleteTableDefinition('${t.id}')">Delete</button></div></div>`).join(""); }
+function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${measures}</p><p><strong>How calculated:</strong> ${calc}</p><p><strong>How to interpret:</strong> ${interpret}</p><div class="example"><strong>Typical use:</strong> ${use}</div></div>`; }
 
 function renderSmartRecommendation() {
   const box = $("smartRecommendationBox");
@@ -1226,9 +1285,9 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
 
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-grid">
-      <div class="overview-card"><span>Total practice</span><div class="big">${totalTime.toFixed(1)}m</div></div>
+      <div class="overview-card"><span>Total practice</span><div class="big">${formatDurationHuman(totalTime)}</div></div>
       <div class="overview-card"><span>Exercises</span><div class="big">${logs.length}</div></div>
-      <div class="overview-card"><span>Target hit rate</span><div class="big">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+      <div class="overview-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="big">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
       <div class="overview-card"><span>Momentum</span><div class="big">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
       <div class="overview-card"><span>Skill gap</span><div class="big">${gap === null ? "N/A" : gap.toFixed(2)}</div></div>
       <div class="overview-card"><span>Streak</span><div class="big">${st.current}d</div></div>
@@ -1559,7 +1618,7 @@ function difficultyLadderRecommendation(logs) {
 function renderDifficultyLadder(logs) {
   const rec = difficultyLadderRecommendation(logs);
   if (!rec) return "";
-  return `<div class="ladder-action"><strong>Difficulty ladder:</strong> ${escapeHtml(rec.text)}</div>`;
+  return `<div class="ladder-action"><strong>Difficulty ladder ${statHelpButton("difficultyLadder")}:</strong> ${escapeHtml(rec.text)}</div>`;
 }
 
 function dateFromKey(key) {
@@ -1617,7 +1676,7 @@ function renderABComparison() {
     <thead><tr><th>KPI</th><th>Period A</th><th>Period B</th><th>Delta A-B</th></tr></thead>
     <tbody>
       <tr><td>Logs</td><td>${A.logs}</td><td>${B.logs}</td><td>${A.logs-B.logs}</td></tr>
-      <tr><td>Training time</td><td>${A.time.toFixed(1)}m</td><td>${B.time.toFixed(1)}m</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
+      <tr><td>Training time</td><td>${formatDurationHuman(A.time)}</td><td>${formatDurationHuman(B.time)}</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
       <tr><td>Average performance</td><td>${A.avg===null?"N/A":A.avg.toFixed(1)}</td><td>${B.avg===null?"N/A":B.avg.toFixed(1)}</td><td>${deltaFmt(A.avg,B.avg)}</td></tr>
       <tr><td>Target hit rate</td><td>${A.hit===null?"N/A":A.hit.toFixed(1)+"%"}</td><td>${B.hit===null?"N/A":B.hit.toFixed(1)+"%"}</td><td>${deltaFmt(A.hit,B.hit," pts")}</td></tr>
       <tr><td>PSI</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
@@ -1687,7 +1746,7 @@ function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
   return `<h3>Advanced analytics</h3>
     <div class="stats-grid">
       <div class="stat-card"><span>Momentum</span><div class="value">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
-      <div class="stat-card"><span>Hit rate at-time target</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div><div class="stat-card"><span>Hit rate current target</span><div class="value">${targetHitRateCurrentTarget(logs) === null ? "N/A" : targetHitRateCurrentTarget(logs).toFixed(1)+"%"}</div></div>
+      <div class="stat-card"><span>Hit rate at-time target ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div><div class="stat-card"><span>Hit rate current target</span><div class="value">${targetHitRateCurrentTarget(logs) === null ? "N/A" : targetHitRateCurrentTarget(logs).toFixed(1)+"%"}</div></div>
       <div class="stat-card"><span>Current streak</span><div class="value">${st.current}d</div></div>
       <div class="stat-card"><span>Best streak</span><div class="value">${st.best}d</div></div>
       <div class="stat-card"><span>Duration correlation</span><div class="value">${escapeHtml(corrText(corrTime))}</div></div>
@@ -1709,11 +1768,11 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
 
   return `<h3>Routine progression</h3><div class="stats-grid">
     <div class="stat-card"><span>Latest</span><div class="value">${latest.toFixed(2)}</div></div>
-    <div class="stat-card"><span>Average</span><div class="value">${avg(vals).toFixed(2)}</div></div>
+    <div class="stat-card"><span>Average ${statHelpButton("avgPerformance")}</span><div class="value">${avg(vals).toFixed(2)}</div></div>
     <div class="stat-card"><span>Best / ceiling</span><div class="value">${best.toFixed(2)}</div></div>
     <div class="stat-card"><span>Consistency</span><div class="value">${stdDev(vals).toFixed(2)}</div></div>
     <div class="stat-card"><span>Ceiling gap</span><div class="value">${ceilingGap.toFixed(2)}</div></div>
-    <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div>
   <div class="trend">${escapeHtml(movingTrend(vals, rollingWindow))}</div>
   <div class="analytics-note"><strong>Benchmark:</strong> ${escapeHtml(benchmarkText(vals, benchmarkWindow))}<br><strong>Progression suggestion:</strong> ${escapeHtml(suggestion)}</div>
@@ -1727,7 +1786,7 @@ function renderLogRow(l) {
     <td>${displayScore(l)}</td>
     <td>${Number(l.normalizedScore || 0).toFixed(2)}</td>
     <td>${escapeHtml(l.performance || "N/A")}</td>
-    <td>${l.timeMinutes}m</td>
+    <td>${formatDurationHuman(l.timeMinutes)}</td>
     <td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td>
   </tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
 }
@@ -1737,15 +1796,7 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">
-        <option value="">Not specified</option>
-        <option value="Home table" ${l.venueTable === "Home table" ? "selected" : ""}>Home table</option>
-        <option value="Club table 1" ${l.venueTable === "Club table 1" ? "selected" : ""}>Club table 1</option>
-        <option value="Club table 2" ${l.venueTable === "Club table 2" ? "selected" : ""}>Club table 2</option>
-        <option value="Club table 3" ${l.venueTable === "Club table 3" ? "selected" : ""}>Club table 3</option>
-        <option value="Club table 4" ${l.venueTable === "Club table 4" ? "selected" : ""}>Club table 4</option>
-        <option value="Other" ${l.venueTable === "Other" ? "selected" : ""}>Other / custom</option>
-      </select></div>
+      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
       <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
@@ -1802,12 +1853,12 @@ function renderDateView(logs) {
   const hit = targetHitRate(logs);
   return `<div class="stats-grid">
     <div class="stat-card"><span>Exercises</span><div class="value">${logs.length}</div></div>
-    <div class="stat-card"><span>Total time</span><div class="value">${totalTime.toFixed(1)}m</div></div>
-    <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>Total time</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
+    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(logs)}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="9">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
+  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="9">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderToday() {
   const today = localDateKey();
@@ -1825,13 +1876,13 @@ function renderToday() {
 
   $("todaySummary").innerHTML = `<div class="stats-grid">
     <div class="stat-card"><span>Exercises</span><div class="value">${logs.length}</div></div>
-    <div class="stat-card"><span>Total time</span><div class="value">${totalTime.toFixed(1)}m</div></div>
-    <div class="stat-card"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>Total time</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
+    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
     const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${l.timeMinutes}m</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
   }).join("")}`;
 }
 
@@ -1908,13 +1959,16 @@ function exportValue(log, field) {
   return log[field] ?? "";
 }
 
-$("exportCsvBtn").addEventListener("click", () => {
+$("exportCsvBtn").addEventListener("click", async () => {
   const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
-$("exportBackupPackBtn").addEventListener("click", exportBackupPackZip);
-$("exportJsonBtn").addEventListener("click", () => { markBackupExported(); downloadFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
+$("exportJsonBtn").addEventListener("click", async () => { markBackupExported(); await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
+$("saveTableBtn").addEventListener("click", saveTableDefinition);
+$("clearTableFormBtn").addEventListener("click", clearTableForm);
+$("chooseExportFolderBtn").addEventListener("click", chooseExportFolder);
+$("clearExportFolderBtn").addEventListener("click", clearExportFolder);
 $("exportDebugBtn").addEventListener("click", exportDebugInfo);
 $("exportRawStorageBtn").addEventListener("click", exportRawLocalData);
 $("importJsonInput").addEventListener("change", async (e) => {
@@ -2139,140 +2193,17 @@ function renderBackupReminder() {
   const el = $("backupReminderBanner");
   if (!el) return;
   const last = localStorage.getItem("snookerPracticePWA.lastBackupAt");
-  const lastLogCount = Number(localStorage.getItem("snookerPracticePWA.lastBackupLogCount") || 0);
-  const currentLogCount = (data.logs || []).length;
   const days = daysSinceIso(last);
-  const newLogs = currentLogCount - lastLogCount;
-  if ((days >= 7 || newLogs >= 10) && currentLogCount) {
+  if (days >= 30 && (data.logs || []).length) {
     el.classList.remove("hidden");
-    const reason = days >= 7 ? `${Number.isFinite(days) ? days : "many"} days since last backup` : `${newLogs} new logs since last backup`;
-    el.innerHTML = `Backup recommended: ${reason}. <button onclick="exportBackupPackZip()">Export Backup Pack ZIP</button> <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Open Data</button>`;
+    el.innerHTML = `Backup reminder: you have not exported a JSON backup ${Number.isFinite(days) ? "in "+days+" days" : "yet"}. <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Go to Data</button>`;
   } else {
     el.classList.add("hidden");
     el.innerHTML = "";
   }
 }
 
-
-function crc32(str) {
-  const table = crc32.table || (crc32.table = (() => {
-    let c, table = [];
-    for (let n = 0; n < 256; n++) {
-      c = n;
-      for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
-      table[n] = c >>> 0;
-    }
-    return table;
-  })());
-  let crc = 0 ^ (-1);
-  for (let i = 0; i < str.length; i++) {
-    crc = (crc >>> 8) ^ table[(crc ^ str.charCodeAt(i)) & 0xFF];
-  }
-  return (crc ^ (-1)) >>> 0;
-}
-function strToBytes(str) {
-  return new TextEncoder().encode(str);
-}
-function dosDateTime(date = new Date()) {
-  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
-  const d = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
-  return {time, date:d};
-}
-function u16(n) { return [n & 255, (n >>> 8) & 255]; }
-function u32(n) { return [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]; }
-function makeZip(files) {
-  const chunks = [];
-  const central = [];
-  let offset = 0;
-  const dt = dosDateTime();
-  files.forEach(file => {
-    const nameBytes = strToBytes(file.name);
-    const content = typeof file.content === "string" ? file.content : JSON.stringify(file.content, null, 2);
-    const data = strToBytes(content);
-    const crc = crc32(String.fromCharCode(...data));
-    const local = new Uint8Array([
-      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(dt.time), ...u16(dt.date),
-      ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), ...u16(0)
-    ]);
-    chunks.push(local, nameBytes, data);
-    const centralHeader = new Uint8Array([
-      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(dt.time), ...u16(dt.date),
-      ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameBytes.length), ...u16(0), ...u16(0),
-      ...u16(0), ...u16(0), ...u32(0), ...u32(offset)
-    ]);
-    central.push(centralHeader, nameBytes);
-    offset += local.length + nameBytes.length + data.length;
-  });
-  const centralSize = central.reduce((a,b)=>a+b.length,0);
-  const centralOffset = offset;
-  const end = new Uint8Array([
-    ...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length),
-    ...u32(centralSize), ...u32(centralOffset), ...u16(0)
-  ]);
-  const all = [...chunks, ...central, end];
-  return new Blob(all, {type:"application/zip"});
-}
-function currentBackupJsonPayload() {
-  return {
-    ...data,
-    backupVersion: APP_VERSION,
-    exportedAt: new Date().toISOString()
-  };
-}
-function currentDebugPayload() {
-  return {
-    appVersion: APP_VERSION,
-    exportedAt: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    location: location.href,
-    counts: {
-      routines: (data.routines || []).length,
-      plans: (data.plans || []).length,
-      sessions: (data.sessions || []).length,
-      logs: (data.logs || []).length
-    },
-    errors: JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]"),
-    lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || "",
-    lastBackupLogCount: localStorage.getItem("snookerPracticePWA.lastBackupLogCount") || ""
-  };
-}
-function currentRawLocalPayload() {
-  return {
-    appVersion: APP_VERSION,
-    exportedAt: new Date().toISOString(),
-    storageKey: STORAGE_KEY,
-    rawMainData: localStorage.getItem(STORAGE_KEY),
-    activeSessionDraft: localStorage.getItem("snookerPracticePWA.activeSessionDraft"),
-    lastVenueTable: localStorage.getItem("snookerPracticePWA.lastVenueTable"),
-    lastTableNote: localStorage.getItem("snookerPracticePWA.lastTableNote"),
-    errorLog: localStorage.getItem("snookerPracticePWA.errorLog")
-  };
-}
-function markBackupPackExported() {
-  localStorage.setItem("snookerPracticePWA.lastBackupAt", new Date().toISOString());
-  localStorage.setItem("snookerPracticePWA.lastBackupLogCount", String((data.logs || []).length));
-}
-function exportBackupPackZip() {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const files = [
-    {name:"json-backup.json", content:JSON.stringify(currentBackupJsonPayload(), null, 2)},
-    {name:"debug-info.json", content:JSON.stringify(currentDebugPayload(), null, 2)},
-    {name:"raw-local-data.json", content:JSON.stringify(currentRawLocalPayload(), null, 2)}
-  ];
-  const zip = makeZip(files);
-  const url = URL.createObjectURL(zip);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `snooker-backup-pack-${APP_VERSION}-${stamp}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  markBackupPackExported();
-  renderBackupReminder();
-}
-
-function exportRawLocalData() {
+async function exportRawLocalData() {
   const payload = {
     appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -2280,13 +2211,14 @@ function exportRawLocalData() {
     rawMainData: localStorage.getItem(STORAGE_KEY),
     activeSessionDraft: localStorage.getItem("snookerPracticePWA.activeSessionDraft"),
     lastVenueTable: localStorage.getItem("snookerPracticePWA.lastVenueTable"),
+    lastTableId: localStorage.getItem("snookerPracticePWA.lastTableId"),
     lastTableNote: localStorage.getItem("snookerPracticePWA.lastTableNote"),
     errorLog: localStorage.getItem("snookerPracticePWA.errorLog")
   };
-  downloadFile(`snooker-raw-local-data-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
+  await exportFile(`snooker-raw-local-data-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
 }
 
-function exportDebugInfo() {
+async function exportDebugInfo() {
   const payload = {
     appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -2301,7 +2233,7 @@ function exportDebugInfo() {
     errors: JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]"),
     lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || ""
   };
-  downloadFile(`snooker-debug-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
+  await exportFile(`snooker-debug-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
 }
 
 const FIELD_HELP = {
@@ -2379,6 +2311,23 @@ FIELD_HELP.velocity = {title:"Progress velocity",body:`<p><strong>What it means:
 FIELD_HELP.plateau = {title:"Plateau detector",body:`<p><strong>What it means:</strong> flags flat recent performance despite continued practice.</p>`};
 FIELD_HELP.overtraining = {title:"Overtraining signal",body:`<p><strong>What it means:</strong> flags when volume rises but performance does not improve.</p>`};
 
+
+Object.assign(FIELD_HELP, {
+  avgPerformance: {title:"Average performance", body: analyticsHelp("Average performance","Your average normalized score on the selected period or exercise.","Mean of normalized scores, usually on a 0–100 scale.","Higher is better, but compare similar drills or use target-version context.","Use it to see general direction, not as the only decision metric.")},
+  targetHitRate: {title:"Target hit rate", body: analyticsHelp("Target hit rate","How often you met or exceeded the target active at the time of logging.","Logs classified as On Target or Above Target divided by evaluated logs.","High hit rate may mean target is too easy; low hit rate may mean target is too hard.","Use it before changing target versions.")},
+  trainingTime: {title:"Training time", body: analyticsHelp("Training time","Total time logged in the selected period.","Sum of log durations, displayed in minutes or hours/minutes.","Rising time with flat performance may indicate low-yield volume or fatigue.","Use it to manage training load.")},
+  progressVelocity: {title:"Progress velocity", body: analyticsHelp("Progress velocity","Recent direction and speed of improvement.","Simple slope of recent normalized scores over the latest logs.","Positive means improving; negative means declining; flat means stabilization or plateau.","Use it to decide whether to continue, vary, or rest a drill.")},
+  psi: {title:"Performance Stability Index (PSI)", body: analyticsHelp("PSI","Consistency of performance.","Combines score variability and hit-rate volatility into a 0–100 stability index.","High PSI = reliable execution; low PSI = unstable performance.","Use it before increasing difficulty or assessing competition readiness.")},
+  fatigueSlope: {title:"Fatigue slope", body: analyticsHelp("Fatigue slope","Whether performance changes as session time accumulates.","Slope of normalized performance versus accumulated session minutes.","Negative suggests fatigue; positive suggests slow warm-up.","Use it to adjust warm-up, breaks, and session length.")},
+  drift: {title:"Performance drift", body: analyticsHelp("Performance drift","Short-term trend versus the previous baseline.","Recent average compared with the prior average window.","Positive drift suggests progress; negative drift suggests regression or changed conditions.","Use it to detect recent changes before they appear in long-term averages.")},
+  qualityImpact: {title:"Session quality impact", body: analyticsHelp("Session quality impact","Whether high-rated sessions actually perform better.","Compares average performance in high quality ratings versus low quality ratings.","If quality and score diverge, your rating may capture effort rather than execution.","Use it to calibrate reflection.")},
+  optimalLength: {title:"Optimal session length", body: analyticsHelp("Optimal session length","Which session-duration band has produced the best performance.","Groups sessions by duration and compares average score.","Best band suggests your highest-yield session length, not maximum volume.","Use it to plan efficient sessions.")},
+  plateau: {title:"Plateau detector", body: analyticsHelp("Plateau detector","Whether recent performance has flattened.","Compares recent window versus previous window and flags very small change.","A plateau means repetition alone may no longer be enough.","Use it to vary constraints or change target difficulty.")},
+  overtraining: {title:"Overtraining signal", body: analyticsHelp("Overtraining signal","Whether rising volume is failing to produce better performance.","Compares recent volume change with performance change.","Volume up with performance flat/down can indicate fatigue or low-quality practice.","Use it to schedule lighter sessions or deload.")},
+  difficultyLadder: {title:"Difficulty ladder", body: analyticsHelp("Difficulty ladder","Whether the current target is too easy, too hard, or appropriate.","Combines hit rate, PSI, drift, and sample size.","Increase if stable and high hit rate; reduce if consistently failing; maintain if in learning zone.","Use it to create target versions.")},
+  abComparison: {title:"A/B period comparison", body: analyticsHelp("A/B comparison","Whether one period performed better than another.","Compares logs, time, average score, hit rate, PSI, and best score across two periods.","Useful for before/after blocks, recent months, or training changes.","Use it to judge whether a training phase worked.")}
+});
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2408,7 +2357,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.4");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2432,7 +2381,6 @@ function rememberVenueTable(venue, note) {
   if (note !== undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY, note || "");
 }
 function renderTodayResumeCard() {
-  try {
   const card = $("todayResumeSessionCard");
   const box = $("todayResumeSessionBox");
   const actions = $("todayResumeActions");
@@ -2449,10 +2397,6 @@ function renderTodayResumeCard() {
     <div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name || "Missing exercise")}</div>
     <div class="resume-detail">Venue/table: ${escapeHtml(s.venueTable || getLastVenueTable() || "Not specified")}</div>
     <div class="resume-detail">Started: ${new Date(s.startedAt || s.savedAt).toLocaleString()}</div>`;
-
-  } catch(e) {
-    logAppError(e, "renderTodayResumeCard");
-  }
 }
 
 
@@ -2524,7 +2468,7 @@ function interventionImpactSummary(logs=data.logs||[]){
   return `<div class="intervention-card"><strong>Before / after intervention: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
 }
 function tableStats(logs){const groups={}; logs.filter(l=>l.venueTable).forEach(l=>{groups[l.venueTable]||=[];groups[l.venueTable].push(l);}); return Object.entries(groups).map(([table,arr])=>{const vals=arr.map(l=>Number(l.normalizedScore||0)),hit=targetHitRate(arr); return {table,logs:arr.length,time:arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0),avg:vals.length?avg(vals):null,hit};}).sort((a,b)=>b.logs-a.logs);}
-function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${r.time.toFixed(1)}m</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
+function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
 function routineStats(routineId) {
   const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
@@ -2714,10 +2658,7 @@ function getPersistedActiveSession() {
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.routineIds) || Number(s.index || 0) >= s.routineIds.length) return null;
     return s;
-  } catch(e) {
-    logAppError(e, "getPersistedActiveSession");
-    return null;
-  }
+  } catch(e) { logAppError(e, "getPersistedActiveSession"); return null; }
 }
 
 function persistActiveSession() {
@@ -2725,9 +2666,7 @@ function persistActiveSession() {
     if (typeof activeSession !== "undefined" && activeSession) {
       localStorage.setItem("snookerPracticePWA.activeSessionDraft", JSON.stringify({...activeSession, savedAt:new Date().toISOString()}));
     }
-  } catch(e) {
-    logAppError(e, "persistActiveSession");
-  }
+  } catch(e) { logAppError(e, "persistActiveSession"); }
 }
 
 function clearPersistedActiveSession() {
