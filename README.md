@@ -1,33 +1,42 @@
-# Snooker Practice Log — v3.21
+# Snooker Practice Log — v3.21.1
 
-Built from v3.20.
+Built from v3.21.
 
-## New in v3.21 — Phase 1 statistical insights
+## New in v3.21.1
 
-Residual analysis:
-- Adds expected vs actual performance using exponential moving average.
-- Shows recent residuals by routine.
-- Positive residuals suggest potential target increase.
-- Negative residuals suggest difficulty/fatigue/context issues.
+Stats explainability coverage:
+- Added missing `?` helpers across Stats Overview and Advanced Stats.
+- Added helper definitions for all visible data points that were previously unclear.
 
-Session peak window:
-- Detects the approximate session time range where performance is strongest.
-- Helps place difficult drills at the right point in the session.
-
-Contextual factor analysis:
-- Shows performance lifters/drags by:
-  - table
-  - intervention
-  - time of day
-- Uses simple grouped effect size versus global average.
-
-Venue/table cleanup:
-- Removed duplicated table note editing from previous-session log edits.
-- Kept one coherent table model:
-  - stable table ID
-  - table name
-  - table info stored in the Tables / venues database
-- Logs keep table ID and table-name snapshot for historical continuity.
+New / expanded helper topics include:
+- logs / sessions count
+- exercises completed
+- total training time
+- normalized score
+- hit rate
+- best score
+- average performance
+- target hit rate
+- training load
+- expected vs actual residuals
+- session peak window
+- context effects
+- table / venue performance
+- planned vs completed
+- intervention impact
+- anchor baseline
+- weekly review
+- performance drift
+- progress velocity
+- plateau
+- overtraining
+- quality impact
+- optimal session length
+- difficulty ladder
+- A/B comparison
+- fatigue slope
+- PSI
+- regret / counterfactual engine
 
 Confirm version:
-The header should show v3.21.
+The header should show v3.21.1.

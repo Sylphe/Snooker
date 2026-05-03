@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.21-final";
+const APP_VERSION = "3.21.1-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -1014,7 +1014,7 @@ function anchorPerformanceSummary(logs) {
     const baseline = allLogs.length ? avg(allLogs.slice(-10).map(l=>Number(l.normalizedScore||0))) : null;
     return {name:r.name, todayAvg, baseline};
   });
-  return `<div class="review-box"><h3>Anchor drill baseline</h3>${rows.map(row => `<div class="reflection-row"><strong>${escapeHtml(row.name)}</strong>: ${row.todayAvg === null ? "not logged in this view" : row.todayAvg.toFixed(1)}${row.baseline === null ? "" : " vs baseline "+row.baseline.toFixed(1)}</div>`).join("")}</div>`;
+  return `<div class="review-box"><h3>Anchor drill baseline ${statHelpButton("anchorBaseline")}</h3>${rows.map(row => `<div class="reflection-row"><strong>${escapeHtml(row.name)}</strong>: ${row.todayAvg === null ? "not logged in this view" : row.todayAvg.toFixed(1)}${row.baseline === null ? "" : " vs baseline "+row.baseline.toFixed(1)}</div>`).join("")}</div>`;
 }
 
 function weekStart(dateLike) {
@@ -1045,7 +1045,7 @@ function renderTrainingLoad() {
   const total7 = load.slice(-7).reduce((a,b)=>a+b.time,0);
   const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
   const delta = prev7 ? ((total7-prev7)/Math.abs(prev7))*100 : null;
-  box.innerHTML = `<div class="load-card"><h3>Training load — last 14 days</h3>
+  box.innerHTML = `<div class="load-card"><h3>Training load — last 14 days ${statHelpButton("trainingLoad")}</h3>
     <div class="stats-grid"><div class="stat-card"><span>Last 7 days</span><div class="value">${formatDurationHuman(total7)}</div></div><div class="stat-card"><span>Previous 7 days</span><div class="value">${formatDurationHuman(prev7)}</div></div><div class="stat-card"><span>Volume change</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
     <div class="load-bars">${load.map(d=>`<div class="load-bar" title="${d.key}: ${d.time.toFixed(1)} min" style="height:${Math.max(3,(d.time/max)*90)}px"></div>`).join("")}</div>
     <div class="load-labels">${load.map(d=>`<span>${d.label}</span>`).join("")}</div>
@@ -1085,7 +1085,7 @@ function renderWeeklyReview() {
   const thisAvg = thisLogs.length ? avg(thisLogs.map(l=>Number(l.normalizedScore||0))) : null;
   const prevAvg = prevLogs.length ? avg(prevLogs.map(l=>Number(l.normalizedScore||0))) : null;
   const delta = thisAvg !== null && prevAvg ? ((thisAvg-prevAvg)/Math.abs(prevAvg))*100 : null;
-  box.innerHTML = `<div class="review-box"><h3>Weekly review</h3>
+  box.innerHTML = `<div class="review-box"><h3>Weekly review ${statHelpButton("weeklyReview")}</h3>
     <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance ${statHelpButton("avgPerformance")}</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
     <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : data.logs))}</div>
     ${anchorPerformanceSummary(thisLogs)}
@@ -1324,7 +1324,7 @@ function runRegretComparison() {
       ? "The chosen routine looks better than the alternative."
       : "No strong counterfactual difference.";
   out.innerHTML = `<div class="phase-card ${cls}">
-    <strong>Counterfactual comparison</strong>
+    <strong>Counterfactual comparison ${statHelpButton("regretEngine")}</strong>
     <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · PSI ${c.psi.toFixed(0)}`:""}</div>
     <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · PSI ${a.psi.toFixed(0)}`:""}</div>
     <div class="adaptive-rationale"><strong>Regret estimate:</strong> ${regret>=0?"+":""}${regret.toFixed(1)} points vs chosen.</div>
@@ -1677,7 +1677,7 @@ function renderResidualInsights(logs) {
   const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
   if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history yet.</div></div>`;
   return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
-    <strong>Expected vs actual residuals</strong>
+    <strong>Expected vs actual residuals ${statHelpButton("residual")}</strong>
     ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.residualMean>=0?"+":""}${i.residualMean.toFixed(1)}</strong><span>n=${i.logs.length}</span></div>`).join("")}
   </div>`;
 }
@@ -1715,7 +1715,7 @@ function renderPeakWindowInsight(logs) {
   const avgStart = avg(peaks.map(p=>p.start));
   const avgEnd = avg(peaks.map(p=>p.end));
   const avgScore = avg(peaks.map(p=>p.score));
-  return `<div class="insight-card good"><strong>Session peak window</strong>
+  return `<div class="insight-card good"><strong>Session peak window ${statHelpButton("peakWindow")}</strong>
     <div class="value">${formatDurationHuman(avgStart)}–${formatDurationHuman(avgEnd)}</div>
     <div class="muted">Average peak-window score: ${avgScore.toFixed(1)} across ${peaks.length} session${peaks.length>1?"s":""}.</div>
     <div class="adaptive-rationale">Place demanding drills in this window when possible.</div>
@@ -1751,8 +1751,8 @@ function renderContextEffects(logs) {
     ...groupContextEffects(logs, l => l.sessionIntervention || "", "Intervention"),
     ...groupContextEffects(logs, l => timeOfDayBucket(l), "Time")
   ].filter(e => e.n >= 3).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,8);
-  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects</strong><div class="muted">Need more logs by table/time/intervention.</div></div>`;
-  return `<div class="insight-card ${effects[0].delta<0?"risk":"good"}"><strong>Context effects</strong>
+  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects ${statHelpButton("contextEffects")}</strong><div class="muted">Need more logs by table/time/intervention.</div></div>`;
+  return `<div class="insight-card ${effects[0].delta<0?"risk":"good"}"><strong>Context effects ${statHelpButton("contextEffects")}</strong>
     ${effects.map(e => `<div class="context-row"><span>${escapeHtml(e.label)}: ${escapeHtml(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>n=${e.n}</span></div>`).join("")}
     <div class="adaptive-rationale">Shows performance lifters/drags versus your overall average. Minimum threshold is deliberately low for visibility; treat small samples cautiously.</div>
   </div>`;
@@ -1827,7 +1827,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-grid">
       <div class="overview-card"><span>Total practice</span><div class="big">${formatDurationHuman(totalTime)}</div></div>
-      <div class="overview-card"><span>Exercises</span><div class="big">${logs.length}</div></div>
+      <div class="overview-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="big">${logs.length}</div></div>
       <div class="overview-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="big">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
       <div class="overview-card"><span>Momentum</span><div class="big">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
       <div class="overview-card"><span>Skill gap</span><div class="big">${gap === null ? "N/A" : gap.toFixed(2)}</div></div>
@@ -2096,7 +2096,7 @@ function performanceStabilityIndex(logs, windowSize=10) {
 
 function renderPerformanceStability(logs) {
   const psi = performanceStabilityIndex(logs, 10);
-  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index</strong><br>Not enough data yet.</div>`;
+  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index ${statHelpButton("psi")}</strong><br>Not enough data yet.</div>`;
   const cls = psi.psi >= 70 ? "psi-good" : psi.psi >= 45 ? "psi-watch" : "psi-risk";
   return `<div class="psi-card ${cls}">
     <strong>Performance Stability Index ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
@@ -2124,7 +2124,7 @@ function fatigueSlope(logs) {
 
 function renderFatigueSlope(logs) {
   const f = fatigueSlope(logs);
-  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope</strong><br>Not enough data yet.</div>`;
+  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope ${statHelpButton("fatigueSlope")}</strong><br>Not enough data yet.</div>`;
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
   return `<div class="psi-card ${cls}">
@@ -2217,11 +2217,11 @@ function renderABComparison() {
     <thead><tr><th>KPI</th><th>Period A</th><th>Period B</th><th>Delta A-B</th></tr></thead>
     <tbody>
       <tr><td>Logs</td><td>${A.logs}</td><td>${B.logs}</td><td>${A.logs-B.logs}</td></tr>
-      <tr><td>Training time</td><td>${formatDurationHuman(A.time)}</td><td>${formatDurationHuman(B.time)}</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
-      <tr><td>Average performance</td><td>${A.avg===null?"N/A":A.avg.toFixed(1)}</td><td>${B.avg===null?"N/A":B.avg.toFixed(1)}</td><td>${deltaFmt(A.avg,B.avg)}</td></tr>
-      <tr><td>Target hit rate</td><td>${A.hit===null?"N/A":A.hit.toFixed(1)+"%"}</td><td>${B.hit===null?"N/A":B.hit.toFixed(1)+"%"}</td><td>${deltaFmt(A.hit,B.hit," pts")}</td></tr>
-      <tr><td>PSI</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
-      <tr><td>Best score</td><td>${A.best===null?"N/A":A.best.toFixed(1)}</td><td>${B.best===null?"N/A":B.best.toFixed(1)}</td><td>${deltaFmt(A.best,B.best)}</td></tr>
+      <tr><td>Training time ${statHelpButton("trainingTime")}</td><td>${formatDurationHuman(A.time)}</td><td>${formatDurationHuman(B.time)}</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
+      <tr><td>Average performance ${statHelpButton("averagePerformance")}</td><td>${A.avg===null?"N/A":A.avg.toFixed(1)}</td><td>${B.avg===null?"N/A":B.avg.toFixed(1)}</td><td>${deltaFmt(A.avg,B.avg)}</td></tr>
+      <tr><td>Target hit rate ${statHelpButton("targetHitRate")}</td><td>${A.hit===null?"N/A":A.hit.toFixed(1)+"%"}</td><td>${B.hit===null?"N/A":B.hit.toFixed(1)+"%"}</td><td>${deltaFmt(A.hit,B.hit," pts")}</td></tr>
+      <tr><td>PSI ${statHelpButton("psi")}</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
+      <tr><td>Best score ${statHelpButton("bestScore")}</td><td>${A.best===null?"N/A":A.best.toFixed(1)}</td><td>${B.best===null?"N/A":B.best.toFixed(1)}</td><td>${deltaFmt(A.best,B.best)}</td></tr>
     </tbody>
   </table>`;
 }
@@ -2246,8 +2246,8 @@ function renderSecondOrderAnalytics(logs, selectedRid, rollingWindow=10) {
   if (overtraining) cards.push({cls: overtraining.signal==="Risk" ? "signal-risk" : "signal-good", title:"Overtraining signal", text:`Volume ${overtraining.volumeDelta>=0?"+":""}${overtraining.volumeDelta.toFixed(1)}%, performance ${overtraining.perfDelta>=0?"+":""}${overtraining.perfDelta.toFixed(1)}% → ${overtraining.signal}.`});
   if (transfer) cards.push({cls: transfer.corr > .35 ? "signal-good" : transfer.corr < -.35 ? "signal-risk" : "signal-watch", title:"Exercise transfer effect", text:`Previous-day ${transfer.category} vs selected exercise: ${corrText(transfer.corr)} over ${transfer.n} paired days.`});
 
-  if (!cards.length) return `<h3>Second-order analytics</h3><p class="muted">More logs are needed for drift, quality impact, optimal session length, transfer, plateau, and overtraining diagnostics.</p>`;
-  return `<h3>Second-order analytics</h3><div class="diagnostic-grid">${cards.map(c=>`<div class="diagnostic-card ${c.cls}"><strong>${escapeHtml(c.title)}</strong>${escapeHtml(c.text)}</div>`).join("")}</div>`;
+  if (!cards.length) return `<h3>Second-order analytics ${statHelpButton("performanceDrift")}</h3><p class="muted">More logs are needed for drift, quality impact, optimal session length, transfer, plateau, and overtraining diagnostics.</p>`;
+  return `<h3>Second-order analytics ${statHelpButton("performanceDrift")}</h3><div class="diagnostic-grid">${cards.map(c=>`<div class="diagnostic-card ${c.cls}"><strong>${escapeHtml(c.title)}</strong>${escapeHtml(c.text)}</div>`).join("")}</div>`;
 }
 
 
@@ -2397,8 +2397,8 @@ function renderDateView(logs) {
   logs.forEach(l => { types[l.category || "uncategorized"] = (types[l.category || "uncategorized"] || 0) + 1; });
   const hit = targetHitRate(logs);
   return `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises</span><div class="value">${logs.length}</div></div>
-    <div class="stat-card"><span>Total time</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
+    <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
@@ -2420,8 +2420,8 @@ function renderToday() {
   const hit = targetHitRate(logs);
 
   $("todaySummary").innerHTML = `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises</span><div class="value">${logs.length}</div></div>
-    <div class="stat-card"><span>Total time</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
+    <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
@@ -3020,6 +3020,122 @@ FIELD_HELP.phaseOneInsights = {
   </div>`
 };
 
+
+Object.assign(FIELD_HELP, {
+  logsCount: {
+    title:"Logs / session count",
+    body: analyticsHelp("Logs / session count","How much data exists in the selected scope.","Counts the number of saved log rows or sessions after the current filters are applied.","Higher sample size makes trends more reliable; very low counts should be treated cautiously.","Use it to judge whether a metric is robust enough to act on.")
+  },
+  exercisesCompleted: {
+    title:"Exercises completed",
+    body: analyticsHelp("Exercises completed","How many exercises were logged in the selected day or session.","Counts completed drill logs, not planned drills.","A high count indicates breadth; combine with training time and performance to avoid low-quality volume.","Use it to compare daily workload.")
+  },
+  totalTrainingTime: {
+    title:"Total training time",
+    body: analyticsHelp("Total training time","Total duration of logged training in the selected scope.","Sums timeMinutes across logs and displays it in minutes or hours/minutes.","Volume alone is not quality. Rising time with flat or falling scores can indicate fatigue or inefficient practice.","Use it to manage workload and session length.")
+  },
+  normalizedScore: {
+    title:"Normalized score",
+    body: analyticsHelp("Normalized score","A common 0–100 style score used to compare different drill types.","For success-rate drills it is usually success percentage; for other drills it is normalized based on the drill scoring mode and target setup.","Useful for comparing direction across drills, but always check the scoring type and target version.","Use it as the main comparable performance metric.")
+  },
+  hitRate: {
+    title:"Hit rate / success rate",
+    body: analyticsHelp("Hit rate / success rate","The percentage of successful attempts or the percentage of logs that reached the target, depending on context.","For attempt drills it uses successes divided by attempts; for target analytics it uses logs classified as On Target or Above Target divided by evaluated logs.","Above 80% usually suggests stability; 60–80% is a development zone; below 60% may indicate too much difficulty or inconsistency.","Use it to decide whether to maintain, reduce, or increase difficulty.")
+  },
+  bestScore: {
+    title:"Best score",
+    body: analyticsHelp("Best score","The highest normalized or raw score achieved in the selected scope.","Takes the maximum score from the relevant logs.","Useful for ceiling potential, but it does not prove consistency.","Use it as a peak-performance indicator, not as your main progress KPI.")
+  },
+  averagePerformance: {
+    title:"Average performance",
+    body: analyticsHelp("Average performance","The mean performance level in the selected scope.","Averages normalized scores from the filtered logs.","Good for broad trend reading, but it can hide volatility and table/context effects.","Use it with PSI, hit rate, and residuals.")
+  },
+  targetHitRate: {
+    title:"Target hit rate",
+    body: analyticsHelp("Target hit rate","How often you achieved the active target at the time of logging.","Counts On Target and Above Target logs divided by logs with a usable target classification.","High hit rate plus high PSI suggests readiness for harder targets; low hit rate suggests target difficulty may be too high.","Use it before changing target versions.")
+  },
+  trainingLoad: {
+    title:"Training load",
+    body: analyticsHelp("Training load","Accumulated training volume over time.","Sums daily or weekly training minutes and compares recent load with prior load.","Rising load with declining performance can be a fatigue warning; stable load supports better comparisons.","Use it to decide when to deload or increase volume.")
+  },
+  residual: {
+    title:"Expected vs actual residual",
+    body: analyticsHelp("Expected vs actual residual","Whether your actual score is above or below recent expectation.","Uses an exponential moving average as the expected score, then calculates actual minus expected.","Persistent positive residuals suggest improvement or under-challenging targets; negative residuals suggest fatigue, difficulty, or adverse context.","Use it to refine target increases more carefully than hit rate alone.")
+  },
+  peakWindow: {
+    title:"Session peak window",
+    body: analyticsHelp("Session peak window","The part of the session where performance tends to be highest.","Looks across session logs and finds the rolling time window with the highest average normalized score.","This suggests when your most demanding drills should be placed.","Use it to order drills inside a session.")
+  },
+  contextEffects: {
+    title:"Context effects",
+    body: analyticsHelp("Context effects","How performance changes across conditions.","Groups logs by table, intervention, and time of day, then compares each group average to the global average.","Positive effects may indicate favorable conditions; negative effects may reveal table difficulty, fatigue timing, or disruptive changes.","Use it to separate real skill changes from environment effects.")
+  },
+  tableVenuePerformance: {
+    title:"Table / venue performance",
+    body: analyticsHelp("Table / venue performance","Performance split by the table or venue used.","Groups logs by stable table ID and calculates logs, time, average score, and hit rate per table.","A table with lower performance is not necessarily bad; it may simply be tighter or more demanding.","Use it to understand context and avoid misreading table effects as skill regression.")
+  },
+  plannedVsCompleted: {
+    title:"Planned vs completed",
+    body: analyticsHelp("Planned vs completed","Whether you completed the drills planned by the app or by your session plan.","Compares planned routine IDs with routines actually logged in the session.","Repeatedly skipped drills reveal avoidance, friction, or unrealistic planning.","Use it to detect revealed preferences and improve plan design.")
+  },
+  interventionImpact: {
+    title:"Before / after intervention",
+    body: analyticsHelp("Before / after intervention","Whether performance changed around a logged training intervention.","Compares logs before and after the most recent intervention tag.","This is not causal proof, but it is useful for spotting changes worth investigating.","Use it after equipment, technique, table, or coaching changes.")
+  },
+  anchorBaseline: {
+    title:"Anchor drill baseline",
+    body: analyticsHelp("Anchor drill baseline","Performance on drills marked as anchors.","Compares today's or current-period anchor performance against the rolling baseline for those same anchor drills.","Anchor drills are your most stable benchmark because they recur often.","Use them as the closest thing to a personal performance index.")
+  },
+  weeklyReview: {
+    title:"Weekly review",
+    body: analyticsHelp("Weekly review","A compact summary of current week activity and performance.","Compares this week's logs and average performance with the prior week where available.","Useful for seeing whether recent training is directionally improving or slipping.","Use it for weekly planning and adjustment.")
+  },
+  performanceDrift: {
+    title:"Performance drift",
+    body: analyticsHelp("Performance drift","Recent performance change versus a previous baseline window.","Compares a recent average with an earlier average over a similar number of logs.","Positive drift suggests improvement; negative drift suggests regression, fatigue, or context changes.","Use it to detect short-term movement before it appears in long-run averages.")
+  },
+  progressVelocity: {
+    title:"Progress velocity",
+    body: analyticsHelp("Progress velocity","The speed and direction of recent improvement.","Estimates a simple slope of score over time or over recent logs.","Positive velocity means improvement; near-zero means plateau; negative means decline.","Use it to decide whether to keep, vary, or rest a drill.")
+  },
+  plateau: {
+    title:"Plateau detector",
+    body: analyticsHelp("Plateau detector","Whether performance has stopped improving despite continued practice.","Compares recent performance change and volatility against a small threshold.","A plateau usually means repetition alone may no longer be enough.","Use it to add variation, change constraints, or adjust target versions.")
+  },
+  overtraining: {
+    title:"Overtraining signal",
+    body: analyticsHelp("Overtraining signal","Whether training volume is rising while performance is not improving.","Compares recent training load with recent performance movement.","Volume up with performance flat or down can indicate fatigue or low-quality volume.","Use it to schedule lighter sessions or deload weeks.")
+  },
+  qualityImpact: {
+    title:"Session quality impact",
+    body: analyticsHelp("Session quality impact","Whether subjective session quality ratings align with performance.","Compares performance in high-rated sessions with lower-rated sessions.","If ratings and scores diverge, your quality rating may be capturing effort or mood rather than execution.","Use it to calibrate your post-session judgment.")
+  },
+  optimalLength: {
+    title:"Optimal session length",
+    body: analyticsHelp("Optimal session length","Which duration band tends to produce the best performance.","Groups sessions by logged duration and compares average normalized score.","The best length is the highest-yield range, not necessarily the longest session.","Use it to set efficient training duration.")
+  },
+  difficultyLadder: {
+    title:"Difficulty ladder",
+    body: analyticsHelp("Difficulty ladder","Whether current drill difficulty should increase, decrease, stabilize, or remain unchanged.","Combines target hit rate, PSI, drift, skill gap, and sample size.","Increase if high hit rate and stable; stabilize if volatile; reduce if consistently failing.","Use it to manage target versions.")
+  },
+  abComparison: {
+    title:"A/B period comparison",
+    body: analyticsHelp("A/B period comparison","Whether one period performed better than another.","Compares logs, time, average performance, hit rate, PSI, and best score between two selected periods.","Useful for recent vs prior blocks, before/after periods, and training phase reviews.","Use it to judge whether a training approach worked.")
+  },
+  fatigueSlope: {
+    title:"Fatigue slope",
+    body: analyticsHelp("Fatigue slope","Whether performance changes as session time accumulates.","Estimates the slope of normalized score against accumulated session minutes.","Negative slope suggests fatigue or focus decline; positive slope suggests slow warm-up; flat suggests endurance stability.","Use it to adjust warm-up, break timing, and drill order.")
+  },
+  psi: {
+    title:"Performance Stability Index (PSI)",
+    body: analyticsHelp("PSI","How consistent your performance is over recent logs.","Combines score variability and hit-rate volatility into a 0–100 stability score.","High PSI means reliable execution; low PSI means unstable performance even if average score is acceptable.","Use it before raising targets or assessing competition readiness.")
+  },
+  regretEngine: {
+    title:"Regret / counterfactual engine",
+    body: analyticsHelp("Regret / counterfactual engine","Whether another routine currently looks like a better selection than the one chosen.","Compares expected scores using recent average, PSI adjustment, and drift adjustment.","Positive regret means the alternative looks better; negative regret means the chosen routine looks better.","Use it as a drill-selection quality signal, not causal proof.")
+  }
+});
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -3049,7 +3165,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.21");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.21.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3148,7 +3264,7 @@ function plannedVsCompletedSummary(){
   const recent=(data.sessions||[]).slice().sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
   const rows=recent.filter(s=>(s.plannedRoutineIds||[]).length).map(s=>{const planned=new Set(s.plannedRoutineIds||[]); const completed=new Set((s.logIds||[]).map(id=>(data.logs||[]).find(l=>l.id===id)?.routineId).filter(Boolean)); const done=[...planned].filter(id=>completed.has(id)).length; const skipped=[...planned].filter(id=>!completed.has(id)); return {planned:planned.size,done,skipped,rate:planned.size?done/planned.size*100:null};});
   if(!rows.length)return ""; const avgRate=avg(rows.map(r=>r.rate).filter(x=>x!==null)); const skippedCounts={}; rows.forEach(r=>r.skipped.forEach(id=>skippedCounts[id]=(skippedCounts[id]||0)+1)); const mostSkipped=Object.entries(skippedCounts).sort((a,b)=>b[1]-a[1])[0];
-  return `<div class="planned-box"><strong>Planned vs completed</strong><br>Completion rate last ${rows.length} planned sessions: ${avgRate.toFixed(1)}%. ${mostSkipped?`<div class="reflection-row">Most skipped: ${escapeHtml(routineById(mostSkipped[0])?.name||"Deleted exercise")} (${mostSkipped[1]}x).</div>`:""}</div>`;
+  return `<div class="planned-box"><strong>Planned vs completed ${statHelpButton("plannedVsCompleted")}</strong><br>Completion rate last ${rows.length} planned sessions: ${avgRate.toFixed(1)}%. ${mostSkipped?`<div class="reflection-row">Most skipped: ${escapeHtml(routineById(mostSkipped[0])?.name||"Deleted exercise")} (${mostSkipped[1]}x).</div>`:""}</div>`;
 }
 function interventionImpactSummary(logs=data.logs||[]){
   const interventions=logs.filter(l=>l.sessionIntervention); if(!interventions.length)return "";
@@ -3157,10 +3273,10 @@ function interventionImpactSummary(logs=data.logs||[]){
   const before=logsInRange(logs,beforeStart,d), after=logsInRange(logs,d,afterEnd);
   if(before.length<2||after.length<2)return `<div class="intervention-card"><strong>Intervention logged:</strong> ${escapeHtml(last.sessionIntervention)}. More before/after data needed.</div>`;
   const b=metricsForLogs(before), a=metricsForLogs(after);
-  return `<div class="intervention-card"><strong>Before / after intervention: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
+  return `<div class="intervention-card"><strong>Before / after intervention ${statHelpButton("interventionImpact")}: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
 }
 function tableStats(logs){const groups={}; logs.filter(l=>l.venueTable).forEach(l=>{groups[l.venueTable]||=[];groups[l.venueTable].push(l);}); return Object.entries(groups).map(([table,arr])=>{const vals=arr.map(l=>Number(l.normalizedScore||0)),hit=targetHitRate(arr); return {table,logs:arr.length,time:arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0),avg:vals.length?avg(vals):null,hit};}).sort((a,b)=>b.logs-a.logs);}
-function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
+function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance ${statHelpButton("tableVenuePerformance")}</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
 function routineStats(routineId) {
   const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
