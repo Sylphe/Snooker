@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.22-final";
+const APP_VERSION = "3.23-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -1816,6 +1816,54 @@ function renderPhaseOneInsights() {
   </div>`;
 }
 
+
+function miniSparkline(values, width=110, height=30) {
+  const vals = values.map(v=>Number(v||0)).filter(v=>Number.isFinite(v));
+  if (vals.length < 2) return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="2" y="18" font-size="10" fill="#777">not enough data</text></svg>`;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const pts = vals.map((v,i) => {
+    const x = vals.length === 1 ? 0 : i * (width/(vals.length-1));
+    const y = height - ((v-min)/range)*height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="currentColor" stroke-width="2" points="${pts}"></polyline>
+  </svg>`;
+}
+function renderSwipeableHistoryCards(logs) {
+  const sorted = logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  if (!sorted.length) return "";
+  return `<div class="swipe-history-wrap">
+    <div class="swipe-history-title">Swipeable drill history</div>
+    <div class="swipe-history-cards">
+      ${sorted.map(l => {
+        const rLogs = (data.logs || []).filter(x => x.routineId === l.routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).slice(-8);
+        const values = rLogs.map(x=>Number(x.normalizedScore||0));
+        return `<div class="history-card">
+          <div class="history-card-top">
+            <div>
+              <strong>${escapeHtml(getRoutineName(l))}</strong>
+              <div class="muted">${new Date(l.createdAt).toLocaleString()} · ${escapeHtml(l.category || "")}</div>
+            </div>
+            <span class="badge">${escapeHtml(l.performance || "N/A")}</span>
+          </div>
+          <div class="history-card-score">
+            <div><span>Score</span><strong>${escapeHtml(displayScore(l))}</strong></div>
+            <div><span>Time</span><strong>${formatDurationHuman(l.timeMinutes)}</strong></div>
+            <div><span>Table</span><strong>${escapeHtml(getTableName(l))}</strong></div>
+          </div>
+          <div class="history-card-spark">${miniSparkline(values)}</div>
+          <div class="small-actions">
+            <button class="secondary" onclick="editLog('${l.id}')">Edit</button>
+            <button class="danger" onclick="deleteLog('${l.id}')">Delete</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
 function renderStats() {
   const period = $("statsPeriodSelect").value || "daily";
   const rid = $("statsRoutineSelect").value;
@@ -2380,7 +2428,7 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
+      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
       <div><label>Tags</label><input id="edit-tags-${l.id}" value="${escapeAttr(l.sessionTags || "")}"></div>
@@ -3186,6 +3234,12 @@ FIELD_HELP.forecast = {
  "Uses linear trend plus standard deviation of residuals.",
  "Central value = expected trend; band shows uncertainty.",
  "Use it to estimate near-term progression and volatility.")
+};
+
+
+FIELD_HELP.swipeHistoryCards = {
+  title:"Swipeable drill history cards",
+  body: analyticsHelp("Swipeable history","A mobile-friendly view of recent drill logs.","Each card shows one log, key stats, table context, and a mini-sparkline for that routine's recent scores.","Use it to review patterns quickly without horizontal table scrolling.","Swipe sideways to scan recent logs; use the table below when you need dense audit detail.")
 };
 
 function showFieldHelp(key) {

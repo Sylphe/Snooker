@@ -1,12 +1,12 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.22",
+  "start_url": "./index.html?v=3.23",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Snooker practice log with full Stats and Advanced Stats helper coverage.",
+  "description": "Snooker practice log with fixed log edit venue field and swipeable drill history cards.",
   "icons": [
     {
       "src": "icon.svg?v=3.1",
