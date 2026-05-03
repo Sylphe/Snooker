@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.19.3-final";
+const APP_VERSION = "3.20-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -245,6 +245,8 @@ function renderAll() {
   renderTagSuggestions();
   renderBackupReminder();
   renderExportFolderStatus();
+  renderPeriodization();
+  renderRegretRoutineOptions();
   renderTableDatabase();
   renderTableSelects();
   renderTrainingLoad();
@@ -1178,6 +1180,158 @@ function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="h
 
 let adaptivePlanDraft = [];
 
+
+function getPeriodizationPhase() {
+  const manual = $("periodizationPhase")?.value || "auto";
+  if (manual !== "auto") return manual;
+
+  const comp = $("competitionDate")?.value ? new Date($("competitionDate").value) : null;
+  if (comp && !Number.isNaN(comp.getTime())) {
+    const days = Math.ceil((comp.getTime() - Date.now()) / 86400000);
+    if (days <= 7) return "performance";
+    if (days <= 21) return "stabilization";
+    return "acquisition";
+  }
+
+  const recentLoad = typeof trainingLoadByDay === "function" ? trainingLoadByDay(14) : [];
+  const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
+  const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
+  const f = fatigueSlope(data.logs || []);
+  if ((prev7 && last7 > prev7 * 1.35) || (f && f.slope < -0.25)) return "deload";
+
+  const upgrades = (data.routines || []).some(r => targetUpgradeSuggestionForRoutine(r.id));
+  if (upgrades) return "performance";
+
+  const unstable = (data.routines || []).some(r => {
+    const logs = (data.logs || []).filter(l => l.routineId === r.id).slice(-10);
+    const psi = performanceStabilityIndex(logs, 10);
+    return psi && psi.psi < 55;
+  });
+  if (unstable) return "stabilization";
+  return "acquisition";
+}
+
+function phaseSettings(phase) {
+  const map = {
+    acquisition: {
+      label:"Skill acquisition",
+      goal:"variety",
+      targetAggression:"low",
+      durationMultiplier:1.00,
+      mix:"More variation, baseline collection, and weaker/undertrained categories.",
+      rationale:"Best when learning new skills or building coverage across drills."
+    },
+    stabilization: {
+      label:"Stabilization",
+      goal:"stability",
+      targetAggression:"medium",
+      durationMultiplier:0.95,
+      mix:"More anchor drills and repeated setups; fewer new constraints.",
+      rationale:"Best when execution is inconsistent and PSI is low."
+    },
+    performance: {
+      label:"Performance / competition prep",
+      goal:"progression",
+      targetAggression:"high",
+      durationMultiplier:0.90,
+      mix:"Stable drills, pressure-like structure, and target upgrades where justified.",
+      rationale:"Best when competition is near or high hit-rate/stable drills need pressure."
+    },
+    deload: {
+      label:"Deload / recovery",
+      goal:"recovery",
+      targetAggression:"none",
+      durationMultiplier:0.70,
+      mix:"Shorter, lower-complexity technique work; avoid difficulty increases.",
+      rationale:"Best when load or fatigue signals are elevated."
+    }
+  };
+  return map[phase] || map.acquisition;
+}
+
+function renderPeriodization() {
+  const box = $("periodizationOutput");
+  if (!box) return;
+  const phase = getPeriodizationPhase();
+  const s = phaseSettings(phase);
+  const horizon = Number($("periodizationHorizon")?.value || 4);
+  box.innerHTML = `<div class="phase-card">
+    <strong>Active phase: ${escapeHtml(s.label)}</strong>
+    <span class="phase-pill">Horizon: ${horizon} week${horizon>1?"s":""}</span>
+    <span class="phase-pill">Default goal: ${escapeHtml(s.goal)}</span>
+    <span class="phase-pill">Target aggression: ${escapeHtml(s.targetAggression)}</span>
+    <div class="adaptive-rationale">${escapeHtml(s.mix)}</div>
+    <div class="adaptive-rationale">${escapeHtml(s.rationale)}</div>
+  </div>`;
+}
+
+function applyPeriodizationToAdaptiveInputs() {
+  const phase = getPeriodizationPhase();
+  const s = phaseSettings(phase);
+  if ($("adaptiveGoal") && $("adaptiveGoal").value === "auto") {
+    // Keep visible control as Auto, but adaptiveSessionStructure receives phase-adjusted goal.
+  }
+  return {phase, settings:s};
+}
+
+function expectedRoutineScore(routineId, windowSize=20) {
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0, windowSize);
+  if (!logs.length) return null;
+  const vals = logs.map(l => Number(l.normalizedScore || 0));
+  const base = avg(vals);
+  const psi = performanceStabilityIndex(logs, Math.min(10, logs.length));
+  const drift = logs.length >= 6 ? performanceDrift(logs.slice().reverse(), Math.min(6, Math.floor(logs.length/2))) : null;
+  const stabilityAdj = psi ? (psi.psi - 50) * 0.05 : 0;
+  const driftAdj = drift ? Math.max(-5, Math.min(5, drift.deltaPct * 0.08)) : 0;
+  return {expected: base + stabilityAdj + driftAdj, base, psi: psi?.psi ?? null, drift: drift?.deltaPct ?? null, n: logs.length};
+}
+
+function renderRegretRoutineOptions() {
+  const selects = [$("regretChosenRoutine"), $("regretAlternativeRoutine")].filter(Boolean);
+  if (!selects.length) return;
+  const opts = `<option value="">Select routine</option>` + (data.routines || []).map(r => `<option value="${escapeAttr(r.id)}">${escapeHtml(r.name)}</option>`).join("");
+  selects.forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML = opts;
+    if (current) sel.value = current;
+  });
+}
+
+function runRegretComparison() {
+  const chosen = $("regretChosenRoutine")?.value || "";
+  const alt = $("regretAlternativeRoutine")?.value || "";
+  const out = $("regretOutput");
+  if (!out) return;
+  if (!chosen || !alt || chosen === alt) {
+    out.innerHTML = "Select two different routines.";
+    return;
+  }
+  const win = Number($("regretWindow")?.value || 20);
+  const c = expectedRoutineScore(chosen, win);
+  const a = expectedRoutineScore(alt, win);
+  const cr = routineById(chosen);
+  const ar = routineById(alt);
+  if (!c || !a) {
+    out.innerHTML = "Not enough historical data for one or both routines.";
+    return;
+  }
+  const regret = a.expected - c.expected;
+  const cls = regret > 5 ? "regret-positive" : regret < -5 ? "regret-good" : "regret-neutral";
+  const msg = regret > 5
+    ? "The alternative looks materially better in recent comparable history."
+    : regret < -5
+      ? "The chosen routine looks better than the alternative."
+      : "No strong counterfactual difference.";
+  out.innerHTML = `<div class="phase-card ${cls}">
+    <strong>Counterfactual comparison</strong>
+    <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · PSI ${c.psi.toFixed(0)}`:""}</div>
+    <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · PSI ${a.psi.toFixed(0)}`:""}</div>
+    <div class="adaptive-rationale"><strong>Regret estimate:</strong> ${regret>=0?"+":""}${regret.toFixed(1)} points vs chosen.</div>
+    <div class="adaptive-rationale">${escapeHtml(msg)}</div>
+    <div class="adaptive-rationale">Interpretation: this is a heuristic selection-quality signal, not proof that the alternative would have caused better performance.</div>
+  </div>`;
+}
+
 function adaptiveRoutineState(routineId) {
   const r = routineById(routineId);
   const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
@@ -1348,8 +1502,11 @@ function adaptiveSessionStructure(goal, duration, strictness) {
 }
 
 function renderAdaptiveSession() {
-  const goal = $("adaptiveGoal")?.value || "auto";
-  const duration = $("adaptiveDuration")?.value || "60";
+  const rawGoal = $("adaptiveGoal")?.value || "auto";
+  const phaseInfo = applyPeriodizationToAdaptiveInputs();
+  const goal = rawGoal === "auto" ? phaseInfo.settings.goal : rawGoal;
+  const baseDuration = Number($("adaptiveDuration")?.value || "60");
+  const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
   const strictness = $("adaptiveStrictness")?.value || "normal";
   const plan = adaptiveSessionStructure(goal, duration, strictness);
   adaptivePlanDraft = [...plan.routineIds];
@@ -2222,6 +2379,8 @@ $("exportCsvBtn").addEventListener("click", async () => {
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
 $("exportJsonBtn").addEventListener("click", async () => { markBackupExported(); await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
+$("runRegretBtn").addEventListener("click", runRegretComparison);
+["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => { const el=$(id); if(el) el.addEventListener("change", renderPeriodization); });
 $("generateAdaptiveSessionBtn").addEventListener("click", renderAdaptiveSession);
 $("loadAdaptiveSessionBtn").addEventListener("click", loadAdaptiveSessionIntoPlanBuilder);
 $("saveTableBtn").addEventListener("click", saveTableDefinition);
@@ -2648,6 +2807,77 @@ FIELD_HELP.trainingOrchestrator = {
     <div class="example"><strong>Difference vs Adaptive Engine:</strong> the Orchestrator answers “which drills should I do?”; the Adaptive Engine answers “what type of session should I do, how should it be structured, and why?”</div>
   </div>`
 };
+
+FIELD_HELP.adaptiveSessionGoal = {
+  title:"Adaptive Engine — Session goal",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> the overall logic of the adaptive session.</p>
+    <p><strong>Auto:</strong> lets the app choose between stability, progression, recovery, and variety based on current data.</p>
+    <p><strong>Stability:</strong> prioritizes repeated execution and consistency.</p>
+    <p><strong>Progression:</strong> prioritizes drills ready for target increases or harder constraints.</p>
+    <p><strong>Recovery:</strong> reduces load when fatigue or negative drift appears.</p>
+    <p><strong>Variety:</strong> adds robustness and avoids overfitting to one setup.</p>
+  </div>`
+};
+FIELD_HELP.adaptiveStrictness = {
+  title:"Adaptive Engine — Strictness",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> how strongly the engine follows the data-driven recommendation.</p>
+    <p><strong>Flexible:</strong> allows more variety and practical session balance.</p>
+    <p><strong>Normal:</strong> balanced default.</p>
+    <p><strong>Strict:</strong> gives more weight to anchors and the highest-priority diagnostic drills.</p>
+    <div class="example"><strong>Use strict</strong> when you want the app to behave like a coach and override preference.</div>
+  </div>`
+};
+FIELD_HELP.periodizationPhase = {
+  title:"Training phase / periodization",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> the broader training objective over the next weeks.</p>
+    <p><strong>Skill acquisition:</strong> more variation and new skill coverage.</p>
+    <p><strong>Stabilization:</strong> repeat key drills until performance becomes reliable.</p>
+    <p><strong>Performance prep:</strong> pressure-like work and justified target upgrades.</p>
+    <p><strong>Deload:</strong> lower volume and lower complexity when fatigue/load is high.</p>
+    <div class="example"><strong>Decision use:</strong> periodization adjusts the adaptive engine so every session fits a larger training phase.</div>
+  </div>`
+};
+FIELD_HELP.regretEngine = {
+  title:"Regret / Counterfactual Engine",
+  body:`<div class="help-rich">
+    <p><strong>What it measures:</strong> whether an alternative routine might have been a better choice than the one selected.</p>
+    <p><strong>How calculated:</strong> compares expected recent performance using average score, PSI adjustment, and drift adjustment.</p>
+    <p><strong>How to interpret:</strong> positive regret means the alternative currently looks better; negative regret means the chosen routine looks better.</p>
+    <div class="example"><strong>Important:</strong> this is not causal proof. It is a decision-quality signal for drill selection.</div>
+  </div>`
+};
+FIELD_HELP.orchestratorIntensity = {
+  title:"Training Orchestrator — Intensity",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> the size and demand of the generated routine mix.</p>
+    <p><strong>Lower intensity:</strong> shorter/easier session with fewer demanding picks.</p>
+    <p><strong>Higher intensity:</strong> more drills or harder-priority selections.</p>
+    <div class="example"><strong>Use:</strong> adjust intensity based on available time, energy, and whether the session is diagnostic or light practice.</div>
+  </div>`
+};
+FIELD_HELP.orchestratorStrategy = {
+  title:"Training Orchestrator — Training strategy",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> how the Orchestrator chooses routines.</p>
+    <p><strong>Exploit weaknesses:</strong> emphasizes poor hit rate and underperformance.</p>
+    <p><strong>Balanced:</strong> mixes weaknesses, anchors, and undertrained areas.</p>
+    <p><strong>Explore neglected drills:</strong> prioritizes routines not practiced recently.</p>
+    <div class="example"><strong>Difference vs Adaptive Engine:</strong> strategy changes which drills are selected; the Adaptive Engine decides the full session logic.</div>
+  </div>`
+};
+FIELD_HELP.orchestratorFocusOverride = {
+  title:"Training Orchestrator — Focus override",
+  body:`<div class="help-rich">
+    <p><strong>What it controls:</strong> whether the generated routine list is biased toward a specific category.</p>
+    <p><strong>Example:</strong> choose Potting if you only want potting drills in this session.</p>
+    <p><strong>How to interpret:</strong> this is a manual override. It can be useful, but it may reduce the objectivity of the recommendation.</p>
+    <div class="example"><strong>Use carefully:</strong> if you always override toward preferred drills, planned-vs-completed and regret analytics will reveal that bias.</div>
+  </div>`
+};
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2677,7 +2907,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.20");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

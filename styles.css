@@ -254,3 +254,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .adaptive-risk{border-left:4px solid #9f1d1d}
 .adaptive-ok{border-left:4px solid #2b8a57}
 .adaptive-watch{border-left:4px solid #c7a753}
+
+/* v3.20 periodization and regret engine */
+.phase-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px;margin:10px 0}
+.phase-card strong{display:block;margin-bottom:4px}
+.phase-pill{display:inline-block;border:1px solid var(--line);background:#fbfcfb;border-radius:999px;padding:3px 8px;font-size:12px;margin:2px}
+.regret-positive{border-left:4px solid #9f1d1d}
+.regret-neutral{border-left:4px solid #c7a753}
+.regret-good{border-left:4px solid #2b8a57}

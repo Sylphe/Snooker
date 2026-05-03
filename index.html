@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.19.3</title>
+  <title>Snooker Practice Log v3.20</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.19.3" />
-  <link rel="stylesheet" href="styles.css?v=3.19.3" />
-  <link rel="icon" href="icon.svg?v=3.19.3" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.20" />
+  <link rel="stylesheet" href="styles.css?v=3.20" />
+  <link rel="icon" href="icon.svg?v=3.20" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.19.3 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.20 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -67,7 +67,7 @@
         <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
         <div class="grid three">
           <div>
-            <label>Session goal</label>
+            <label>Session goal <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveSessionGoal')">?</button></label>
             <select id="adaptiveGoal">
               <option value="auto">Auto</option>
               <option value="stability">Stability</option>
@@ -86,7 +86,7 @@
             </select>
           </div>
           <div>
-            <label>Strictness</label>
+            <label>Strictness <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveStrictness')">?</button></label>
             <select id="adaptiveStrictness">
               <option value="low">Flexible</option>
               <option value="normal" selected>Normal</option>
@@ -94,6 +94,32 @@
             </select>
           </div>
         </div>
+        <div class="grid three">
+          <div>
+            <label>Training phase <button type="button" class="stat-help" onclick="showFieldHelp('periodizationPhase')">?</button></label>
+            <select id="periodizationPhase">
+              <option value="auto" selected>Auto</option>
+              <option value="acquisition">Skill acquisition</option>
+              <option value="stabilization">Stabilization</option>
+              <option value="performance">Performance / competition prep</option>
+              <option value="deload">Deload / recovery</option>
+            </select>
+          </div>
+          <div>
+            <label>Phase horizon</label>
+            <select id="periodizationHorizon">
+              <option value="1">1 week</option>
+              <option value="2">2 weeks</option>
+              <option value="4" selected>4 weeks</option>
+              <option value="8">8 weeks</option>
+            </select>
+          </div>
+          <div>
+            <label>Competition date</label>
+            <input id="competitionDate" type="date" />
+          </div>
+        </div>
+        <div id="periodizationOutput" class="analytics-note"></div>
         <div class="row">
           <button id="generateAdaptiveSessionBtn" type="button">Generate Adaptive Session</button>
           <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
@@ -115,7 +141,7 @@
             </select>
           </div>
           <div>
-            <label>Intensity</label>
+            <label>Intensity <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorIntensity')">?</button></label>
             <select id="orchestratorIntensity">
               <option value="technical">Technical</option>
               <option value="balanced" selected>Balanced</option>
@@ -123,7 +149,7 @@
             </select>
           </div>
           <div>
-            <label>Training strategy</label>
+            <label>Training strategy <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorStrategy')">?</button></label>
             <select id="orchestratorStrategy">
               <option value="exploit">Exploit weaknesses</option>
               <option value="balanced" selected>Balanced</option>
@@ -131,7 +157,7 @@
             </select>
           </div>
           <div>
-            <label>Focus override</label>
+            <label>Focus override <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorFocusOverride')">?</button></label>
             <select id="orchestratorFocus"></select>
           </div>
         </div>
@@ -583,6 +609,33 @@
         </div>
 
         <div id="weeklyReviewBox"></div>
+        <div class="card nested" id="regretEnginePanel">
+          <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" onclick="showFieldHelp('regretEngine')">?</button></h3>
+          <p class="muted">Estimates whether another routine may have been a better choice in similar conditions. This is heuristic, not causal proof.</p>
+          <div class="grid three">
+            <div>
+              <label>Chosen routine</label>
+              <select id="regretChosenRoutine"></select>
+            </div>
+            <div>
+              <label>Alternative routine</label>
+              <select id="regretAlternativeRoutine"></select>
+            </div>
+            <div>
+              <label>Context window</label>
+              <select id="regretWindow">
+                <option value="10">Last 10 logs</option>
+                <option value="20" selected>Last 20 logs</option>
+                <option value="40">Last 40 logs</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <button id="runRegretBtn" type="button" class="secondary">Run Comparison</button>
+          </div>
+          <div id="regretOutput" class="analytics-note">Select two routines to compare.</div>
+        </div>
+        
         <div id="tableStatsBox"></div>
         <div id="statsOutput" class="stats"></div>
       </div>
@@ -676,6 +729,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.19.3"></script>
+  <script src="app.js?v=3.20"></script>
 </body>
 </html>
