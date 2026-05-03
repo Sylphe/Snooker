@@ -287,3 +287,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
   .swipe-history-cards{overflow-x:auto}
   .history-card{min-width:280px}
 }
+
+/* v3.24 side-split logging */
+.side-split-note{grid-column:1/-1;background:#f8faf8;border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--muted);font-size:13px;line-height:1.35}

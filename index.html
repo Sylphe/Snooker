@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.23</title>
+  <title>Snooker Practice Log v3.24</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.21.1" />
-  <link rel="stylesheet" href="styles.css?v=3.21.1" />
-  <link rel="icon" href="icon.svg?v=3.21.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.24" />
+  <link rel="stylesheet" href="styles.css?v=3.24" />
+  <link rel="icon" href="icon.svg?v=3.24" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.23 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.24 — global left/right side split, side analytics, and v3.23 training analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -321,6 +321,13 @@
           <div>
             <label>Default attempts</label>
             <input id="routineAttempts" type="number" min="0" placeholder="e.g. 10" />
+          </div>
+          <div>
+            <label>Side split <button type="button" class="help-dot" onclick="showFieldHelp('sideSplit')">?</button></label>
+            <select id="routineSideSplit">
+              <option value="none">None</option>
+              <option value="left_right">Left / Right</option>
+            </select>
           </div>
           <div>
             <label>Default duration, minutes</label>
@@ -732,6 +739,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.21.1"></script>
+  <script src="app.js?v=3.24"></script>
 </body>
 </html>
