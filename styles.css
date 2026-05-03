@@ -245,3 +245,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
 .help-rich p{margin:7px 0}
 .help-rich .example{background:#f8faf8;border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0}
 .duration-human{color:var(--muted);font-size:12px}
+
+/* v3.19 adaptive training engine */
+.adaptive-phase{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px;margin:10px 0}
+.adaptive-phase h4{margin:0 0 6px}
+.adaptive-pill{display:inline-block;border:1px solid var(--line);background:#fbfcfb;border-radius:999px;padding:3px 8px;font-size:12px;margin:2px}
+.adaptive-rationale{font-size:12px;color:var(--muted);margin-top:5px}
+.adaptive-risk{border-left:4px solid #9f1d1d}
+.adaptive-ok{border-left:4px solid #2b8a57}
+.adaptive-watch{border-left:4px solid #c7a753}

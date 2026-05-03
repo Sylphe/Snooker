@@ -1,28 +1,38 @@
-# Snooker Practice Log — v3.18.4
+# Snooker Practice Log — v3.19
 
-Built from v3.18.1 and includes emergency startup safety, export folder, analytics help, duration formatting, and table database features.
+Built from v3.18.4.
 
-## New in v3.18.4
+## New in v3.19 — Adaptive Training Engine
 
-Analytics explainability:
-- Adds question-mark helpers for main and advanced analytics.
-- Explains what each metric measures, how it is calculated, how to interpret it, and when to use it.
+The app now converts analytics into a recommended session structure.
 
-Duration display:
-- Training durations now use human-readable hour/minute format where relevant.
-- Example: 209 minutes appears as 3h 29m.
+Inputs used:
+- Target hit rate
+- PSI / stability
+- Performance drift
+- Fatigue slope
+- Plateau detection
+- Anchor drills
+- Training load
+- Days since last practice
+- Target upgrade readiness
 
-Tables / venues database:
-- Added expandable Tables / venues database in the Exercises tab.
-- Create/edit table names, type, and info.
-- Logs now use stable table IDs.
-- If “Home table” is renamed to “Riley – Home table”, historical stats remain linked to the same actual table.
-- Log edit form can backfill legacy table IDs.
+Modes:
+- Auto
+- Stability
+- Progression
+- Recovery / light
+- Robustness / variety
 
-Also retained:
-- Non-destructive startup recovery
-- Raw Local Data export
-- Export folder selection with fallback to normal downloads
+Outputs:
+- Recommended mode
+- Training blocks
+- Drill choices
+- Reason for each drill
+- Action for each drill
+- Target upgrade buttons when appropriate
+- Load adaptive session into Plan Builder
 
+Core data logic is unchanged.
 Confirm version:
-The header should show v3.18.4.
+The header should show v3.19.

@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.18.4</title>
+  <title>Snooker Practice Log v3.19</title>
   <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.18.4" />
-  <link rel="stylesheet" href="styles.css?v=3.18.4" />
-  <link rel="icon" href="icon.svg?v=3.18.4" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.19" />
+  <link rel="stylesheet" href="styles.css?v=3.19" />
+  <link rel="icon" href="icon.svg?v=3.19" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.18.4 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
+      <p>v3.19 — drift, quality impact, velocity, plateau, transfer, overtraining analytics.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -62,7 +62,46 @@
 
       <div class="card">
         <h2>Smart recommendation</h2>
-        <div class="card">
+        <div class="card" id="adaptiveEnginePanel">
+        <h2>Adaptive Training Engine <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveEngine')">?</button></h2>
+        <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
+        <div class="grid three">
+          <div>
+            <label>Session goal</label>
+            <select id="adaptiveGoal">
+              <option value="auto">Auto</option>
+              <option value="stability">Stability</option>
+              <option value="progression">Progression</option>
+              <option value="recovery">Recovery / light</option>
+              <option value="variety">Robustness / variety</option>
+            </select>
+          </div>
+          <div>
+            <label>Duration target</label>
+            <select id="adaptiveDuration">
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="75">75 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+          <div>
+            <label>Strictness</label>
+            <select id="adaptiveStrictness">
+              <option value="low">Flexible</option>
+              <option value="normal" selected>Normal</option>
+              <option value="high">Strict</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <button id="generateAdaptiveSessionBtn" type="button">Generate Adaptive Session</button>
+          <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
+        </div>
+        <div id="adaptiveEngineOutput" class="orchestrator-box">Generate an adaptive session to see the recommended training structure.</div>
+      </div>
+
+      <div class="card">
         <h2>Training Orchestrator</h2>
         <p class="muted">Generates a block-based session from weak areas, recent momentum, undertraining, fatigue, and difficulty level.</p>
         <div class="grid three">
@@ -637,6 +676,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.18.4"></script>
+  <script src="app.js?v=3.19"></script>
 </body>
 </html>

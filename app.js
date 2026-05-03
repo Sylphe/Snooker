@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.18.4-final";
+const APP_VERSION = "3.19-final";
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
@@ -1161,6 +1161,212 @@ function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(
 function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${escapeHtml(t.name)}</strong><div class="meta">${escapeHtml(t.type||"No type")} · ${escapeHtml(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>escapeHtml(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" onclick="editTableDefinition('${t.id}')">Edit</button><button class="secondary" onclick="deleteTableDefinition('${t.id}')">Delete</button></div></div>`).join(""); }
 function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${measures}</p><p><strong>How calculated:</strong> ${calc}</p><p><strong>How to interpret:</strong> ${interpret}</p><div class="example"><strong>Typical use:</strong> ${use}</div></div>`; }
 
+
+let adaptivePlanDraft = [];
+
+function adaptiveRoutineState(routineId) {
+  const r = routineById(routineId);
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const recent = logs.slice(-8);
+  const hit = recent.length ? targetHitRate(recent) : null;
+  const psi = performanceStabilityIndex(logs.slice(-10), 10);
+  const drift = logs.length >= 6 ? performanceDrift(logs, Math.min(8, Math.max(5, Math.floor(logs.length/2)))) : null;
+  const plateau = plateauDetector(logs, 6);
+  const fatigue = fatigueSlope(logs);
+  const lastLog = logs.length ? logs[logs.length-1] : null;
+  const days = lastLog ? daysSince(lastLog.createdAt) : 999;
+  const upgrade = targetUpgradeSuggestionForRoutine(routineId);
+  const gap = logs.length ? skillGapIndex(logs.slice(-10)) : null;
+
+  let phase = "baseline";
+  const reasons = [];
+
+  if (!logs.length || logs.length < 3) {
+    phase = "baseline";
+    reasons.push("not enough history");
+  } else if (psi && psi.psi < 45) {
+    phase = "stabilize";
+    reasons.push("low stability");
+  } else if (hit !== null && hit >= 80 && psi && psi.psi >= 70 && (!drift || drift.deltaPct >= -2)) {
+    phase = "progress";
+    reasons.push("high hit rate and stable execution");
+  } else if (plateau && plateau.isPlateau) {
+    phase = "vary";
+    reasons.push("plateau detected");
+  } else if (drift && drift.deltaPct < -10) {
+    phase = "recover";
+    reasons.push("negative performance drift");
+  } else if (days >= 14) {
+    phase = "refresh";
+    reasons.push("not practiced recently");
+  } else {
+    phase = "maintain";
+    reasons.push("normal training zone");
+  }
+
+  return {routine:r, logs, recent, hit, psi, drift, plateau, fatigue, days, upgrade, gap, phase, reasons};
+}
+
+function adaptivePriorityScore(state, goal="auto") {
+  let score = 0;
+  const r = state.routine;
+  if (!r) return -999;
+  if (r.isAnchor) score += 18;
+  if (state.hit !== null) score += Math.max(0, 75 - state.hit) * 0.4;
+  if (state.psi && state.psi.psi < 70) score += (70 - state.psi.psi) * 0.35;
+  if (state.drift && state.drift.deltaPct < 0) score += Math.min(20, Math.abs(state.drift.deltaPct));
+  if (state.plateau && state.plateau.isPlateau) score += 14;
+  if (state.days >= 7) score += Math.min(18, state.days);
+  if (undertrainedCategoryBonus(r.id)) score += undertrainedCategoryBonus(r.id) * 0.8;
+
+  if (goal === "stability") {
+    if (state.phase === "stabilize" || r.isAnchor) score += 25;
+  } else if (goal === "progression") {
+    if (state.phase === "progress" || state.upgrade) score += 25;
+  } else if (goal === "recovery") {
+    if (state.phase === "recover" || (state.fatigue && state.fatigue.slope < -0.25)) score += 25;
+  } else if (goal === "variety") {
+    if (state.phase === "vary" || state.days >= 10) score += 25;
+  } else {
+    if (["stabilize","progress","vary","recover","refresh"].includes(state.phase)) score += 15;
+  }
+  return score;
+}
+
+function adaptiveActionForState(state) {
+  switch(state.phase) {
+    case "baseline":
+      return "Log baseline data with normal target. Do not adjust difficulty yet.";
+    case "stabilize":
+      return "Repeat current setup. Keep target stable and focus on consistency.";
+    case "progress":
+      return state.upgrade ? "Increase target or constraint. Apply target version if appropriate." : "Raise difficulty slightly or add a constraint.";
+    case "vary":
+      return "Inject one variation: position, distance, cushion, or random order.";
+    case "recover":
+      return "Use lighter block. Reduce duration or complexity; avoid target increase.";
+    case "refresh":
+      return "Re-test this drill to keep the dataset current.";
+    default:
+      return "Maintain current drill and collect more evidence.";
+  }
+}
+
+function adaptiveSessionStructure(goal, duration, strictness) {
+  const targetMinutes = Number(duration || 60);
+  const states = (data.routines || []).map(r => adaptiveRoutineState(r.id));
+  const ranked = states.map(s => ({...s, adaptiveScore: adaptivePriorityScore(s, goal)})).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
+  const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
+  const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
+
+  const fatigueAll = fatigueSlope(data.logs || []);
+  const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
+  const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
+  const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
+  let effectiveGoal = goal;
+  const globalReasons = [];
+
+  if (goal === "auto") {
+    if (fatigueAll && fatigueAll.slope < -0.25) {
+      effectiveGoal = "recovery";
+      globalReasons.push("global fatigue slope is negative");
+    } else if (prev7 && last7 > prev7 * 1.35) {
+      effectiveGoal = "recovery";
+      globalReasons.push("training load rose sharply");
+    } else if (ranked.some(s => s.upgrade)) {
+      effectiveGoal = "progression";
+      globalReasons.push("one or more drills are ready for target increase");
+    } else if (ranked.some(s => s.phase === "stabilize")) {
+      effectiveGoal = "stability";
+      globalReasons.push("some drills are unstable");
+    } else {
+      effectiveGoal = "variety";
+      globalReasons.push("no acute weakness; use robustness/variety");
+    }
+  } else {
+    globalReasons.push(`manual goal: ${goal}`);
+  }
+
+  let blocks = [];
+  const used = new Set();
+
+  function take(predicate, n) {
+    const arr = [];
+    for (const s of ranked) {
+      if (arr.length >= n) break;
+      if (used.has(s.routine.id)) continue;
+      if (predicate(s)) {
+        used.add(s.routine.id);
+        arr.push(s);
+      }
+    }
+    return arr;
+  }
+
+  const anchorPicks = anchors.filter(s => !used.has(s.routine.id));
+  anchorPicks.forEach(s => used.add(s.routine.id));
+
+  if (anchorPicks.length) {
+    blocks.push({name:"Anchor baseline", minutes:Math.min(15, Math.round(targetMinutes*0.25)), purpose:"Benchmark consistency", picks:anchorPicks});
+  }
+
+  if (effectiveGoal === "recovery") {
+    blocks.push({name:"Recovery technique block", minutes:Math.round(targetMinutes*0.55), purpose:"Protect quality and reduce fatigue drag", picks:take(s => ["recover","stabilize","maintain"].includes(s.phase), 3)});
+  } else if (effectiveGoal === "progression") {
+    blocks.push({name:"Progression block", minutes:Math.round(targetMinutes*0.55), purpose:"Increase target or constraint on stable drills", picks:take(s => s.phase === "progress" || s.upgrade, 3)});
+    blocks.push({name:"Control block", minutes:Math.round(targetMinutes*0.20), purpose:"Keep fundamentals stable", picks:take(s => s.phase === "maintain" || s.routine.isAnchor, 2)});
+  } else if (effectiveGoal === "stability") {
+    blocks.push({name:"Stability block", minutes:Math.round(targetMinutes*0.60), purpose:"Repeat unstable drills without changing difficulty", picks:take(s => s.phase === "stabilize" || s.psi?.psi < 70, 4)});
+  } else if (effectiveGoal === "variety") {
+    blocks.push({name:"Robustness block", minutes:Math.round(targetMinutes*0.60), purpose:"Avoid overfitting by adding variation", picks:take(s => ["vary","refresh","maintain"].includes(s.phase), 4)});
+  } else {
+    blocks.push({name:"Main adaptive block", minutes:Math.round(targetMinutes*0.60), purpose:"Highest current adaptive priorities", picks:take(s => true, 4)});
+  }
+
+  const remaining = take(s => true, 3);
+  if (remaining.length) {
+    blocks.push({name:"Completion block", minutes:Math.max(10, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with next best priorities", picks:remaining});
+  }
+
+  blocks = blocks.filter(b => b.picks && b.picks.length);
+  const routineIds = blocks.flatMap(b => b.picks.map(p => p.routine.id));
+  return {effectiveGoal, targetMinutes, globalReasons, blocks, routineIds, ranked};
+}
+
+function renderAdaptiveSession() {
+  const goal = $("adaptiveGoal")?.value || "auto";
+  const duration = $("adaptiveDuration")?.value || "60";
+  const strictness = $("adaptiveStrictness")?.value || "normal";
+  const plan = adaptiveSessionStructure(goal, duration, strictness);
+  adaptivePlanDraft = [...plan.routineIds];
+
+  const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
+    <h4>Recommended mode: ${escapeHtml(plan.effectiveGoal)}</h4>
+    <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
+    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)}</div>
+  </div>` + plan.blocks.map(block => `<div class="adaptive-phase">
+    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
+    <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
+    ${block.picks.map(p => `<div class="routine-row">
+      <div><strong>${escapeHtml(p.routine.name)}</strong>
+        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))}</div>
+        <ul class="reason-list">${p.reasons.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
+        ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
+      </div>
+      <span class="badge">Score ${p.adaptiveScore.toFixed(1)}</span>
+    </div>`).join("")}
+  </div>`).join("");
+
+  $("adaptiveEngineOutput").innerHTML = html || "No routines available.";
+}
+
+function loadAdaptiveSessionIntoPlanBuilder() {
+  if (!adaptivePlanDraft.length) return alert("Generate an adaptive session first.");
+  planDraft = [...anchorRoutines().map(r=>r.id), ...adaptivePlanDraft.filter(id => !anchorRoutines().some(a=>a.id===id))];
+  renderPlanBuilder();
+  document.querySelector('[data-tab="plans"]').click();
+}
+
 function renderSmartRecommendation() {
   const box = $("smartRecommendationBox");
   if (!box) return;
@@ -1965,6 +2171,8 @@ $("exportCsvBtn").addEventListener("click", async () => {
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
 $("exportJsonBtn").addEventListener("click", async () => { markBackupExported(); await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
+$("generateAdaptiveSessionBtn").addEventListener("click", renderAdaptiveSession);
+$("loadAdaptiveSessionBtn").addEventListener("click", loadAdaptiveSessionIntoPlanBuilder);
 $("saveTableBtn").addEventListener("click", saveTableDefinition);
 $("clearTableFormBtn").addEventListener("click", clearTableForm);
 $("chooseExportFolderBtn").addEventListener("click", chooseExportFolder);
@@ -2328,6 +2536,12 @@ Object.assign(FIELD_HELP, {
   abComparison: {title:"A/B period comparison", body: analyticsHelp("A/B comparison","Whether one period performed better than another.","Compares logs, time, average score, hit rate, PSI, and best score across two periods.","Useful for before/after blocks, recent months, or training changes.","Use it to judge whether a training phase worked.")}
 });
 
+
+FIELD_HELP.adaptiveEngine = {
+  title:"Adaptive Training Engine",
+  body: analyticsHelp("Adaptive Training Engine","A decision layer that converts stats into the next session structure.","Combines hit rate, PSI, drift, fatigue slope, plateau detection, anchors, training load and recency.","It chooses whether to stabilize, progress, recover, vary, or refresh drills.","Use it when you want the app to act like a coach rather than just a logbook.")
+};
+
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2357,7 +2571,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.18.4");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
