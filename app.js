@@ -1,31 +1,41 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.19-final";
+const APP_VERSION = "3.19.2-final";
+
+function uuid() {
+  if (crypto && crypto.randomUUID) return uuid();
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10);
+}
+function structuredCloneSafe(obj) {
+  if (typeof structuredClone === "function") return structuredClone(obj);
+  return JSON.parse(JSON.stringify(obj));
+}
+
+
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
-
 
 const defaultData = {
   appVersion: APP_VERSION,
   routines: [
     {
-      id: crypto.randomUUID(), name: "Line-up", scoring: "raw", attempts: "", duration: 20, target: 50, stretchTarget: 65,
+      id: uuid(), name: "Line-up", scoring: "raw", attempts: "", duration: 20, target: 50, stretchTarget: 65,
       category: "break-building", folder: "Break-building", subfolder: "Line-up",
       description: "Standard line-up drill. Log highest continuous score or agreed score metric."
     },
     {
-      id: crypto.randomUUID(), name: "Long potting — 10 attempts", scoring: "success_rate", attempts: 10, duration: 10, target: 70, stretchTarget: 85,
+      id: uuid(), name: "Long potting — 10 attempts", scoring: "success_rate", attempts: 10, duration: 10, target: 70, stretchTarget: 85,
       category: "potting", folder: "Potting", subfolder: "Long pots",
       description: "Ten long pots. Log made balls out of attempts. Normalized score is success percentage."
     },
     {
-      id: crypto.randomUUID(), name: "Black from spot", scoring: "success_rate", attempts: 10, duration: 10, target: 80, stretchTarget: 90,
+      id: uuid(), name: "Black from spot", scoring: "success_rate", attempts: 10, duration: 10, target: 80, stretchTarget: 90,
       category: "potting", folder: "Potting", subfolder: "Colours",
       description: "Ten black-ball attempts from defined cue-ball positions. Normalized score is success percentage."
     },
     {
-      id: crypto.randomUUID(), name: "Safety drill", scoring: "points", attempts: "", duration: 15, target: 10, stretchTarget: 15,
+      id: uuid(), name: "Safety drill", scoring: "points", attempts: "", duration: 15, target: 10, stretchTarget: 15,
       category: "safety", folder: "Safety", subfolder: "General",
       description: "Use a points system, e.g. +1 good leave, -1 poor leave."
     }
@@ -65,7 +75,7 @@ function migrateData(d) {
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
-      sessionId: l.sessionId || crypto.randomUUID(),
+      sessionId: l.sessionId || uuid(),
       sessionName: l.sessionName || "Legacy session",
       sessionType: l.sessionType || "plan",
       folder: l.folder || "Unfiled",
@@ -115,28 +125,34 @@ function loadData() {
       }
     }
     if (!raw) {
-      const seeded = structuredClone(defaultData);
-      seeded.plans.push({id: crypto.randomUUID(), name: "Default 60 min practice", routineIds: seeded.routines.map(r => r.id), createdAt: new Date().toISOString()});
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      const seeded = structuredCloneSafe(defaultData);
+      seeded.plans.push({
+        id: uuid(),
+        name: "Default 60 min practice",
+        routineIds: seeded.routines.map(r => r.id),
+        createdAt: new Date().toISOString()
+      });
+      safeStorageSet(STORAGE_KEY, JSON.stringify(seeded), "loadData seed");
       return seeded;
     }
     const parsedRaw = safeParseData(raw);
     if (!parsedRaw) throw new Error("Stored app data is not valid JSON.");
     const parsed = migrateData(parsedRaw);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(parsed), "loadData migrated");
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
     alert("Startup/migration error detected. Your stored data was NOT overwritten. Export Debug Info and Raw Local Data from the Data tab before making changes.");
     const fallback = raw ? safeParseData(raw) : null;
-    return fallback || structuredClone(defaultData);
+    return fallback || structuredCloneSafe(defaultData);
   }
 }
 
 function saveData() {
-  data.appVersion = APP_VERSION;
-  refreshReferenceNames();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  data.updatedAt = new Date().toISOString();
+  ensureTablesDatabase?.();
+  const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(data), "saveData");
+  if (ok) renderStorageWarning();
   renderAll();
 }
 
@@ -349,7 +365,7 @@ $("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
-  data.routines.push({...r, id: crypto.randomUUID(), name: `${r.name} copy`});
+  data.routines.push({...r, id: uuid(), name: `${r.name} copy`});
   saveData();
 }
 function deleteRoutine(id) {
@@ -373,7 +389,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
   const subfolder = newSubfolder || (selectedSubfolder !== "all" ? selectedSubfolder : "General");
 
   const routine = {
-    id: $("routineEditId").value || crypto.randomUUID(),
+    id: $("routineEditId").value || uuid(),
     name,
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
@@ -477,7 +493,7 @@ $("savePlanBtn").addEventListener("click", () => {
   const name = $("planName").value.trim();
   if (!name) return alert("Enter a plan name.");
   if (!planDraft.length) return alert("Add at least one routine.");
-  data.plans.push({id: crypto.randomUUID(), name, routineIds: [...planDraft], createdAt: new Date().toISOString()});
+  data.plans.push({id: uuid(), name, routineIds: [...planDraft], createdAt: new Date().toISOString()});
   $("planName").value = "";
   planDraft = [];
   saveData();
@@ -518,14 +534,14 @@ $("todayDiscardSessionBtn").addEventListener("click", discardPersistedSession);
 $("startSessionBtn").addEventListener("click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
-  activeSession = { id: crypto.randomUUID(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
+  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
   persistActiveSession();
 });
 $("startFreeSessionBtn").addEventListener("click", () => {
   const rid = $("freeRoutineSelect").value;
   if (!rid) return alert("Create at least one exercise first.");
-  activeSession = { id: crypto.randomUUID(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  activeSession = { id: uuid(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
   startRoutineScreen();
   persistActiveSession();
 });
@@ -534,7 +550,7 @@ $("repeatLastExerciseBtn").addEventListener("click", () => {
   if (!last) return alert("No previous exercise to repeat yet.");
   const routine = routineById(last.routineId);
   if (!routine) return alert("The last exercise template no longer exists.");
-  activeSession = { id: crypto.randomUUID(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  activeSession = { id: uuid(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
   startRoutineScreen();
 });
 
@@ -588,8 +604,6 @@ function renderScoreInputs(r) {
     html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
     if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
-  } else if (r.scoring === "progressive_completion") {
-    box.innerHTML = `<button class="secondary" onclick="decrementScore()">-1</button><button class="secondary" onclick="incrementScore()">+1</button><button class="secondary" onclick="adjustScore(5)">+5</button><button class="secondary" onclick="setScoreValue(${r.totalUnits || 0})">Complete</button><button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
   } else if (r.scoring === "success_rate") {
     html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attempts || ""}" placeholder="e.g. 10" inputmode="numeric"></div>`;
@@ -681,7 +695,7 @@ function saveCurrentRoutine() {
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
   const score = Number($("scoreValue")?.value || 0);
-  const attempts = r.scoring === "success_rate" ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
+  const attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
   const manualTime = Number($("manualTimeValue")?.value || 0);
   const timerMinutes = getElapsedMinutes();
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
@@ -697,7 +711,7 @@ function saveCurrentRoutine() {
   rememberTableId(activeSession.tableId, activeSession.tableNote);
 
   const log = {
-    id: crypto.randomUUID(),
+    id: uuid(),
     sessionId: activeSession.id,
     sessionName: activeSession.planName,
     sessionType: activeSession.type,
@@ -1137,7 +1151,7 @@ function ensureTablesDatabase() {
   const defaults = ["Home table", "Club table 1", "Club table 2", "Club table 3", "Club table 4", "Other"];
   defaults.forEach(name => {
     if (!data.tables.some(t => t.name === name)) {
-      data.tables.push({id: crypto.randomUUID(), name, type:name.includes("Club")?"Club":(name==="Home table"?"Home":"Other"), info:"", createdAt:new Date().toISOString(), nameHistory:[]});
+      data.tables.push({id: uuid(), name, type:name.includes("Club")?"Club":(name==="Home table"?"Home":"Other"), info:"", createdAt:new Date().toISOString(), nameHistory:[]});
     }
   });
   (data.logs || []).forEach(l => {
@@ -1154,7 +1168,7 @@ function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastT
 function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
 function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
 function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
-function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||crypto.randomUUID(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
+function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
 function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
 function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}" ${t.id===selectedId?"selected":""}>${escapeHtml(t.name)}</option>`).join(""); }
@@ -1365,6 +1379,36 @@ function loadAdaptiveSessionIntoPlanBuilder() {
   planDraft = [...anchorRoutines().map(r=>r.id), ...adaptivePlanDraft.filter(id => !anchorRoutines().some(a=>a.id===id))];
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
+}
+
+
+function getPersistedActiveSession() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.routineIds) || Number(s.index || 0) >= s.routineIds.length) return null;
+    return s;
+  } catch(e) {
+    logAppError(e, "getPersistedActiveSession");
+    return null;
+  }
+}
+function persistActiveSession() {
+  try {
+    if (typeof activeSession !== "undefined" && activeSession) {
+      safeStorageSet(ACTIVE_SESSION_KEY, JSON.stringify({...activeSession, savedAt:new Date().toISOString()}), "persistActiveSession");
+    }
+  } catch(e) {
+    logAppError(e, "persistActiveSession");
+  }
+}
+function clearPersistedActiveSession() {
+  try {
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
+  } catch(e) {
+    logAppError(e, "clearPersistedActiveSession");
+  }
 }
 
 function renderSmartRecommendation() {
@@ -2003,6 +2047,7 @@ function renderEditLogForm(l) {
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
       <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
+      <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
       <div><label>Table note</label><input id="edit-table-note-${l.id}" value="${escapeAttr(l.tableNote || "")}"></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
@@ -2027,7 +2072,7 @@ function saveEditedLog(id) {
   if (idx < 0) return;
   const l = data.logs[idx];
   const routine = routineById(l.routineId);
-  l.createdAt = new Date($("edit-createdAt-"+id).value).toISOString();
+  const editedDate = new Date($("edit-createdAt-"+id).value); if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time."); l.createdAt = editedDate.toISOString();
   l.score = Number($("edit-score-"+id).value || 0);
   l.attempts = Number($("edit-attempts-"+id).value || 0) || "";
   l.timeMinutes = Number($("edit-time-"+id).value || 0);
@@ -2042,6 +2087,12 @@ function saveEditedLog(id) {
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
   data.logs[idx] = l;
+  if ($("edit-venue-"+id)) {
+    l.tableId = $("edit-venue-"+id).value || "";
+    l.venueTable = getTableName(l.tableId);
+    l.venueTableSnapshot = getTableName(l.tableId);
+  }
+  if ($("edit-table-note-"+id)) l.tableNote = $("edit-table-note-"+id).value || "";
   saveData();
 }
 function deleteLog(id) {
@@ -2203,8 +2254,19 @@ function downloadFile(filename, content, type) {
   a.click();
   URL.revokeObjectURL(url);
 }
-function csvEscape(value) { return `"${String(value).replaceAll('"','""')}"`; }
-function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+function csvEscape(value) {
+  const s = String(value ?? "");
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[ch]));
+}
 function escapeAttr(str) { return escapeHtml(str).replaceAll("`","&#096;"); }
 
 
@@ -2273,7 +2335,7 @@ function fmtTargetMode(mode) {
 
 function makeTargetProfile(routine, label) {
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     effectiveFrom: new Date().toISOString(),
     target: Number(routine.target || 0) || "",
     stretchTarget: Number(routine.stretchTarget || 0) || "",
@@ -2381,6 +2443,35 @@ function logAppError(error, context="runtime") {
 }
 window.addEventListener("error", e => logAppError(e.error || e.message, "window.error"));
 window.addEventListener("unhandledrejection", e => logAppError(e.reason || "Unhandled promise rejection", "unhandledrejection"));
+
+
+function safeStorageSet(key, value, context="safeStorageSet") {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch(e) {
+    logAppError(e, context);
+    if (e && (e.name === "QuotaExceededError" || String(e.message || "").toLowerCase().includes("quota"))) {
+      alert("Storage appears full. Export JSON Backup and Raw Local Data before continuing.");
+    } else {
+      alert("Could not save local data. Export a backup/debug file before continuing.");
+    }
+    return false;
+  }
+}
+function storageSizeBytes() {
+  try {
+    return new Blob([localStorage.getItem(STORAGE_KEY) || ""]).size;
+  } catch(e) {
+    return 0;
+  }
+}
+function renderStorageWarning() {
+  const bytes = storageSizeBytes();
+  if (bytes > 4.5 * 1024 * 1024) {
+    console.warn("Snooker app storage is above 4.5MB; export backup recommended.");
+  }
+}
 
 function safeParseData(raw) {
   try {
@@ -2539,9 +2630,24 @@ Object.assign(FIELD_HELP, {
 
 FIELD_HELP.adaptiveEngine = {
   title:"Adaptive Training Engine",
-  body: analyticsHelp("Adaptive Training Engine","A decision layer that converts stats into the next session structure.","Combines hit rate, PSI, drift, fatigue slope, plateau detection, anchors, training load and recency.","It chooses whether to stabilize, progress, recover, vary, or refresh drills.","Use it when you want the app to act like a coach rather than just a logbook.")
+  body:`<div class="help-rich">
+    <p><strong>What it does:</strong> builds a full training session structure, not just a drill list.</p>
+    <p><strong>How it works:</strong> diagnoses your current state using hit rate, PSI, drift, fatigue slope, plateau detection, training load, anchor drills, and days since last practice.</p>
+    <p><strong>Output:</strong> a session mode and blocks such as Anchor Baseline, Stability, Progression, Recovery, Robustness, and Completion.</p>
+    <p><strong>How to interpret:</strong> this is the closest thing in the app to a coach. It decides whether today should be about improving, stabilizing, recovering, or varying the drill constraints.</p>
+    <div class="example"><strong>Difference vs Training Orchestrator:</strong> the Orchestrator selects routines; the Adaptive Engine decides the training logic, session structure, and action for each routine.</div>
+  </div>`
 };
-
+FIELD_HELP.trainingOrchestrator = {
+  title:"Training Orchestrator",
+  body:`<div class="help-rich">
+    <p><strong>What it does:</strong> creates a practical routine mix for a session.</p>
+    <p><strong>How it works:</strong> ranks exercises using weak routines, undertrained categories, recency, anchor drills, and your selected strategy: Exploit, Balanced, or Explore.</p>
+    <p><strong>Output:</strong> a list of routines to load into a session or plan.</p>
+    <p><strong>How to interpret:</strong> use it when you already know roughly what kind of session you want and just need a good drill selection.</p>
+    <div class="example"><strong>Difference vs Adaptive Engine:</strong> the Orchestrator answers “which drills should I do?”; the Adaptive Engine answers “what type of session should I do, how should it be structured, and why?”</div>
+  </div>`
+};
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
   if (!item) return;
@@ -2571,7 +2677,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.19.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -2660,9 +2766,9 @@ function applyTargetUpgrade(routineId){
   r.target=nt; r.stretchTarget=ns||""; r.difficultyLabel=`Target upgrade ${new Date().toLocaleDateString()}`;
   ensureTargetHistory(r); const profile=makeTargetProfile(r,r.difficultyLabel); r.targetHistory.push(profile); r.activeTargetProfileId=profile.id; saveData(); alert("New target version applied.");
 }
-function persistActiveSession(){try{if(activeSession)localStorage.setItem(ACTIVE_SESSION_KEY,JSON.stringify({...activeSession,savedAt:new Date().toISOString()}));}catch(e){logAppError(e,"persistActiveSession");}}
-function clearPersistedActiveSession(){localStorage.removeItem(ACTIVE_SESSION_KEY);}
-function getPersistedActiveSession(){try{const raw=localStorage.getItem(ACTIVE_SESSION_KEY); if(!raw)return null; const s=JSON.parse(raw); if(!s||!s.routineIds||Number(s.index||0)>=s.routineIds.length)return null; return s;}catch(e){logAppError(e,"getPersistedActiveSession");return null;}}
+
+
+
 function renderResumeCard(){const card=$("resumeSessionCard"),box=$("resumeSessionBox"); if(!card||!box)return; const s=getPersistedActiveSession(); if(!s||activeSession){card.classList.add("hidden");box.innerHTML="";return;} const r=routineById(s.routineIds[s.index]); card.classList.remove("hidden"); box.innerHTML=`<div class="resume-detail"><strong>${escapeHtml(s.planName||"Unfinished session")}</strong></div><div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name||"Missing exercise")}</div><div class="resume-detail">Started: ${new Date(s.startedAt||s.savedAt).toLocaleString()}</div>`;}
 function resumePersistedSession(){const s=getPersistedActiveSession(); if(!s)return alert("No unfinished session to resume."); activeSession=s; startRoutineScreen();}
 function discardPersistedSession(){if(!confirm("Discard unfinished session? Existing saved logs will remain."))return; clearPersistedActiveSession(); renderResumeCard();}
@@ -2865,24 +2971,27 @@ function applyStoredStatsModeVisual() {
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 
-function getPersistedActiveSession() {
-  try {
-    const raw = localStorage.getItem("snookerPracticePWA.activeSessionDraft");
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || !Array.isArray(s.routineIds) || Number(s.index || 0) >= s.routineIds.length) return null;
-    return s;
-  } catch(e) { logAppError(e, "getPersistedActiveSession"); return null; }
-}
 
-function persistActiveSession() {
-  try {
-    if (typeof activeSession !== "undefined" && activeSession) {
-      localStorage.setItem("snookerPracticePWA.activeSessionDraft", JSON.stringify({...activeSession, savedAt:new Date().toISOString()}));
+
+
+
+
+
+window.addEventListener("storage", e => {
+  if (e.key === STORAGE_KEY) {
+    try {
+      data = loadData();
+      ensureTablesDatabase?.();
+      renderAll();
+    } catch(err) {
+      logAppError(err, "storage sync");
     }
-  } catch(e) { logAppError(e, "persistActiveSession"); }
-}
+  }
+});
 
-function clearPersistedActiveSession() {
-  localStorage.removeItem("snookerPracticePWA.activeSessionDraft");
-}
+window.addEventListener("beforeunload", () => {
+  try {
+    if (activeSession) persistActiveSession();
+    if (timerInterval) clearInterval(timerInterval);
+  } catch(e) {}
+});
