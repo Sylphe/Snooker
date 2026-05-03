@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.21.1-final";
+const APP_VERSION = "3.22-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -1757,6 +1757,49 @@ function renderContextEffects(logs) {
     <div class="adaptive-rationale">Shows performance lifters/drags versus your overall average. Minimum threshold is deliberately low for visibility; treat small samples cautiously.</div>
   </div>`;
 }
+
+function forecastWithConfidence(logs, horizon=5){
+  if(!logs || logs.length<5) return null;
+  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  const x = vals.map((_,i)=>i);
+  const n = vals.length;
+  const meanX = avg(x), meanY = avg(vals);
+  let num=0,den=0;
+  for(let i=0;i<n;i++){ num+=(x[i]-meanX)*(vals[i]-meanY); den+=(x[i]-meanX)**2;}
+  const slope = den===0?0:num/den;
+  const intercept = meanY - slope*meanX;
+  const preds=[];
+  const residuals=[];
+  for(let i=0;i<n;i++){
+    const yhat = intercept + slope*i;
+    residuals.push(vals[i]-yhat);
+  }
+  const sd = stdDev(residuals);
+  for(let h=1;h<=horizon;h++){
+    const xi = n-1 + h;
+    const yhat = intercept + slope*xi;
+    preds.push({
+      step:h,
+      expected:yhat,
+      upper:yhat+sd,
+      lower:yhat-sd
+    });
+  }
+  return {slope,intercept,sd,preds};
+}
+
+function renderForecastInsight(logs){
+  const fc = forecastWithConfidence(logs,5);
+  if(!fc) return '<div class="insight-card watch"><strong>Forecast</strong><div class="muted">Not enough data.</div></div>';
+  const last = fc.preds[fc.preds.length-1];
+  return `<div class="insight-card watch">
+    <strong>Performance forecast ${statHelpButton("forecast")}</strong>
+    <div class="value">${last.expected.toFixed(1)}</div>
+    <div class="muted">Range: ${last.lower.toFixed(1)} – ${last.upper.toFixed(1)}</div>
+    <div class="adaptive-rationale">Projection based on recent trend ± variability.</div>
+  </div>`;
+}
+
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
@@ -1769,7 +1812,7 @@ function renderPhaseOneInsights() {
   box.innerHTML = `<div class="insight-grid">
     ${renderResidualInsights(logs)}
     ${renderPeakWindowInsight(logs)}
-    ${renderContextEffects(logs)}
+    ${renderContextEffects(logs)}\n    ${renderForecastInsight(logs)}
   </div>`;
 }
 
@@ -3135,6 +3178,15 @@ Object.assign(FIELD_HELP, {
     body: analyticsHelp("Regret / counterfactual engine","Whether another routine currently looks like a better selection than the one chosen.","Compares expected scores using recent average, PSI adjustment, and drift adjustment.","Positive regret means the alternative looks better; negative regret means the chosen routine looks better.","Use it as a drill-selection quality signal, not causal proof.")
   }
 });
+
+
+FIELD_HELP.forecast = {
+ title:"Predictive confidence interval",
+ body: analyticsHelp("Forecast","Expected future performance range.",
+ "Uses linear trend plus standard deviation of residuals.",
+ "Central value = expected trend; band shows uncertainty.",
+ "Use it to estimate near-term progression and volatility.")
+};
 
 function showFieldHelp(key) {
   const item = FIELD_HELP[key];
