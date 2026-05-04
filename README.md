@@ -1,6 +1,6 @@
-# Snooker Practice Log — v3.25.10
+# Snooker Practice Log — v3.25.11
 
-Built from the v3.25.10 working set.
+Built from the v3.25.11 working set.
 
 ## Fixed
 
@@ -12,8 +12,13 @@ Built from the v3.25.10 working set.
 - Exit Focus Mode now changes only the current active session focus state, not the default preference.
 - Added a final consolidated theme CSS section for dark/high-contrast coverage across phase cards, analytics cards, SVG charts, modals, tables, badges, and nested panels.
 
+- Added context-safe log edit forms to avoid duplicate DOM IDs across Today, Stats, and history views.
+- Persisted active-session timer state so refresh/resume can restore elapsed time and running/paused state.
+- Converted exercise deletion to soft deletion: archived routines are hidden from active selection but preserved for historical logs and analytics.
+- Kept IndexedDB migration deferred and left the existing network-first service worker strategy intact.
+
 ## Package
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.25.10.
+Confirm version: the header should show v3.25.11.

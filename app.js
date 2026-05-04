@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.9-final";
+const APP_VERSION = "3.25.11-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -94,10 +94,15 @@ let activeSession = null;
 let timerInterval = null;
 let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
+let suppressTimerPersistence = false;
 let deferredInstallPrompt = null;
 let statsMode = localStorage.getItem("snookerPracticePWA.statsMode") || "overview";
 
 function $(id) { return document.getElementById(id); }
+function cssEscapeSafe(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") return CSS.escape(String(value));
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
 
 function migrateData(d) {
   d.appVersion = APP_VERSION;
@@ -106,7 +111,9 @@ function migrateData(d) {
     folder: r.folder || r.category || "Unfiled",
     subfolder: r.subfolder || "General",
     category: r.category || "uncategorized",
-    stretchTarget: r.stretchTarget || ""
+    stretchTarget: r.stretchTarget || "",
+    isDeleted: !!r.isDeleted,
+    deletedAt: r.deletedAt || ""
   }));
   d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
@@ -216,10 +223,11 @@ function fmtScoring(type) {
     progressive_completion:"Progressive completion"
   }[type] || type;
 }
-function categories() { return [...new Set(data.routines.map(r => r.category || "uncategorized"))].sort(); }
-function folders() { return [...new Set(data.routines.map(r => r.folder || "Unfiled"))].sort(); }
-function subfolders() { return [...new Set(data.routines.map(r => r.subfolder || "General"))].sort(); }
-function routineById(id) { return data.routines.find(r => r.id === id); }
+function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
+function categories() { return [...new Set(activeRoutines().map(r => r.category || "uncategorized"))].sort(); }
+function folders() { return [...new Set(activeRoutines().map(r => r.folder || "Unfiled"))].sort(); }
+function subfolders() { return [...new Set(activeRoutines().map(r => r.subfolder || "General"))].sort(); }
+function routineById(id) { return (data.routines || []).find(r => r.id === id); }
 
 function normalizeScore(log) {
   if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
@@ -263,7 +271,7 @@ function localDateKey(dateLike = new Date()) {
 function sameDate(log, dateKey) { return localDateKey(log.createdAt) === dateKey; }
 function visibleRoutines(typeFilter="all", folderFilter="all", search="") {
   const q = search.trim().toLowerCase();
-  return data.routines
+  return activeRoutines()
     .filter(r => typeFilter === "all" || (r.category || "uncategorized") === typeFilter)
     .filter(r => folderFilter === "all" || (r.folder || "Unfiled") === folderFilter)
     .filter(r => !q || r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q))
@@ -273,6 +281,10 @@ function setSelectOptions(select, values, allLabel, selected="all") {
   if (!select) return;
   select.innerHTML = `<option value="all">${allLabel}</option>` + values.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("");
   select.value = values.includes(selected) || selected === "all" ? selected : "all";
+}
+function editCategoryOptions(current) {
+  const vals = [...new Set([current || "uncategorized", ...categories()])].filter(Boolean).sort();
+  return vals.map(c => `<option value="${escapeAttr(c)}" ${c === (current || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("");
 }
 
 document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
@@ -333,7 +345,7 @@ function renderRoutineSelects() {
   $("freeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("nextFreeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("planSelect").innerHTML = data.plans.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
-  $("statsRoutineSelect").innerHTML = data.routines.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join("") || `<option value="">No exercises yet</option>`;
+  $("statsRoutineSelect").innerHTML = (data.routines || []).map(r => `<option value="${r.id}">${escapeHtml(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("") || `<option value="">No exercises yet</option>`;
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
@@ -420,12 +432,13 @@ $("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
-  data.routines.push({...r, id: uuid(), name: `${r.name} copy`});
+  data.routines.push({...r, id: uuid(), name: `${r.name} copy`, isDeleted: false, deletedAt: ""});
   saveData();
 }
 function deleteRoutine(id) {
   return confirmDeleteAction("this exercise template", () => {
-    data.routines = data.routines.filter(r => r.id !== id);
+    const now = new Date().toISOString();
+    data.routines = (data.routines || []).map(r => r.id === id ? {...r, isDeleted: true, deletedAt: now} : r);
     data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
     saveData();
   });
@@ -460,7 +473,9 @@ $("saveRoutineBtn").addEventListener("click", () => {
     trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
     difficultyLabel: $("routineDifficultyLabel").value.trim() || "Base target",
     category, folder, subfolder,
-    description: $("routineDescription").value.trim()
+    description: $("routineDescription").value.trim(),
+    isDeleted: false,
+    deletedAt: ""
   };
 
   if ($("routineEditId").value) {
@@ -589,7 +604,7 @@ $("todayDiscardSessionBtn").addEventListener("click", discardPersistedSession);
 $("startSessionBtn").addEventListener("click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
-  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => data.routines.some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
+  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => activeRoutines().some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
   persistActiveSession();
 });
@@ -890,6 +905,7 @@ function completeSession() {
   else data.sessions.push(sessionRecord);
   safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
   resetTimerState();
+  if (activeSession) activeSession.timerState = null;
   activeSession = null;
   clearPersistedActiveSession();
   updateSessionFocusState?.();
@@ -904,13 +920,39 @@ function completeSession() {
 
 function getElapsedMs() { return elapsedBeforeStartMs + (timerStartMs ? Date.now() - timerStartMs : 0); }
 function getElapsedMinutes() { return Math.round((getElapsedMs() / 60000) * 10) / 10; }
-function resetTimerState() { stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); }
+function syncTimerStateToActiveSession() {
+  if (!activeSession) return;
+  activeSession.timerState = {
+    timerStartMs: timerStartMs || null,
+    elapsedBeforeStartMs: Number(elapsedBeforeStartMs || 0),
+    isRunning: !!timerStartMs,
+    savedAt: new Date().toISOString()
+  };
+  persistActiveSession();
+}
+function restoreTimerStateFromActiveSession() {
+  const ts = activeSession?.timerState;
+  if (!ts) return false;
+  stopTimer();
+  elapsedBeforeStartMs = Number(ts.elapsedBeforeStartMs || 0);
+  timerStartMs = ts.isRunning && ts.timerStartMs ? Number(ts.timerStartMs) : null;
+  if (timerStartMs) {
+    timerInterval = setInterval(updateTimerDisplay, 250);
+    if ($("timerState")) $("timerState").textContent = "timer running";
+  } else if (elapsedBeforeStartMs > 0 && $("timerState")) {
+    $("timerState").textContent = "timer paused";
+  }
+  updateTimerDisplay();
+  return true;
+}
+function resetTimerState() { stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); }
 $("timerStartBtn").addEventListener("click", () => {
   if (timerStartMs) return;
   timerStartMs = Date.now();
   timerInterval = setInterval(updateTimerDisplay, 250);
   $("timerState").textContent = "timer running";
   updateTimerDisplay();
+  syncTimerStateToActiveSession();
 });
 $("timerPauseBtn").addEventListener("click", () => {
   if (!timerStartMs) return;
@@ -919,6 +961,7 @@ $("timerPauseBtn").addEventListener("click", () => {
   stopTimer();
   $("timerState").textContent = "timer paused";
   updateTimerDisplay();
+  syncTimerStateToActiveSession();
 });
 $("timerResetBtn").addEventListener("click", resetTimerState);
 function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
@@ -1092,7 +1135,7 @@ $("generateConstraintPlanBtn").addEventListener("click", () => {
 let pendingReflectionSessionId = "";
 
 function anchorRoutines() {
-  return (data.routines || []).filter(r => r.isAnchor);
+  return activeRoutines().filter(r => r.isAnchor);
 }
 function anchorPerformanceSummary(logs) {
   const anchors = anchorRoutines();
@@ -1290,10 +1333,10 @@ function getPeriodizationPhase() {
   const f = fatigueSlope(data.logs || []);
   if ((prev7 && last7 > prev7 * 1.35) || (f && f.slope < -0.25)) return "deload";
 
-  const upgrades = (data.routines || []).some(r => targetUpgradeSuggestionForRoutine(r.id));
+  const upgrades = activeRoutines().some(r => targetUpgradeSuggestionForRoutine(r.id));
   if (upgrades) return "performance";
 
-  const unstable = (data.routines || []).some(r => {
+  const unstable = activeRoutines().some(r => {
     const logs = (data.logs || []).filter(l => l.routineId === r.id).slice(-10);
     const psi = performanceStabilityIndex(logs, 10);
     return psi && psi.psi < 55;
@@ -1380,7 +1423,7 @@ function expectedRoutineScore(routineId, windowSize=20) {
 function renderRegretRoutineOptions() {
   const selects = [$("regretChosenRoutine"), $("regretAlternativeRoutine")].filter(Boolean);
   if (!selects.length) return;
-  const opts = `<option value="">Select routine</option>` + (data.routines || []).map(r => `<option value="${escapeAttr(r.id)}">${escapeHtml(r.name)}</option>`).join("");
+  const opts = `<option value="">Select routine</option>` + activeRoutines().map(r => `<option value="${escapeAttr(r.id)}">${escapeHtml(r.name)}</option>`).join("");
   selects.forEach(sel => {
     const current = sel.value;
     sel.innerHTML = opts;
@@ -1513,7 +1556,7 @@ function adaptiveActionForState(state) {
 
 function adaptiveSessionStructure(goal, duration, strictness) {
   const targetMinutes = Number(duration || 60);
-  const states = (data.routines || []).map(r => adaptiveRoutineState(r.id));
+  const states = activeRoutines().map(r => adaptiveRoutineState(r.id));
   const ranked = states.map(s => ({...s, adaptiveScore: adaptivePriorityScore(s, goal)})).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -1945,9 +1988,10 @@ function renderSwipeableHistoryCards(logs) {
           </div>
           <div class="history-card-spark">${miniSparkline(values)}</div>
           <div class="small-actions">
-            <button class="secondary" onclick="editLog('${l.id}')">Edit</button>
+            <button class="secondary" onclick="showEditLog(this)">Edit</button>
             <button class="danger" onclick="deleteLog('${l.id}')">Delete</button>
           </div>
+          <div class="hidden log-edit-row history-card-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}">${renderEditLogForm(l)}</div>
         </div>`;
       }).join("")}
     </div>
@@ -2503,28 +2547,35 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
 }
 function renderLogRow(l) {
-  return `<tr>
+  return `<tr data-log-row-id="${escapeAttr(l.id)}">
     <td>${new Date(l.createdAt).toLocaleDateString()}</td>
     <td>${displayScore(l)}</td>
     <td>${Number(l.normalizedScore || 0).toFixed(2)}</td>
     <td>${escapeHtml(l.performance || "N/A")}</td>
+    <td>${escapeHtml(getTargetProfileLabel(l))}</td>
     <td>${formatDurationHuman(l.timeMinutes)}</td>
-    <td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td>
-  </tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+    <td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td>
+  </tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+}
+function renderDateLogRow(l) {
+  return `<tr data-log-row-id="${escapeAttr(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="9">${renderEditLogForm(l)}</td></tr>`;
+}
+function renderSessionLogRow(l) {
+  return `<tr data-log-row-id="${escapeAttr(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
 }
 function renderEditLogForm(l) {
-  return `<div class="log-edit">
+  return `<div class="log-edit" data-log-edit-id="${escapeAttr(l.id)}">
     <div class="log-edit-grid">
-      <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
-      <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
-      <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
-      <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
-      <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
-      <div><label>Tags</label><input id="edit-tags-${l.id}" value="${escapeAttr(l.sessionTags || "")}"></div>
+      <div><label>Date/time</label><input class="edit-createdAt" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
+      <div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${l.score}"></div>
+      <div><label>Attempts</label><input class="edit-attempts" type="number" step="1" value="${l.attempts || ""}"></div>
+      <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
+      <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
+      <div><label>Category</label><select class="edit-category">${editCategoryOptions(l.category)}</select></div>
+      <div><label>Tags</label><input class="edit-tags" value="${escapeAttr(l.sessionTags || "")}"></div>
     </div>
-    <label>Notes</label><textarea id="edit-notes-${l.id}" rows="2">${escapeHtml(l.notes || "")}</textarea>
-    <div class="small-actions"><button onclick="saveEditedLog('${l.id}')">Save changes</button><button class="secondary" onclick="showEditLog('${l.id}')">Cancel</button></div>
+    <label>Notes</label><textarea class="edit-notes" rows="2">${escapeHtml(l.notes || "")}</textarea>
+    <div class="small-actions"><button onclick="saveEditedLogFromButton(this,'${l.id}')">Save changes</button><button class="secondary" onclick="showEditLog(this)">Cancel</button></div>
   </div>`;
 }
 function toDateTimeLocal(iso) {
@@ -2532,37 +2583,70 @@ function toDateTimeLocal(iso) {
   const pad = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-function showEditLog(id) {
-  const el = $("edit-"+id);
-  if (!el) return;
-  el.classList.toggle("hidden");
+function showEditLog(source) {
+  if (typeof source === "string") {
+    const rows = Array.from(document.querySelectorAll(`[data-log-edit-row-id="${cssEscapeSafe(source)}"]`));
+    const visible = rows.find(r => r.offsetParent !== null) || rows[0];
+    if (visible) visible.classList.toggle("hidden");
+    return;
+  }
+  const row = source?.closest?.("tr");
+  const card = source?.closest?.(".history-card");
+  const editRow = row?.nextElementSibling?.classList?.contains("log-edit-row")
+    ? row.nextElementSibling
+    : (source?.closest?.(".log-edit-row") || card?.querySelector?.(":scope > .log-edit-row"));
+  if (editRow) editRow.classList.toggle("hidden");
 }
-function saveEditedLog(id) {
+function saveEditedLogFromButton(button, id) {
+  const form = button?.closest?.(".log-edit");
+  saveEditedLog(id, form);
+}
+function saveEditedLog(id, formEl) {
   const idx = data.logs.findIndex(l => l.id === id);
   if (idx < 0) return;
   const l = data.logs[idx];
-  const routine = routineById(l.routineId);
-  const editedDate = new Date($("edit-createdAt-"+id).value); if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time."); l.createdAt = editedDate.toISOString();
-  l.score = Number($("edit-score-"+id).value || 0);
-  l.attempts = Number($("edit-attempts-"+id).value || 0) || "";
-  l.timeMinutes = Number($("edit-time-"+id).value || 0);
-  l.sessionRating = Number($("edit-rating-"+id).value || 0) || "";
-  l.category = $("edit-category-"+id).value || l.category || "uncategorized";
-  l.sessionTags = $("edit-tags-"+id).value || "";
-  if ($("edit-best-"+id)) l.bestAttempt = Number($("edit-best-"+id).value || 0) || "";
-  if ($("edit-completions-"+id)) l.completionCount = Number($("edit-completions-"+id).value || 0) || "";
-  if ($("edit-break-"+id)) l.highestBreak = Number($("edit-break-"+id).value || 0) || "";
+  const routine = routineById(l.routineId) || makeRoutineSnapshotFromLog(l);
+  const form = formEl || document.querySelector(`.log-edit[data-log-edit-id="${cssEscapeSafe(id)}"]`);
+  if (!form) return alert("Edit form not found.");
+  const field = cls => form.querySelector(`.${cls}`);
+  const editedDate = new Date(field("edit-createdAt")?.value || l.createdAt);
+  if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time.");
+  l.createdAt = editedDate.toISOString();
+  l.score = Number(field("edit-score")?.value || 0);
+  l.attempts = Number(field("edit-attempts")?.value || 0) || "";
+  l.timeMinutes = Number(field("edit-time")?.value || 0);
+  l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
+  l.category = field("edit-category")?.value || l.category || "uncategorized";
+  l.sessionTags = field("edit-tags")?.value || "";
+  if (field("edit-best")) l.bestAttempt = Number(field("edit-best").value || 0) || "";
+  if (field("edit-completions")) l.completionCount = Number(field("edit-completions").value || 0) || "";
+  if (field("edit-break")) l.highestBreak = Number(field("edit-break").value || 0) || "";
   updateTagHistoryFromInput(l.sessionTags);
-  l.notes = $("edit-notes-"+id).value || "";
-  l.normalizedScore = normalizeScore(l);
-  l.performance = classifyPerformance(l, routine);
-  data.logs[idx] = l;
-  if ($("edit-venue-"+id)) {
-    l.tableId = $("edit-venue-"+id).value || "";
+  l.notes = field("edit-notes")?.value || "";
+  const venue = field("edit-venue");
+  if (venue) {
+    l.tableId = venue.value || "";
     l.venueTable = getTableName(l.tableId);
     l.venueTableSnapshot = getTableName(l.tableId);
   }
+  l.normalizedScore = normalizeScore(l);
+  l.performance = classifyPerformance(l, routine);
+  data.logs[idx] = l;
   saveData();
+}
+function makeRoutineSnapshotFromLog(l) {
+  return {
+    id: l.routineId || "",
+    name: l.routineNameSnapshot || l.routineName || "Deleted exercise",
+    scoring: l.scoring,
+    target: l.targetAtLog || "",
+    stretchTarget: l.stretchTargetAtLog || "",
+    totalUnits: l.totalUnitsAtLog || l.totalUnits || "",
+    attemptsPerSession: l.attemptsPerSessionAtLog || l.attempts || "",
+    category: l.category || "uncategorized",
+    folder: l.folder || "Unfiled",
+    subfolder: l.subfolder || "General"
+  };
 }
 function deleteLog(id) {
   return confirmDeleteAction("this session log", () => {
@@ -2584,7 +2668,7 @@ function renderDateView(logs) {
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(logs)}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="9">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
+  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
 }
 function renderToday() {
   const today = localDateKey();
@@ -2608,7 +2692,7 @@ function renderToday() {
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
     const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="7">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => renderSessionLogRow(l)).join("")}</tbody></table></div>`;
   }).join("")}`;
 }
 
@@ -3361,7 +3445,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.9");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.11");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3454,7 +3538,7 @@ function applyTargetUpgrade(routineId){
 
 
 function renderResumeCard(){const card=$("resumeSessionCard"),box=$("resumeSessionBox"); if(!card||!box)return; const s=getPersistedActiveSession(); if(!s||activeSession){card.classList.add("hidden");box.innerHTML="";return;} const r=routineById(s.routineIds[s.index]); card.classList.remove("hidden"); box.innerHTML=`<div class="resume-detail"><strong>${escapeHtml(s.planName||"Unfinished session")}</strong></div><div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name||"Missing exercise")}</div><div class="resume-detail">Started: ${new Date(s.startedAt||s.savedAt).toLocaleString()}</div>`;}
-function resumePersistedSession(){const s=getPersistedActiveSession(); if(!s)return alert("No unfinished session to resume."); activeSession=s; startRoutineScreen();}
+function resumePersistedSession(){const s=getPersistedActiveSession(); if(!s)return alert("No unfinished session to resume."); const savedTimerState=s.timerState?{...s.timerState}:null; activeSession=s; suppressTimerPersistence=true; startRoutineScreen(); suppressTimerPersistence=false; if(savedTimerState) activeSession.timerState=savedTimerState; restoreTimerStateFromActiveSession(); syncTimerStateToActiveSession();}
 function discardPersistedSession(){if(!confirm("Discard unfinished session? Existing saved logs will remain."))return; clearPersistedActiveSession(); renderResumeCard();}
 function plannedVsCompletedSummary(){
   const recent=(data.sessions||[]).slice().sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
@@ -3510,7 +3594,7 @@ function undertrainedCategoryBonus(routineId) {
 }
 
 function rankRoutines(focusOverride="all", strategy="balanced") {
-  return data.routines.map(r => {
+  return activeRoutines().map(r => {
     const s = routineStats(r.id);
     let score = routineMixedStrategyScore(r, s, strategy);
     if (focusOverride !== "all" && r.category === focusOverride) score += 25;
@@ -3577,7 +3661,7 @@ function composeBlocks(length, intensity, ranked, focusOverride) {
 }
 
 function generateNextSession(){
-  if(!data.routines.length){$("orchestratorBox").innerHTML="Create exercises first.";return;}
+  if(!activeRoutines().length){$("orchestratorBox").innerHTML="Create exercises first.";return;}
   const length = $("orchestratorLength")?.value || "60";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
   const focus = $("orchestratorFocus")?.value || "all";
@@ -3816,3 +3900,5 @@ window.addEventListener("beforeunload", () => {
     if (timerInterval) clearInterval(timerInterval);
   } catch(e) {}
 });
+
+try { window.addEventListener("beforeunload", syncTimerStateToActiveSession); } catch(e) {}
