@@ -1,36 +1,36 @@
-# Snooker Practice Log — v3.30.0
+# Snooker Practice Log — v3.31.0
 
-Built from the working v3.27.0 base.
+Built from the working v3.30.0 base.
 
-## Fixed in v3.30.0
+## Added in v3.31.0
 
-- Log editing now opens in a modal / bottom-sheet style interface instead of inserting large edit forms into table rows.
-- Historical tables and swipeable cards now use the same modal editor, improving Android/mobile usability and reducing table layout complexity.
+- Storage safety dashboard in the Data tab.
+- Shows main app data size, estimated total localStorage usage, and approximate percentage of a 5 MB localStorage ceiling.
+- Shows counts for logs, sessions, exercises, plans, tables, archived exercises, and recent errors.
+- Shows last full-backup status.
+- Adds a dedicated “Download Full Backup” action intended as the pre-migration safeguard before future IndexedDB work.
 
-- Implemented the CSS theme simplification pass.
-- Simplified dark / high-contrast styling from stacked override patches into a variable-driven theme layer.
-- Preserved the working dark-mode palette from the v3.25.9/v3.25.10 lineage.
-- Reduced duplicated theme CSS and removed the old repeated dark/contrast override blocks.
-- Kept the existing session focus mode, one-tap score entry, scoped rendering, safe-rendering helpers, timer persistence, soft-delete behavior, and the `typeof getScopedStatsLogs !== "undefined"` startup-crash fix.
+## Preserved from prior versions
 
-## Deferred
+- Modal / bottom-sheet log editing.
+- Simplified dark / high-contrast theme layer.
+- Scoped rendering after logging and log edits.
+- Safe-rendering helpers for dynamic HTML.
+- Timer persistence across refresh/resume.
+- Soft deletion / archiving of exercises.
+- Recommendation eligibility and weighting caps.
+- Analytics guardrails for low-variation / insufficient-data cases.
+- The `typeof getScopedStatsLogs !== "undefined"` startup-crash fix.
+
+## Still deferred
 
 - IndexedDB migration.
-- Service-worker architecture change.
 - ES6 module refactor.
 - Full rendering rewrite.
 - Array immutability refactor.
-- Log-edit modal / bottom-sheet UX.
 
 ## Package
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.30.0.
-
-
-## v3.30.0 additions
-
-- Added per-exercise recommendation eligibility: active, occasional, or excluded.
-- Capped recency and undertraining bonuses so large exercise databases do not force stale/ignored drills too aggressively.
-- Added small analytics guardrails for zero-variance / not-enough-variation cases and safer denominator handling in progress velocity.
+Confirm version: the header should show v3.31.0.

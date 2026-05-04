@@ -497,3 +497,17 @@ body.session-focus-active .sticky-log-actions{background:var(--panel-bg);border-
   .log-edit-grid{grid-template-columns:1fr!important;}
   .modal-actions{position:sticky;bottom:0;background:var(--card);}
 }
+
+/* v3.31 storage safety dashboard */
+.storage-dashboard{margin-top:12px}
+.storage-status{border-left:5px solid var(--line)}
+.storage-status.storage-good{border-left-color:#2b8a57}
+.storage-status.storage-watch{border-left-color:var(--gold)}
+.storage-status.storage-risk{border-left-color:var(--danger)}
+.storage-status-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px}
+.storage-status-top span{color:var(--muted);font-size:13px;font-weight:700}
+.storage-grid{margin-top:10px}
+.storage-grid .stat-card small{display:block;color:var(--muted);font-size:11px;margin-top:2px;font-weight:700}
+.storage-backup-value{font-size:16px!important;line-height:1.2}
+body[data-theme] :is(.storage-dashboard,.storage-status){background:var(--panel-bg);color:var(--text);border-color:var(--line)}
+body[data-theme] .storage-status-top span{color:var(--muted)}

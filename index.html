@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.30.0</title>
+  <title>Snooker Practice Log v3.31.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=3.30.0" />
-  <link rel="stylesheet" href="styles.css?v=3.30.0" />
-  <link rel="icon" href="icon.svg?v=3.30.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.31.0" />
+  <link rel="stylesheet" href="styles.css?v=3.31.0" />
+  <link rel="icon" href="icon.svg?v=3.31.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.30.0 — modal log editing, simplified theme system, safer dynamic rendering, scoped updates.</p>
+      <p>v3.31.0 — modal log editing, simplified theme system, safer dynamic rendering, scoped updates.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -690,6 +690,16 @@
 
     <section id="data" class="panel">
       <div class="card">
+        <h2>Storage safety dashboard</h2>
+        <p class="muted">Track local storage usage before the future IndexedDB migration. Export a full backup if the app approaches the browser storage limit.</p>
+        <div id="storageDashboard" class="storage-dashboard analytics-note">Storage dashboard will appear here.</div>
+        <div class="row">
+          <button id="refreshStorageDashboardBtn" type="button" class="secondary">Refresh Storage Status</button>
+          <button id="preMigrationBackupBtn" type="button">Download Full Backup</button>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Data export / import</h2>
         <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
         <div class="row">
@@ -821,6 +831,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.30.0"></script>
+  <script src="app.js?v=3.31.0"></script>
 </body>
 </html>

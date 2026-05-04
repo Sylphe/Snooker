@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.30.0-final";
+const APP_VERSION = "3.31.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -233,6 +233,7 @@ function safeScopedRender(fn, label) {
 
 function renderAfterSessionLogSave() {
   safeScopedRender(renderBackupReminder, "renderAfterSessionLogSave renderBackupReminder");
+  if (isPanelActive("data")) safeScopedRender(renderStorageDashboard, "renderAfterSessionLogSave renderStorageDashboard");
   safeScopedRender(renderSmartRecommendation, "renderAfterSessionLogSave renderSmartRecommendation");
   safeScopedRender(renderTagSuggestions, "renderAfterSessionLogSave renderTagSuggestions");
   safeScopedRender(renderResumeCard, "renderAfterSessionLogSave renderResumeCard");
@@ -252,6 +253,7 @@ function renderAfterSessionLogSave() {
 function renderAfterLogEditSave() {
   safeScopedRender(renderTagSuggestions, "renderAfterLogEditSave renderTagSuggestions");
   safeScopedRender(renderBackupReminder, "renderAfterLogEditSave renderBackupReminder");
+  if (isPanelActive("data")) safeScopedRender(renderStorageDashboard, "renderAfterLogEditSave renderStorageDashboard");
   if (isPanelActive("today")) {
     safeScopedRender(renderToday, "renderAfterLogEditSave renderToday");
     safeScopedRender(renderTrainingLoad, "renderAfterLogEditSave renderTrainingLoad");
@@ -365,6 +367,7 @@ function renderAll() {
   renderSmartRecommendation();
   renderTagSuggestions();
   renderBackupReminder();
+  renderStorageDashboard();
   renderExportFolderStatus();
   renderPeriodization();
   renderRegretRoutineOptions();
@@ -2880,7 +2883,7 @@ $("exportCsvBtn").addEventListener("click", async () => {
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
-$("exportJsonBtn").addEventListener("click", async () => { markBackupExported(); await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify({...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()}, null, 2), "application/json"); renderBackupReminder(); });
+$("exportJsonBtn").addEventListener("click", async () => exportFullBackup("manual-json-export"));
 $("runRegretBtn").addEventListener("click", runRegretComparison);
 ["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => { const el=$(id); if(el) el.addEventListener("change", renderPeriodization); });
 $("generateAdaptiveSessionBtn").addEventListener("click", renderAdaptiveSession);
@@ -2891,6 +2894,8 @@ $("chooseExportFolderBtn").addEventListener("click", chooseExportFolder);
 $("clearExportFolderBtn").addEventListener("click", clearExportFolder);
 $("exportDebugBtn").addEventListener("click", exportDebugInfo);
 $("exportRawStorageBtn").addEventListener("click", exportRawLocalData);
+$("refreshStorageDashboardBtn")?.addEventListener("click", renderStorageDashboard);
+$("preMigrationBackupBtn")?.addEventListener("click", async () => exportFullBackup("pre-indexeddb-migration"));
 $("importJsonInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -3141,6 +3146,90 @@ function renderStorageWarning() {
   if (bytes > 4.5 * 1024 * 1024) {
     console.warn("Snooker app storage is above 4.5MB; export backup recommended.");
   }
+  if (typeof renderStorageDashboard === "function" && isPanelActive("data")) renderStorageDashboard();
+}
+
+function formatStorageBytes(bytes) {
+  const n = Number(bytes || 0);
+  if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${Math.max(0, Math.round(n))} B`;
+}
+function getLocalStorageUsageBytes() {
+  let total = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      const value = localStorage.getItem(key) || "";
+      total += new Blob([key + value]).size;
+    }
+  } catch(e) {
+    logAppError(e, "getLocalStorageUsageBytes");
+  }
+  return total;
+}
+function storageRiskLevel(mainBytes, totalBytes) {
+  const assumedLimit = 5 * 1024 * 1024;
+  const ratio = Math.max(mainBytes, totalBytes) / assumedLimit;
+  if (ratio >= 0.90) return {label:"Critical", cls:"risk", text:"Export a full backup now. New saves may fail soon."};
+  if (ratio >= 0.70) return {label:"High", cls:"watch", text:"Plan the IndexedDB migration before adding many more logs."};
+  if (ratio >= 0.45) return {label:"Moderate", cls:"watch", text:"Storage is still usable, but backups should be routine."};
+  return {label:"Low", cls:"good", text:"Current local storage usage is well below the usual browser ceiling."};
+}
+function renderStorageDashboard() {
+  const box = $("storageDashboard");
+  if (!box) return;
+  const mainBytes = storageSizeBytes();
+  const totalBytes = getLocalStorageUsageBytes();
+  const assumedLimit = 5 * 1024 * 1024;
+  const pct = Math.min(999, (Math.max(mainBytes, totalBytes) / assumedLimit) * 100);
+  const risk = storageRiskLevel(mainBytes, totalBytes);
+  const lastBackup = localStorage.getItem("snookerPracticePWA.lastBackupAt") || "";
+  const backupDays = daysSinceIso(lastBackup);
+  const activeCount = (data.routines || []).filter(r => !r.isDeleted).length;
+  const archivedCount = (data.routines || []).filter(r => r.isDeleted).length;
+  const errorCount = (() => { try { return JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]").length; } catch(e) { return 0; } })();
+  const backupText = lastBackup
+    ? `${Number.isFinite(backupDays) ? backupDays : "?"} day${backupDays === 1 ? "" : "s"} ago`
+    : "Never exported from this browser";
+  box.innerHTML = `<div class="storage-status storage-${safeClassToken(risk.cls, ["good","watch","risk"], "watch")}">
+    <div class="storage-status-top"><strong>Storage risk: ${htmlText(risk.label)}</strong><span>${numText(pct, "0.0")}% of assumed 5 MB localStorage limit</span></div>
+    <p>${htmlText(risk.text)}</p>
+    <div class="stats-grid storage-grid">
+      <div class="stat-card"><span>Main app data</span><div class="value">${htmlText(formatStorageBytes(mainBytes))}</div></div>
+      <div class="stat-card"><span>Total localStorage</span><div class="value">${htmlText(formatStorageBytes(totalBytes))}</div></div>
+      <div class="stat-card"><span>Last full backup</span><div class="value storage-backup-value">${htmlText(backupText)}</div></div>
+      <div class="stat-card"><span>Logs</span><div class="value">${numText((data.logs || []).length, "0")}</div></div>
+      <div class="stat-card"><span>Sessions</span><div class="value">${numText((data.sessions || []).length, "0")}</div></div>
+      <div class="stat-card"><span>Exercises</span><div class="value">${numText(activeCount, "0")}${archivedCount ? `<small> + ${numText(archivedCount, "0")} archived</small>` : ""}</div></div>
+      <div class="stat-card"><span>Plans</span><div class="value">${numText((data.plans || []).length, "0")}</div></div>
+      <div class="stat-card"><span>Tables</span><div class="value">${numText((data.tables || []).length, "0")}</div></div>
+      <div class="stat-card"><span>Recent errors</span><div class="value">${numText(errorCount, "0")}</div></div>
+    </div>
+    <p class="muted">This is a safety dashboard for the future IndexedDB migration. The 5 MB limit is an approximate browser localStorage threshold; actual limits vary by browser/device.</p>
+  </div>`;
+}
+
+async function exportFullBackup(reason="manual") {
+  markBackupExported();
+  const payload = {
+    ...data,
+    backupVersion: APP_VERSION,
+    backupReason: reason,
+    exportedAt: new Date().toISOString(),
+    storageSummary: {
+      mainDataBytes: storageSizeBytes(),
+      totalLocalStorageBytes: getLocalStorageUsageBytes(),
+      logs: (data.logs || []).length,
+      sessions: (data.sessions || []).length,
+      routines: (data.routines || []).length,
+      plans: (data.plans || []).length,
+      tables: (data.tables || []).length
+    }
+  };
+  await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
+  renderBackupReminder();
+  renderStorageDashboard();
 }
 
 function safeParseData(raw) {
