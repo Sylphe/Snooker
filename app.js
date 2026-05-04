@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25-final";
+const APP_VERSION = "3.25.1-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -75,6 +75,10 @@ function migrateData(d) {
   d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
   d.tagHistory = d.tagHistory || [];
+  d.interfaceSettings = d.interfaceSettings || {};
+  d.interfaceSettings.themeMode = d.interfaceSettings.themeMode || localStorage.getItem(THEME_MODE_KEY) || "system";
+  d.interfaceSettings.sessionFocusMode = d.interfaceSettings.sessionFocusMode || localStorage.getItem(SESSION_FOCUS_MODE_KEY) || "on";
+  d.interfaceSettings.quickLogAutoAdvance = d.interfaceSettings.quickLogAutoAdvance || localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || "on";
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -153,6 +157,10 @@ function loadData() {
 
 function saveData() {
   data.updatedAt = new Date().toISOString();
+  data.interfaceSettings = data.interfaceSettings || {};
+  data.interfaceSettings.themeMode = getThemeModeSetting();
+  data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
+  data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
   ensureTablesDatabase?.();
   const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(data), "saveData");
   if (ok) renderStorageWarning();
@@ -3611,9 +3619,21 @@ document.addEventListener("DOMContentLoaded", bindInterfaceSettings);
 
 
 /* v3.25 interface settings: theme, session focus mode, and quick-log macros */
-function getThemeModeSetting(){ return localStorage.getItem(THEME_MODE_KEY) || "system"; }
-function getSessionFocusSetting(){ return localStorage.getItem(SESSION_FOCUS_MODE_KEY) || "on"; }
-function getQuickLogAutoAdvanceSetting(){ return localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || "on"; }
+function getPersistedInterfaceSetting(key, dataKey, fallback){
+  const local = localStorage.getItem(key);
+  if (local !== null && local !== undefined && local !== "") return local;
+  const stored = data?.interfaceSettings?.[dataKey];
+  return stored || fallback;
+}
+function setPersistedInterfaceSetting(key, dataKey, value){
+  localStorage.setItem(key, value);
+  data.interfaceSettings = data.interfaceSettings || {};
+  data.interfaceSettings[dataKey] = value;
+  safeStorageSet(STORAGE_KEY, JSON.stringify({...data, updatedAt:new Date().toISOString()}), "interface setting save");
+}
+function getThemeModeSetting(){ return getPersistedInterfaceSetting(THEME_MODE_KEY, "themeMode", "system"); }
+function getSessionFocusSetting(){ return getPersistedInterfaceSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", "on"); }
+function getQuickLogAutoAdvanceSetting(){ return getPersistedInterfaceSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", "on"); }
 function applyThemeMode(){
   const mode = getThemeModeSetting();
   const root = document.documentElement;
@@ -3639,7 +3659,7 @@ function updateSessionFocusState(){
 }
 function toggleSessionFocusMode(){
   const next = getSessionFocusSetting() === "off" ? "on" : "off";
-  localStorage.setItem(SESSION_FOCUS_MODE_KEY, next);
+  setPersistedInterfaceSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", next);
   renderInterfaceSettings();
   updateSessionFocusState();
 }
@@ -3650,9 +3670,9 @@ function bindInterfaceSettings(){
   const focus = $("sessionFocusModeSelect");
   const quick = $("quickLogAutoAdvanceSelect");
   const toggleFocus = $("toggleFocusModeBtn");
-  if (theme) theme.addEventListener("change", () => { localStorage.setItem(THEME_MODE_KEY, theme.value); applyThemeMode(); });
-  if (focus) focus.addEventListener("change", () => { localStorage.setItem(SESSION_FOCUS_MODE_KEY, focus.value); updateSessionFocusState(); });
-  if (quick) quick.addEventListener("change", () => { localStorage.setItem(QUICK_LOG_AUTO_ADVANCE_KEY, quick.value); if (activeSession) renderCurrentRoutine(); });
+  if (theme) theme.addEventListener("change", () => { setPersistedInterfaceSetting(THEME_MODE_KEY, "themeMode", theme.value); applyThemeMode(); renderInterfaceSettings(); });
+  if (focus) focus.addEventListener("change", () => { setPersistedInterfaceSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", focus.value); updateSessionFocusState(); renderInterfaceSettings(); });
+  if (quick) quick.addEventListener("change", () => { setPersistedInterfaceSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", quick.value); if (activeSession) renderCurrentRoutine(); renderInterfaceSettings(); });
   if (toggleFocus) toggleFocus.addEventListener("click", toggleSessionFocusMode);
   if (window.matchMedia) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
