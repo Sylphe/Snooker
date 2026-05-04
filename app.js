@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.7-final";
+const APP_VERSION = "3.25.8-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -15,38 +15,10 @@ function structuredCloneSafe(obj) {
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
-const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
-const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
-const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
-
-
-function normalizeInterfaceThemeMode(value) {
-  return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
-}
-function getRawStoredThemeMode() {
-  try {
-    const direct = localStorage.getItem(THEME_MODE_KEY);
-    if (direct) return normalizeInterfaceThemeMode(direct);
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return normalizeInterfaceThemeMode(parsed?.interfaceSettings?.themeMode || "system");
-    }
-  } catch(e) {}
-  return "system";
-}
-function applyThemeModeEarly() {
-  const mode = getRawStoredThemeMode();
-  const root = document.documentElement;
-  if (mode === "system") {
-    root.removeAttribute("data-theme");
-    root.dataset.themeMode = "system";
-  } else {
-    root.setAttribute("data-theme", mode);
-    root.dataset.themeMode = mode;
-  }
-}
-applyThemeModeEarly();
+const UI_THEME_MODE_KEY = "snookerPracticePWA.themeMode";
+const UI_SESSION_FOCUS_SETTING_KEY = "snookerPracticePWA.sessionFocusMode";
+const UI_SESSION_FOCUS_ACTIVE_KEY = "snookerPracticePWA.sessionFocusActive";
+const UI_QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -104,13 +76,6 @@ function migrateData(d) {
   d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
   d.tagHistory = d.tagHistory || [];
-  d.interfaceSettings = d.interfaceSettings || {};
-  // Interface settings are intentionally stored both as top-level localStorage keys
-  // and inside the main data object. Top-level keys take priority because they
-  // survive data imports and prevent old JSON backups from reverting the UI.
-  d.interfaceSettings.themeMode = normalizeInterfaceThemeMode(localStorage.getItem(THEME_MODE_KEY) || d.interfaceSettings.themeMode || "system");
-  d.interfaceSettings.sessionFocusMode = localStorage.getItem(SESSION_FOCUS_MODE_KEY) || d.interfaceSettings.sessionFocusMode || "on";
-  d.interfaceSettings.quickLogAutoAdvance = localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || d.interfaceSettings.quickLogAutoAdvance || "on";
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -146,7 +111,7 @@ function migrateData(d) {
         startedAt: first.createdAt,
         endedAt: logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0].createdAt,
         logIds: logs.map(l => l.id),
-        plannedRoutineIds: [...new Set(logs.map(l => l.routineId).filter(Boolean))]
+    plannedRoutineIds: activeSession.plannedRoutineIds || activeSession.routineIds || []
       });
     }
   });
@@ -189,10 +154,6 @@ function loadData() {
 
 function saveData() {
   data.updatedAt = new Date().toISOString();
-  data.interfaceSettings = data.interfaceSettings || {};
-  data.interfaceSettings.themeMode = getThemeModeSetting();
-  data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
-  data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
   ensureTablesDatabase?.();
   const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(data), "saveData");
   if (ok) renderStorageWarning();
@@ -299,8 +260,8 @@ function renderAll() {
   renderTodayResumeCard();
   renderTableStats();
   renderPhaseOneInsights();
-  renderInterfaceSettings();
-  updateSessionFocusState();
+  renderInterfaceSettings?.();
+  updateSessionFocusState?.();
 }
 
 function renderRoutineSelects() {
@@ -608,7 +569,6 @@ function startRoutineScreen() {
   $("sessionSummary").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
   $("activeSession").classList.remove("hidden");
-  updateSessionFocusState();
   renderCurrentRoutine();
 }
 $("resetSessionBtn").addEventListener("click", () => {
@@ -618,9 +578,7 @@ $("resetSessionBtn").addEventListener("click", () => {
   resetTimerState();
   $("activeSession").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
-  updateSessionFocusState();
   $("sessionSummary").classList.add("hidden");
-  updateSessionFocusState();
 });
 function renderCurrentRoutine() {
   persistActiveSession();
@@ -645,8 +603,6 @@ function renderCurrentRoutine() {
   $("saveNextBtn").textContent = activeSession.type === "free" ? "Save Routine" : "Save & Next";
   $("skipBtn").classList.toggle("hidden", activeSession.type === "free");
   $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
-  updateSessionFocusState();
-  renderLivePerformanceCard(r);
 }
 function renderScoreInputs(r) {
   let html = "";
@@ -670,10 +626,7 @@ function renderScoreInputs(r) {
   setTimeout(() => $("scoreValue")?.focus(), 120);
   ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue"].forEach(id => {
     const el = $(id);
-    if (el) {
-      el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
-      el.addEventListener("input", () => renderLivePerformanceCard(r));
-    }
+    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
   });
 }
 
@@ -697,46 +650,23 @@ function renderQuickScoreControls(r) {
   const box = $("quickScoreControls");
   if (!box) return;
   box.classList.remove("hidden");
-  const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
   if (r.scoring === "success_rate") {
-    const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
-    const chips = Array.from({length: Math.min(attempts, 30) + 1}, (_, i) => i)
-      .map(i => `<button class="secondary score-chip" type="button" onclick="setScoreValue(${i}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">${i}</button>`)
-      .join("");
+    const attempts = Number(r.attempts || 10);
     box.innerHTML = `
-      <div class="quick-score-block">
-        <div class="quick-score-title">Made count</div>
-        <div class="score-chip-grid">${chips}</div>
-        ${attempts > 30 ? `<p class="muted">Large attempt count detected. Use the number field for scores above 30.</p>` : ""}
-        <div class="quick-score-row">
-          <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">0</button>
-          <button class="secondary" type="button" onclick="setScoreValue(${Math.floor(attempts/2)}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Half</button>
-          <button class="secondary" type="button" onclick="setScoreValue(${attempts}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Max</button>
-          <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
-          <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
-          <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
-        </div>
-        ${autoMacros ? `<div class="quick-score-row quick-log-row">
-          <button type="button" onclick="quickLogScore(0)">Log 0 & next</button>
-          <button type="button" onclick="quickLogScore(${Math.floor(attempts/2)})">Log half & next</button>
-          <button type="button" onclick="quickLogScore(${attempts})">Log max & next</button>
-        </div>` : ""}
-      </div>`;
+      <button class="secondary" onclick="setScoreValue(0)">0</button>
+      <button class="secondary" onclick="decrementScore()">-1</button>
+      <button class="secondary" onclick="incrementScore()">+1</button>
+      <button class="secondary" onclick="setScoreValue(${Math.floor(attempts/2)})">Half</button>
+      <button class="secondary" onclick="setScoreValue(${attempts})">Max</button>`;
   } else {
     box.innerHTML = `
-      <div class="quick-score-row">
-        <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
-        <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
-        <button class="secondary" type="button" onclick="adjustScore(5); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+5</button>
-        <button class="secondary" type="button" onclick="adjustScore(10); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+10</button>
-        <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Clear</button>
-        <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
-      </div>`;
+      <button class="secondary" onclick="decrementScore()">-1</button>
+      <button class="secondary" onclick="incrementScore()">+1</button>
+      <button class="secondary" onclick="adjustScore(5)">+5</button>
+      <button class="secondary" onclick="adjustScore(10)">+10</button>
+      <button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
   }
-}
-function quickLogScore(score) {
-  setScoreValue(score);
-  saveCurrentRoutine();
+  box.innerHTML += `<button class="secondary" onclick="fillSameAsLastTime()">Same as last</button>`;
 }
 function scoreNumber() { return Number($("scoreValue")?.value || 0); }
 function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; $("scoreValue").focus(); } }
@@ -844,7 +774,6 @@ function saveCurrentRoutine() {
     saveData();
     $("activeSession").classList.add("hidden");
     $("freeNextCard").classList.remove("hidden");
-    updateSessionFocusState();
   } else {
     activeSession.index += 1;
     persistActiveSession();
@@ -857,7 +786,6 @@ function completeSession() {
   stopTimer();
   $("activeSession").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
-  updateSessionFocusState?.();
   const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
   $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}${(l.tableId || l.venueTable) ? `<br><span class="venue-pill">${escapeHtml(getTableName(l))}</span>` : ""}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
@@ -885,11 +813,6 @@ function completeSession() {
   resetTimerState();
   activeSession = null;
   clearPersistedActiveSession();
-  updateSessionFocusState?.();
-  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  $("practice")?.classList.add("active");
-  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-  document.querySelector('.tab[data-tab="practice"]')?.classList.add("active");
   renderToday();
   openReflectionModal(completedSessionId);
   renderStats();
@@ -3354,7 +3277,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.7");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.21.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3648,181 +3571,11 @@ function applyStoredStatsModeVisual() {
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 
-/* v3.25.7 definitive interface settings: single source of truth for theme, focus, and quick-log settings. */
-function interfaceCleanTheme(value){ return ["system", "light", "dark", "contrast"].includes(value) ? value : "system"; }
-function interfaceCleanOnOff(value){ return value === "off" ? "off" : "on"; }
-function interfaceSafeGet(key){ try { return localStorage.getItem(key); } catch(e) { return null; } }
-function interfaceSafeSet(key, value){ try { localStorage.setItem(key, value); return true; } catch(e) { return false; } }
-function interfaceReadMain(){ try { return JSON.parse(interfaceSafeGet(STORAGE_KEY) || "{}"); } catch(e) { return {}; } }
-function interfaceWriteMain(obj){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); return true; } catch(e) { return false; } }
-function interfaceReadMainSetting(name, fallback){
-  const obj = interfaceReadMain();
-  return obj && obj.interfaceSettings && obj.interfaceSettings[name] ? obj.interfaceSettings[name] : fallback;
-}
-function interfaceWriteSetting(key, name, value){
-  const clean = name === "themeMode" ? interfaceCleanTheme(value) : interfaceCleanOnOff(value);
-  interfaceSafeSet(key, clean);
-  const obj = interfaceReadMain();
-  obj.interfaceSettings = obj.interfaceSettings || {};
-  obj.interfaceSettings[name] = clean;
-  obj.appVersion = APP_VERSION;
-  obj.updatedAt = new Date().toISOString();
-  interfaceWriteMain(obj);
-  if (typeof data === "object" && data) {
-    data.interfaceSettings = data.interfaceSettings || {};
-    data.interfaceSettings[name] = clean;
-    data.appVersion = APP_VERSION;
-  }
-  return clean;
-}
-function getThemeModeSetting(){ return interfaceCleanTheme(interfaceSafeGet(THEME_MODE_KEY) || interfaceReadMainSetting("themeMode", "system")); }
-function getSessionFocusSetting(){ return interfaceCleanOnOff(interfaceSafeGet(SESSION_FOCUS_MODE_KEY) || interfaceReadMainSetting("sessionFocusMode", "on")); }
-function getQuickLogAutoAdvanceSetting(){ return interfaceCleanOnOff(interfaceSafeGet(QUICK_LOG_AUTO_ADVANCE_KEY) || interfaceReadMainSetting("quickLogAutoAdvance", "on")); }
-function interfaceResolvedTheme(stored){
-  stored = interfaceCleanTheme(stored || getThemeModeSetting());
-  if (stored !== "system") return stored;
-  try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch(e) { return "light"; }
-}
-function applyThemeMode(){
-  const stored = getThemeModeSetting();
-  const actual = interfaceResolvedTheme(stored);
-  [document.documentElement, document.body].filter(Boolean).forEach(el => {
-    el.classList.remove("theme-system", "theme-light", "theme-dark", "theme-contrast");
-    el.classList.add("theme-" + stored);
-    el.setAttribute("data-theme-mode", stored);
-    el.setAttribute("data-theme", actual);
-  });
-  const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", actual === "contrast" ? "#000000" : actual === "dark" ? "#07110d" : "#102b22");
-  const sel = document.getElementById("themeModeSelect");
-  if (sel && sel.value !== stored) sel.value = stored;
-}
-function interfaceSetTheme(value){
-  const clean = interfaceWriteSetting(THEME_MODE_KEY, "themeMode", value);
-  applyThemeMode();
-  interfaceSyncControls();
-  return clean;
-}
-function interfaceIsActiveSessionVisible(){
-  const el = document.getElementById("activeSession");
-  return !!(el && !el.classList.contains("hidden") && typeof activeSession !== "undefined" && activeSession);
-}
-function interfaceEnsureFocusCurrent(){
-  if (!interfaceIsActiveSessionVisible()) { window.__snookerFocusCurrent = false; return; }
-  if (typeof window.__snookerFocusCurrent !== "boolean") window.__snookerFocusCurrent = getSessionFocusSetting() !== "off";
-}
-function updateSessionFocusState(){
-  interfaceEnsureFocusCurrent();
-  const on = !!(interfaceIsActiveSessionVisible() && window.__snookerFocusCurrent);
-  if (document.body) document.body.classList.toggle("session-focus-active", on);
-  const btn = document.getElementById("toggleFocusModeBtn");
-  if (btn) {
-    btn.textContent = on ? "Exit Focus Mode" : "Focus Mode";
-    btn.setAttribute("aria-pressed", on ? "true" : "false");
-  }
-}
-function toggleSessionFocusMode(){
-  if (!interfaceIsActiveSessionVisible()) return;
-  interfaceEnsureFocusCurrent();
-  window.__snookerFocusCurrent = !window.__snookerFocusCurrent;
-  updateSessionFocusState();
-}
-function interfaceSetFocusDefault(value){
-  const clean = interfaceWriteSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", value);
-  if (interfaceIsActiveSessionVisible()) window.__snookerFocusCurrent = clean !== "off";
-  updateSessionFocusState();
-  interfaceSyncControls();
-  return clean;
-}
-function interfaceSetQuick(value){
-  const clean = interfaceWriteSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", value);
-  interfaceSyncControls();
-  try { if (typeof activeSession !== "undefined" && activeSession && typeof renderCurrentRoutine === "function") renderCurrentRoutine(); } catch(e) {}
-  return clean;
-}
-function interfaceSyncControls(){
-  const theme = document.getElementById("themeModeSelect");
-  const focus = document.getElementById("sessionFocusModeSelect");
-  const quick = document.getElementById("quickLogAutoAdvanceSelect");
-  if (theme && theme.value !== getThemeModeSetting()) theme.value = getThemeModeSetting();
-  if (focus && focus.value !== getSessionFocusSetting()) focus.value = getSessionFocusSetting();
-  if (quick && quick.value !== getQuickLogAutoAdvanceSetting()) quick.value = getQuickLogAutoAdvanceSetting();
-}
-function renderInterfaceSettings(){
-  applyThemeMode();
-  interfaceSyncControls();
-  updateSessionFocusState();
-  const theme = document.getElementById("themeModeSelect");
-  const focus = document.getElementById("sessionFocusModeSelect");
-  const quick = document.getElementById("quickLogAutoAdvanceSelect");
-  if (theme) { theme.onchange = () => interfaceSetTheme(theme.value); theme.oninput = () => interfaceSetTheme(theme.value); }
-  if (focus) { focus.onchange = () => interfaceSetFocusDefault(focus.value); focus.oninput = () => interfaceSetFocusDefault(focus.value); }
-  if (quick) { quick.onchange = () => interfaceSetQuick(quick.value); quick.oninput = () => interfaceSetQuick(quick.value); }
-}
-window.SnookerInterface = {
-  readTheme:getThemeModeSetting,
-  setTheme:interfaceSetTheme,
-  applyTheme:applyThemeMode,
-  readFocusDefault:getSessionFocusSetting,
-  setFocusDefault:interfaceSetFocusDefault,
-  readQuick:getQuickLogAutoAdvanceSetting,
-  setQuick:interfaceSetQuick,
-  toggleFocus:toggleSessionFocusMode,
-  updateFocusUI:updateSessionFocusState,
-  syncControls:interfaceSyncControls,
-  bind:renderInterfaceSettings
-};
-document.addEventListener("click", function(e){
-  const btn = e.target && e.target.closest ? e.target.closest("#toggleFocusModeBtn") : null;
-  if (!btn) return;
-  e.preventDefault();
-  e.stopImmediatePropagation();
-  toggleSessionFocusMode();
-}, true);
-document.addEventListener("change", function(e){
-  if (!e.target) return;
-  if (e.target.id === "themeModeSelect") { e.stopImmediatePropagation(); interfaceSetTheme(e.target.value); }
-  if (e.target.id === "sessionFocusModeSelect") { e.stopImmediatePropagation(); interfaceSetFocusDefault(e.target.value); }
-  if (e.target.id === "quickLogAutoAdvanceSelect") { e.stopImmediatePropagation(); interfaceSetQuick(e.target.value); }
-}, true);
-document.addEventListener("input", function(e){
-  if (!e.target) return;
-  if (e.target.id === "themeModeSelect") { e.stopImmediatePropagation(); interfaceSetTheme(e.target.value); }
-  if (e.target.id === "sessionFocusModeSelect") { e.stopImmediatePropagation(); interfaceSetFocusDefault(e.target.value); }
-  if (e.target.id === "quickLogAutoAdvanceSelect") { e.stopImmediatePropagation(); interfaceSetQuick(e.target.value); }
-}, true);
-document.addEventListener("DOMContentLoaded", renderInterfaceSettings);
-setTimeout(renderInterfaceSettings, 0);
-setTimeout(renderInterfaceSettings, 250);
-try {
-  if (window.matchMedia) {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const fn = () => { if (getThemeModeSetting() === "system") applyThemeMode(); };
-    if (mq.addEventListener) mq.addEventListener("change", fn); else if (mq.addListener) mq.addListener(fn);
-  }
-} catch(e) {}
 
-function renderLivePerformanceCard(r){
-  const box = $("livePerformanceCard");
-  if (!box || !r) return;
-  const score = Number($("scoreValue")?.value || 0);
-  const attempts = Number($("attemptsValue")?.value || r.attempts || r.attemptsPerSession || 0);
-  const draftLog = {scoring:r.scoring, score, attempts, totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
-  const normalized = normalizeScore(draftLog);
-  const profile = getActiveTargetProfile(r);
-  const target = Number(profile?.target || r.target || 0);
-  const stretch = Number(profile?.stretchTarget || r.stretchTarget || 0);
-  const recent = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,3);
-  const status = target && normalized >= stretch && stretch ? "green" : target && normalized >= target ? "green" : target && normalized >= target * 0.75 ? "yellow" : target ? "red" : "neutral";
-  const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
-  box.innerHTML = `<div class="live-perf ${status}">
-    <div><strong>Live target check</strong><span>${statusText}</span></div>
-    <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
-    <div><span>Target</span><strong>${target || "N/A"}</strong></div>
-    <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
-    <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>
-  </div>`;
-}
+
+
+
+
 
 window.addEventListener("storage", e => {
   if (e.key === STORAGE_KEY) {
@@ -3843,3 +3596,195 @@ window.addEventListener("beforeunload", () => {
   } catch(e) {}
 });
 
+
+/* v3.25.8 robust interface settings and focus mode fix */
+function normalizeUiThemeMode(value) {
+  return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
+}
+function normalizeOnOff(value, fallback="off") {
+  return ["on", "off"].includes(value) ? value : fallback;
+}
+function getStoredUiSetting(key, fallback) {
+  try {
+    const direct = localStorage.getItem(key);
+    if (direct !== null && direct !== undefined && direct !== "") return direct;
+  } catch(e) {}
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const map = {
+        [UI_THEME_MODE_KEY]: "themeMode",
+        [UI_SESSION_FOCUS_SETTING_KEY]: "sessionFocusMode",
+        [UI_QUICK_LOG_AUTO_ADVANCE_KEY]: "quickLogAutoAdvance"
+      };
+      const v = parsed?.interfaceSettings?.[map[key]];
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+  } catch(e) {}
+  return fallback;
+}
+function persistUiSetting(key, value) {
+  try { localStorage.setItem(key, value); } catch(e) { logAppError?.(e, "persistUiSetting localStorage"); }
+  try {
+    data.interfaceSettings = data.interfaceSettings || {};
+    if (key === UI_THEME_MODE_KEY) data.interfaceSettings.themeMode = value;
+    if (key === UI_SESSION_FOCUS_SETTING_KEY) data.interfaceSettings.sessionFocusMode = value;
+    if (key === UI_QUICK_LOG_AUTO_ADVANCE_KEY) data.interfaceSettings.quickLogAutoAdvance = value;
+    safeStorageSet?.(STORAGE_KEY, JSON.stringify(data), "persistUiSetting data");
+  } catch(e) { logAppError?.(e, "persistUiSetting data"); }
+}
+function getUiThemeMode(){ return normalizeUiThemeMode(getStoredUiSetting(UI_THEME_MODE_KEY, "system")); }
+function getUiSessionFocusSetting(){ return normalizeOnOff(getStoredUiSetting(UI_SESSION_FOCUS_SETTING_KEY, "off"), "off"); }
+function getUiQuickLogSetting(){ return normalizeOnOff(getStoredUiSetting(UI_QUICK_LOG_AUTO_ADVANCE_KEY, "on"), "on"); }
+function applyInterfaceTheme(mode, persist=false) {
+  const clean = normalizeUiThemeMode(mode);
+  if (persist) persistUiSetting(UI_THEME_MODE_KEY, clean);
+  const root = document.documentElement;
+  const body = document.body;
+  [root, body].filter(Boolean).forEach(el => {
+    el.dataset.themeMode = clean;
+    el.classList.remove("theme-light", "theme-dark", "theme-contrast", "theme-system");
+    el.classList.add("theme-" + clean);
+    if (clean === "system") el.removeAttribute("data-theme");
+    else el.setAttribute("data-theme", clean);
+  });
+  const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    const darkSystem = clean === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    meta.setAttribute("content", clean === "contrast" ? "#000000" : (clean === "dark" || darkSystem ? "#07110d" : "#102b22"));
+  }
+  const sel = document.getElementById("themeModeSelect");
+  if (sel && sel.value !== clean) sel.value = clean;
+}
+function renderInterfaceSettings() {
+  const theme = document.getElementById("themeModeSelect");
+  if (theme) theme.value = getUiThemeMode();
+  const focus = document.getElementById("sessionFocusModeSelect");
+  if (focus) focus.value = getUiSessionFocusSetting();
+  const quick = document.getElementById("quickLogAutoAdvanceSelect");
+  if (quick) quick.value = getUiQuickLogSetting();
+  applyInterfaceTheme(getUiThemeMode(), false);
+}
+function setSessionFocusCurrent(on) {
+  try { localStorage.setItem(UI_SESSION_FOCUS_ACTIVE_KEY, on ? "on" : "off"); } catch(e) {}
+  updateSessionFocusState();
+}
+function updateSessionFocusState() {
+  const enabled = getUiSessionFocusSetting() === "on";
+  const current = localStorage.getItem(UI_SESSION_FOCUS_ACTIVE_KEY) === "on";
+  const active = !!(enabled && current && activeSession && document.getElementById("activeSession") && !document.getElementById("activeSession").classList.contains("hidden"));
+  document.body?.classList.toggle("session-focus-active", active);
+  const btn = document.getElementById("toggleFocusModeBtn");
+  if (btn) btn.textContent = active ? "Exit Focus Mode" : "Focus Mode";
+}
+function toggleSessionFocusMode() {
+  const isActive = document.body?.classList.contains("session-focus-active");
+  if (getUiSessionFocusSetting() !== "on") {
+    persistUiSetting(UI_SESSION_FOCUS_SETTING_KEY, "on");
+    const sel = document.getElementById("sessionFocusModeSelect");
+    if (sel) sel.value = "on";
+  }
+  setSessionFocusCurrent(!isActive);
+}
+function markFocusOptionalFields() {
+  const optionalIds = ["sessionIntervention", "sessionInterventionNote", "sessionTags", "practiceNotes"];
+  optionalIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("session-focus-optional");
+    const prev = el.previousElementSibling;
+    if (prev && prev.tagName === "LABEL") prev.classList.add("session-focus-optional");
+  });
+}
+function bindInterfaceSettingsOnce() {
+  if (window.__snookerInterfaceSettingsBound) return;
+  window.__snookerInterfaceSettingsBound = true;
+  document.addEventListener("change", e => {
+    if (!e.target) return;
+    if (e.target.id === "themeModeSelect") applyInterfaceTheme(e.target.value, true);
+    if (e.target.id === "sessionFocusModeSelect") {
+      const val = normalizeOnOff(e.target.value, "off");
+      persistUiSetting(UI_SESSION_FOCUS_SETTING_KEY, val);
+      if (val === "off") setSessionFocusCurrent(false);
+      else updateSessionFocusState();
+    }
+    if (e.target.id === "quickLogAutoAdvanceSelect") {
+      persistUiSetting(UI_QUICK_LOG_AUTO_ADVANCE_KEY, normalizeOnOff(e.target.value, "on"));
+      if (activeSession) {
+        const r = routineById(activeSession.routineIds[activeSession.index]);
+        if (r) renderQuickScoreControls(r);
+      }
+    }
+  });
+  document.addEventListener("click", e => {
+    if (e.target && e.target.id === "toggleFocusModeBtn") toggleSessionFocusMode();
+  });
+}
+function quickLogScore(score) {
+  setScoreValue(score);
+  saveCurrentRoutine();
+}
+
+// Override quick controls to support one-tap macros and respect the quick-log setting.
+const __originalRenderQuickScoreControls_v3258 = renderQuickScoreControls;
+renderQuickScoreControls = function(r) {
+  const box = document.getElementById("quickScoreControls");
+  if (!box) return;
+  box.classList.remove("hidden");
+  if (r && r.scoring === "success_rate") {
+    const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
+    const maxChip = Math.min(attempts, 30);
+    const chips = Array.from({length:maxChip+1}, (_,i)=>`<button class="secondary score-chip" type="button" onclick="setScoreValue(${i})">${i}</button>`).join("");
+    const macros = getUiQuickLogSetting() === "on" ? `<div class="quick-score-row quick-log-row"><button type="button" onclick="quickLogScore(0)">Log 0 & next</button><button type="button" onclick="quickLogScore(${Math.floor(attempts/2)})">Log half & next</button><button type="button" onclick="quickLogScore(${attempts})">Log max & next</button></div>` : "";
+    box.innerHTML = `<div class="quick-score-block"><div class="quick-score-title">Made count</div><div class="score-chip-grid">${chips}</div>${attempts>30?'<p class="muted">Use the number field for scores above 30.</p>':''}<div class="quick-score-row"><button class="secondary" type="button" onclick="setScoreValue(0)">0</button><button class="secondary" type="button" onclick="setScoreValue(${Math.floor(attempts/2)})">Half</button><button class="secondary" type="button" onclick="setScoreValue(${attempts})">Max</button><button class="secondary" type="button" onclick="decrementScore()">-1</button><button class="secondary" type="button" onclick="incrementScore()">+1</button><button class="secondary" type="button" onclick="fillSameAsLastTime()">Same as last</button></div>${macros}</div>`;
+  } else {
+    __originalRenderQuickScoreControls_v3258(r);
+  }
+};
+
+// Wrap session lifecycle so focus mode cannot leave the app blank.
+const __originalStartRoutineScreen_v3258 = startRoutineScreen;
+startRoutineScreen = function() {
+  __originalStartRoutineScreen_v3258();
+  markFocusOptionalFields();
+  if (getUiSessionFocusSetting() === "on") setSessionFocusCurrent(true);
+  else updateSessionFocusState();
+};
+const __originalRenderCurrentRoutine_v3258 = renderCurrentRoutine;
+renderCurrentRoutine = function() {
+  __originalRenderCurrentRoutine_v3258();
+  markFocusOptionalFields();
+  updateSessionFocusState();
+};
+const __originalCompleteSession_v3258 = completeSession;
+completeSession = function() {
+  setSessionFocusCurrent(false);
+  __originalCompleteSession_v3258();
+  setSessionFocusCurrent(false);
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.getElementById("practice")?.classList.add("active");
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector('.tab[data-tab="practice"]')?.classList.add("active");
+  document.getElementById("sessionSummary")?.classList.remove("hidden");
+};
+const __originalSaveData_v3258 = saveData;
+saveData = function() {
+  data.interfaceSettings = data.interfaceSettings || {};
+  data.interfaceSettings.themeMode = getUiThemeMode();
+  data.interfaceSettings.sessionFocusMode = getUiSessionFocusSetting();
+  data.interfaceSettings.quickLogAutoAdvance = getUiQuickLogSetting();
+  __originalSaveData_v3258();
+  applyInterfaceTheme(getUiThemeMode(), false);
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindInterfaceSettingsOnce();
+  renderInterfaceSettings();
+  markFocusOptionalFields();
+  updateSessionFocusState();
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyInterfaceTheme(getUiThemeMode(), false));
+  }
+});
+applyInterfaceTheme(getUiThemeMode(), false);

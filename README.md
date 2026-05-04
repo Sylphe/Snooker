@@ -1,18 +1,17 @@
-# Snooker Practice Log — v3.25.7
+# Snooker Practice Log — v3.25.8
 
-Built from the v3.25 working set.
+Built from the uploaded working set and patched directly.
 
 ## Fixed
 
-- Interface settings now save directly to localStorage and to the main app data object.
-- Theme selection is applied immediately to both `html` and `body`.
-- Light / dark / high contrast switching is controlled by a single final settings layer.
-- Exit Focus Mode now toggles the current active session display directly, instead of only changing the default setting.
-- Dark/high-contrast coverage reinforced for nested boxes, analytics panels, SVG charts and post-session reflection.
-- Service worker uses network-first loading for app files to reduce stale cached CSS/JS issues.
+- Interface settings are now present in the Data tab.
+- Theme selection persists in `localStorage` and in `data.interfaceSettings`.
+- Theme is applied to both `html` and `body` using `data-theme` and `data-theme-mode`.
+- Dark and high-contrast styling covers cards, nested boxes, phase cards, diagnostic/second-order analytics, SVG charts, modals, badges, tables, and post-session reflection.
+- Focus Mode button can enter and exit the current active session reliably.
+- Session completion clears focus mode to avoid blank screens.
+- Success-rate drills support score chips and optional one-tap quick-log macros.
 
-## Package
+## Deployment note
 
-Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
-
-Confirm version: the header should show v3.25.7.
+After uploading to GitHub, hard refresh once or clear the installed PWA cache if the old service worker is still serving cached files.
