@@ -3,29 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.25.8</title>
+  <title>Snooker Practice Log v3.25.6</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
-  
+
   <script>
     (function(){
       try {
-        var mode = localStorage.getItem("snookerPracticePWA.themeMode") || "system";
-        var root = document.documentElement;
-        root.setAttribute("data-theme-mode", mode);
-        if (["light","dark","contrast"].indexOf(mode) >= 0) root.setAttribute("data-theme", mode);
-        else root.removeAttribute("data-theme");
+        var key = "snookerPracticePWA.themeMode";
+        var mode = localStorage.getItem(key);
+        if (!mode) {
+          var raw = localStorage.getItem("snookerPracticePWA.v3");
+          if (raw) mode = (JSON.parse(raw).interfaceSettings || {}).themeMode;
+        }
+        if (["system","light","dark","contrast"].indexOf(mode) < 0) mode = "system";
+        var actual = mode === "system" ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light") : mode;
+        document.documentElement.setAttribute("data-theme-mode", mode);
+        document.documentElement.setAttribute("data-theme", actual);
+        document.documentElement.classList.add("theme-" + mode);
+        window.__snookerEarlyThemeMode = mode;
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=3.25.8" />
-  <link rel="stylesheet" href="styles.css?v=3.25.8" />
-  <link rel="icon" href="icon.svg?v=3.25.8" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.25.6" />
+  <link rel="stylesheet" href="styles.css?v=3.25.6" />
+  <link rel="icon" href="icon.svg?v=3.25.6" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.25.8 — robust interface settings, theme persistence, and focus mode fixes.</p>
+      <p>v3.25.6 — dark/high-contrast mode, focus session mode, faster one-tap score entry.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -200,13 +207,16 @@
           <button id="timerStartBtn" class="secondary">Start timer</button>
           <button id="timerPauseBtn" class="secondary">Pause</button>
           <button id="timerResetBtn" class="secondary">Reset timer</button>
-          <button id="toggleFocusModeBtn" class="secondary" type="button">Focus Mode</button>
+          <button id="toggleFocusModeBtn" class="secondary" type="button" onclick="window.SnookerInterface&&window.SnookerInterface.toggleFocus();return false;">Focus Mode</button>
         </div>
 
         <div id="scoreInputs" class="score-grid"></div>
 
+        <div id="livePerformanceCard" class="live-performance-card"></div>
+
         <div id="quickScoreControls" class="quick-score hidden"></div>
 
+        <div id="sessionExtraFields" class="session-extra-fields">
         <label>Training venue / table</label>
         <select id="sessionVenueTable">
           <option value="">Not specified</option>
@@ -217,7 +227,8 @@
           <option value="Club table 4">Club table 4</option>
           <option value="Other">Other / custom</option>
         </select>
-<label>Training intervention</label>
+<div class="session-focus-optional">
+        <label>Training intervention</label>
         <select id="sessionIntervention">
           <option value="">None</option>
           <option value="new_cue">New cue</option>
@@ -231,6 +242,7 @@
         </select>
         <label>Intervention note</label>
         <input id="sessionInterventionNote" placeholder="Optional: what changed?" />
+        </div>
 
         <label>Session quality rating (1–5)</label>
         <select id="sessionRating">
@@ -242,12 +254,16 @@
           <option value="5">5 - Excellent</option>
         </select>
 
+        <div class="session-focus-optional">
         <label>Session tags</label>
         <input id="sessionTags" list="tagSuggestions" placeholder="e.g. focused, fatigue, bad_table, good_rhythm" />
         <datalist id="tagSuggestions"></datalist>
 
         <label>Notes</label>
         <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
+        </div>
+
+        </div>
 
         <div class="row sticky-log-actions primary-action-row">
           <button id="saveNextBtn">Save</button>
@@ -683,14 +699,13 @@
         </div>
       </div>
 
-
-      <div class="card" id="interfaceSettingsCard">
+      <div class="card">
         <h2>Interface settings</h2>
-        <p class="muted">These settings are saved directly in this browser and applied immediately.</p>
+        <p class="muted">Use these settings to reduce friction during practice and adapt the app to low-light club conditions.</p>
         <div class="grid three">
           <div>
             <label>Theme</label>
-            <select id="themeModeSelect">
+            <select id="themeModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)">
               <option value="system">System default</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
@@ -698,21 +713,20 @@
             </select>
           </div>
           <div>
-            <label>Focus mode during sessions</label>
-            <select id="sessionFocusModeSelect">
-              <option value="off">Off</option>
+            <label>Full-screen session mode</label>
+            <select id="sessionFocusModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)">
               <option value="on">On</option>
+              <option value="off">Off</option>
             </select>
           </div>
           <div>
-            <label>Quick-log macros</label>
-            <select id="quickLogAutoAdvanceSelect">
-              <option value="on">On</option>
-              <option value="off">Off</option>
+            <label>One-tap quick-log buttons</label>
+            <select id="quickLogAutoAdvanceSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)">
+              <option value="on">Show auto-save macros</option>
+              <option value="off">Manual save only</option>
             </select>
           </div>
         </div>
-        <div class="analytics-note">If the old GitHub app is still cached, install this version and refresh once after deployment. This build uses direct localStorage persistence for the interface controls.</div>
       </div>
 
       <div class="card danger-zone">
@@ -777,6 +791,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.25.8"></script>
+  <script src="app.js?v=3.25.6"></script>
 </body>
 </html>

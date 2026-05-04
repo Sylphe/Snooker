@@ -1,10 +1,10 @@
-const CACHE_NAME = "snooker-practice-log-v3-25-8-final";
+const CACHE_NAME = "snooker-practice-log-v3-25-6-final";
 const ASSETS = [
-  "./index.html?v=3.25.8",
-  "./styles.css?v=3.25.8",
-  "./app.js?v=3.25.8",
-  "./manifest.json?v=3.25.8",
-  "./icon.svg?v=3.25.8"
+  "./index.html?v=3.25.6",
+  "./styles.css?v=3.25.6",
+  "./app.js?v=3.25.6",
+  "./manifest.json?v=3.25.6",
+  "./icon.svg?v=3.25.6"
 ];
 
 self.addEventListener("install", event => {
@@ -21,9 +21,17 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
-  if (event.request.mode === "navigate" || /(?:index\.html|app\.js|styles\.css|manifest\.json)/.test(event.request.url)) {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  const isAppFile = ["index.html", "app.js", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+  if (isAppFile) {
+    event.respondWith(fetch(request).then(response => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      return response;
+    }).catch(() => caches.match(request)));
     return;
   }
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
 });
