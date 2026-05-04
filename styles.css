@@ -651,7 +651,7 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
   }
 }
 
-/* v3.25.6 final hard theme coverage */
+/* v3.25.7 final hard theme coverage */
 :root[data-theme="dark"], :root.theme-dark {
   color-scheme: dark;
   --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
@@ -852,7 +852,7 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
 :root[data-theme="contrast"] .tabs,
 :root[data-theme="contrast"] .tab { background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important; }
 
-/* v3.25.6 definitive theme patch: body attribute + aggressive component coverage */
+/* v3.25.7 definitive theme patch: body attribute + aggressive component coverage */
 html[data-theme="dark"], body[data-theme="dark"], body.theme-dark {
   color-scheme: dark;
   --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
@@ -931,7 +931,7 @@ body[data-theme="dark"] .chart-bar, body[data-theme="contrast"] .chart-bar { fil
 body[data-theme="dark"] .chart-bar-alt, body[data-theme="contrast"] .chart-bar-alt { fill:var(--gold)!important; }
 
 
-/* v3.25.6 final theme coverage */
+/* v3.25.7 final theme coverage */
 html[data-theme="dark"], body[data-theme="dark"]{
   color-scheme:dark; --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236; --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b; --shadow:0 8px 24px rgba(0,0,0,.35);
 }
@@ -952,3 +952,94 @@ body[data-theme="dark"] :is(.muted,label,.item p,.timer-sub,.adaptive-rationale,
 body[data-theme="dark"] .secondary, body[data-theme="contrast"] .secondary{background:transparent!important;color:var(--text)!important;border-color:var(--line)!important;}
 body[data-theme="dark"] svg text, body[data-theme="contrast"] svg text{fill:var(--muted)!important;}
 body[data-theme="dark"] .chart-grid{stroke:#294236!important;} body[data-theme="contrast"] .chart-grid{stroke:#fff!important;opacity:.35;} body[data-theme="dark"] .chart-axis, body[data-theme="contrast"] .chart-axis{stroke:var(--line)!important;} body[data-theme="dark"] .chart-line, body[data-theme="contrast"] .chart-line{stroke:var(--felt)!important;} body[data-theme="dark"] .chart-bar, body[data-theme="contrast"] .chart-bar{fill:var(--felt)!important;} body[data-theme="dark"] .chart-bar-alt, body[data-theme="contrast"] .chart-bar-alt{fill:var(--gold)!important;}
+
+
+/* v3.25.7 definitive theme coverage: theme is set on both html and body. */
+html[data-theme="dark"], body[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
+  --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+html[data-theme="contrast"], body[data-theme="contrast"]{
+  color-scheme:dark;
+  --bg:#000; --card:#050505; --text:#fff; --muted:#e8e8e8; --line:#fff;
+  --primary:#fff; --primary-2:#f2f2f2; --felt:#00ff9a; --gold:#ffe600; --danger:#ff4d4d;
+  --shadow:none;
+}
+html[data-theme="light"], body[data-theme="light"]{color-scheme:light;}
+body[data-theme="dark"], body[data-theme="contrast"]{background:var(--bg)!important;color:var(--text)!important;}
+html[data-theme="dark"] .card, html[data-theme="dark"] .card.nested, html[data-theme="dark"] .item,
+html[data-theme="dark"] .folder-group, html[data-theme="dark"] .folder-header, html[data-theme="dark"] .subfolder-header,
+html[data-theme="dark"] .analytics-note, html[data-theme="dark"] .warning-note, html[data-theme="dark"] .chart-wrap,
+html[data-theme="dark"] .coaching-box, html[data-theme="dark"] .insight, html[data-theme="dark"] .overview-card,
+html[data-theme="dark"] .diagnostic-card, html[data-theme="dark"] .training-block, html[data-theme="dark"] .difficulty-note,
+html[data-theme="dark"] .modal-card, html[data-theme="dark"] .modal-body .example, html[data-theme="dark"] .log-edit,
+html[data-theme="dark"] .target-version-note, html[data-theme="dark"] .target-profile-badge, html[data-theme="dark"] .load-card,
+html[data-theme="dark"] .review-box, html[data-theme="dark"] .psi-card, html[data-theme="dark"] .ladder-action,
+html[data-theme="dark"] .target-upgrade, html[data-theme="dark"] .planned-box, html[data-theme="dark"] .table-stats,
+html[data-theme="dark"] .intervention-card, html[data-theme="dark"] .venue-pill, html[data-theme="dark"] .adaptive-phase,
+html[data-theme="dark"] .adaptive-pill, html[data-theme="dark"] .phase-card, html[data-theme="dark"] .phase-pill,
+html[data-theme="dark"] .insight-card, html[data-theme="dark"] .history-card, html[data-theme="dark"] .history-card-spark,
+html[data-theme="dark"] .orchestrator-box, html[data-theme="dark"] .live-perf, html[data-theme="dark"] .table-db-row,
+html[data-theme="dark"] .backup-banner, html[data-theme="dark"] .description-box, html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .trend, html[data-theme="dark"] .colour-badge, html[data-theme="dark"] .help-rich .example,
+body[data-theme="dark"] .card, body[data-theme="dark"] .card.nested, body[data-theme="dark"] .item,
+body[data-theme="dark"] .folder-group, body[data-theme="dark"] .folder-header, body[data-theme="dark"] .subfolder-header,
+body[data-theme="dark"] .analytics-note, body[data-theme="dark"] .warning-note, body[data-theme="dark"] .chart-wrap,
+body[data-theme="dark"] .coaching-box, body[data-theme="dark"] .insight, body[data-theme="dark"] .overview-card,
+body[data-theme="dark"] .diagnostic-card, body[data-theme="dark"] .training-block, body[data-theme="dark"] .difficulty-note,
+body[data-theme="dark"] .modal-card, body[data-theme="dark"] .modal-body .example, body[data-theme="dark"] .log-edit,
+body[data-theme="dark"] .target-version-note, body[data-theme="dark"] .target-profile-badge, body[data-theme="dark"] .load-card,
+body[data-theme="dark"] .review-box, body[data-theme="dark"] .psi-card, body[data-theme="dark"] .ladder-action,
+body[data-theme="dark"] .target-upgrade, body[data-theme="dark"] .planned-box, body[data-theme="dark"] .table-stats,
+body[data-theme="dark"] .intervention-card, body[data-theme="dark"] .venue-pill, body[data-theme="dark"] .adaptive-phase,
+body[data-theme="dark"] .adaptive-pill, body[data-theme="dark"] .phase-card, body[data-theme="dark"] .phase-pill,
+body[data-theme="dark"] .insight-card, body[data-theme="dark"] .history-card, body[data-theme="dark"] .history-card-spark,
+body[data-theme="dark"] .orchestrator-box, body[data-theme="dark"] .live-perf, body[data-theme="dark"] .table-db-row,
+body[data-theme="dark"] .backup-banner, body[data-theme="dark"] .description-box, body[data-theme="dark"] .stat-card,
+body[data-theme="dark"] .trend, body[data-theme="dark"] .colour-badge, body[data-theme="dark"] .help-rich .example{
+  background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important;
+}
+html[data-theme="contrast"] .card, html[data-theme="contrast"] .card.nested, html[data-theme="contrast"] .item,
+html[data-theme="contrast"] .analytics-note, html[data-theme="contrast"] .warning-note, html[data-theme="contrast"] .chart-wrap,
+html[data-theme="contrast"] .coaching-box, html[data-theme="contrast"] .insight, html[data-theme="contrast"] .overview-card,
+html[data-theme="contrast"] .diagnostic-card, html[data-theme="contrast"] .training-block, html[data-theme="contrast"] .modal-card,
+html[data-theme="contrast"] .load-card, html[data-theme="contrast"] .review-box, html[data-theme="contrast"] .psi-card,
+html[data-theme="contrast"] .adaptive-phase, html[data-theme="contrast"] .phase-card, html[data-theme="contrast"] .insight-card,
+body[data-theme="contrast"] .card, body[data-theme="contrast"] .card.nested, body[data-theme="contrast"] .item,
+body[data-theme="contrast"] .analytics-note, body[data-theme="contrast"] .warning-note, body[data-theme="contrast"] .chart-wrap,
+body[data-theme="contrast"] .coaching-box, body[data-theme="contrast"] .insight, body[data-theme="contrast"] .overview-card,
+body[data-theme="contrast"] .diagnostic-card, body[data-theme="contrast"] .training-block, body[data-theme="contrast"] .modal-card,
+body[data-theme="contrast"] .load-card, body[data-theme="contrast"] .review-box, body[data-theme="contrast"] .psi-card,
+body[data-theme="contrast"] .adaptive-phase, body[data-theme="contrast"] .phase-card, body[data-theme="contrast"] .insight-card{
+  background:#050505!important;color:#fff!important;border-color:#fff!important;
+}
+html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea,
+body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] textarea{
+  background:#0a1510!important;color:var(--text)!important;border-color:var(--line)!important;
+}
+html[data-theme="contrast"] input, html[data-theme="contrast"] select, html[data-theme="contrast"] textarea,
+body[data-theme="contrast"] input, body[data-theme="contrast"] select, body[data-theme="contrast"] textarea{
+  background:#000!important;color:#fff!important;border-color:#fff!important;
+}
+html[data-theme="dark"] .badge, html[data-theme="dark"] .stat-help, html[data-theme="dark"] .help-dot,
+body[data-theme="dark"] .badge, body[data-theme="dark"] .stat-help, body[data-theme="dark"] .help-dot{
+  background:#10251c!important;color:var(--text)!important;border:1px solid var(--line)!important;
+}
+html[data-theme="contrast"] .badge, html[data-theme="contrast"] .stat-help, html[data-theme="contrast"] .help-dot,
+body[data-theme="contrast"] .badge, body[data-theme="contrast"] .stat-help, body[data-theme="contrast"] .help-dot{
+  background:#000!important;color:#fff!important;border:1px solid #fff!important;
+}
+html[data-theme="dark"] .tabs, html[data-theme="dark"] .tab, body[data-theme="dark"] .tabs, body[data-theme="dark"] .tab,
+html[data-theme="contrast"] .tabs, html[data-theme="contrast"] .tab, body[data-theme="contrast"] .tabs, body[data-theme="contrast"] .tab{
+  background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important;
+}
+html[data-theme="dark"] .chart-label, body[data-theme="dark"] .chart-label{fill:var(--muted)!important;color:var(--muted)!important;}
+html[data-theme="dark"] .chart-grid, body[data-theme="dark"] .chart-grid{stroke:#294236!important;}
+html[data-theme="dark"] .chart-axis, body[data-theme="dark"] .chart-axis{stroke:#537161!important;}
+html[data-theme="contrast"] .chart-label, body[data-theme="contrast"] .chart-label{fill:#fff!important;color:#fff!important;}
+html[data-theme="contrast"] .chart-grid, html[data-theme="contrast"] .chart-axis,
+body[data-theme="contrast"] .chart-grid, body[data-theme="contrast"] .chart-axis{stroke:#fff!important;}
+html[data-theme="dark"] .secondary, body[data-theme="dark"] .secondary{background:#10251c!important;color:var(--text)!important;border-color:var(--line)!important;}
+html[data-theme="contrast"] .secondary, body[data-theme="contrast"] .secondary{background:#000!important;color:#fff!important;border:1px solid #fff!important;}
