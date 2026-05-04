@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.0.1";
+import { APP_VERSION } from "./version.js?v=4.1.0";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -635,9 +635,9 @@ function renderRoutineItem(r) {
     ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
-      <button class="secondary" onclick="editRoutine(${jsArg(r.id)})">Edit</button>
-      <button class="secondary" onclick="duplicateRoutine(${jsArg(r.id)})">Duplicate</button>
-      <button class="danger" onclick="deleteRoutine(${jsArg(r.id)})">Delete</button>
+      <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
+      <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
+      <button class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
     </div>
   </div>`;
 }
@@ -784,9 +784,9 @@ function renderPlanBuilder() {
       <strong>${i + 1}. ${escapeHtml(r?.name || "Missing exercise")}</strong>
       <p>${escapeHtml(r?.folder || "Unfiled")} / ${escapeHtml(r?.subfolder || "General")} · ${escapeHtml(r?.category || "uncategorized")}</p>
       <div class="small-actions">
-        <button class="secondary" onclick="movePlanRoutine(${i}, -1)">Up</button>
-        <button class="secondary" onclick="movePlanRoutine(${i}, 1)">Down</button>
-        <button class="danger" onclick="removePlanRoutine(${i})">Remove</button>
+        <button class="secondary" data-action="move-plan-routine" data-index="${i}" data-direction="-1">Up</button>
+        <button class="secondary" data-action="move-plan-routine" data-index="${i}" data-direction="1">Down</button>
+        <button class="danger" data-action="remove-plan-routine" data-index="${i}">Remove</button>
       </div>
     </div>`;
   }).join("") || "<p>No routines added to this plan yet.</p>";
@@ -830,8 +830,8 @@ function renderPlanList() {
       <div class="item-title"><strong>${escapeHtml(p.name)}</strong><span class="badge">${p.routineIds.length} exercises</span></div>
       <p>${names.map(escapeHtml).join(" → ")}</p>
       <div class="small-actions">
-        <button class="secondary" onclick="loadPlanToBuilder(${jsArg(p.id)})">Load / duplicate</button>
-        <button class="danger" onclick="deletePlan(${jsArg(p.id)})">Delete</button>
+        <button class="secondary" data-action="load-plan" data-id="${attrText(p.id)}">Load / duplicate</button>
+        <button class="danger" data-action="delete-plan" data-id="${attrText(p.id)}">Delete</button>
       </div>
     </div>`;
   }).join("") || "<p>No daily plans saved yet.</p>";
@@ -978,7 +978,7 @@ function renderQuickScoreControls(r) {
   if (r.scoring === "success_rate") {
     const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
     const chips = Array.from({length: Math.min(attempts, 30) + 1}, (_, i) => i)
-      .map(i => `<button class="secondary score-chip" type="button" onclick="setScoreValue(${i}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">${i}</button>`)
+      .map(i => `<button class="secondary score-chip" type="button" data-action="score-set" data-score="${i}">${i}</button>`)
       .join("");
     box.innerHTML = `
       <div class="quick-score-block">
@@ -986,28 +986,28 @@ function renderQuickScoreControls(r) {
         <div class="score-chip-grid">${chips}</div>
         ${attempts > 30 ? `<p class="muted">Large attempt count detected. Use the number field for scores above 30.</p>` : ""}
         <div class="quick-score-row">
-          <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">0</button>
-          <button class="secondary" type="button" onclick="setScoreValue(${Math.floor(attempts/2)}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Half</button>
-          <button class="secondary" type="button" onclick="setScoreValue(${attempts}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Max</button>
-          <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
-          <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
-          <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="0">0</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="${Math.floor(attempts/2)}">Half</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="${attempts}">Max</button>
+          <button class="secondary" type="button" data-action="score-adjust" data-delta="-1">-1</button>
+          <button class="secondary" type="button" data-action="score-adjust" data-delta="1">+1</button>
+          <button class="secondary" type="button" data-action="same-as-last">Same as last</button>
         </div>
         ${autoMacros ? `<div class="quick-score-row quick-log-row">
-          <button type="button" onclick="quickLogScore(0)">Log 0 & next</button>
-          <button type="button" onclick="quickLogScore(${Math.floor(attempts/2)})">Log half & next</button>
-          <button type="button" onclick="quickLogScore(${attempts})">Log max & next</button>
+          <button type="button" data-action="quick-log" data-score="0">Log 0 & next</button>
+          <button type="button" data-action="quick-log" data-score="${Math.floor(attempts/2)}">Log half & next</button>
+          <button type="button" data-action="quick-log" data-score="${attempts}">Log max & next</button>
         </div>` : ""}
       </div>`;
   } else {
     box.innerHTML = `
       <div class="quick-score-row">
-        <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
-        <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
-        <button class="secondary" type="button" onclick="adjustScore(5); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+5</button>
-        <button class="secondary" type="button" onclick="adjustScore(10); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+10</button>
-        <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Clear</button>
-        <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="-1">-1</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="1">+1</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="5">+5</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="10">+10</button>
+        <button class="secondary" type="button" data-action="score-set" data-score="0">Clear</button>
+        <button class="secondary" type="button" data-action="same-as-last">Same as last</button>
       </div>`;
   }
 }
@@ -1575,7 +1575,7 @@ function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameI
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
 function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
 function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
-function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${htmlText(t.name)}</strong><div class="meta">${htmlText(t.type||"No type")} · ${htmlText(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>htmlText(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" onclick="editTableDefinition(${jsArg(t.id)})">Edit</button><button class="secondary" onclick="deleteTableDefinition(${jsArg(t.id)})">Delete</button></div></div>`).join(""); }
+function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${htmlText(t.name)}</strong><div class="meta">${htmlText(t.type||"No type")} · ${htmlText(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>htmlText(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" data-action="edit-table" data-id="${attrText(t.id)}">Edit</button><button class="secondary" data-action="delete-table" data-id="${attrText(t.id)}">Delete</button></div></div>`).join(""); }
 function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${htmlText(measures)}</p><p><strong>How calculated:</strong> ${htmlText(calc)}</p><p><strong>How to interpret:</strong> ${htmlText(interpret)}</p><div class="example"><strong>Typical use:</strong> ${htmlText(use)}</div></div>`; }
 
 
@@ -2262,8 +2262,8 @@ function renderSwipeableHistoryCards(logs) {
           </div>
           <div class="history-card-spark">${miniSparkline(values)}</div>
           <div class="small-actions">
-            <button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button>
-            <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button>
+            <button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button>
+            <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button>
           </div>
         </div>`;
       }).join("")}
@@ -2829,14 +2829,14 @@ function renderLogRow(l) {
     <td>${escapeHtml(l.performance || "N/A")}</td>
     <td>${escapeHtml(getTargetProfileLabel(l))}</td>
     <td>${formatDurationHuman(l.timeMinutes)}</td>
-    <td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td>
+    <td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td>
   </tr>`;
 }
 function renderDateLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
 }
 function renderSessionLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
 }
 function renderEditLogForm(l) {
   return `<div class="log-edit" data-log-edit-id="${attrText(l.id)}">
@@ -3465,7 +3465,7 @@ function renderBackupReminder() {
   const days = daysSinceIso(last);
   if (days >= 30 && (data.logs || []).length) {
     el.classList.remove("hidden");
-    el.innerHTML = `Backup reminder: you have not exported a JSON backup ${Number.isFinite(days) ? "in "+days+" days" : "yet"}. <button class="secondary" onclick="document.querySelector('[data-tab=&quot;data&quot;]').click()">Go to Data</button>`;
+    el.innerHTML = `Backup reminder: you have not exported a JSON backup ${Number.isFinite(days) ? "in "+days+" days" : "yet"}. <button class="secondary" data-action="open-data-tab">Go to Data</button>`;
   } else {
     el.classList.add("hidden");
     el.innerHTML = "";
@@ -4068,7 +4068,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.0.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.1.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4111,7 +4111,7 @@ function renderTodayResumeCard() {
 }
 
 
-function statHelpButton(key){return `<button type="button" class="stat-help" onclick="showFieldHelp('${key}')">?</button>`;}
+function statHelpButton(key){return `<button type="button" class="stat-help" data-action="field-help" data-help-key="${attrText(key)}">?</button>`;}
 function getRoutinePriorityReasons(item){
   const r=item.routine,s=item.stats,reasons=[];
   if(s.hit!==null&&s.hit<55) reasons.push("low target hit rate");
@@ -4154,7 +4154,7 @@ function targetUpgradeSuggestionForRoutine(routineId){
 }
 function renderTargetUpgradeButton(routineId){
   const sug=targetUpgradeSuggestionForRoutine(routineId); if(!sug) return "";
-  return `<div class="target-upgrade"><strong>Target upgrade suggested</strong><br><span class="muted">${escapeHtml(sug.reason)}</span><div class="upgrade-row"><div><label>New target</label><input id="upgrade-target-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedTarget)}"></div><div><label>New stretch</label><input id="upgrade-stretch-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedStretch)}"></div><button class="secondary" onclick="applyTargetUpgrade(${jsArg(sug.routine.id)})">Apply as new target version</button></div></div>`;
+  return `<div class="target-upgrade"><strong>Target upgrade suggested</strong><br><span class="muted">${escapeHtml(sug.reason)}</span><div class="upgrade-row"><div><label>New target</label><input id="upgrade-target-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedTarget)}"></div><div><label>New stretch</label><input id="upgrade-stretch-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedStretch)}"></div><button class="secondary" data-action="apply-target-upgrade" data-id="${attrText(sug.routine.id)}">Apply as new target version</button></div></div>`;
 }
 function applyTargetUpgrade(routineId){
   const r=routineById(routineId); if(!r) return;
@@ -4338,9 +4338,9 @@ function loadGeneratedPlan(){
 
 document.addEventListener("DOMContentLoaded",()=>{
   const btn = document.getElementById("generateSessionBtn");
-  if(btn) btn.onclick=generateNextSession;
+  if(btn) btn.addEventListener("click", generateNextSession);
   const loadBtn = document.getElementById("loadGeneratedPlanBtn");
-  if(loadBtn) loadBtn.onclick=loadGeneratedPlan;
+  if(loadBtn) loadBtn.addEventListener("click", loadGeneratedPlan);
 });
 
 
@@ -4487,6 +4487,58 @@ function bindInterfaceSettings(){
   } catch(e) {}
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindInterfaceSettings); else bindInterfaceSettings();
+
+
+function refreshCurrentRoutineLivePerformance() {
+  const r = activeSession ? routineById(activeSession.routineIds?.[activeSession.index]) : null;
+  if (r) renderLivePerformanceCard(r);
+}
+
+function handleDelegatedUIAction(event) {
+  const actionEl = event.target.closest?.("[data-action]");
+  if (!actionEl) return;
+  const action = actionEl.dataset.action;
+  if (!action) return;
+  if (action === "modal-backdrop-close" && event.target !== actionEl) return;
+  event.preventDefault();
+  const id = actionEl.dataset.id || "";
+  switch (action) {
+    case "field-help": return showFieldHelp(actionEl.dataset.helpKey || "");
+    case "hide-field-help": return hideFieldHelp();
+    case "skip-reflection": return skipReflection();
+    case "save-reflection": return saveReflection();
+    case "close-log-edit": return closeLogEditModal();
+    case "save-log-edit": return saveEditedLogFromModal();
+    case "modal-backdrop-close": {
+      const modalId = actionEl.dataset.modal;
+      if (modalId === "fieldHelpModal") return hideFieldHelp();
+      if (modalId === "reflectionModal") return skipReflection();
+      if (modalId === "logEditModal") return closeLogEditModal();
+      return;
+    }
+    case "toggle-focus": return window.SnookerInterface?.toggleFocus?.();
+    case "edit-routine": return editRoutine(id);
+    case "duplicate-routine": return duplicateRoutine(id);
+    case "delete-routine": return deleteRoutine(id);
+    case "move-plan-routine": return movePlanRoutine(Number(actionEl.dataset.index || 0), Number(actionEl.dataset.direction || 0));
+    case "remove-plan-routine": return removePlanRoutine(Number(actionEl.dataset.index || 0));
+    case "load-plan": return loadPlanToBuilder(id);
+    case "delete-plan": return deletePlan(id);
+    case "edit-table": return editTableDefinition(id);
+    case "delete-table": return deleteTableDefinition(id);
+    case "open-log-edit": return openLogEditModal(id);
+    case "delete-log": return deleteLog(id);
+    case "score-set": setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
+    case "score-adjust": adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
+    case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
+    case "open-data-tab": return document.querySelector('[data-tab="data"]')?.click();
+    case "apply-target-upgrade": return applyTargetUpgrade(id);
+  }
+}
+
+document.addEventListener("click", handleDelegatedUIAction);
+
 window.SnookerInterface = {
   readTheme:getThemeModeSetting, setTheme:function(v){ const c=interfaceWriteSetting(THEME_MODE_KEY,"themeMode",v); applyThemeMode(c); renderInterfaceSettings(); return c; }, applyTheme:applyThemeMode,
   readFocusDefault:getSessionFocusSetting, setFocusDefault:function(v){ const c=interfaceWriteSetting(SESSION_FOCUS_MODE_KEY,"sessionFocusMode",v); renderInterfaceSettings(); updateSessionFocusState(); return c; },
@@ -4549,325 +4601,17 @@ try { window.addEventListener("beforeunload", syncTimerStateToActiveSession); } 
    The application now runs as an ES module. Existing generated markup still uses
    inline event handlers, so explicitly expose the legacy UI API on window. */
 function exposeV4LegacyGlobals() {
-  const api = {
-  "$": typeof $ !== "undefined" ? $ : undefined,
-  "activeRoutines": typeof activeRoutines !== "undefined" ? activeRoutines : undefined,
-  "adaptiveActionForState": typeof adaptiveActionForState !== "undefined" ? adaptiveActionForState : undefined,
-  "adaptivePriorityScore": typeof adaptivePriorityScore !== "undefined" ? adaptivePriorityScore : undefined,
-  "adaptiveRoutineState": typeof adaptiveRoutineState !== "undefined" ? adaptiveRoutineState : undefined,
-  "adaptiveSessionStructure": typeof adaptiveSessionStructure !== "undefined" ? adaptiveSessionStructure : undefined,
-  "adjustScore": typeof adjustScore !== "undefined" ? adjustScore : undefined,
-  "analyticsHelp": typeof analyticsHelp !== "undefined" ? analyticsHelp : undefined,
-  "anchorPerformanceSummary": typeof anchorPerformanceSummary !== "undefined" ? anchorPerformanceSummary : undefined,
-  "anchorRoutines": typeof anchorRoutines !== "undefined" ? anchorRoutines : undefined,
-  "applyPeriodizationToAdaptiveInputs": typeof applyPeriodizationToAdaptiveInputs !== "undefined" ? applyPeriodizationToAdaptiveInputs : undefined,
-  "applyStoredStatsModeVisual": typeof applyStoredStatsModeVisual !== "undefined" ? applyStoredStatsModeVisual : undefined,
-  "applyTargetUpgrade": typeof applyTargetUpgrade !== "undefined" ? applyTargetUpgrade : undefined,
-  "applyThemeMode": typeof applyThemeMode !== "undefined" ? applyThemeMode : undefined,
-  "applyThemeModeEarly": typeof applyThemeModeEarly !== "undefined" ? applyThemeModeEarly : undefined,
-  "attrText": typeof attrText !== "undefined" ? attrText : undefined,
-  "avg": typeof avg !== "undefined" ? avg : undefined,
-  "benchmarkText": typeof benchmarkText !== "undefined" ? benchmarkText : undefined,
-  "bindInterfaceSettings": typeof bindInterfaceSettings !== "undefined" ? bindInterfaceSettings : undefined,
-  "bindStorageDiagnostics": typeof bindStorageDiagnostics !== "undefined" ? bindStorageDiagnostics : undefined,
-  "bootstrapIndexedDBStorage": typeof bootstrapIndexedDBStorage !== "undefined" ? bootstrapIndexedDBStorage : undefined,
-  "bucketLogs": typeof bucketLogs !== "undefined" ? bucketLogs : undefined,
-  "categories": typeof categories !== "undefined" ? categories : undefined,
-  "chooseExportFolder": typeof chooseExportFolder !== "undefined" ? chooseExportFolder : undefined,
-  "classifyPerformance": typeof classifyPerformance !== "undefined" ? classifyPerformance : undefined,
-  "classifyPerformanceAgainstTarget": typeof classifyPerformanceAgainstTarget !== "undefined" ? classifyPerformanceAgainstTarget : undefined,
-  "clearErrorLog": typeof clearErrorLog !== "undefined" ? clearErrorLog : undefined,
-  "clearExportFolder": typeof clearExportFolder !== "undefined" ? clearExportFolder : undefined,
-  "clearExportFolderHandle": typeof clearExportFolderHandle !== "undefined" ? clearExportFolderHandle : undefined,
-  "clearPersistedActiveSession": typeof clearPersistedActiveSession !== "undefined" ? clearPersistedActiveSession : undefined,
-  "clearRoutineForm": typeof clearRoutineForm !== "undefined" ? clearRoutineForm : undefined,
-  "clearTableForm": typeof clearTableForm !== "undefined" ? clearTableForm : undefined,
-  "clearTestLogsOnly": typeof clearTestLogsOnly !== "undefined" ? clearTestLogsOnly : undefined,
-  "closeFieldHelp": typeof closeFieldHelp !== "undefined" ? closeFieldHelp : undefined,
-  "closeLogEditModal": typeof closeLogEditModal !== "undefined" ? closeLogEditModal : undefined,
-  "closeReflectionModal": typeof closeReflectionModal !== "undefined" ? closeReflectionModal : undefined,
-  "completeSession": typeof completeSession !== "undefined" ? completeSession : undefined,
-  "composeBlocks": typeof composeBlocks !== "undefined" ? composeBlocks : undefined,
-  "computeAllocation": typeof computeAllocation !== "undefined" ? computeAllocation : undefined,
-  "confirmDeleteAction": typeof confirmDeleteAction !== "undefined" ? confirmDeleteAction : undefined,
-  "corrText": typeof corrText !== "undefined" ? corrText : undefined,
-  "correlation": typeof correlation !== "undefined" ? correlation : undefined,
-  "cssEscapeSafe": typeof cssEscapeSafe !== "undefined" ? cssEscapeSafe : undefined,
-  "csvEscape": typeof csvEscape !== "undefined" ? csvEscape : undefined,
-  "currentTargetPerformance": typeof currentTargetPerformance !== "undefined" ? currentTargetPerformance : undefined,
-  "dateFromKey": typeof dateFromKey !== "undefined" ? dateFromKey : undefined,
-  "daysSince": typeof daysSince !== "undefined" ? daysSince : undefined,
-  "daysSinceIso": typeof daysSinceIso !== "undefined" ? daysSinceIso : undefined,
-  "decrementScore": typeof decrementScore !== "undefined" ? decrementScore : undefined,
-  "deleteLog": typeof deleteLog !== "undefined" ? deleteLog : undefined,
-  "deletePlan": typeof deletePlan !== "undefined" ? deletePlan : undefined,
-  "deleteRoutine": typeof deleteRoutine !== "undefined" ? deleteRoutine : undefined,
-  "deleteTableDefinition": typeof deleteTableDefinition !== "undefined" ? deleteTableDefinition : undefined,
-  "deltaFmt": typeof deltaFmt !== "undefined" ? deltaFmt : undefined,
-  "difficultyGuidance": typeof difficultyGuidance !== "undefined" ? difficultyGuidance : undefined,
-  "difficultyLadderRecommendation": typeof difficultyLadderRecommendation !== "undefined" ? difficultyLadderRecommendation : undefined,
-  "discardPersistedSession": typeof discardPersistedSession !== "undefined" ? discardPersistedSession : undefined,
-  "displayScore": typeof displayScore !== "undefined" ? displayScore : undefined,
-  "downloadFile": typeof downloadFile !== "undefined" ? downloadFile : undefined,
-  "duplicateIds": typeof duplicateIds !== "undefined" ? duplicateIds : undefined,
-  "duplicateRoutine": typeof duplicateRoutine !== "undefined" ? duplicateRoutine : undefined,
-  "editCategoryOptions": typeof editCategoryOptions !== "undefined" ? editCategoryOptions : undefined,
-  "editRoutine": typeof editRoutine !== "undefined" ? editRoutine : undefined,
-  "editTableDefinition": typeof editTableDefinition !== "undefined" ? editTableDefinition : undefined,
-  "emaExpectedSeries": typeof emaExpectedSeries !== "undefined" ? emaExpectedSeries : undefined,
-  "enrichLogReferences": typeof enrichLogReferences !== "undefined" ? enrichLogReferences : undefined,
-  "ensureExportFolderPermission": typeof ensureExportFolderPermission !== "undefined" ? ensureExportFolderPermission : undefined,
-  "ensureTablesDatabase": typeof ensureTablesDatabase !== "undefined" ? ensureTablesDatabase : undefined,
-  "ensureTargetHistory": typeof ensureTargetHistory !== "undefined" ? ensureTargetHistory : undefined,
-  "escapeAttr": typeof escapeAttr !== "undefined" ? escapeAttr : undefined,
-  "escapeHtml": typeof escapeHtml !== "undefined" ? escapeHtml : undefined,
-  "estimatedIndexedDBDataBytes": typeof estimatedIndexedDBDataBytes !== "undefined" ? estimatedIndexedDBDataBytes : undefined,
-  "exerciseTransferEffect": typeof exerciseTransferEffect !== "undefined" ? exerciseTransferEffect : undefined,
-  "expectedRoutineScore": typeof expectedRoutineScore !== "undefined" ? expectedRoutineScore : undefined,
-  "exportDebugInfo": typeof exportDebugInfo !== "undefined" ? exportDebugInfo : undefined,
-  "exportFile": typeof exportFile !== "undefined" ? exportFile : undefined,
-  "exportFullBackup": typeof exportFullBackup !== "undefined" ? exportFullBackup : undefined,
-  "exportRawLocalData": typeof exportRawLocalData !== "undefined" ? exportRawLocalData : undefined,
-  "exportValue": typeof exportValue !== "undefined" ? exportValue : undefined,
-  "fatigueCurve": typeof fatigueCurve !== "undefined" ? fatigueCurve : undefined,
-  "fatigueSlope": typeof fatigueSlope !== "undefined" ? fatigueSlope : undefined,
-  "fillSameAsLastTime": typeof fillSameAsLastTime !== "undefined" ? fillSameAsLastTime : undefined,
-  "fmtScoring": typeof fmtScoring !== "undefined" ? fmtScoring : undefined,
-  "fmtTargetColour": typeof fmtTargetColour !== "undefined" ? fmtTargetColour : undefined,
-  "fmtTargetMode": typeof fmtTargetMode !== "undefined" ? fmtTargetMode : undefined,
-  "folders": typeof folders !== "undefined" ? folders : undefined,
-  "forecastWithConfidence": typeof forecastWithConfidence !== "undefined" ? forecastWithConfidence : undefined,
-  "formatDurationHuman": typeof formatDurationHuman !== "undefined" ? formatDurationHuman : undefined,
-  "formatStorageBytes": typeof formatStorageBytes !== "undefined" ? formatStorageBytes : undefined,
-  "generateNextSession": typeof generateNextSession !== "undefined" ? generateNextSession : undefined,
-  "generateTestLogs": typeof generateTestLogs !== "undefined" ? generateTestLogs : undefined,
-  "getActiveTargetProfile": typeof getActiveTargetProfile !== "undefined" ? getActiveTargetProfile : undefined,
-  "getElapsedMinutes": typeof getElapsedMinutes !== "undefined" ? getElapsedMinutes : undefined,
-  "getElapsedMs": typeof getElapsedMs !== "undefined" ? getElapsedMs : undefined,
-  "getExportFolderHandle": typeof getExportFolderHandle !== "undefined" ? getExportFolderHandle : undefined,
-  "getLastTableId": typeof getLastTableId !== "undefined" ? getLastTableId : undefined,
-  "getLastTableNote": typeof getLastTableNote !== "undefined" ? getLastTableNote : undefined,
-  "getLastVenueTable": typeof getLastVenueTable !== "undefined" ? getLastVenueTable : undefined,
-  "getLocalStorageUsageBytes": typeof getLocalStorageUsageBytes !== "undefined" ? getLocalStorageUsageBytes : undefined,
-  "getPeriodRange": typeof getPeriodRange !== "undefined" ? getPeriodRange : undefined,
-  "getPeriodizationPhase": typeof getPeriodizationPhase !== "undefined" ? getPeriodizationPhase : undefined,
-  "getPersistedActiveSession": typeof getPersistedActiveSession !== "undefined" ? getPersistedActiveSession : undefined,
-  "getPlanName": typeof getPlanName !== "undefined" ? getPlanName : undefined,
-  "getQuickLogAutoAdvanceSetting": typeof getQuickLogAutoAdvanceSetting !== "undefined" ? getQuickLogAutoAdvanceSetting : undefined,
-  "getRawStoredThemeMode": typeof getRawStoredThemeMode !== "undefined" ? getRawStoredThemeMode : undefined,
-  "getRoutineName": typeof getRoutineName !== "undefined" ? getRoutineName : undefined,
-  "getRoutinePriorityReasons": typeof getRoutinePriorityReasons !== "undefined" ? getRoutinePriorityReasons : undefined,
-  "getSessionFocusSetting": typeof getSessionFocusSetting !== "undefined" ? getSessionFocusSetting : undefined,
-  "getTableName": typeof getTableName !== "undefined" ? getTableName : undefined,
-  "getTargetProfileLabel": typeof getTargetProfileLabel !== "undefined" ? getTargetProfileLabel : undefined,
-  "getThemeModeSetting": typeof getThemeModeSetting !== "undefined" ? getThemeModeSetting : undefined,
-  "groupContextEffects": typeof groupContextEffects !== "undefined" ? groupContextEffects : undefined,
-  "hasTargetProfileChanged": typeof hasTargetProfileChanged !== "undefined" ? hasTargetProfileChanged : undefined,
-  "hideFieldHelp": typeof hideFieldHelp !== "undefined" ? hideFieldHelp : undefined,
-  "htmlText": typeof htmlText !== "undefined" ? htmlText : undefined,
-  "hydrateIndexedDBData": typeof hydrateIndexedDBData !== "undefined" ? hydrateIndexedDBData : undefined,
-  "idbCount": typeof idbCount !== "undefined" ? idbCount : undefined,
-  "idbGetAll": typeof idbGetAll !== "undefined" ? idbGetAll : undefined,
-  "idbReplaceAll": typeof idbReplaceAll !== "undefined" ? idbReplaceAll : undefined,
-  "incrementScore": typeof incrementScore !== "undefined" ? incrementScore : undefined,
-  "indexedDBStatusText": typeof indexedDBStatusText !== "undefined" ? indexedDBStatusText : undefined,
-  "inferTargetColour": typeof inferTargetColour !== "undefined" ? inferTargetColour : undefined,
-  "interfaceReadSetting": typeof interfaceReadSetting !== "undefined" ? interfaceReadSetting : undefined,
-  "interfaceWriteSetting": typeof interfaceWriteSetting !== "undefined" ? interfaceWriteSetting : undefined,
-  "interventionImpactSummary": typeof interventionImpactSummary !== "undefined" ? interventionImpactSummary : undefined,
-  "isActiveSessionVisible": typeof isActiveSessionVisible !== "undefined" ? isActiveSessionVisible : undefined,
-  "isPanelActive": typeof isPanelActive !== "undefined" ? isPanelActive : undefined,
-  "jsArg": typeof jsArg !== "undefined" ? jsArg : undefined,
-  "loadAdaptiveSessionIntoPlanBuilder": typeof loadAdaptiveSessionIntoPlanBuilder !== "undefined" ? loadAdaptiveSessionIntoPlanBuilder : undefined,
-  "loadData": typeof loadData !== "undefined" ? loadData : undefined,
-  "loadGeneratedPlan": typeof loadGeneratedPlan !== "undefined" ? loadGeneratedPlan : undefined,
-  "loadPlanToBuilder": typeof loadPlanToBuilder !== "undefined" ? loadPlanToBuilder : undefined,
-  "localDateKey": typeof localDateKey !== "undefined" ? localDateKey : undefined,
-  "logAppError": typeof logAppError !== "undefined" ? logAppError : undefined,
-  "logsInRange": typeof logsInRange !== "undefined" ? logsInRange : undefined,
-  "makeRoutineSnapshotFromLog": typeof makeRoutineSnapshotFromLog !== "undefined" ? makeRoutineSnapshotFromLog : undefined,
-  "makeSyntheticLog": typeof makeSyntheticLog !== "undefined" ? makeSyntheticLog : undefined,
-  "makeTargetProfile": typeof makeTargetProfile !== "undefined" ? makeTargetProfile : undefined,
-  "markBackupExported": typeof markBackupExported !== "undefined" ? markBackupExported : undefined,
-  "mergeById": typeof mergeById !== "undefined" ? mergeById : undefined,
-  "metricsForLogs": typeof metricsForLogs !== "undefined" ? metricsForLogs : undefined,
-  "migrateData": typeof migrateData !== "undefined" ? migrateData : undefined,
-  "miniSparkline": typeof miniSparkline !== "undefined" ? miniSparkline : undefined,
-  "movePlanRoutine": typeof movePlanRoutine !== "undefined" ? movePlanRoutine : undefined,
-  "movingTrend": typeof movingTrend !== "undefined" ? movingTrend : undefined,
-  "normalizeInterfaceThemeMode": typeof normalizeInterfaceThemeMode !== "undefined" ? normalizeInterfaceThemeMode : undefined,
-  "normalizeOnOff": typeof normalizeOnOff !== "undefined" ? normalizeOnOff : undefined,
-  "normalizeScore": typeof normalizeScore !== "undefined" ? normalizeScore : undefined,
-  "numAttr": typeof numAttr !== "undefined" ? numAttr : undefined,
-  "numText": typeof numText !== "undefined" ? numText : undefined,
-  "openExportFolderDB": typeof openExportFolderDB !== "undefined" ? openExportFolderDB : undefined,
-  "openLogEditModal": typeof openLogEditModal !== "undefined" ? openLogEditModal : undefined,
-  "openReflectionModal": typeof openReflectionModal !== "undefined" ? openReflectionModal : undefined,
-  "openSnookerDB": typeof openSnookerDB !== "undefined" ? openSnookerDB : undefined,
-  "optimalSessionLength": typeof optimalSessionLength !== "undefined" ? optimalSessionLength : undefined,
-  "overtrainingSignal": typeof overtrainingSignal !== "undefined" ? overtrainingSignal : undefined,
-  "performanceDrift": typeof performanceDrift !== "undefined" ? performanceDrift : undefined,
-  "performanceStabilityIndex": typeof performanceStabilityIndex !== "undefined" ? performanceStabilityIndex : undefined,
-  "persistActiveSession": typeof persistActiveSession !== "undefined" ? persistActiveSession : undefined,
-  "persistIndexedDBCollections": typeof persistIndexedDBCollections !== "undefined" ? persistIndexedDBCollections : undefined,
-  "phaseSettings": typeof phaseSettings !== "undefined" ? phaseSettings : undefined,
-  "pickByCategory": typeof pickByCategory !== "undefined" ? pickByCategory : undefined,
-  "planById": typeof planById !== "undefined" ? planById : undefined,
-  "plannedVsCompletedSummary": typeof plannedVsCompletedSummary !== "undefined" ? plannedVsCompletedSummary : undefined,
-  "plateauDetector": typeof plateauDetector !== "undefined" ? plateauDetector : undefined,
-  "prefillSmartDefaults": typeof prefillSmartDefaults !== "undefined" ? prefillSmartDefaults : undefined,
-  "progressVelocity": typeof progressVelocity !== "undefined" ? progressVelocity : undefined,
-  "progressionSuggestion": typeof progressionSuggestion !== "undefined" ? progressionSuggestion : undefined,
-  "progressiveStatsForLogs": typeof progressiveStatsForLogs !== "undefined" ? progressiveStatsForLogs : undefined,
-  "progressiveUnitLabel": typeof progressiveUnitLabel !== "undefined" ? progressiveUnitLabel : undefined,
-  "quickLogScore": typeof quickLogScore !== "undefined" ? quickLogScore : undefined,
-  "randomizePlan": typeof randomizePlan !== "undefined" ? randomizePlan : undefined,
-  "rankRoutines": typeof rankRoutines !== "undefined" ? rankRoutines : undefined,
-  "recommendationEligibleRoutines": typeof recommendationEligibleRoutines !== "undefined" ? recommendationEligibleRoutines : undefined,
-  "recommendationMode": typeof recommendationMode !== "undefined" ? recommendationMode : undefined,
-  "recommendationModeLabel": typeof recommendationModeLabel !== "undefined" ? recommendationModeLabel : undefined,
-  "recommendationRecencyCap": typeof recommendationRecencyCap !== "undefined" ? recommendationRecencyCap : undefined,
-  "recommendationUndertrainingMultiplier": typeof recommendationUndertrainingMultiplier !== "undefined" ? recommendationUndertrainingMultiplier : undefined,
-  "refreshReferenceNames": typeof refreshReferenceNames !== "undefined" ? refreshReferenceNames : undefined,
-  "rememberTableId": typeof rememberTableId !== "undefined" ? rememberTableId : undefined,
-  "rememberVenueTable": typeof rememberVenueTable !== "undefined" ? rememberVenueTable : undefined,
-  "removePlanRoutine": typeof removePlanRoutine !== "undefined" ? removePlanRoutine : undefined,
-  "renderABComparison": typeof renderABComparison !== "undefined" ? renderABComparison : undefined,
-  "renderAdaptiveSession": typeof renderAdaptiveSession !== "undefined" ? renderAdaptiveSession : undefined,
-  "renderAdvancedAnalytics": typeof renderAdvancedAnalytics !== "undefined" ? renderAdvancedAnalytics : undefined,
-  "renderAfterLogEditSave": typeof renderAfterLogEditSave !== "undefined" ? renderAfterLogEditSave : undefined,
-  "renderAfterSave": typeof renderAfterSave !== "undefined" ? renderAfterSave : undefined,
-  "renderAfterSessionLogSave": typeof renderAfterSessionLogSave !== "undefined" ? renderAfterSessionLogSave : undefined,
-  "renderAll": typeof renderAll !== "undefined" ? renderAll : undefined,
-  "renderBackupReminder": typeof renderBackupReminder !== "undefined" ? renderBackupReminder : undefined,
-  "renderCategoryChart": typeof renderCategoryChart !== "undefined" ? renderCategoryChart : undefined,
-  "renderChart": typeof renderChart !== "undefined" ? renderChart : undefined,
-  "renderCoachingEngine": typeof renderCoachingEngine !== "undefined" ? renderCoachingEngine : undefined,
-  "renderContextEffects": typeof renderContextEffects !== "undefined" ? renderContextEffects : undefined,
-  "renderCurrentRoutine": typeof renderCurrentRoutine !== "undefined" ? renderCurrentRoutine : undefined,
-  "renderDateLogRow": typeof renderDateLogRow !== "undefined" ? renderDateLogRow : undefined,
-  "renderDateView": typeof renderDateView !== "undefined" ? renderDateView : undefined,
-  "renderDifficultyLadder": typeof renderDifficultyLadder !== "undefined" ? renderDifficultyLadder : undefined,
-  "renderEditLogForm": typeof renderEditLogForm !== "undefined" ? renderEditLogForm : undefined,
-  "renderEditTableOptions": typeof renderEditTableOptions !== "undefined" ? renderEditTableOptions : undefined,
-  "renderExerciseProgression": typeof renderExerciseProgression !== "undefined" ? renderExerciseProgression : undefined,
-  "renderExportFolderStatus": typeof renderExportFolderStatus !== "undefined" ? renderExportFolderStatus : undefined,
-  "renderFatigueSlope": typeof renderFatigueSlope !== "undefined" ? renderFatigueSlope : undefined,
-  "renderForecastInsight": typeof renderForecastInsight !== "undefined" ? renderForecastInsight : undefined,
-  "renderInterfaceSettings": typeof renderInterfaceSettings !== "undefined" ? renderInterfaceSettings : undefined,
-  "renderLivePerformanceCard": typeof renderLivePerformanceCard !== "undefined" ? renderLivePerformanceCard : undefined,
-  "renderLoadAdvice": typeof renderLoadAdvice !== "undefined" ? renderLoadAdvice : undefined,
-  "renderLogRow": typeof renderLogRow !== "undefined" ? renderLogRow : undefined,
-  "renderPeakWindowInsight": typeof renderPeakWindowInsight !== "undefined" ? renderPeakWindowInsight : undefined,
-  "renderPerformanceStability": typeof renderPerformanceStability !== "undefined" ? renderPerformanceStability : undefined,
-  "renderPeriodization": typeof renderPeriodization !== "undefined" ? renderPeriodization : undefined,
-  "renderPhaseOneInsights": typeof renderPhaseOneInsights !== "undefined" ? renderPhaseOneInsights : undefined,
-  "renderPlanBuilder": typeof renderPlanBuilder !== "undefined" ? renderPlanBuilder : undefined,
-  "renderPlanList": typeof renderPlanList !== "undefined" ? renderPlanList : undefined,
-  "renderQuickScoreControls": typeof renderQuickScoreControls !== "undefined" ? renderQuickScoreControls : undefined,
-  "renderRegretRoutineOptions": typeof renderRegretRoutineOptions !== "undefined" ? renderRegretRoutineOptions : undefined,
-  "renderResidualInsights": typeof renderResidualInsights !== "undefined" ? renderResidualInsights : undefined,
-  "renderResumeCard": typeof renderResumeCard !== "undefined" ? renderResumeCard : undefined,
-  "renderRollingChart": typeof renderRollingChart !== "undefined" ? renderRollingChart : undefined,
-  "renderRoutineItem": typeof renderRoutineItem !== "undefined" ? renderRoutineItem : undefined,
-  "renderRoutineList": typeof renderRoutineList !== "undefined" ? renderRoutineList : undefined,
-  "renderRoutineSelects": typeof renderRoutineSelects !== "undefined" ? renderRoutineSelects : undefined,
-  "renderScoreInputs": typeof renderScoreInputs !== "undefined" ? renderScoreInputs : undefined,
-  "renderSecondOrderAnalytics": typeof renderSecondOrderAnalytics !== "undefined" ? renderSecondOrderAnalytics : undefined,
-  "renderSessionLogRow": typeof renderSessionLogRow !== "undefined" ? renderSessionLogRow : undefined,
-  "renderSmartRecommendation": typeof renderSmartRecommendation !== "undefined" ? renderSmartRecommendation : undefined,
-  "renderStats": typeof renderStats !== "undefined" ? renderStats : undefined,
-  "renderStatsOverview": typeof renderStatsOverview !== "undefined" ? renderStatsOverview : undefined,
-  "renderStorageDashboard": typeof renderStorageDashboard !== "undefined" ? renderStorageDashboard : undefined,
-  "renderStorageWarning": typeof renderStorageWarning !== "undefined" ? renderStorageWarning : undefined,
-  "renderSwipeableHistoryCards": typeof renderSwipeableHistoryCards !== "undefined" ? renderSwipeableHistoryCards : undefined,
-  "renderTableDatabase": typeof renderTableDatabase !== "undefined" ? renderTableDatabase : undefined,
-  "renderTableSelects": typeof renderTableSelects !== "undefined" ? renderTableSelects : undefined,
-  "renderTableStats": typeof renderTableStats !== "undefined" ? renderTableStats : undefined,
-  "renderTagSuggestions": typeof renderTagSuggestions !== "undefined" ? renderTagSuggestions : undefined,
-  "renderTargetProfileSummary": typeof renderTargetProfileSummary !== "undefined" ? renderTargetProfileSummary : undefined,
-  "renderTargetUpgradeButton": typeof renderTargetUpgradeButton !== "undefined" ? renderTargetUpgradeButton : undefined,
-  "renderToday": typeof renderToday !== "undefined" ? renderToday : undefined,
-  "renderTodayResumeCard": typeof renderTodayResumeCard !== "undefined" ? renderTodayResumeCard : undefined,
-  "renderTrainingLoad": typeof renderTrainingLoad !== "undefined" ? renderTrainingLoad : undefined,
-  "renderVolumeChart": typeof renderVolumeChart !== "undefined" ? renderVolumeChart : undefined,
-  "renderWeeklyReview": typeof renderWeeklyReview !== "undefined" ? renderWeeklyReview : undefined,
-  "resetTimerState": typeof resetTimerState !== "undefined" ? resetTimerState : undefined,
-  "resolveThemeMode": typeof resolveThemeMode !== "undefined" ? resolveThemeMode : undefined,
-  "resolveThemeModeEarly": typeof resolveThemeModeEarly !== "undefined" ? resolveThemeModeEarly : undefined,
-  "restoreTimerStateFromActiveSession": typeof restoreTimerStateFromActiveSession !== "undefined" ? restoreTimerStateFromActiveSession : undefined,
-  "resumePersistedSession": typeof resumePersistedSession !== "undefined" ? resumePersistedSession : undefined,
-  "rollingAverage": typeof rollingAverage !== "undefined" ? rollingAverage : undefined,
-  "routineById": typeof routineById !== "undefined" ? routineById : undefined,
-  "routineMixedStrategyScore": typeof routineMixedStrategyScore !== "undefined" ? routineMixedStrategyScore : undefined,
-  "routineResidualInsight": typeof routineResidualInsight !== "undefined" ? routineResidualInsight : undefined,
-  "routineStats": typeof routineStats !== "undefined" ? routineStats : undefined,
-  "runRegretComparison": typeof runRegretComparison !== "undefined" ? runRegretComparison : undefined,
-  "safeClassToken": typeof safeClassToken !== "undefined" ? safeClassToken : undefined,
-  "safeParseData": typeof safeParseData !== "undefined" ? safeParseData : undefined,
-  "safeScopedRender": typeof safeScopedRender !== "undefined" ? safeScopedRender : undefined,
-  "safeStorageSet": typeof safeStorageSet !== "undefined" ? safeStorageSet : undefined,
-  "sameDate": typeof sameDate !== "undefined" ? sameDate : undefined,
-  "saveCoreData": typeof saveCoreData !== "undefined" ? saveCoreData : undefined,
-  "saveCurrentRoutine": typeof saveCurrentRoutine !== "undefined" ? saveCurrentRoutine : undefined,
-  "saveData": typeof saveData !== "undefined" ? saveData : undefined,
-  "saveEditedLog": typeof saveEditedLog !== "undefined" ? saveEditedLog : undefined,
-  "saveEditedLogFromButton": typeof saveEditedLogFromButton !== "undefined" ? saveEditedLogFromButton : undefined,
-  "saveEditedLogFromModal": typeof saveEditedLogFromModal !== "undefined" ? saveEditedLogFromModal : undefined,
-  "saveExportFolderHandle": typeof saveExportFolderHandle !== "undefined" ? saveExportFolderHandle : undefined,
-  "saveReflection": typeof saveReflection !== "undefined" ? saveReflection : undefined,
-  "saveTableDefinition": typeof saveTableDefinition !== "undefined" ? saveTableDefinition : undefined,
-  "saveTextFileToExportFolder": typeof saveTextFileToExportFolder !== "undefined" ? saveTextFileToExportFolder : undefined,
-  "scheduleIndexedDBSync": typeof scheduleIndexedDBSync !== "undefined" ? scheduleIndexedDBSync : undefined,
-  "scoreNumber": typeof scoreNumber !== "undefined" ? scoreNumber : undefined,
-  "scoreNumberForSynthetic": typeof scoreNumberForSynthetic !== "undefined" ? scoreNumberForSynthetic : undefined,
-  "serializeCoreData": typeof serializeCoreData !== "undefined" ? serializeCoreData : undefined,
-  "sessionPeakWindow": typeof sessionPeakWindow !== "undefined" ? sessionPeakWindow : undefined,
-  "sessionQualityImpact": typeof sessionQualityImpact !== "undefined" ? sessionQualityImpact : undefined,
-  "setDiagnosticsOutput": typeof setDiagnosticsOutput !== "undefined" ? setDiagnosticsOutput : undefined,
-  "setScoreValue": typeof setScoreValue !== "undefined" ? setScoreValue : undefined,
-  "setSelectOptions": typeof setSelectOptions !== "undefined" ? setSelectOptions : undefined,
-  "showEditLog": typeof showEditLog !== "undefined" ? showEditLog : undefined,
-  "showFieldHelp": typeof showFieldHelp !== "undefined" ? showFieldHelp : undefined,
-  "skillGapIndex": typeof skillGapIndex !== "undefined" ? skillGapIndex : undefined,
-  "skipReflection": typeof skipReflection !== "undefined" ? skipReflection : undefined,
-  "startRoutineScreen": typeof startRoutineScreen !== "undefined" ? startRoutineScreen : undefined,
-  "statHelpButton": typeof statHelpButton !== "undefined" ? statHelpButton : undefined,
-  "stdDev": typeof stdDev !== "undefined" ? stdDev : undefined,
-  "stopTimer": typeof stopTimer !== "undefined" ? stopTimer : undefined,
-  "storageRiskLevel": typeof storageRiskLevel !== "undefined" ? storageRiskLevel : undefined,
-  "storageSizeBytes": typeof storageSizeBytes !== "undefined" ? storageSizeBytes : undefined,
-  "streaks": typeof streaks !== "undefined" ? streaks : undefined,
-  "structuredCloneSafe": typeof structuredCloneSafe !== "undefined" ? structuredCloneSafe : undefined,
-  "subfolders": typeof subfolders !== "undefined" ? subfolders : undefined,
-  "supportsExportFolderPicker": typeof supportsExportFolderPicker !== "undefined" ? supportsExportFolderPicker : undefined,
-  "syncLoadedVersionDisplay": typeof syncLoadedVersionDisplay !== "undefined" ? syncLoadedVersionDisplay : undefined,
-  "syncTimerStateToActiveSession": typeof syncTimerStateToActiveSession !== "undefined" ? syncTimerStateToActiveSession : undefined,
-  "tableById": typeof tableById !== "undefined" ? tableById : undefined,
-  "tableByName": typeof tableByName !== "undefined" ? tableByName : undefined,
-  "tableStats": typeof tableStats !== "undefined" ? tableStats : undefined,
-  "take": typeof take !== "undefined" ? take : undefined,
-  "targetHitRate": typeof targetHitRate !== "undefined" ? targetHitRate : undefined,
-  "targetHitRateCurrentTarget": typeof targetHitRateCurrentTarget !== "undefined" ? targetHitRateCurrentTarget : undefined,
-  "targetUpgradeSuggestionForRoutine": typeof targetUpgradeSuggestionForRoutine !== "undefined" ? targetUpgradeSuggestionForRoutine : undefined,
-  "timeOfDayBucket": typeof timeOfDayBucket !== "undefined" ? timeOfDayBucket : undefined,
-  "toDateTimeLocal": typeof toDateTimeLocal !== "undefined" ? toDateTimeLocal : undefined,
-  "toggleSessionFocusMode": typeof toggleSessionFocusMode !== "undefined" ? toggleSessionFocusMode : undefined,
-  "trainingLoadByDay": typeof trainingLoadByDay !== "undefined" ? trainingLoadByDay : undefined,
-  "undertrainedCategoryBonus": typeof undertrainedCategoryBonus !== "undefined" ? undertrainedCategoryBonus : undefined,
-  "updateSessionFocusState": typeof updateSessionFocusState !== "undefined" ? updateSessionFocusState : undefined,
-  "updateTagHistoryFromInput": typeof updateTagHistoryFromInput !== "undefined" ? updateTagHistoryFromInput : undefined,
-  "updateTargetHints": typeof updateTargetHints !== "undefined" ? updateTargetHints : undefined,
-  "updateTimerDisplay": typeof updateTimerDisplay !== "undefined" ? updateTimerDisplay : undefined,
-  "uuid": typeof uuid !== "undefined" ? uuid : undefined,
-  "variationSuggestionForRoutine": typeof variationSuggestionForRoutine !== "undefined" ? variationSuggestionForRoutine : undefined,
-  "verifyStorageIntegrity": typeof verifyStorageIntegrity !== "undefined" ? verifyStorageIntegrity : undefined,
-  "visibleRoutines": typeof visibleRoutines !== "undefined" ? visibleRoutines : undefined,
-  "warmupSuggestion": typeof warmupSuggestion !== "undefined" ? warmupSuggestion : undefined,
-  "weaknessConcentration": typeof weaknessConcentration !== "undefined" ? weaknessConcentration : undefined,
-  "weekStart": typeof weekStart !== "undefined" ? weekStart : undefined,
-  "weightedPick": typeof weightedPick !== "undefined" ? weightedPick : undefined
-  };
-  Object.entries(api).forEach(([key, value]) => { if (value) window[key] = value; });
+  // v4.1: narrow compatibility bridge only. State variables stay module-scoped.
+  Object.assign(window, {
+    showFieldHelp,
+    hideFieldHelp,
+    closeFieldHelp,
+    skipReflection,
+    saveReflection,
+    closeReflectionModal,
+    openLogEditModal,
+    closeLogEditModal,
+    saveEditedLogFromModal
+  });
 }
 exposeV4LegacyGlobals();

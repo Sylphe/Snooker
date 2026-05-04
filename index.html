@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.0.1</title>
+  <title>Snooker Practice Log v4.1.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.0.1" />
-  <link rel="stylesheet" href="styles.css?v=4.0.1" />
-  <link rel="icon" href="icon.svg?v=4.0.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.1.0" />
+  <link rel="stylesheet" href="styles.css?v=4.1.0" />
+  <link rel="icon" href="icon.svg?v=4.1.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.0.1 — ES module architecture with IndexedDB production-safety fixes.</p>
+      <p>v4.1.0 — ES module architecture with IndexedDB production-safety fixes.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -89,11 +89,11 @@
       <div class="card">
         <h2>Smart recommendation</h2>
         <div class="card" id="adaptiveEnginePanel">
-        <h2>Adaptive Training Engine <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveEngine')">?</button></h2>
+        <h2>Adaptive Training Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveEngine">?</button></h2>
         <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
         <div class="grid three">
           <div>
-            <label>Session goal <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveSessionGoal')">?</button></label>
+            <label>Session goal <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveSessionGoal">?</button></label>
             <select id="adaptiveGoal">
               <option value="auto">Auto</option>
               <option value="stability">Stability</option>
@@ -112,7 +112,7 @@
             </select>
           </div>
           <div>
-            <label>Strictness <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveStrictness')">?</button></label>
+            <label>Strictness <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveStrictness">?</button></label>
             <select id="adaptiveStrictness">
               <option value="low">Flexible</option>
               <option value="normal" selected>Normal</option>
@@ -122,7 +122,7 @@
         </div>
         <div class="grid three">
           <div>
-            <label>Training phase <button type="button" class="stat-help" onclick="showFieldHelp('periodizationPhase')">?</button></label>
+            <label>Training phase <button type="button" class="stat-help" data-action="field-help" data-help-key="periodizationPhase">?</button></label>
             <select id="periodizationPhase">
               <option value="auto" selected>Auto</option>
               <option value="acquisition">Skill acquisition</option>
@@ -154,7 +154,7 @@
       </div>
 
       <div class="card">
-        <h2>Training Orchestrator <button type="button" class="stat-help" onclick="showFieldHelp('trainingOrchestrator')">?</button></h2>
+        <h2>Training Orchestrator <button type="button" class="stat-help" data-action="field-help" data-help-key="trainingOrchestrator">?</button></h2>
         <p class="muted">Generates a block-based session from weak areas, recent momentum, undertraining, fatigue, and difficulty level.</p>
         <div class="grid three">
           <div>
@@ -167,7 +167,7 @@
             </select>
           </div>
           <div>
-            <label>Intensity <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorIntensity')">?</button></label>
+            <label>Intensity <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorIntensity">?</button></label>
             <select id="orchestratorIntensity">
               <option value="technical">Technical</option>
               <option value="balanced" selected>Balanced</option>
@@ -175,7 +175,7 @@
             </select>
           </div>
           <div>
-            <label>Training strategy <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorStrategy')">?</button></label>
+            <label>Training strategy <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorStrategy">?</button></label>
             <select id="orchestratorStrategy">
               <option value="exploit">Exploit weaknesses</option>
               <option value="balanced" selected>Balanced</option>
@@ -183,7 +183,7 @@
             </select>
           </div>
           <div>
-            <label>Focus override <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorFocusOverride')">?</button></label>
+            <label>Focus override <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorFocusOverride">?</button></label>
             <select id="orchestratorFocus"></select>
           </div>
         </div>
@@ -378,11 +378,11 @@
             </select>
           </div>
           <div>
-            <label>Target score <button type="button" class="help-dot" onclick="showFieldHelp('targetScore')">?</button></label>
+            <label>Target score <button type="button" class="help-dot" data-action="field-help" data-help-key="targetScore">?</button></label>
             <input id="routineTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div>
-            <label>Stretch target <button type="button" class="help-dot" onclick="showFieldHelp('stretchScoreMode')">?</button> <span id="stretchScoreHint" class="hint-text"></span></label>
+            <label>Stretch target <button type="button" class="help-dot" data-action="field-help" data-help-key="stretchScoreMode">?</button> <span id="stretchScoreHint" class="hint-text"></span></label>
             <input id="routineStretchTarget" type="number" min="0" step="0.01" placeholder="Optional" />
           </div>
           <div>
@@ -390,15 +390,15 @@
             <input id="routineDifficultyLabel" placeholder="e.g. Base target, Harder target, Match pressure" />
           </div>
           <div class="progressive-config">
-            <label>Total units / completion size <button type="button" class="help-dot" onclick="showFieldHelp('totalUnits')">?</button></label>
+            <label>Total units / completion size <button type="button" class="help-dot" data-action="field-help" data-help-key="totalUnits">?</button></label>
             <input id="routineTotalUnits" type="number" min="1" step="1" placeholder="e.g. 30 balls, 15 pairs, 147 points" />
           </div>
           <div class="progressive-config">
-            <label>Attempts per session <button type="button" class="help-dot" onclick="showFieldHelp('attemptsPerSession')">?</button></label>
+            <label>Attempts per session <button type="button" class="help-dot" data-action="field-help" data-help-key="attemptsPerSession">?</button></label>
             <input id="routineAttemptsPerSession" type="number" min="1" step="1" placeholder="e.g. 10" />
           </div>
           <div class="progressive-config">
-            <label>Unit type <button type="button" class="help-dot" onclick="showFieldHelp('unitType')">?</button></label>
+            <label>Unit type <button type="button" class="help-dot" data-action="field-help" data-help-key="unitType">?</button></label>
             <select id="routineUnitType">
               <option value="balls_cleared">Balls cleared</option>
               <option value="points_scored">Points scored</option>
@@ -407,7 +407,7 @@
             </select>
           </div>
           <div class="progressive-config">
-            <label>Target colour mode <button type="button" class="help-dot" onclick="showFieldHelp('targetColourMode')">?</button></label>
+            <label>Target colour mode <button type="button" class="help-dot" data-action="field-help" data-help-key="targetColourMode">?</button></label>
             <select id="routineTargetMode">
               <option value="blacks_only">Blacks only</option>
               <option value="mixed_colours">Mixed colours</option>
@@ -416,7 +416,7 @@
             </select>
           </div>
           <div class="progressive-config">
-            <label>Target colour <button type="button" class="help-dot" onclick="showFieldHelp('targetColour')">?</button></label>
+            <label>Target colour <button type="button" class="help-dot" data-action="field-help" data-help-key="targetColour">?</button></label>
             <select id="routineTargetColour">
               <option value="">Not applicable</option>
               <option value="red">Red</option>
@@ -616,7 +616,7 @@
         </div>
         
         <div class="card nested">
-          <h3>A/B period comparison <button type="button" class="stat-help" onclick="showFieldHelp('abComparison')">?</button></h3>
+          <h3>A/B period comparison <button type="button" class="stat-help" data-action="field-help" data-help-key="abComparison">?</button></h3>
           <div class="grid three">
             <div>
               <label>Compare mode</label>
@@ -651,7 +651,7 @@
 
         <div id="weeklyReviewBox"></div>
         <div class="card nested" id="regretEnginePanel">
-          <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" onclick="showFieldHelp('regretEngine')">?</button></h3>
+          <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="regretEngine">?</button></h3>
           <p class="muted">Estimates whether another routine may have been a better choice in similar conditions. This is heuristic, not causal proof.</p>
           <div class="grid three">
             <div>
@@ -678,7 +678,7 @@
         </div>
         
         <div class="card nested" id="phaseOneInsightsPanel">
-          <h3>Phase 1 Training Insights <button type="button" class="stat-help" onclick="showFieldHelp('phaseOneInsights')">?</button></h3>
+          <h3>Phase 1 Training Insights <button type="button" class="stat-help" data-action="field-help" data-help-key="phaseOneInsights">?</button></h3>
           <p class="muted">Expected vs actual performance, session peak window, and context effects.</p>
           <div id="phaseOneInsightsOutput"></div>
         </div>
@@ -789,23 +789,23 @@
   </main>
 
 
-  <div id="fieldHelpModal" class="modal-backdrop hidden" onclick="closeFieldHelp(event)">
+  <div id="fieldHelpModal" class="modal-backdrop hidden" data-action="modal-backdrop-close" data-modal="fieldHelpModal">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fieldHelpTitle">
       <div class="modal-header">
         <h2 id="fieldHelpTitle">Field help</h2>
-        <button type="button" class="modal-close" onclick="hideFieldHelp()">×</button>
+        <button type="button" class="modal-close" data-action="hide-field-help">×</button>
       </div>
       <div id="fieldHelpBody" class="modal-body"></div>
-      <button type="button" class="secondary" onclick="hideFieldHelp()">Close</button>
+      <button type="button" class="secondary" data-action="hide-field-help">Close</button>
     </div>
   </div>
 
 
-  <div id="reflectionModal" class="modal-backdrop hidden" onclick="closeReflectionModal(event)">
+  <div id="reflectionModal" class="modal-backdrop hidden" data-action="modal-backdrop-close" data-modal="reflectionModal">
     <div class="modal-card" role="dialog" aria-modal="true">
       <div class="modal-header">
         <h2>Post-session reflection</h2>
-        <button type="button" class="modal-close" onclick="skipReflection()">×</button>
+        <button type="button" class="modal-close" data-action="skip-reflection">×</button>
       </div>
       <div class="modal-body">
         <label>Main technical focus</label>
@@ -832,22 +832,22 @@
         <textarea id="reflectionNote" rows="3" placeholder="Short note: what would improve the next session?"></textarea>
       </div>
       <div class="row">
-        <button type="button" onclick="saveReflection()">Save reflection</button>
-        <button type="button" class="secondary" onclick="skipReflection()">Skip</button>
+        <button type="button" data-action="save-reflection">Save reflection</button>
+        <button type="button" class="secondary" data-action="skip-reflection">Skip</button>
       </div>
     </div>
   </div>
 
-  <div id="logEditModal" class="modal-backdrop hidden" onclick="closeLogEditModal(event)">
+  <div id="logEditModal" class="modal-backdrop hidden" data-action="modal-backdrop-close" data-modal="logEditModal">
     <div class="modal-card log-edit-modal-card" role="dialog" aria-modal="true" aria-labelledby="logEditModalTitle">
       <div class="modal-header">
         <h2 id="logEditModalTitle">Edit log</h2>
-        <button type="button" class="modal-close" onclick="closeLogEditModal()">×</button>
+        <button type="button" class="modal-close" data-action="close-log-edit">×</button>
       </div>
       <div id="logEditModalBody" class="modal-body"></div>
       <div class="row modal-actions">
-        <button type="button" onclick="saveEditedLogFromModal()">Save changes</button>
-        <button type="button" class="secondary" onclick="closeLogEditModal()">Cancel</button>
+        <button type="button" data-action="save-log-edit">Save changes</button>
+        <button type="button" class="secondary" data-action="close-log-edit">Cancel</button>
       </div>
     </div>
   </div>
@@ -857,6 +857,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.0.1"></script>
+  <script type="module" src="app.js?v=4.1.0"></script>
 </body>
 </html>

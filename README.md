@@ -1,8 +1,8 @@
-# Snooker Practice Log — v4.0.1
+# Snooker Practice Log — v4.1.0
 
 Built from the validated v4.0.0 ES-module release.
 
-## v4.0.1 production-safety patch
+## v4.1.0 production-safety patch
 
 - Fixed IndexedDB save race risk by writing critical log/session changes immediately instead of relying on a delayed timer.
 - Added single-record IndexedDB helpers for log/session puts and log deletion.
@@ -37,4 +37,4 @@ Root-level PWA files plus `/modules`:
 - `modules/app-core.js`
 - `modules/version.js`
 
-Confirm version: the header should show v4.0.1.
+Confirm version: the header should show v4.1.0.

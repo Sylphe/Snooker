@@ -1,12 +1,12 @@
 const CACHE_NAME = "snooker-practice-log-v4-0-1-final";
 const ASSETS = [
-  "./index.html?v=4.0.1",
-  "./styles.css?v=4.0.1",
-  "./app.js?v=4.0.1",
-  "./modules/app-core.js?v=4.0.1",
-  "./modules/version.js?v=4.0.1",
-  "./manifest.json?v=4.0.1",
-  "./icon.svg?v=4.0.1"
+  "./index.html?v=4.1.0",
+  "./styles.css?v=4.1.0",
+  "./app.js?v=4.1.0",
+  "./modules/app-core.js?v=4.1.0",
+  "./modules/version.js?v=4.1.0",
+  "./manifest.json?v=4.1.0",
+  "./icon.svg?v=4.1.0"
 ];
 
 self.addEventListener("install", event => {
