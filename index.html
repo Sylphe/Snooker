@@ -1,24 +1,796 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#102b22" id="themeColorMeta">
-  <title>Snooker Practice Log v3.26.0</title>
-  <link rel="manifest" href="manifest.json?v=3.26.0">
-  <link rel="stylesheet" href="styles.css?v=3.26.0">
-  <link rel="icon" href="icon.svg?v=3.26.0" type="image/svg+xml">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snooker Practice Log v3.25.7</title>
+  <meta name="theme-color" content="#102b22" id="themeColorMeta" />
+
+  <script>
+    (function(){
+      try {
+        var key = "snookerPracticePWA.themeMode";
+        var mode = localStorage.getItem(key);
+        if (!mode) {
+          var raw = localStorage.getItem("snookerPracticePWA.v3");
+          if (raw) mode = (JSON.parse(raw).interfaceSettings || {}).themeMode;
+        }
+        if (["system","light","dark","contrast"].indexOf(mode) < 0) mode = "system";
+        var actual = mode === "system" ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light") : mode;
+        document.documentElement.setAttribute("data-theme-mode", mode);
+        document.documentElement.setAttribute("data-theme", actual);
+        document.documentElement.classList.add("theme-" + mode);
+        window.__snookerEarlyThemeMode = mode;
+      } catch(e) {}
+    })();
+  </script>
+  <link rel="manifest" href="manifest.json?v=3.25.7" />
+  <link rel="stylesheet" href="styles.css?v=3.25.7" />
+  <link rel="icon" href="icon.svg?v=3.25.7" type="image/svg+xml" />
 </head>
 <body>
-  <!-- Your HTML body remains exactly as provided, just ensure the header says v3.26.0 -->
-  <!-- [Paste your original index.html body here] -->
-  <script src="app.js?v=3.26.0"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js?v=3.26.0');
-      });
-    }
-  </script>
+  <header class="app-header">
+    <div>
+      <h1>Snooker Practice Log</h1>
+      <p>v3.25.7 — dark/high-contrast mode, focus session mode, faster one-tap score entry.</p>
+    </div>
+    <button id="installBtn" class="secondary hidden">Install App</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="practice">Practice</button>
+    <button class="tab" data-tab="today">Today</button>
+    <button class="tab" data-tab="templates">Exercises</button>
+    <button class="tab" data-tab="plans">Plans</button>
+    <button class="tab" data-tab="stats">Stats</button>
+    <button class="tab" data-tab="data">Data</button>
+  </nav>
+
+  <div id="backupReminderBanner" class="backup-banner hidden"></div>
+
+  <main>
+    <section id="practice" class="panel active">
+      <div class="card">
+        <h2>Start practice</h2>
+        <div class="grid two">
+          <div>
+            <label>Daily training plan</label>
+            <select id="planSelect"></select>
+          </div>
+          <div>
+            <label>Free training routine</label>
+            <select id="freeRoutineSelect"></select>
+          </div>
+        </div>
+        <div class="row">
+          <button id="startSessionBtn">Start Plan Session</button>
+          <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
+          <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
+          <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
+        </div>
+      </div>
+
+      <div id="resumeSessionCard" class="card hidden">
+        <h2>Resume unfinished session</h2>
+        <div id="resumeSessionBox"></div>
+        <div class="row">
+          <button id="resumeSessionBtn">Resume Session</button>
+          <button id="discardSessionBtn" class="secondary">Discard</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Smart recommendation</h2>
+        <div class="card" id="adaptiveEnginePanel">
+        <h2>Adaptive Training Engine <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveEngine')">?</button></h2>
+        <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
+        <div class="grid three">
+          <div>
+            <label>Session goal <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveSessionGoal')">?</button></label>
+            <select id="adaptiveGoal">
+              <option value="auto">Auto</option>
+              <option value="stability">Stability</option>
+              <option value="progression">Progression</option>
+              <option value="recovery">Recovery / light</option>
+              <option value="variety">Robustness / variety</option>
+            </select>
+          </div>
+          <div>
+            <label>Duration target</label>
+            <select id="adaptiveDuration">
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="75">75 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+          <div>
+            <label>Strictness <button type="button" class="stat-help" onclick="showFieldHelp('adaptiveStrictness')">?</button></label>
+            <select id="adaptiveStrictness">
+              <option value="low">Flexible</option>
+              <option value="normal" selected>Normal</option>
+              <option value="high">Strict</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid three">
+          <div>
+            <label>Training phase <button type="button" class="stat-help" onclick="showFieldHelp('periodizationPhase')">?</button></label>
+            <select id="periodizationPhase">
+              <option value="auto" selected>Auto</option>
+              <option value="acquisition">Skill acquisition</option>
+              <option value="stabilization">Stabilization</option>
+              <option value="performance">Performance / competition prep</option>
+              <option value="deload">Deload / recovery</option>
+            </select>
+          </div>
+          <div>
+            <label>Phase horizon</label>
+            <select id="periodizationHorizon">
+              <option value="1">1 week</option>
+              <option value="2">2 weeks</option>
+              <option value="4" selected>4 weeks</option>
+              <option value="8">8 weeks</option>
+            </select>
+          </div>
+          <div>
+            <label>Competition date</label>
+            <input id="competitionDate" type="date" />
+          </div>
+        </div>
+        <div id="periodizationOutput" class="analytics-note"></div>
+        <div class="row">
+          <button id="generateAdaptiveSessionBtn" type="button">Generate Adaptive Session</button>
+          <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
+        </div>
+        <div id="adaptiveEngineOutput" class="orchestrator-box">Generate an adaptive session to see the recommended training structure.</div>
+      </div>
+
+      <div class="card">
+        <h2>Training Orchestrator <button type="button" class="stat-help" onclick="showFieldHelp('trainingOrchestrator')">?</button></h2>
+        <p class="muted">Generates a block-based session from weak areas, recent momentum, undertraining, fatigue, and difficulty level.</p>
+        <div class="grid three">
+          <div>
+            <label>Session length</label>
+            <select id="orchestratorLength">
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="75">75 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+          <div>
+            <label>Intensity <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorIntensity')">?</button></label>
+            <select id="orchestratorIntensity">
+              <option value="technical">Technical</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="pressure">Pressure</option>
+            </select>
+          </div>
+          <div>
+            <label>Training strategy <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorStrategy')">?</button></label>
+            <select id="orchestratorStrategy">
+              <option value="exploit">Exploit weaknesses</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="explore">Explore neglected drills</option>
+            </select>
+          </div>
+          <div>
+            <label>Focus override <button type="button" class="stat-help" onclick="showFieldHelp('orchestratorFocusOverride')">?</button></label>
+            <select id="orchestratorFocus"></select>
+          </div>
+        </div>
+        <div class="row">
+          <button id="generateSessionBtn">Generate Next Session</button>
+          <button id="loadGeneratedPlanBtn" class="secondary">Load as Draft Plan</button>
+        </div>
+        <div id="orchestratorBox" class="orchestrator-box">Generate next session based on your data.</div>
+        <div id="plannedCompletionBox"></div>
+      </div><div id="smartRecommendationBox" class="analytics-note">Recommendation will appear after you log enough sessions.</div>
+      </div>
+
+      <div id="activeSession" class="card hidden">
+        <div class="session-top">
+          <div>
+            <h2 id="currentRoutineName">Routine</h2>
+            <p id="currentRoutineMeta"></p>
+          </div>
+          <div>
+            <div class="timer" id="timerDisplay">00:00</div>
+            <p class="timer-sub" id="timerState">timer stopped</p>
+          </div>
+        </div>
+
+        <div id="routineDescriptionBox" class="description-box hidden"></div>
+
+        <div class="row">
+          <button id="timerStartBtn" class="secondary">Start timer</button>
+          <button id="timerPauseBtn" class="secondary">Pause</button>
+          <button id="timerResetBtn" class="secondary">Reset timer</button>
+          <button id="toggleFocusModeBtn" class="secondary" type="button" onclick="window.SnookerInterface&&window.SnookerInterface.toggleFocus();return false;">Focus Mode</button>
+        </div>
+
+        <div id="scoreInputs" class="score-grid"></div>
+
+        <div id="livePerformanceCard" class="live-performance-card"></div>
+
+        <div id="quickScoreControls" class="quick-score hidden"></div>
+
+        <div id="sessionExtraFields" class="session-extra-fields">
+        <label>Training venue / table</label>
+        <select id="sessionVenueTable">
+          <option value="">Not specified</option>
+          <option value="Home table">Home table</option>
+          <option value="Club table 1">Club table 1</option>
+          <option value="Club table 2">Club table 2</option>
+          <option value="Club table 3">Club table 3</option>
+          <option value="Club table 4">Club table 4</option>
+          <option value="Other">Other / custom</option>
+        </select>
+<div class="session-focus-optional">
+        <label>Training intervention</label>
+        <select id="sessionIntervention">
+          <option value="">None</option>
+          <option value="new_cue">New cue</option>
+          <option value="new_stance">New stance</option>
+          <option value="aiming_method">New aiming method</option>
+          <option value="coaching_lesson">Coaching lesson</option>
+          <option value="pre_shot_routine">New pre-shot routine</option>
+          <option value="table_change">Table change</option>
+          <option value="equipment_change">Equipment change</option>
+          <option value="custom">Custom</option>
+        </select>
+        <label>Intervention note</label>
+        <input id="sessionInterventionNote" placeholder="Optional: what changed?" />
+        </div>
+
+        <label>Session quality rating (1–5)</label>
+        <select id="sessionRating">
+          <option value="">Select rating</option>
+          <option value="1">1 - Very low quality</option>
+          <option value="2">2 - Low quality</option>
+          <option value="3">3 - Average</option>
+          <option value="4">4 - Good</option>
+          <option value="5">5 - Excellent</option>
+        </select>
+
+        <div class="session-focus-optional">
+        <label>Session tags</label>
+        <input id="sessionTags" list="tagSuggestions" placeholder="e.g. focused, fatigue, bad_table, good_rhythm" />
+        <datalist id="tagSuggestions"></datalist>
+
+        <label>Notes</label>
+        <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
+        </div>
+
+        </div>
+
+        <div class="row sticky-log-actions primary-action-row">
+          <button id="saveNextBtn">Save</button>
+          <button id="skipBtn" class="secondary">Skip</button>
+          <button id="endFreeSessionBtn" class="danger hidden">End Free Training</button>
+        </div>
+      </div>
+
+      <div id="freeNextCard" class="card hidden">
+        <h2>Free training</h2>
+        <p>Routine saved. Choose the next exercise or end today’s free training session.</p>
+        <label>Next routine</label>
+        <select id="nextFreeRoutineSelect"></select>
+        <div class="row">
+          <button id="continueFreeBtn">Start Selected Routine</button>
+          <button id="endFreeFromNextBtn" class="danger">End Training Session</button>
+        </div>
+      </div>
+
+      <div id="sessionSummary" class="card hidden"></div>
+    </section>
+
+    <section id="today" class="panel">
+      <div class="card">
+        <h2>Today’s training</h2>
+        <p class="muted">Shows all exercises logged today, grouped by training session.</p>
+        <div id="todayResumeSessionCard" class="card">
+          <h2>Session status</h2>
+          <div id="todayResumeSessionBox"></div>
+          <div class="row" id="todayResumeActions">
+            <button id="todayResumeSessionBtn">Resume Session</button>
+            <button id="todayDiscardSessionBtn" class="secondary">Discard</button>
+          </div>
+        </div>
+        <div id="todaySummary"></div>
+        <div id="trainingLoadBox"></div>
+      </div>
+    </section>
+
+    <section id="templates" class="panel">
+      <div class="card">
+        <h2 id="routineFormTitle">Create exercise</h2>
+        <input id="routineEditId" type="hidden" />
+        <div class="grid two">
+          <div>
+            <label>Exercise name</label>
+            <input id="routineName" placeholder="e.g. Long Potting — 10 reds from baulk" />
+          </div>
+          <div>
+            <label>Scoring type</label>
+            <select id="routineScoring">
+              <option value="raw">Raw score</option>
+              <option value="success_rate">Success rate</option>
+              <option value="highest_break">Highest break</option>
+              <option value="points">Points system</option>
+              <option value="score_per_minute">Time-based score</option>
+              <option value="progressive_completion">Progressive completion</option>
+            </select>
+          </div>
+          <div>
+            <label>Existing type/category</label>
+            <select id="routineCategorySelect"></select>
+          </div>
+          <div>
+            <label>Or create new type/category</label>
+            <input id="routineCategoryNew" placeholder="e.g. cue ball control" />
+          </div>
+          <div>
+            <label>Existing folder</label>
+            <select id="routineFolderSelect"></select>
+          </div>
+          <div>
+            <label>Or create new folder</label>
+            <input id="routineFolderNew" placeholder="e.g. Potting" />
+          </div>
+          <div>
+            <label>Existing subfolder</label>
+            <select id="routineSubfolderSelect"></select>
+          </div>
+          <div>
+            <label>Or create new subfolder</label>
+            <input id="routineSubfolderNew" placeholder="e.g. Long pots" />
+          </div>
+          <div>
+            <label>Default attempts</label>
+            <input id="routineAttempts" type="number" min="0" placeholder="e.g. 10" />
+          </div>
+          <div>
+            <label>Default duration, minutes</label>
+            <input id="routineDuration" type="number" min="0" placeholder="e.g. 10" />
+          </div>
+          <div>
+            <label>Anchor drill?</label>
+            <select id="routineIsAnchor">
+              <option value="no">No</option>
+              <option value="yes">Yes — include in baseline tracking</option>
+            </select>
+          </div>
+          <div>
+            <label>Target score <button type="button" class="help-dot" onclick="showFieldHelp('targetScore')">?</button></label>
+            <input id="routineTarget" type="number" min="0" step="0.01" placeholder="Optional" />
+          </div>
+          <div>
+            <label>Stretch target <button type="button" class="help-dot" onclick="showFieldHelp('stretchScoreMode')">?</button> <span id="stretchScoreHint" class="hint-text"></span></label>
+            <input id="routineStretchTarget" type="number" min="0" step="0.01" placeholder="Optional" />
+          </div>
+          <div>
+            <label>Difficulty / target version label</label>
+            <input id="routineDifficultyLabel" placeholder="e.g. Base target, Harder target, Match pressure" />
+          </div>
+          <div class="progressive-config">
+            <label>Total units / completion size <button type="button" class="help-dot" onclick="showFieldHelp('totalUnits')">?</button></label>
+            <input id="routineTotalUnits" type="number" min="1" step="1" placeholder="e.g. 30 balls, 15 pairs, 147 points" />
+          </div>
+          <div class="progressive-config">
+            <label>Attempts per session <button type="button" class="help-dot" onclick="showFieldHelp('attemptsPerSession')">?</button></label>
+            <input id="routineAttemptsPerSession" type="number" min="1" step="1" placeholder="e.g. 10" />
+          </div>
+          <div class="progressive-config">
+            <label>Unit type <button type="button" class="help-dot" onclick="showFieldHelp('unitType')">?</button></label>
+            <select id="routineUnitType">
+              <option value="balls_cleared">Balls cleared</option>
+              <option value="points_scored">Points scored</option>
+              <option value="pairs_completed">Red-colour pairs completed</option>
+              <option value="steps_completed">Steps completed</option>
+            </select>
+          </div>
+          <div class="progressive-config">
+            <label>Target colour mode <button type="button" class="help-dot" onclick="showFieldHelp('targetColourMode')">?</button></label>
+            <select id="routineTargetMode">
+              <option value="blacks_only">Blacks only</option>
+              <option value="mixed_colours">Mixed colours</option>
+              <option value="nominated_colour">Nominated colour</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="progressive-config">
+            <label>Target colour <button type="button" class="help-dot" onclick="showFieldHelp('targetColour')">?</button></label>
+            <select id="routineTargetColour">
+              <option value="">Not applicable</option>
+              <option value="red">Red</option>
+              <option value="yellow">Yellow</option>
+              <option value="green">Green</option>
+              <option value="brown">Brown</option>
+              <option value="blue">Blue</option>
+              <option value="pink">Pink</option>
+              <option value="black">Black</option>
+              <option value="custom">Custom / other</option>
+            </select>
+          </div>
+          <div class="progressive-config">
+            <label>Track highest break?</label>
+            <select id="routineTrackHighestBreak">
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+        <label>Description / rules</label>
+        <textarea id="routineDescription" rows="3" placeholder="Define exactly how to score the exercise."></textarea>
+        <div class="row">
+          <button id="saveRoutineBtn">Save Exercise</button>
+          <button id="clearRoutineFormBtn" class="secondary">Clear Form</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Exercise database</h2>
+        <div class="card nested" id="tableDatabasePanel">
+          <details>
+            <summary><strong>Tables / venues database</strong></summary>
+            <p class="muted">Create and edit table names. Historical logs use a stable table ID, so renaming a table keeps stats linked to the same actual table.</p>
+            <div class="grid two">
+              <div><label>Table name</label><input id="tableNameInput" placeholder="e.g. Riley – Home table" /></div>
+              <div><label>Table type / venue</label><input id="tableTypeInput" placeholder="e.g. Home, Club, Match table" /></div>
+            </div>
+            <label>Table info</label>
+            <textarea id="tableInfoInput" rows="3" placeholder="Optional: cloth, pockets, speed, lighting, notes"></textarea>
+            <input id="tableEditId" type="hidden" />
+            <div class="row">
+              <button id="saveTableBtn" type="button">Save Table</button>
+              <button id="clearTableFormBtn" type="button" class="secondary">Clear</button>
+            </div>
+            <div id="tableList"></div>
+          </details>
+        </div>
+        
+        <div class="grid three">
+          <div>
+            <label>Filter by type</label>
+            <select id="exerciseTypeFilter"></select>
+          </div>
+          <div>
+            <label>Filter by folder</label>
+            <select id="exerciseFolderFilter"></select>
+          </div>
+          <div>
+            <label>Search</label>
+            <input id="exerciseSearch" placeholder="Search exercise name..." />
+          </div>
+        </div>
+        <div id="routineList" class="list grouped"></div>
+      </div>
+    </section>
+
+    <section id="plans" class="panel">
+      <div class="card">
+        <h2>Create daily training plan</h2>
+        <label>Plan name</label>
+        <input id="planName" placeholder="e.g. Tuesday 60 min — Break-building focus" />
+
+        <div class="grid two">
+          <div>
+            <label>Filter routine picker by type</label>
+            <select id="planTypeFilter"></select>
+          </div>
+          <div>
+            <label>Filter routine picker by folder</label>
+            <select id="planFolderFilter"></select>
+          </div>
+        </div>
+
+        <label>Add routine</label>
+        <div class="row">
+          <select id="routineToAdd"></select>
+          <button id="addRoutineToPlanBtn" class="secondary">Add</button>
+        </div>
+
+        <div class="card nested">
+          <h3>Randomizer</h3>
+          <p class="muted">Pick X exercises at random using the filters below.</p>
+          <div class="grid three">
+            <div>
+              <label>Number of exercises</label>
+              <input id="randomCount" type="number" min="1" value="4" />
+            </div>
+            <div>
+              <label>Type filter</label>
+              <select id="randomTypeFilter"></select>
+            </div>
+            <div>
+              <label>Folder filter</label>
+              <select id="randomFolderFilter"></select>
+            </div>
+          </div>
+          <div class="row">
+            <button id="randomizePlanBtn" class="secondary">Randomize Draft Plan</button>
+            <button id="appendRandomPlanBtn" class="secondary">Append Random Exercises</button>
+          </div>
+        </div>
+
+        <div class="card nested">
+          <h3>Constraint-based session generator</h3>
+          <p class="muted">Build a session by time allocation rather than fixed exercises.</p>
+          <div class="grid three">
+            <div>
+              <label>Total minutes</label>
+              <input id="constraintTotalMinutes" type="number" min="10" value="60" />
+            </div>
+            <div>
+              <label>Main focus</label>
+              <select id="constraintFocusType"></select>
+            </div>
+            <div>
+              <label>Number of exercises</label>
+              <input id="constraintExerciseCount" type="number" min="1" value="4" />
+            </div>
+          </div>
+          <div class="grid three">
+            <div>
+              <label>Potting %</label>
+              <input id="allocPotting" type="number" min="0" max="100" value="40" />
+            </div>
+            <div>
+              <label>Break-building %</label>
+              <input id="allocBreak" type="number" min="0" max="100" value="35" />
+            </div>
+            <div>
+              <label>Safety / other %</label>
+              <input id="allocOther" type="number" min="0" max="100" value="25" />
+            </div>
+          </div>
+          <div class="row">
+            <button id="generateConstraintPlanBtn" class="secondary">Generate Session Draft</button>
+          </div>
+        </div>
+
+        <div id="planBuilderList" class="list compact"></div>
+        <button id="savePlanBtn">Save Plan</button>
+      </div>
+
+      <div class="card">
+        <h2>Saved daily plans</h2>
+        <div id="planList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="stats" class="panel">
+      <div class="card">
+        <h2>Stats</h2>
+        <div class="stats-subtabs">
+          <button id="statsOverviewBtn" class="secondary active-subtab" type="button">Overview</button>
+          <button id="statsAdvancedBtn" class="secondary" type="button">Advanced Stats</button>
+        </div>
+        <div class="grid three">
+          <div>
+            <label>Stats view</label>
+            <select id="statsPeriodSelect">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="overall">Overall</option>
+              <option value="exercise">Per exercise</option>
+            </select>
+          </div>
+          <div>
+            <label>Reference date</label>
+            <input id="statsDateSelect" type="date" />
+          </div>
+          <div>
+            <label>Exercise filter</label>
+            <select id="statsRoutineSelect"></select>
+          </div>
+        </div>
+        <div class="grid two">
+          <div>
+            <label>Rolling average window</label>
+            <input id="rollingWindowInput" type="number" min="2" max="20" value="5" />
+          </div>
+          <div>
+            <label>Benchmark window</label>
+            <input id="benchmarkWindowInput" type="number" min="3" max="30" value="10" />
+          </div>
+        </div>
+        
+        <div class="card nested">
+          <h3>A/B period comparison <button type="button" class="stat-help" onclick="showFieldHelp('abComparison')">?</button></h3>
+          <div class="grid three">
+            <div>
+              <label>Compare mode</label>
+              <select id="compareToggle">
+                <option value="off">Off</option>
+                <option value="last4">Last 4 weeks vs previous 4 weeks</option>
+                <option value="last2">Last 2 weeks vs previous 2 weeks</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </div>
+            <div>
+              <label>Period A start</label>
+              <input id="compareAStart" type="date" />
+            </div>
+            <div>
+              <label>Period A end</label>
+              <input id="compareAEnd" type="date" />
+            </div>
+          </div>
+          <div class="grid two">
+            <div>
+              <label>Period B start</label>
+              <input id="compareBStart" type="date" />
+            </div>
+            <div>
+              <label>Period B end</label>
+              <input id="compareBEnd" type="date" />
+            </div>
+          </div>
+          <div id="compareOutput"></div>
+        </div>
+
+        <div id="weeklyReviewBox"></div>
+        <div class="card nested" id="regretEnginePanel">
+          <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" onclick="showFieldHelp('regretEngine')">?</button></h3>
+          <p class="muted">Estimates whether another routine may have been a better choice in similar conditions. This is heuristic, not causal proof.</p>
+          <div class="grid three">
+            <div>
+              <label>Chosen routine</label>
+              <select id="regretChosenRoutine"></select>
+            </div>
+            <div>
+              <label>Alternative routine</label>
+              <select id="regretAlternativeRoutine"></select>
+            </div>
+            <div>
+              <label>Context window</label>
+              <select id="regretWindow">
+                <option value="10">Last 10 logs</option>
+                <option value="20" selected>Last 20 logs</option>
+                <option value="40">Last 40 logs</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <button id="runRegretBtn" type="button" class="secondary">Run Comparison</button>
+          </div>
+          <div id="regretOutput" class="analytics-note">Select two routines to compare.</div>
+        </div>
+        
+        <div class="card nested" id="phaseOneInsightsPanel">
+          <h3>Phase 1 Training Insights <button type="button" class="stat-help" onclick="showFieldHelp('phaseOneInsights')">?</button></h3>
+          <p class="muted">Expected vs actual performance, session peak window, and context effects.</p>
+          <div id="phaseOneInsightsOutput"></div>
+        </div>
+        
+        <div id="tableStatsBox"></div>
+        <div id="statsOutput" class="stats"></div>
+      </div>
+    </section>
+
+    <section id="data" class="panel">
+      <div class="card">
+        <h2>Data export / import</h2>
+        <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
+        <div class="row">
+          <button id="exportCsvBtn">Export CSV</button>
+          <div class="card nested">
+          <h3>Export folder</h3>
+          <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
+          <div id="exportFolderStatus" class="analytics-note">Export folder not selected.</div>
+          <div class="row">
+            <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Export Folder</button>
+            <button id="clearExportFolderBtn" class="secondary" type="button">Clear Export Folder</button>
+          </div>
+        </div>
+
+          <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
+          <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
+          <button id="exportRawStorageBtn" class="secondary">Export Raw Local Data</button>
+          <label class="file-btn secondary">
+            Import JSON Backup
+            <input id="importJsonInput" type="file" accept="application/json" />
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Interface settings</h2>
+        <p class="muted">Use these settings to reduce friction during practice and adapt the app to low-light club conditions.</p>
+        <div class="grid three">
+          <div>
+            <label>Theme</label>
+            <select id="themeModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)">
+              <option value="system">System default</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="contrast">High contrast</option>
+            </select>
+          </div>
+          <div>
+            <label>Full-screen session mode</label>
+            <select id="sessionFocusModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)">
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+          <div>
+            <label>One-tap quick-log buttons</label>
+            <select id="quickLogAutoAdvanceSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)">
+              <option value="on">Show auto-save macros</option>
+              <option value="off">Manual save only</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card danger-zone">
+        <h2>Reset app data</h2>
+        <p>This deletes saved exercises, plans, and logs from this browser.</p>
+        <button id="clearDataBtn" class="danger">Clear All Data</button>
+      </div>
+    </section>
+  </main>
+
+
+  <div id="fieldHelpModal" class="modal-backdrop hidden" onclick="closeFieldHelp(event)">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fieldHelpTitle">
+      <div class="modal-header">
+        <h2 id="fieldHelpTitle">Field help</h2>
+        <button type="button" class="modal-close" onclick="hideFieldHelp()">×</button>
+      </div>
+      <div id="fieldHelpBody" class="modal-body"></div>
+      <button type="button" class="secondary" onclick="hideFieldHelp()">Close</button>
+    </div>
+  </div>
+
+
+  <div id="reflectionModal" class="modal-backdrop hidden" onclick="closeReflectionModal(event)">
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Post-session reflection</h2>
+        <button type="button" class="modal-close" onclick="skipReflection()">×</button>
+      </div>
+      <div class="modal-body">
+        <label>Main technical focus</label>
+        <select id="reflectionFocus">
+          <option value="">Select focus</option>
+          <option value="potting">Potting</option>
+          <option value="cue_ball_control">Cue ball control</option>
+          <option value="break_building">Break-building</option>
+          <option value="safety">Safety</option>
+          <option value="tempo">Tempo / rhythm</option>
+          <option value="pressure">Pressure</option>
+        </select>
+        <label>Main limiter</label>
+        <select id="reflectionLimiter">
+          <option value="">Select limiter</option>
+          <option value="fatigue">Fatigue</option>
+          <option value="concentration">Concentration</option>
+          <option value="technique">Technique</option>
+          <option value="table_conditions">Table conditions</option>
+          <option value="confidence">Confidence</option>
+          <option value="shot_selection">Shot selection</option>
+        </select>
+        <label>Reflection note</label>
+        <textarea id="reflectionNote" rows="3" placeholder="Short note: what would improve the next session?"></textarea>
+      </div>
+      <div class="row">
+        <button type="button" onclick="saveReflection()">Save reflection</button>
+        <button type="button" class="secondary" onclick="skipReflection()">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
+  </footer>
+
+  <script src="app.js?v=3.25.7"></script>
 </body>
 </html>
