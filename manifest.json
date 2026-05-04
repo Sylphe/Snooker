@@ -1,7 +1,7 @@
 {
   "name": "Snooker Practice Log",
   "short_name": "Snooker Log",
-  "start_url": "./index.html?v=3.29.0",
+  "start_url": "./index.html?v=3.30.0",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f2",
@@ -9,7 +9,7 @@
   "description": "Snooker practice log with dark/high-contrast mode, focus session mode, and faster one-tap score entry.",
   "icons": [
     {
-      "src": "icon.svg?v=3.29.0",
+      "src": "icon.svg?v=3.30.0",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
@@ -19,19 +19,19 @@
     {
       "name": "Free training",
       "short_name": "Free",
-      "url": "./index.html?v=3.29.0#practice",
+      "url": "./index.html?v=3.30.0#practice",
       "description": "Open practice screen"
     },
     {
       "name": "Stats overview",
       "short_name": "Stats",
-      "url": "./index.html?v=3.29.0#stats",
+      "url": "./index.html?v=3.30.0#stats",
       "description": "Open stats overview"
     },
     {
       "name": "Data backup",
       "short_name": "Backup",
-      "url": "./index.html?v=3.29.0#data",
+      "url": "./index.html?v=3.30.0#data",
       "description": "Open data backup tools"
     }
   ]

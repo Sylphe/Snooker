@@ -1,8 +1,8 @@
-# Snooker Practice Log — v3.29.0
+# Snooker Practice Log — v3.30.0
 
 Built from the working v3.27.0 base.
 
-## Fixed in v3.29.0
+## Fixed in v3.30.0
 
 - Log editing now opens in a modal / bottom-sheet style interface instead of inserting large edit forms into table rows.
 - Historical tables and swipeable cards now use the same modal editor, improving Android/mobile usability and reducing table layout complexity.
@@ -26,4 +26,11 @@ Built from the working v3.27.0 base.
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.29.0.
+Confirm version: the header should show v3.30.0.
+
+
+## v3.30.0 additions
+
+- Added per-exercise recommendation eligibility: active, occasional, or excluded.
+- Capped recency and undertraining bonuses so large exercise databases do not force stale/ignored drills too aggressively.
+- Added small analytics guardrails for zero-variance / not-enough-variation cases and safer denominator handling in progress velocity.

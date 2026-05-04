@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.29.0</title>
+  <title>Snooker Practice Log v3.30.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=3.29.0" />
-  <link rel="stylesheet" href="styles.css?v=3.29.0" />
-  <link rel="icon" href="icon.svg?v=3.29.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.30.0" />
+  <link rel="stylesheet" href="styles.css?v=3.30.0" />
+  <link rel="icon" href="icon.svg?v=3.30.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.29.0 — modal log editing, simplified theme system, safer dynamic rendering, scoped updates.</p>
+      <p>v3.30.0 — modal log editing, simplified theme system, safer dynamic rendering, scoped updates.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -367,6 +367,14 @@
             <select id="routineIsAnchor">
               <option value="no">No</option>
               <option value="yes">Yes — include in baseline tracking</option>
+            </select>
+          </div>
+          <div>
+            <label>Recommendation eligibility</label>
+            <select id="routineRecommendationMode">
+              <option value="active">Active — recommend normally</option>
+              <option value="occasional">Occasional — cap recommendation weight</option>
+              <option value="excluded">Exclude from recommendations</option>
             </select>
           </div>
           <div>
@@ -813,6 +821,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.29.0"></script>
+  <script src="app.js?v=3.30.0"></script>
 </body>
 </html>

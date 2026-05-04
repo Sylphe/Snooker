@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.29.0-final";
+const APP_VERSION = "3.30.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -278,6 +278,11 @@ function fmtScoring(type) {
   }[type] || type;
 }
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
+function recommendationMode(r) { return ["active", "occasional", "excluded"].includes(r?.recommendationMode) ? r.recommendationMode : "active"; }
+function recommendationEligibleRoutines() { return activeRoutines().filter(r => recommendationMode(r) !== "excluded"); }
+function recommendationRecencyCap(routine) { return recommendationMode(routine) === "occasional" ? 7 : 14; }
+function recommendationUndertrainingMultiplier(routine) { return recommendationMode(routine) === "occasional" ? 0.35 : 1; }
+function recommendationModeLabel(value) { return {active:"Active recommendation", occasional:"Occasional only", excluded:"Excluded from recommendations"}[value] || "Active recommendation"; }
 function categories() { return [...new Set(activeRoutines().map(r => r.category || "uncategorized"))].sort(); }
 function folders() { return [...new Set(activeRoutines().map(r => r.folder || "Unfiled"))].sort(); }
 function subfolders() { return [...new Set(activeRoutines().map(r => r.subfolder || "General"))].sort(); }
@@ -312,7 +317,7 @@ function correlation(xs, ys) {
   return num / (denX * denY);
 }
 function corrText(r) {
-  if (r === null) return "Not enough data";
+  if (r === null) return "Not enough variation/data";
   const abs = Math.abs(r);
   const strength = abs >= .65 ? "strong" : abs >= .35 ? "moderate" : "weak";
   const direction = r >= 0 ? "positive" : "negative";
@@ -434,6 +439,7 @@ function renderRoutineItem(r) {
     <span class="badge">${numText(r.duration || 0)} min</span>
     ${r.attempts ? `<span class="badge">${numText(r.attempts)} attempts</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${numText(r.target)}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
+    ${recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""}
     ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
@@ -459,6 +465,7 @@ function editRoutine(id) {
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
+  if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
@@ -478,6 +485,7 @@ function clearRoutineForm() {
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   $("routineIsAnchor").value = "no";
+  if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
@@ -486,7 +494,7 @@ $("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
-  data.routines.push({...r, id: uuid(), name: `${r.name} copy`, isDeleted: false, deletedAt: ""});
+  data.routines.push({...r, id: uuid(), name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)});
   saveData();
 }
 function deleteRoutine(id) {
@@ -517,6 +525,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
     isAnchor: $("routineIsAnchor").value === "yes",
+    recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -1581,8 +1590,8 @@ function adaptivePriorityScore(state, goal="auto") {
   if (state.psi && state.psi.psi < 70) score += (70 - state.psi.psi) * 0.35;
   if (state.drift && state.drift.deltaPct < 0) score += Math.min(20, Math.abs(state.drift.deltaPct));
   if (state.plateau && state.plateau.isPlateau) score += 14;
-  if (state.days >= 7) score += Math.min(18, state.days);
-  if (undertrainedCategoryBonus(r.id)) score += undertrainedCategoryBonus(r.id) * 0.8;
+  if (state.days >= 7) score += Math.min(12, Math.min(state.days, recommendationRecencyCap(r)));
+  if (undertrainedCategoryBonus(r.id)) score += undertrainedCategoryBonus(r.id) * 0.8 * recommendationUndertrainingMultiplier(r);
 
   if (goal === "stability") {
     if (state.phase === "stabilize" || r.isAnchor) score += 25;
@@ -1591,7 +1600,7 @@ function adaptivePriorityScore(state, goal="auto") {
   } else if (goal === "recovery") {
     if (state.phase === "recover" || (state.fatigue && state.fatigue.slope < -0.25)) score += 25;
   } else if (goal === "variety") {
-    if (state.phase === "vary" || state.days >= 10) score += 25;
+    if (state.phase === "vary" || state.days >= 10) score += recommendationMode(r) === "occasional" ? 10 : 18;
   } else {
     if (["stabilize","progress","vary","recover","refresh"].includes(state.phase)) score += 15;
   }
@@ -1619,7 +1628,7 @@ function adaptiveActionForState(state) {
 
 function adaptiveSessionStructure(goal, duration, strictness) {
   const targetMinutes = Number(duration || 60);
-  const states = activeRoutines().map(r => adaptiveRoutineState(r.id));
+  const states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
   const ranked = states.map(s => ({...s, adaptiveScore: adaptivePriorityScore(s, goal)})).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -1777,22 +1786,29 @@ function renderSmartRecommendation() {
     byRoutine[l.routineId] ||= [];
     byRoutine[l.routineId].push(l);
   });
-  const candidates = Object.entries(byRoutine).map(([rid, logs]) => {
-    logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-    const vals = logs.map(l=>Number(l.normalizedScore||0));
-    const hit = targetHitRate(logs);
-    const recent = avg(vals.slice(-3));
-    const prior = avg(vals.slice(0,-3));
-    const score = (hit === null ? 50 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length);
-    return {rid, logs, score, hit, recent, prior};
-  }).sort((a,b)=>b.score-a.score);
+  const eligibleIds = new Set(recommendationEligibleRoutines().map(r => r.id));
+  const candidates = Object.entries(byRoutine)
+    .filter(([rid]) => eligibleIds.has(rid))
+    .map(([rid, logs]) => {
+      const routine = routineById(rid);
+      logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+      const vals = logs.map(l=>Number(l.normalizedScore||0));
+      const hit = targetHitRate(logs);
+      const recent = avg(vals.slice(-3));
+      const prior = avg(vals.slice(0,-3));
+      const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
+      const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
+      const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
+      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty;
+      return {rid, logs, score, hit, recent, prior};
+    }).sort((a,b)=>b.score-a.score);
   const top = candidates[0];
   const routine = top ? routineById(top.rid) : null;
   const recentLogs = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,20);
   const alloc = computeAllocation(recentLogs);
   const undertrained = alloc.sort((a,b)=>a.pct-b.pct)[0];
   if (!routine) {
-    box.innerHTML = "Not enough routine-level data yet.";
+    box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
@@ -1871,7 +1887,7 @@ function routineResidualInsight(routineId) {
 function renderResidualInsights(logs) {
   const scopedRoutineIds = [...new Set(logs.map(l => l.routineId).filter(Boolean))];
   const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
-  if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history yet.</div></div>`;
+  if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history/variation yet.</div></div>`;
   return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
     <strong>Expected vs actual residuals ${statHelpButton("residual")}</strong>
     ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.residualMean>=0?"+":""}${i.residualMean.toFixed(1)}</strong><span>n=${i.logs.length}</span></div>`).join("")}
@@ -1905,7 +1921,7 @@ function renderPeakWindowInsight(logs) {
   const peaks = sessions.map(id => sessionPeakWindow(id)).filter(Boolean);
   if (!peaks.length) {
     const fallback = sessionPeakWindow(logs);
-    if (!fallback) return `<div class="insight-card watch"><strong>Peak window</strong><div class="muted">Not enough within-session data yet.</div></div>`;
+    if (!fallback) return `<div class="insight-card watch"><strong>Peak window</strong><div class="muted">Not enough within-session data/variation yet.</div></div>`;
     peaks.push(fallback);
   }
   const avgStart = avg(peaks.map(p=>p.start));
@@ -1947,7 +1963,7 @@ function renderContextEffects(logs) {
     ...groupContextEffects(logs, l => l.sessionIntervention || "", "Intervention"),
     ...groupContextEffects(logs, l => timeOfDayBucket(l), "Time")
   ].filter(e => e.n >= 3).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,8);
-  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects ${statHelpButton("contextEffects")}</strong><div class="muted">Need more logs by table/time/intervention.</div></div>`;
+  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects ${statHelpButton("contextEffects")}</strong><div class="muted">Need more logs by table/time/intervention before this signal is reliable.</div></div>`;
   return `<div class="insight-card ${effects[0].delta<0?"risk":"good"}"><strong>Context effects ${statHelpButton("contextEffects")}</strong>
     ${effects.map(e => `<div class="context-row"><span>${escapeHtml(e.label)}: ${escapeHtml(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>n=${e.n}</span></div>`).join("")}
     <div class="adaptive-rationale">Shows performance lifters/drags versus your overall average. Minimum threshold is deliberately low for visibility; treat small samples cautiously.</div>
@@ -2334,7 +2350,9 @@ function progressVelocity(logs, windowSize=10) {
   const mx = avg(xs), my = avg(use);
   const num = xs.reduce((a,x,i)=>a+(x-mx)*(use[i]-my),0);
   const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
-  const slope = den ? num/den : 0;
+  if (!Number.isFinite(den) || den === 0) return {slope:0, n, label:"Flat", note:"No time/order variation"};
+  const slope = num/den;
+  if (!Number.isFinite(slope)) return {slope:0, n, label:"Flat", note:"Not enough variation"};
   return {slope, n, label: slope>0.5?"Improving":slope<-0.5?"Declining":"Flat"};
 }
 
@@ -2383,7 +2401,7 @@ function performanceStabilityIndex(logs, windowSize=10) {
 
 function renderPerformanceStability(logs) {
   const psi = performanceStabilityIndex(logs, 10);
-  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index ${statHelpButton("psi")}</strong><br>Not enough data yet.</div>`;
+  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index ${statHelpButton("psi")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = psi.psi >= 70 ? "psi-good" : psi.psi >= 45 ? "psi-watch" : "psi-risk";
   return `<div class="psi-card ${cls}">
     <strong>Performance Stability Index ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
@@ -2411,7 +2429,7 @@ function fatigueSlope(logs) {
 
 function renderFatigueSlope(logs) {
   const f = fatigueSlope(logs);
-  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope ${statHelpButton("fatigueSlope")}</strong><br>Not enough data yet.</div>`;
+  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope ${statHelpButton("fatigueSlope")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
   return `<div class="psi-card ${cls}">
@@ -3590,17 +3608,23 @@ function getRoutinePriorityReasons(item){
   const r=item.routine,s=item.stats,reasons=[];
   if(s.hit!==null&&s.hit<55) reasons.push("low target hit rate");
   if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
-  if(undertrainedCategoryBonus(r.id)>=7) reasons.push("undertrained category");
-  if(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7) reasons.push("not practiced recently");
+  if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
+  if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
+  if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
   return reasons;
 }
 function routineMixedStrategyScore(routine,stats,strategy){
-  let score=stats.score||0; const days=stats.logs.length?daysSince(stats.logs[stats.logs.length-1].createdAt):30;
+  if (recommendationMode(routine) === "excluded") return -999;
+  let score=stats.score||0;
+  const days=stats.logs.length?daysSince(stats.logs[stats.logs.length-1].createdAt):recommendationRecencyCap(routine);
+  const cappedDays=Math.min(days,recommendationRecencyCap(routine));
+  const undertraining=undertrainedCategoryBonus(routine.id)*recommendationUndertrainingMultiplier(routine);
   if(strategy==="exploit") score+=(stats.hit===null?5:Math.max(0,80-stats.hit)*0.55);
-  else if(strategy==="explore"){score+=Math.min(35,days*2); score+=undertrainedCategoryBonus(routine.id)*1.3;}
-  else {score+=Math.min(20,days); score+=routine.isAnchor?8:0;}
+  else if(strategy==="explore"){score+=Math.min(24,cappedDays*1.5); score+=undertraining*1.1;}
+  else {score+=Math.min(14,cappedDays); score+=routine.isAnchor?8:0;}
+  if (recommendationMode(routine) === "occasional") score -= 8;
   return score;
 }
 function weightedPick(items,usedIds){
@@ -3656,6 +3680,7 @@ function tableStats(logs){const groups={}; logs.filter(l=>l.venueTable).forEach(
 function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance ${statHelpButton("tableVenuePerformance")}</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
 function routineStats(routineId) {
+  const routine = routineById(routineId);
   const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const hit = targetHitRate(logs);
@@ -3663,12 +3688,15 @@ function routineStats(routineId) {
   const prior = vals.length > 3 ? avg(vals.slice(0,-3)) : null;
   const momentumPenalty = prior && recent !== null && recent < prior ? 18 : 0;
   const lowHitPenalty = hit === null ? 8 : Math.max(0, 80-hit) * 0.7;
-  const undertrainedBonus = undertrainedCategoryBonus(routineId);
-  const recencyBonus = logs.length ? Math.min(12, daysSince(logs[logs.length-1].createdAt) * 1.5) : 15;
-  const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, avg(vals)) * 30) : 5;
+  const undertrainedBonus = undertrainedCategoryBonus(routineId) * recommendationUndertrainingMultiplier(routine);
+  const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : recommendationRecencyCap(routine);
+  const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)) * 1.2);
+  const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, Math.abs(avg(vals))) * 30) : 5;
+  const modePenalty = recommendationMode(routine) === "occasional" ? 8 : 0;
+  const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
   return {
     logs, vals, hit, recent, prior,
-    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty
+    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty
   };
 }
 
@@ -3680,7 +3708,7 @@ function daysSince(dateIso) {
 
 function undertrainedCategoryBonus(routineId) {
   const routine = routineById(routineId);
-  if (!routine) return 0;
+  if (!routine || recommendationMode(routine) === "excluded") return 0;
   const recent = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,30);
   const alloc = computeAllocation(recent);
   const cat = alloc.find(a => a.cat === routine.category);
