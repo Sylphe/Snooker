@@ -1,10 +1,12 @@
-const CACHE_NAME = "snooker-practice-log-v3-33-0-final";
+const CACHE_NAME = "snooker-practice-log-v4-0-0-final";
 const ASSETS = [
-  "./index.html?v=3.33.0",
-  "./styles.css?v=3.33.0",
-  "./app.js?v=3.33.0",
-  "./manifest.json?v=3.33.0",
-  "./icon.svg?v=3.33.0"
+  "./index.html?v=4.0.0",
+  "./styles.css?v=4.0.0",
+  "./app.js?v=4.0.0",
+  "./modules/app-core.js?v=4.0.0",
+  "./modules/version.js?v=4.0.0",
+  "./manifest.json?v=4.0.0",
+  "./icon.svg?v=4.0.0"
 ];
 
 self.addEventListener("install", event => {
@@ -24,7 +26,7 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  const isAppFile = ["index.html", "app.js", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+  const isAppFile = ["index.html", "app.js", "app-core.js", "version.js", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
   if (isAppFile) {
     event.respondWith(fetch(request).then(response => {
       const copy = response.clone();
