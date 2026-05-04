@@ -1,6 +1,6 @@
-# Snooker Practice Log — v3.25.9
+# Snooker Practice Log — v3.25.10
 
-Built from the v3.25.6 working set.
+Built from the v3.25.10 working set.
 
 ## Fixed
 
@@ -16,4 +16,4 @@ Built from the v3.25.6 working set.
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.25.9.
+Confirm version: the header should show v3.25.10.

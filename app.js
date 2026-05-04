@@ -1894,7 +1894,7 @@ function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
   const rid = $("statsRoutineSelect")?.value || "all";
-  const logs = getScopedStatsLogs ? getScopedStatsLogs() : ((data.logs || []).filter(l => rid === "all" || l.routineId === rid));
+  const logs = (typeof getScopedStatsLogs !== "undefined" && typeof getScopedStatsLogs === "function") ? getScopedStatsLogs() : ((data.logs || []).filter(l => rid === "all" || l.routineId === rid));
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">No logs available for selected scope.</div>`;
     return;
