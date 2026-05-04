@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.0.0";
+import { APP_VERSION } from "./version.js?v=4.0.1";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -28,6 +28,8 @@ const INDEXEDDB_MIGRATION_KEY = "snookerPracticePWA.indexedDBMigration.v1";
 let indexedDBReady = false;
 let indexedDBUnavailable = false;
 let indexedDBSyncTimer = null;
+let indexedDBHydrating = true;
+
 
 function serializeCoreData(d) {
   const core = structuredCloneSafe(d || {});
@@ -95,23 +97,71 @@ function idbReplaceAll(storeName, rows) {
     tx.onerror = () => { db.close(); reject(tx.error); };
   }));
 }
+function idbPut(storeName, item) {
+  if (indexedDBUnavailable || !item || !item.id) return Promise.resolve(false);
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(item);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
+}
+function idbDelete(storeName, id) {
+  if (indexedDBUnavailable || !id) return Promise.resolve(false);
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).delete(id);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
+}
+function persistLogDelta(log, context="persistLogDelta") {
+  if (indexedDBUnavailable || !log || !log.id) return Promise.resolve(false);
+  return idbPut(INDEXEDDB_LOG_STORE, log).catch(e => { logAppError(e, context); return false; });
+}
+function persistSessionDelta(session, context="persistSessionDelta") {
+  if (indexedDBUnavailable || !session || !session.id) return Promise.resolve(false);
+  return idbPut(INDEXEDDB_SESSION_STORE, session).catch(e => { logAppError(e, context); return false; });
+}
+function deleteLogDelta(id, context="deleteLogDelta") {
+  if (indexedDBUnavailable || !id) return Promise.resolve(false);
+  return idbDelete(INDEXEDDB_LOG_STORE, id).catch(e => { logAppError(e, context); return false; });
+}
 async function persistIndexedDBCollections(context="persistIndexedDBCollections") {
   if (indexedDBUnavailable) return false;
   try {
     await idbReplaceAll(INDEXEDDB_LOG_STORE, data.logs || []);
     await idbReplaceAll(INDEXEDDB_SESSION_STORE, data.sessions || []);
     indexedDBReady = true;
+    indexedDBHydrating = false;
     return true;
   } catch(e) {
+    indexedDBHydrating = false;
     indexedDBUnavailable = true;
     logAppError(e, context);
     return false;
   }
 }
-function scheduleIndexedDBSync(context="scheduleIndexedDBSync") {
+function scheduleIndexedDBSync(context="scheduleIndexedDBSync", immediate=false) {
   if (indexedDBUnavailable) return;
   clearTimeout(indexedDBSyncTimer);
-  indexedDBSyncTimer = setTimeout(() => persistIndexedDBCollections(context), 80);
+  indexedDBSyncTimer = null;
+  if (immediate) {
+    persistIndexedDBCollections(context);
+    return;
+  }
+  indexedDBSyncTimer = setTimeout(() => {
+    indexedDBSyncTimer = null;
+    persistIndexedDBCollections(context);
+  }, 80);
+}
+function flushPendingIndexedDBSync(context="flushPendingIndexedDBSync") {
+  if (indexedDBUnavailable) return;
+  if (indexedDBSyncTimer) {
+    clearTimeout(indexedDBSyncTimer);
+    indexedDBSyncTimer = null;
+    persistIndexedDBCollections(context);
+  }
 }
 function mergeById(primary, fallback) {
   const map = new Map();
@@ -130,6 +180,7 @@ async function hydrateIndexedDBData() {
     data.logs = logs;
     data.sessions = sessions;
     indexedDBReady = true;
+    indexedDBHydrating = false;
     if (localLogs.length || localSessions.length || logs.length !== idbLogs.length || sessions.length !== idbSessions.length) {
       await persistIndexedDBCollections("hydrateIndexedDBData migration write");
       localStorage.setItem(INDEXEDDB_MIGRATION_KEY, new Date().toISOString());
@@ -333,6 +384,12 @@ function loadData() {
 }
 
 function saveData(options = {}) {
+  if (!indexedDBReady && !indexedDBUnavailable) {
+    console.warn("saveData blocked until IndexedDB hydration completes.");
+    logAppError?.(new Error("saveData blocked before IndexedDB hydration completed"), "saveData hydration guard");
+    return false;
+  }
+  const opts = typeof options === "string" ? {render: options} : (options || {});
   data.updatedAt = new Date().toISOString();
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings.themeMode = getThemeModeSetting();
@@ -340,9 +397,9 @@ function saveData(options = {}) {
   data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
   ensureTablesDatabase?.();
   const ok = saveCoreData("saveData core");
-  scheduleIndexedDBSync("saveData indexedDB sync");
+  if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
   if (ok) renderStorageWarning();
-  const renderMode = typeof options === "string" ? options : (options && options.render) || "all";
+  const renderMode = opts.render || "all";
   renderAfterSave(renderMode);
   return ok;
 }
@@ -989,7 +1046,7 @@ $("continueFreeBtn").addEventListener("click", () => {
   $("activeSession").classList.remove("hidden");
   renderCurrentRoutine();
 });
-function saveCurrentRoutine() {
+async function saveCurrentRoutine() {
   if (!activeSession) return;
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
@@ -1058,21 +1115,22 @@ function saveCurrentRoutine() {
   updateTagHistoryFromInput(log.sessionTags);
   data.logs.push(log);
   activeSession.completedLogs.push(log);
+  await persistLogDelta(log, "saveCurrentRoutine log put");
   stopTimer();
 
   if (activeSession.type === "free") {
-    saveData({render:"sessionLog"});
+    saveData({render:"sessionLog", idbSync:"skip"});
     $("activeSession").classList.add("hidden");
     $("freeNextCard").classList.remove("hidden");
     updateSessionFocusState();
   } else {
     activeSession.index += 1;
     persistActiveSession();
-    saveData({render:"sessionLog"});
+    saveData({render:"sessionLog", idbSync:"skip"});
     renderCurrentRoutine();
   }
 }
-function completeSession() {
+async function completeSession() {
   if (!activeSession) return;
   stopTimer();
   $("activeSession").classList.add("hidden");
@@ -1102,7 +1160,7 @@ function completeSession() {
   if (existingIdx >= 0) data.sessions[existingIdx] = sessionRecord;
   else data.sessions.push(sessionRecord);
   saveCoreData("completeSession core save");
-  scheduleIndexedDBSync("completeSession indexedDB sync");
+  await persistSessionDelta(sessionRecord, "completeSession session put");
   resetTimerState();
   if (activeSession) activeSession.timerState = null;
   activeSession = null;
@@ -1454,7 +1512,7 @@ function saveReflection() {
       createdAt: new Date().toISOString()
     };
     saveCoreData("reflection core save");
-    scheduleIndexedDBSync("reflection indexedDB sync");
+    persistSessionDelta(data.sessions[idx], "reflection session put");
   }
   skipReflection();
   renderAll();
@@ -2825,12 +2883,12 @@ function closeLogEditModal(event) {
   const body = $("logEditModalBody");
   if (body) body.innerHTML = "";
 }
-function saveEditedLogFromModal() {
+async function saveEditedLogFromModal() {
   const modal = $("logEditModal");
   const id = modal?.dataset?.logId || "";
   const form = modal?.querySelector?.(".log-edit");
   if (!id || !form) return alert("Edit form not found.");
-  saveEditedLog(id, form);
+  await saveEditedLog(id, form);
   closeLogEditModal();
 }
 function showEditLog(source) {
@@ -2840,11 +2898,11 @@ function showEditLog(source) {
   const id = card?.querySelector?.(".log-edit")?.dataset?.logEditId || row?.dataset?.logRowId || "";
   if (id) openLogEditModal(id);
 }
-function saveEditedLogFromButton(button, id) {
+async function saveEditedLogFromButton(button, id) {
   const form = button?.closest?.(".log-edit");
-  saveEditedLog(id, form);
+  await saveEditedLog(id, form);
 }
-function saveEditedLog(id, formEl) {
+async function saveEditedLog(id, formEl) {
   const idx = data.logs.findIndex(l => l.id === id);
   if (idx < 0) return;
   const l = data.logs[idx];
@@ -2875,7 +2933,8 @@ function saveEditedLog(id, formEl) {
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
   data.logs[idx] = l;
-  saveData({render:"logEdit"});
+  await persistLogDelta(l, "saveEditedLog log put");
+  saveData({render:"logEdit", idbSync:"skip"});
 }
 function makeRoutineSnapshotFromLog(l) {
   return {
@@ -2892,9 +2951,10 @@ function makeRoutineSnapshotFromLog(l) {
   };
 }
 function deleteLog(id) {
-  return confirmDeleteAction("this session log", () => {
+  return confirmDeleteAction("this session log", async () => {
     data.logs = data.logs.filter(l => l.id !== id);
-    saveData({render:"logEdit"});
+    await deleteLogDelta(id, "deleteLog log delete");
+    saveData({render:"logEdit", idbSync:"skip"});
   });
 }
 
@@ -3037,7 +3097,7 @@ $("importJsonInput").addEventListener("change", async (e) => {
   if (!imported.routines || !imported.plans || !imported.logs) return alert("Invalid backup file.");
   data = imported;
   await persistIndexedDBCollections("backup import indexedDB replace");
-  saveData();
+  saveData({idbSync:"skip"});
   alert("Backup imported.");
 });
 $("clearDataBtn").addEventListener("click", async () => {
@@ -4008,7 +4068,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.0.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.0.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4470,6 +4530,15 @@ window.addEventListener("beforeunload", () => {
   try {
     if (activeSession) persistActiveSession();
     if (timerInterval) clearInterval(timerInterval);
+    flushPendingIndexedDBSync("beforeunload flush");
+  } catch(e) {}
+});
+window.addEventListener("visibilitychange", () => {
+  try {
+    if (document.visibilityState === "hidden") {
+      if (activeSession) persistActiveSession();
+      flushPendingIndexedDBSync("visibilitychange hidden flush");
+    }
   } catch(e) {}
 });
 
@@ -4800,17 +4869,5 @@ function exposeV4LegacyGlobals() {
   "weightedPick": typeof weightedPick !== "undefined" ? weightedPick : undefined
   };
   Object.entries(api).forEach(([key, value]) => { if (value) window[key] = value; });
-  [
-    ["data", () => data, v => { data = v; }],
-    ["activeSession", () => activeSession, v => { activeSession = v; }],
-    ["planDraft", () => planDraft, v => { planDraft = v; }],
-    ["adaptivePlanDraft", () => adaptivePlanDraft, v => { adaptivePlanDraft = v; }]
-  ].forEach(([key, get, set]) => {
-    try {
-      if (!Object.getOwnPropertyDescriptor(window, key)) {
-        Object.defineProperty(window, key, { configurable:true, get, set });
-      }
-    } catch(e) {}
-  });
 }
 exposeV4LegacyGlobals();

@@ -1,12 +1,12 @@
-const CACHE_NAME = "snooker-practice-log-v4-0-0-final";
+const CACHE_NAME = "snooker-practice-log-v4-0-1-final";
 const ASSETS = [
-  "./index.html?v=4.0.0",
-  "./styles.css?v=4.0.0",
-  "./app.js?v=4.0.0",
-  "./modules/app-core.js?v=4.0.0",
-  "./modules/version.js?v=4.0.0",
-  "./manifest.json?v=4.0.0",
-  "./icon.svg?v=4.0.0"
+  "./index.html?v=4.0.1",
+  "./styles.css?v=4.0.1",
+  "./app.js?v=4.0.1",
+  "./modules/app-core.js?v=4.0.1",
+  "./modules/version.js?v=4.0.1",
+  "./manifest.json?v=4.0.1",
+  "./icon.svg?v=4.0.1"
 ];
 
 self.addEventListener("install", event => {
@@ -32,8 +32,8 @@ self.addEventListener("fetch", event => {
       const copy = response.clone();
       caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
       return response;
-    }).catch(() => caches.match(request)));
+    }).catch(() => caches.match(request, { ignoreSearch: true })));
     return;
   }
-  event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
+  event.respondWith(caches.match(request, { ignoreSearch: true }).then(cached => cached || fetch(request)));
 });
