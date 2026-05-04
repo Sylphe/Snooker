@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.32.0</title>
+  <title>Snooker Practice Log v3.33.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=3.32.0" />
-  <link rel="stylesheet" href="styles.css?v=3.32.0" />
-  <link rel="icon" href="icon.svg?v=3.32.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.33.0" />
+  <link rel="stylesheet" href="styles.css?v=3.33.0" />
+  <link rel="icon" href="icon.svg?v=3.33.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.32.0 — IndexedDB logs/sessions storage, storage safety dashboard, modal log editing.</p>
+      <p>v3.33.0 — storage diagnostics, IndexedDB integrity checks, and test-data tools.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -691,12 +691,38 @@
     <section id="data" class="panel">
       <div class="card">
         <h2>Storage safety dashboard</h2>
-        <p class="muted">Track local storage usage before the future IndexedDB migration. Export a full backup if the app approaches the browser storage limit.</p>
+        <p class="muted">Track localStorage and IndexedDB health before larger refactors. Use the diagnostic tools below to verify storage integrity after upgrades, imports, and stress tests.</p>
         <div id="storageDashboard" class="storage-dashboard analytics-note">Storage dashboard will appear here.</div>
         <div class="row">
           <button id="refreshStorageDashboardBtn" type="button" class="secondary">Refresh Storage Status</button>
           <button id="preMigrationBackupBtn" type="button">Download Full Backup</button>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Storage diagnostics / test harness</h2>
+        <p class="muted">Use this before v4.0 refactors: generate synthetic logs, verify IndexedDB integrity, clear test data, and reset the error log.</p>
+        <div class="grid three">
+          <div>
+            <label>Number of test logs</label>
+            <input id="testLogCountInput" type="number" min="1" max="20000" step="1" value="1000" />
+          </div>
+          <div>
+            <label>Test batch label</label>
+            <input id="testBatchLabelInput" placeholder="optional, e.g. v3.33-test" />
+          </div>
+          <div>
+            <label>Loaded app version</label>
+            <input id="loadedVersionDisplay" readonly value="Loading..." />
+          </div>
+        </div>
+        <div class="row">
+          <button id="generateTestLogsBtn" type="button" class="secondary">Generate Test Logs</button>
+          <button id="verifyStorageIntegrityBtn" type="button">Verify Storage Integrity</button>
+          <button id="clearTestLogsBtn" type="button" class="secondary">Clear Test Logs Only</button>
+          <button id="clearErrorLogBtn" type="button" class="secondary">Clear Error Log</button>
+        </div>
+        <div id="storageIntegrityOutput" class="analytics-note">Run verification to compare memory, IndexedDB, backup, and dashboard counts.</div>
       </div>
 
       <div class="card">
@@ -831,6 +857,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.32.0"></script>
+  <script src="app.js?v=3.33.0"></script>
 </body>
 </html>

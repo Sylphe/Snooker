@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.32.0-final";
+const APP_VERSION = "3.33.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -3245,6 +3245,8 @@ function logAppError(error, context="runtime") {
     const errors = JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]");
     errors.unshift({
       at: new Date().toISOString(),
+      appVersion: typeof APP_VERSION !== "undefined" ? APP_VERSION : "unknown",
+      location: typeof location !== "undefined" ? location.href : "",
       context,
       message: error?.message || String(error),
       stack: error?.stack || ""
@@ -3345,6 +3347,8 @@ function renderStorageDashboard() {
       <div class="stat-card"><span>Total localStorage</span><div class="value">${htmlText(formatStorageBytes(totalBytes))}</div></div>
       <div class="stat-card"><span>IndexedDB</span><div class="value">${htmlText(indexedDBStatusText())}</div></div>
       <div class="stat-card"><span>IDB logs/sessions estimate</span><div class="value">${htmlText(formatStorageBytes(estimatedIndexedDBDataBytes()))}</div></div>
+      <div class="stat-card"><span>Loaded version</span><div class="value">${htmlText(APP_VERSION)}</div></div>
+      <div class="stat-card"><span>Page URL version</span><div class="value">${htmlText(new URLSearchParams(location.search).get("v") || "none")}</div></div>
       <div class="stat-card"><span>Last full backup</span><div class="value storage-backup-value">${htmlText(backupText)}</div></div>
       <div class="stat-card"><span>Logs</span><div class="value">${numText((data.logs || []).length, "0")}</div></div>
       <div class="stat-card"><span>Sessions</span><div class="value">${numText((data.sessions || []).length, "0")}</div></div>
@@ -3431,6 +3435,7 @@ async function exportDebugInfo() {
     exportedAt: new Date().toISOString(),
     userAgent: navigator.userAgent,
     location: location.href,
+    urlVersionParam: new URLSearchParams(location.search).get("v") || "",
     counts: {
       routines: (data.routines || []).length,
       plans: (data.plans || []).length,
@@ -3444,6 +3449,209 @@ async function exportDebugInfo() {
   };
   await exportFile(`snooker-debug-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
 }
+
+function setDiagnosticsOutput(html, cls="analytics-note") {
+  const out = $("storageIntegrityOutput");
+  if (!out) return;
+  out.className = cls;
+  out.innerHTML = html;
+}
+function syncLoadedVersionDisplay() {
+  const el = $("loadedVersionDisplay");
+  if (el) el.value = `${APP_VERSION} · URL v=${new URLSearchParams(location.search).get("v") || "none"}`;
+}
+async function idbCount(storeName) {
+  if (indexedDBUnavailable) return null;
+  try {
+    const db = await openSnookerDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, "readonly");
+      const req = tx.objectStore(storeName).count();
+      req.onsuccess = () => resolve(req.result || 0);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  } catch(e) {
+    logAppError(e, `idbCount ${storeName}`);
+    return null;
+  }
+}
+function duplicateIds(rows) {
+  const seen = new Set(), dup = new Set();
+  (rows || []).forEach(r => {
+    if (!r || !r.id) return;
+    if (seen.has(r.id)) dup.add(r.id);
+    seen.add(r.id);
+  });
+  return [...dup];
+}
+async function verifyStorageIntegrity() {
+  try {
+    syncLoadedVersionDisplay();
+    const idbLogs = indexedDBUnavailable ? [] : await idbGetAll(INDEXEDDB_LOG_STORE);
+    const idbSessions = indexedDBUnavailable ? [] : await idbGetAll(INDEXEDDB_SESSION_STORE);
+    const rawCore = localStorage.getItem(STORAGE_KEY) || "";
+    const core = rawCore ? safeParseData(rawCore) : null;
+    const coreLogs = Array.isArray(core?.logs) ? core.logs.length : 0;
+    const coreSessions = Array.isArray(core?.sessions) ? core.sessions.length : 0;
+    const memoryLogs = (data.logs || []).length;
+    const memorySessions = (data.sessions || []).length;
+    const exportPayload = {...data, backupVersion: APP_VERSION, exportedAt: new Date().toISOString()};
+    const exportLogs = Array.isArray(exportPayload.logs) ? exportPayload.logs.length : 0;
+    const exportSessions = Array.isArray(exportPayload.sessions) ? exportPayload.sessions.length : 0;
+    const idbLogCount = indexedDBUnavailable ? null : idbLogs.length;
+    const idbSessionCount = indexedDBUnavailable ? null : idbSessions.length;
+    const logDups = duplicateIds(data.logs || []);
+    const sessionDups = duplicateIds(data.sessions || []);
+    const localCoreCompact = !indexedDBUnavailable && coreLogs === 0 && coreSessions === 0;
+    const countsMatch = indexedDBUnavailable
+      ? true
+      : memoryLogs === idbLogCount && memorySessions === idbSessionCount && exportLogs === memoryLogs && exportSessions === memorySessions;
+    const ok = countsMatch && !logDups.length && !sessionDups.length;
+    const warnings = [];
+    if (!localCoreCompact && !indexedDBUnavailable) warnings.push("localStorage core still contains logs/sessions; compact core expected after IndexedDB migration.");
+    if (new URLSearchParams(location.search).get("v") && new URLSearchParams(location.search).get("v") !== APP_VERSION.replace("-final", "")) warnings.push("URL version parameter differs from loaded APP_VERSION; this can be normal after GitHub cache updates but should be watched.");
+    if (logDups.length) warnings.push(`${logDups.length} duplicate log id(s) detected.`);
+    if (sessionDups.length) warnings.push(`${sessionDups.length} duplicate session id(s) detected.`);
+    const rows = [
+      ["Memory logs", memoryLogs],
+      ["IndexedDB logs", idbLogCount === null ? "Unavailable" : idbLogCount],
+      ["Backup-export logs", exportLogs],
+      ["Core localStorage logs", coreLogs],
+      ["Memory sessions", memorySessions],
+      ["IndexedDB sessions", idbSessionCount === null ? "Unavailable" : idbSessionCount],
+      ["Backup-export sessions", exportSessions],
+      ["Core localStorage sessions", coreSessions],
+      ["IndexedDB status", indexedDBStatusText()],
+      ["Main core size", formatStorageBytes(storageSizeBytes())],
+      ["Total localStorage", formatStorageBytes(getLocalStorageUsageBytes())],
+      ["IDB estimate", formatStorageBytes(estimatedIndexedDBDataBytes())]
+    ];
+    setDiagnosticsOutput(`<strong>Integrity check: ${ok ? "PASS" : "REVIEW REQUIRED"}</strong>
+      <table class="history-table"><tbody>${rows.map(r => `<tr><td>${htmlText(r[0])}</td><td>${htmlText(r[1])}</td></tr>`).join("")}</tbody></table>
+      ${warnings.length ? `<div class="warning-note"><strong>Warnings</strong><ul>${warnings.map(w => `<li>${htmlText(w)}</li>`).join("")}</ul></div>` : `<p class="muted">Counts match across memory, IndexedDB, and backup payload. No duplicate ids detected.</p>`}`, ok ? "analytics-note storage-good" : "analytics-note storage-watch");
+    renderStorageDashboard();
+  } catch(e) {
+    logAppError(e, "verifyStorageIntegrity");
+    setDiagnosticsOutput(`<strong>Integrity check failed:</strong> ${htmlText(e.message || e)}`, "warning-note");
+  }
+}
+function makeSyntheticLog(routine, session, index, batchId) {
+  const created = new Date(Date.now() - (index * 60000)).toISOString();
+  const scoring = routine?.scoring || "success_rate";
+  const attempts = Number(routine?.attempts || routine?.attemptsPerSession || 10) || 10;
+  const made = scoring === "success_rate" ? index % (attempts + 1) : ((index * 7) % 100);
+  const score = scoring === "success_rate" ? made : scoreNumberForSynthetic(index, scoring);
+  const log = {
+    id: `test-log-${batchId}-${index}`,
+    isTestData: true,
+    testBatchId: batchId,
+    sessionId: session.id,
+    sessionName: session.name,
+    sessionType: "test",
+    planId: "",
+    routineId: routine?.id || "test-routine-missing",
+    routineName: routine?.name || "Synthetic test routine",
+    routineNameSnapshot: routine?.name || "Synthetic test routine",
+    folder: routine?.folder || "Diagnostics",
+    subfolder: routine?.subfolder || "Storage test",
+    category: routine?.category || "diagnostics",
+    scoring,
+    score,
+    attempts,
+    timeMinutes: 5,
+    normalizedScore: 0,
+    performance: "N/A",
+    tableId: "",
+    venueTable: "Storage test",
+    venueTableSnapshot: "Storage test",
+    sessionRating: 3,
+    sessionTags: "storage_test",
+    notes: `Synthetic storage test log ${index}`,
+    createdAt: created
+  };
+  log.normalizedScore = normalizeScore(log);
+  log.performance = classifyPerformance(log, routine || {});
+  return log;
+}
+function scoreNumberForSynthetic(index, scoring) {
+  if (scoring === "points") return ((index % 9) - 4);
+  if (scoring === "score_per_minute") return (index * 3) % 80;
+  return (index * 7) % 100;
+}
+async function generateTestLogs() {
+  try {
+    const n = Math.max(1, Math.min(20000, Number($("testLogCountInput")?.value || 1000)));
+    const label = ($("testBatchLabelInput")?.value || "").trim();
+    const batchId = `${new Date().toISOString().replace(/[:.]/g,"-")}${label ? "-" + label.replace(/[^a-z0-9_-]/gi,"_") : ""}`;
+    const activeRoutines = (data.routines || []).filter(r => !r.isDeleted && r.recommendationMode !== "excluded");
+    const fallbackRoutine = activeRoutines[0] || (data.routines || [])[0] || null;
+    if (!fallbackRoutine) return alert("Create at least one exercise before generating synthetic test logs.");
+    const sessionCount = Math.max(1, Math.ceil(n / 50));
+    const sessions = [];
+    const logs = [];
+    for (let sIdx = 0; sIdx < sessionCount; sIdx++) {
+      const session = {
+        id: `test-session-${batchId}-${sIdx}`,
+        isTestData: true,
+        testBatchId: batchId,
+        name: `Storage test session ${sIdx + 1}`,
+        type: "test",
+        startedAt: new Date(Date.now() - ((n + sIdx) * 60000)).toISOString(),
+        endedAt: new Date(Date.now() - (sIdx * 60000)).toISOString(),
+        logIds: []
+      };
+      sessions.push(session);
+    }
+    for (let i = 0; i < n; i++) {
+      const routine = activeRoutines.length ? activeRoutines[i % activeRoutines.length] : fallbackRoutine;
+      const session = sessions[Math.floor(i / 50) % sessions.length];
+      const log = makeSyntheticLog(routine, session, i, batchId);
+      session.logIds.push(log.id);
+      logs.push(log);
+    }
+    data.sessions = mergeById(sessions, data.sessions || []);
+    data.logs = mergeById(logs, data.logs || []).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+    await persistIndexedDBCollections("generateTestLogs");
+    saveCoreData("generateTestLogs core save");
+    renderAfterSave("all");
+    setDiagnosticsOutput(`<strong>Generated ${numText(n, "0")} synthetic logs</strong><p class="muted">Batch: ${htmlText(batchId)}. Use Verify Storage Integrity, then Clear Test Logs Only when finished.</p>`, "analytics-note storage-good");
+    await verifyStorageIntegrity();
+  } catch(e) {
+    logAppError(e, "generateTestLogs");
+    alert("Could not generate test logs. Export debug info and review the error log.");
+  }
+}
+async function clearTestLogsOnly() {
+  if (!confirm("Clear synthetic storage-test logs and sessions only? Real logs are preserved.")) return;
+  try {
+    const testSessionIds = new Set((data.sessions || []).filter(s => s.isTestData).map(s => s.id));
+    data.logs = (data.logs || []).filter(l => !l.isTestData && !testSessionIds.has(l.sessionId));
+    data.sessions = (data.sessions || []).filter(s => !s.isTestData);
+    await persistIndexedDBCollections("clearTestLogsOnly");
+    saveCoreData("clearTestLogsOnly core save");
+    renderAfterSave("all");
+    setDiagnosticsOutput("<strong>Test logs cleared.</strong>", "analytics-note storage-good");
+    await verifyStorageIntegrity();
+  } catch(e) {
+    logAppError(e, "clearTestLogsOnly");
+    alert("Could not clear test logs. Export debug info and review the error log.");
+  }
+}
+function clearErrorLog() {
+  localStorage.removeItem("snookerPracticePWA.errorLog");
+  renderStorageDashboard();
+  setDiagnosticsOutput("<strong>Error log cleared.</strong><p class=\"muted\">Run your test sequence, then export debug info to see only new errors.</p>", "analytics-note storage-good");
+}
+function bindStorageDiagnostics() {
+  syncLoadedVersionDisplay();
+  $("verifyStorageIntegrityBtn")?.addEventListener("click", verifyStorageIntegrity);
+  $("generateTestLogsBtn")?.addEventListener("click", generateTestLogs);
+  $("clearTestLogsBtn")?.addEventListener("click", clearTestLogsOnly);
+  $("clearErrorLogBtn")?.addEventListener("click", clearErrorLog);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindStorageDiagnostics); else bindStorageDiagnostics();
 
 const FIELD_HELP = {
   targetScore: {
@@ -3800,7 +4008,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.32.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.33.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
