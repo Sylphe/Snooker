@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.26.0-final";
+const APP_VERSION = "3.27.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -333,7 +333,7 @@ function visibleRoutines(typeFilter="all", folderFilter="all", search="") {
 }
 function setSelectOptions(select, values, allLabel, selected="all") {
   if (!select) return;
-  select.innerHTML = `<option value="all">${allLabel}</option>` + values.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("");
+  select.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>` + values.map(v => `<option value="${attrText(v)}">${htmlText(v)}</option>`).join("");
   select.value = values.includes(selected) || selected === "all" ? selected : "all";
 }
 function editCategoryOptions(current) {
@@ -393,13 +393,13 @@ function renderRoutineSelects() {
   setSelectOptions($("orchestratorFocus"), cats, "Auto focus", $("orchestratorFocus")?.value || "all");
 
   const planPickerRoutines = visibleRoutines($("planTypeFilter")?.value || "all", $("planFolderFilter")?.value || "all");
-  $("routineToAdd").innerHTML = planPickerRoutines.map(r => `<option value="${r.id}">${escapeHtml(r.folder || "Unfiled")} / ${escapeHtml(r.subfolder || "General")} — ${escapeHtml(r.name)}</option>`).join("") || `<option value="">No matching exercises</option>`;
+  $("routineToAdd").innerHTML = planPickerRoutines.map(r => `<option value="${attrText(r.id)}">${htmlText(r.folder || "Unfiled")} / ${htmlText(r.subfolder || "General")} — ${htmlText(r.name)}</option>`).join("") || `<option value="">No matching exercises</option>`;
 
   const allRoutineOptions = visibleRoutines().map(r => `<option value="${r.id}">${escapeHtml(r.name)} — ${fmtScoring(r.scoring)}</option>`).join("");
   $("freeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("nextFreeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
-  $("planSelect").innerHTML = data.plans.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
-  $("statsRoutineSelect").innerHTML = (data.routines || []).map(r => `<option value="${r.id}">${escapeHtml(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("") || `<option value="">No exercises yet</option>`;
+  $("planSelect").innerHTML = data.plans.map(p => `<option value="${attrText(p.id)}">${htmlText(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
+  $("statsRoutineSelect").innerHTML = (data.routines || []).map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("") || `<option value="">No exercises yet</option>`;
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
@@ -428,18 +428,18 @@ function renderRoutineList() {
 }
 function renderRoutineItem(r) {
   return `<div class="item">
-    <div class="item-title"><strong>${escapeHtml(r.name)}</strong><span class="badge">${fmtScoring(r.scoring)}</span></div>
-    <p>${escapeHtml(r.description || "")}</p>
-    <span class="badge">Type: ${escapeHtml(r.category || "uncategorized")}</span>
-    <span class="badge">${r.duration || 0} min</span>
-    ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
-    ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
-    ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span><span class="badge">Colour: ${fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode))}</span>` : ""}
+    <div class="item-title"><strong>${htmlText(r.name)}</strong><span class="badge">${htmlText(fmtScoring(r.scoring))}</span></div>
+    <p>${htmlText(r.description || "")}</p>
+    <span class="badge">Type: ${htmlText(r.category || "uncategorized")}</span>
+    <span class="badge">${numText(r.duration || 0)} min</span>
+    ${r.attempts ? `<span class="badge">${numText(r.attempts)} attempts</span>` : ""}
+    ${r.target ? `<span class="badge">Target: ${numText(r.target)}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
+    ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
-      <button class="secondary" onclick="editRoutine('${r.id}')">Edit</button>
-      <button class="secondary" onclick="duplicateRoutine('${r.id}')">Duplicate</button>
-      <button class="danger" onclick="deleteRoutine('${r.id}')">Delete</button>
+      <button class="secondary" onclick="editRoutine(${jsArg(r.id)})">Edit</button>
+      <button class="secondary" onclick="duplicateRoutine(${jsArg(r.id)})">Duplicate</button>
+      <button class="danger" onclick="deleteRoutine(${jsArg(r.id)})">Delete</button>
     </div>
   </div>`;
 }
@@ -629,8 +629,8 @@ function renderPlanList() {
       <div class="item-title"><strong>${escapeHtml(p.name)}</strong><span class="badge">${p.routineIds.length} exercises</span></div>
       <p>${names.map(escapeHtml).join(" → ")}</p>
       <div class="small-actions">
-        <button class="secondary" onclick="loadPlanToBuilder('${p.id}')">Load / duplicate</button>
-        <button class="danger" onclick="deletePlan('${p.id}')">Delete</button>
+        <button class="secondary" onclick="loadPlanToBuilder(${jsArg(p.id)})">Load / duplicate</button>
+        <button class="danger" onclick="deletePlan(${jsArg(p.id)})">Delete</button>
       </div>
     </div>`;
   }).join("") || "<p>No daily plans saved yet.</p>";
@@ -729,13 +729,13 @@ function renderScoreInputs(r) {
   if (r.scoring === "progressive_completion") {
     html += `<div><label>Average ${progressiveUnitLabel(r)} per attempt</label><input id="scoreValue" type="number" min="0" step="0.01" placeholder="e.g. 8" inputmode="decimal"></div>`;
     html += `<div><label>Best attempt (${progressiveUnitLabel(r)})</label><input id="bestAttemptValue" type="number" min="0" step="0.01" placeholder="e.g. 12" inputmode="decimal"></div>`;
-    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attemptsPerSession || r.attempts || ""}" inputmode="numeric"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attemptsPerSession || r.attempts || "")}" inputmode="numeric"></div>`;
     html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
     if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else if (r.scoring === "success_rate") {
     html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
-    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attempts || ""}" placeholder="e.g. 10" inputmode="numeric"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || "")}" placeholder="e.g. 10" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else {
     html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
@@ -1027,10 +1027,19 @@ function updateTimerDisplay() {
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
-  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${l.targetColour ? " · "+fmtTargetColour(l.targetColour) : ""}${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
-  if (l.scoring === "success_rate") return `${l.score}/${l.attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
-  if (l.scoring === "score_per_minute") return `${l.score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
-  return `${l.score}`;
+  const score = numText(l.score, "0");
+  const attempts = numText(l.attempts, "0");
+  if (l.scoring === "progressive_completion") {
+    const total = numText(l.totalUnits, "?");
+    const unit = htmlText(l.unitType || "units");
+    const colour = l.targetColour ? " · " + htmlText(fmtTargetColour(l.targetColour)) : "";
+    const best = l.bestAttempt ? " · best " + numText(l.bestAttempt) : "";
+    const brk = l.highestBreak ? " · break " + numText(l.highestBreak) : "";
+    return `${score}/${total} ${unit} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${colour}${best}${brk}`;
+  }
+  if (l.scoring === "success_rate") return `${score}/${attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
+  if (l.scoring === "score_per_minute") return `${score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
+  return score;
 }
 
 function getPeriodRange(period, dateKey) {
@@ -1356,14 +1365,14 @@ function tableByName(name){ ensureTablesDatabase(); return (data.tables||[]).fin
 function getTableName(logOrId){ const id=typeof logOrId==="string"?logOrId:(logOrId?.tableId||""); const fallback=typeof logOrId==="string"?"":(logOrId?.venueTable||logOrId?.venueTableSnapshot||""); return tableById(id)?.name || fallback || "Not specified"; }
 function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastTableId") || ""; }
 function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
-function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
+function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}">${htmlText(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
 function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
 function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
 function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
-function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${escapeAttr(t.id)}" ${t.id===selectedId?"selected":""}>${escapeHtml(t.name)}</option>`).join(""); }
-function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${escapeHtml(t.name)}</strong><div class="meta">${escapeHtml(t.type||"No type")} · ${escapeHtml(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>escapeHtml(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" onclick="editTableDefinition('${t.id}')">Edit</button><button class="secondary" onclick="deleteTableDefinition('${t.id}')">Delete</button></div></div>`).join(""); }
-function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${measures}</p><p><strong>How calculated:</strong> ${calc}</p><p><strong>How to interpret:</strong> ${interpret}</p><div class="example"><strong>Typical use:</strong> ${use}</div></div>`; }
+function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
+function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${htmlText(t.name)}</strong><div class="meta">${htmlText(t.type||"No type")} · ${htmlText(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>htmlText(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" onclick="editTableDefinition(${jsArg(t.id)})">Edit</button><button class="secondary" onclick="deleteTableDefinition(${jsArg(t.id)})">Delete</button></div></div>`).join(""); }
+function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${htmlText(measures)}</p><p><strong>How calculated:</strong> ${htmlText(calc)}</p><p><strong>How to interpret:</strong> ${htmlText(interpret)}</p><div class="example"><strong>Typical use:</strong> ${htmlText(use)}</div></div>`; }
 
 
 let adaptivePlanDraft = [];
@@ -1510,7 +1519,7 @@ function runRegretComparison() {
     : regret < -5
       ? "The chosen routine looks better than the alternative."
       : "No strong counterfactual difference.";
-  out.innerHTML = `<div class="phase-card ${cls}">
+  out.innerHTML = `<div class="phase-card ${safeClassToken(cls, ["regret-positive","regret-neutral","regret-good"], "regret-neutral")}">
     <strong>Counterfactual comparison ${statHelpButton("regretEngine")}</strong>
     <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · PSI ${c.psi.toFixed(0)}`:""}</div>
     <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · PSI ${a.psi.toFixed(0)}`:""}</div>
@@ -2043,9 +2052,9 @@ function renderSwipeableHistoryCards(logs) {
           <div class="history-card-spark">${miniSparkline(values)}</div>
           <div class="small-actions">
             <button class="secondary" onclick="showEditLog(this)">Edit</button>
-            <button class="danger" onclick="deleteLog('${l.id}')">Delete</button>
+            <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button>
           </div>
-          <div class="hidden log-edit-row history-card-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}">${renderEditLogForm(l)}</div>
+          <div class="hidden log-edit-row history-card-edit-row" data-log-edit-row-id="${attrText(l.id)}">${renderEditLogForm(l)}</div>
         </div>`;
       }).join("")}
     </div>
@@ -2601,35 +2610,35 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
 }
 function renderLogRow(l) {
-  return `<tr data-log-row-id="${escapeAttr(l.id)}">
+  return `<tr data-log-row-id="${attrText(l.id)}">
     <td>${new Date(l.createdAt).toLocaleDateString()}</td>
     <td>${displayScore(l)}</td>
     <td>${Number(l.normalizedScore || 0).toFixed(2)}</td>
     <td>${escapeHtml(l.performance || "N/A")}</td>
     <td>${escapeHtml(getTargetProfileLabel(l))}</td>
     <td>${formatDurationHuman(l.timeMinutes)}</td>
-    <td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td>
-  </tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+    <td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td>
+  </tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
 }
 function renderDateLogRow(l) {
-  return `<tr data-log-row-id="${escapeAttr(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="9">${renderEditLogForm(l)}</td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="9">${renderEditLogForm(l)}</td></tr>`;
 }
 function renderSessionLogRow(l) {
-  return `<tr data-log-row-id="${escapeAttr(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${escapeAttr(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
 }
 function renderEditLogForm(l) {
-  return `<div class="log-edit" data-log-edit-id="${escapeAttr(l.id)}">
+  return `<div class="log-edit" data-log-edit-id="${attrText(l.id)}">
     <div class="log-edit-grid">
-      <div><label>Date/time</label><input class="edit-createdAt" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
-      <div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${l.score}"></div>
-      <div><label>Attempts</label><input class="edit-attempts" type="number" step="1" value="${l.attempts || ""}"></div>
-      <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
-      <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
+      <div><label>Date/time</label><input class="edit-createdAt" type="datetime-local" value="${attrText(toDateTimeLocal(l.createdAt))}"></div>
+      <div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${numAttr(l.score)}"></div>
+      <div><label>Attempts</label><input class="edit-attempts" type="number" step="1" value="${numAttr(l.attempts || "")}"></div>
+      <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div><div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
+      <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${numAttr(l.sessionRating || "")}"></div>
       <div><label>Category</label><select class="edit-category">${editCategoryOptions(l.category)}</select></div>
-      <div><label>Tags</label><input class="edit-tags" value="${escapeAttr(l.sessionTags || "")}"></div>
+      <div><label>Tags</label><input class="edit-tags" value="${attrText(l.sessionTags || "")}"></div>
     </div>
     <label>Notes</label><textarea class="edit-notes" rows="2">${escapeHtml(l.notes || "")}</textarea>
-    <div class="small-actions"><button onclick="saveEditedLogFromButton(this,'${l.id}')">Save changes</button><button class="secondary" onclick="showEditLog(this)">Cancel</button></div>
+    <div class="small-actions"><button onclick="saveEditedLogFromButton(this,${jsArg(l.id)})">Save changes</button><button class="secondary" onclick="showEditLog(this)">Cancel</button></div>
   </div>`;
 }
 function toDateTimeLocal(iso) {
@@ -2765,7 +2774,7 @@ function renderVolumeChart(buckets, metric, title) {
       const bh = (v / maxV) * (h-padT-padB);
       const x = padL + i*step + (step-barW)/2;
       const y = h-padB-bh;
-      return `<rect class="chart-bar" x="${x}" y="${y}" width="${barW}" height="${bh}"><title>${b.label}: ${Number(v).toFixed(1)}</title></rect>`;
+      return `<rect class="chart-bar" x="${x}" y="${y}" width="${barW}" height="${bh}"><title>${htmlText(b.label)}: ${Number(v).toFixed(1)}</title></rect>`;
     }).join("")}
     ${buckets.filter((_,i)=> i===0 || i===buckets.length-1 || i===Math.floor((buckets.length-1)/2)).map(b => {
       const idx = buckets.indexOf(b); const x = padL + idx*step + step/2 - 22;
@@ -2791,7 +2800,7 @@ function renderCategoryChart(logs) {
     ${buckets.map((b,i) => {
       const y = padT + i*rowH;
       const bw = (b.time / maxV) * (w-padL-padR);
-      return `<text class="chart-label" x="5" y="${y+15}">${escapeHtml(b.label.slice(0,16))}</text><rect class="chart-bar-alt" x="${padL}" y="${y}" width="${bw}" height="${rowH*0.65}"><title>${b.label}: ${b.time.toFixed(1)} min, ${b.count} exercises</title></rect><text class="chart-label" x="${padL+bw+5}" y="${y+15}">${b.time.toFixed(1)}m</text>`;
+      return `<text class="chart-label" x="5" y="${y+15}">${escapeHtml(b.label.slice(0,16))}</text><rect class="chart-bar-alt" x="${padL}" y="${y}" width="${bw}" height="${rowH*0.65}"><title>${htmlText(b.label)}: ${b.time.toFixed(1)} min, ${b.count} exercises</title></rect><text class="chart-label" x="${padL+bw+5}" y="${y+15}">${b.time.toFixed(1)}m</text>`;
     }).join("")}
   </svg></div>`;
 }
@@ -2877,6 +2886,15 @@ function escapeHtml(value) {
   }[ch]));
 }
 function escapeAttr(str) { return escapeHtml(str).replaceAll("`","&#096;"); }
+function htmlText(value) { return escapeHtml(value); }
+function attrText(value) { return escapeAttr(value); }
+function jsArg(value) { return escapeAttr(JSON.stringify(String(value ?? ""))); }
+function numText(value, fallback="") {
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : escapeHtml(fallback);
+}
+function numAttr(value, fallback="") { return escapeAttr(numText(value, fallback)); }
+function safeClassToken(value, allowed, fallback="") { return allowed.includes(value) ? value : fallback; }
 
 
 function confirmDeleteAction(label, callback) {
@@ -3499,7 +3517,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.26.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.27.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3579,7 +3597,7 @@ function targetUpgradeSuggestionForRoutine(routineId){
 }
 function renderTargetUpgradeButton(routineId){
   const sug=targetUpgradeSuggestionForRoutine(routineId); if(!sug) return "";
-  return `<div class="target-upgrade"><strong>Target upgrade suggested</strong><br><span class="muted">${escapeHtml(sug.reason)}</span><div class="upgrade-row"><div><label>New target</label><input id="upgrade-target-${sug.routine.id}" type="number" step="0.01" value="${sug.suggestedTarget}"></div><div><label>New stretch</label><input id="upgrade-stretch-${sug.routine.id}" type="number" step="0.01" value="${sug.suggestedStretch}"></div><button class="secondary" onclick="applyTargetUpgrade('${sug.routine.id}')">Apply as new target version</button></div></div>`;
+  return `<div class="target-upgrade"><strong>Target upgrade suggested</strong><br><span class="muted">${escapeHtml(sug.reason)}</span><div class="upgrade-row"><div><label>New target</label><input id="upgrade-target-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedTarget)}"></div><div><label>New stretch</label><input id="upgrade-stretch-${attrText(sug.routine.id)}" type="number" step="0.01" value="${numAttr(sug.suggestedStretch)}"></div><button class="secondary" onclick="applyTargetUpgrade(${jsArg(sug.routine.id)})">Apply as new target version</button></div></div>`;
 }
 function applyTargetUpgrade(routineId){
   const r=routineById(routineId); if(!r) return;
@@ -3927,8 +3945,8 @@ function renderLivePerformanceCard(r){
   const recent = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,3);
   const status = target && normalized >= stretch && stretch ? "green" : target && normalized >= target ? "green" : target && normalized >= target * 0.75 ? "yellow" : target ? "red" : "neutral";
   const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
-  box.innerHTML = `<div class="live-perf ${status}">
-    <div><strong>Live target check</strong><span>${statusText}</span></div>
+  box.innerHTML = `<div class="live-perf ${safeClassToken(status, ["green","yellow","red","neutral"], "neutral")}">
+    <div><strong>Live target check</strong><span>${htmlText(statusText)}</span></div>
     <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
     <div><span>Target</span><strong>${target || "N/A"}</strong></div>
     <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
