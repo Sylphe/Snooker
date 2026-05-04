@@ -1,26 +1,18 @@
-# Snooker Practice Log — v3.25.5
+# Snooker Practice Log — v3.25.6
 
-Built from the v3.24 working set.
+Built from the v3.25 working set.
 
-## Added
+## Fixed
 
-- Dark mode and high-contrast mode with system preference support.
-- Interface settings in the Data tab for theme, focus mode, and quick-log macros.
-- Full-screen session mode for active drill logging.
-- Faster one-tap score entry for success-rate drills using score chips from 0 to attempts.
-- Quick-log macros: log 0, half, or max and auto-advance.
-- Live target check card during active sessions showing current score, target, stretch target, and last three scores.
+- Interface settings now save directly to localStorage and to the main app data object.
+- Theme selection is applied immediately to both `html` and `body`.
+- Light / dark / high contrast switching is controlled by a single final settings layer.
+- Exit Focus Mode now toggles the current active session display directly, instead of only changing the default setting.
+- Dark/high-contrast coverage reinforced for nested boxes, analytics panels, SVG charts and post-session reflection.
+- Service worker uses network-first loading for app files to reduce stale cached CSS/JS issues.
 
 ## Package
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.25.5.
-
-
-## Fixes in v3.25.5
-
-- Rebuilt interface settings persistence with direct localStorage + main data storage writes.
-- Theme is now applied to both `html` and `body`, preventing selector mismatch.
-- Added aggressive dark/high-contrast coverage for nested panels, badges, pills, modals, SVG chart elements and post-session reflection.
-- Updated the service worker to use network-first fetching for app shell files, reducing stale cached CSS/JS issues after deployment.
+Confirm version: the header should show v3.25.6.

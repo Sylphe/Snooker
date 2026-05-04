@@ -651,7 +651,7 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
   }
 }
 
-/* v3.25.5 final hard theme coverage */
+/* v3.25.6 final hard theme coverage */
 :root[data-theme="dark"], :root.theme-dark {
   color-scheme: dark;
   --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
@@ -852,7 +852,7 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
 :root[data-theme="contrast"] .tabs,
 :root[data-theme="contrast"] .tab { background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important; }
 
-/* v3.25.5 definitive theme patch: body attribute + aggressive component coverage */
+/* v3.25.6 definitive theme patch: body attribute + aggressive component coverage */
 html[data-theme="dark"], body[data-theme="dark"], body.theme-dark {
   color-scheme: dark;
   --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
@@ -929,3 +929,26 @@ body[data-theme="dark"] .chart-line, body[data-theme="contrast"] .chart-line { s
 body[data-theme="dark"] .chart-point, body[data-theme="contrast"] .chart-point { fill:var(--gold)!important; stroke:var(--text)!important; }
 body[data-theme="dark"] .chart-bar, body[data-theme="contrast"] .chart-bar { fill:var(--felt)!important; }
 body[data-theme="dark"] .chart-bar-alt, body[data-theme="contrast"] .chart-bar-alt { fill:var(--gold)!important; }
+
+
+/* v3.25.6 final theme coverage */
+html[data-theme="dark"], body[data-theme="dark"]{
+  color-scheme:dark; --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236; --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b; --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+html[data-theme="contrast"], body[data-theme="contrast"]{
+  color-scheme:dark; --bg:#000; --card:#050505; --text:#fff; --muted:#e5e5e5; --line:#fff; --primary:#fff; --primary-2:#f2f2f2; --felt:#00ff9a; --gold:#ffe600; --danger:#ff4d4d; --shadow:none;
+}
+html[data-theme="light"], body[data-theme="light"]{
+  color-scheme:light; --bg:#f4f6f2; --card:#fff; --text:#17211c; --muted:#667168; --line:#dce4de; --primary:#102b22; --primary-2:#184332; --felt:#0d4c35; --gold:#c7a753; --danger:#9f1d1d; --shadow:0 8px 24px rgba(0,0,0,.08);
+}
+body[data-theme="dark"], body[data-theme="contrast"]{background:var(--bg)!important;color:var(--text)!important;}
+body[data-theme="dark"] .tabs, body[data-theme="dark"] .tab, body[data-theme="contrast"] .tabs, body[data-theme="contrast"] .tab{background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important;}
+body[data-theme="dark"] :is(.card,.card.nested,.item,.folder-group,.folder-header,.subfolder-header,.analytics-note,.warning-note,.chart-wrap,.description-box,.stat-card,.overview-card,.coaching-box,.insight,.orchestrator-box,.load-card,.review-box,.training-block,.phase-card,.adaptive-phase,.planned-box,.table-stats,.history-card,.history-card-spark,.table-db-row,.log-edit,.modal-card,.modal-body,.mini-kpi,.trend,.quick-score-block,.quick-score-row,.score-chip-grid,.live-perf,.target-upgrade,.difficulty-note,.diagnostic-card,.psi-card,.ladder-action,.intervention-card,.backup-banner,.target-version-note,.target-profile-badge,.phase-pill,.adaptive-pill,.badge,.venue-pill,.pc-kpi,.stat-help,.help-dot),
+body[data-theme="contrast"] :is(.card,.card.nested,.item,.folder-group,.folder-header,.subfolder-header,.analytics-note,.warning-note,.chart-wrap,.description-box,.stat-card,.overview-card,.coaching-box,.insight,.orchestrator-box,.load-card,.review-box,.training-block,.phase-card,.adaptive-phase,.planned-box,.table-stats,.history-card,.history-card-spark,.table-db-row,.log-edit,.modal-card,.modal-body,.mini-kpi,.trend,.quick-score-block,.quick-score-row,.score-chip-grid,.live-perf,.target-upgrade,.difficulty-note,.diagnostic-card,.psi-card,.ladder-action,.intervention-card,.backup-banner,.target-version-note,.target-profile-badge,.phase-pill,.adaptive-pill,.badge,.venue-pill,.pc-kpi,.stat-help,.help-dot){background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important;}
+body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] textarea{background:#0a1510!important;color:var(--text)!important;border-color:var(--line)!important;}
+body[data-theme="contrast"] input, body[data-theme="contrast"] select, body[data-theme="contrast"] textarea{background:#000!important;color:#fff!important;border-color:#fff!important;}
+body[data-theme="dark"] option{background:#0a1510!important;color:#eef7f1!important;} body[data-theme="contrast"] option{background:#000!important;color:#fff!important;}
+body[data-theme="dark"] :is(.muted,label,.item p,.timer-sub,.adaptive-rationale,.block-meta,.reason,.duration-human,.debug-note), body[data-theme="contrast"] :is(.muted,label,.item p,.timer-sub,.adaptive-rationale,.block-meta,.reason,.duration-human,.debug-note){color:var(--muted)!important;}
+body[data-theme="dark"] .secondary, body[data-theme="contrast"] .secondary{background:transparent!important;color:var(--text)!important;border-color:var(--line)!important;}
+body[data-theme="dark"] svg text, body[data-theme="contrast"] svg text{fill:var(--muted)!important;}
+body[data-theme="dark"] .chart-grid{stroke:#294236!important;} body[data-theme="contrast"] .chart-grid{stroke:#fff!important;opacity:.35;} body[data-theme="dark"] .chart-axis, body[data-theme="contrast"] .chart-axis{stroke:var(--line)!important;} body[data-theme="dark"] .chart-line, body[data-theme="contrast"] .chart-line{stroke:var(--felt)!important;} body[data-theme="dark"] .chart-bar, body[data-theme="contrast"] .chart-bar{fill:var(--felt)!important;} body[data-theme="dark"] .chart-bar-alt, body[data-theme="contrast"] .chart-bar-alt{fill:var(--gold)!important;}

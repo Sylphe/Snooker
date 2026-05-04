@@ -3,31 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.25.5</title>
+  <title>Snooker Practice Log v3.25.6</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
     (function(){
       try {
-        var mode = localStorage.getItem("snookerPracticePWA.themeMode");
+        var key = "snookerPracticePWA.themeMode";
+        var mode = localStorage.getItem(key);
         if (!mode) {
           var raw = localStorage.getItem("snookerPracticePWA.v3");
           if (raw) mode = (JSON.parse(raw).interfaceSettings || {}).themeMode;
         }
-        if (["light","dark","contrast"].indexOf(mode) >= 0) document.documentElement.setAttribute("data-theme", mode);
-        else document.documentElement.removeAttribute("data-theme");
+        if (["system","light","dark","contrast"].indexOf(mode) < 0) mode = "system";
+        var actual = mode === "system" ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light") : mode;
+        document.documentElement.setAttribute("data-theme-mode", mode);
+        document.documentElement.setAttribute("data-theme", actual);
+        document.documentElement.classList.add("theme-" + mode);
+        window.__snookerEarlyThemeMode = mode;
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=3.25.5" />
-  <link rel="stylesheet" href="styles.css?v=3.25.5" />
-  <link rel="icon" href="icon.svg?v=3.25.5" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=3.25.6" />
+  <link rel="stylesheet" href="styles.css?v=3.25.6" />
+  <link rel="icon" href="icon.svg?v=3.25.6" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.25.5 — dark/high-contrast mode, focus session mode, faster one-tap score entry.</p>
+      <p>v3.25.6 — dark/high-contrast mode, focus session mode, faster one-tap score entry.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -202,7 +207,7 @@
           <button id="timerStartBtn" class="secondary">Start timer</button>
           <button id="timerPauseBtn" class="secondary">Pause</button>
           <button id="timerResetBtn" class="secondary">Reset timer</button>
-          <button id="toggleFocusModeBtn" class="secondary" type="button">Focus Mode</button>
+          <button id="toggleFocusModeBtn" class="secondary" type="button" onclick="window.SnookerInterface&&window.SnookerInterface.toggleFocus();return false;">Focus Mode</button>
         </div>
 
         <div id="scoreInputs" class="score-grid"></div>
@@ -700,7 +705,7 @@
         <div class="grid three">
           <div>
             <label>Theme</label>
-            <select id="themeModeSelect">
+            <select id="themeModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setTheme(this.value)">
               <option value="system">System default</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
@@ -709,14 +714,14 @@
           </div>
           <div>
             <label>Full-screen session mode</label>
-            <select id="sessionFocusModeSelect">
+            <select id="sessionFocusModeSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setFocusDefault(this.value)">
               <option value="on">On</option>
               <option value="off">Off</option>
             </select>
           </div>
           <div>
             <label>One-tap quick-log buttons</label>
-            <select id="quickLogAutoAdvanceSelect">
+            <select id="quickLogAutoAdvanceSelect" onchange="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)" oninput="window.SnookerInterface&&window.SnookerInterface.setQuick(this.value)">
               <option value="on">Show auto-save macros</option>
               <option value="off">Manual save only</option>
             </select>
@@ -786,6 +791,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.25.5"></script>
+  <script src="app.js?v=3.25.6"></script>
 </body>
 </html>

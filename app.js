@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.5-final";
+const APP_VERSION = "3.25.6-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -3354,7 +3354,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.5");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.6");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3656,7 +3656,7 @@ document.addEventListener("DOMContentLoaded", bindInterfaceSettings);
 
 
 
-/* v3.25.5 interface settings: hard-persistent theme, session focus mode, and quick-log macros */
+/* v3.25.6 interface settings: hard-persistent theme, session focus mode, and quick-log macros */
 function storageGetSafe(key){
   try { return localStorage.getItem(key); } catch(e) { return null; }
 }
@@ -3821,7 +3821,7 @@ window.addEventListener("beforeunload", () => {
   } catch(e) {}
 });
 
-/* v3.25.5 definitive interface settings patch: direct persistence, body theme attribute, cache-safe theme application */
+/* v3.25.6 definitive interface settings patch: direct persistence, body theme attribute, cache-safe theme application */
 (function(){
   const V3255_THEME_KEY = "snookerPracticePWA.themeMode";
   const V3255_FOCUS_KEY = "snookerPracticePWA.sessionFocusMode";
@@ -3852,7 +3852,7 @@ window.addEventListener("beforeunload", () => {
       try {
         data.interfaceSettings = data.interfaceSettings || {};
         data.interfaceSettings[name] = value;
-        safeStorageSet(STORAGE_KEY, JSON.stringify(data), "v3.25.5 interface setting save");
+        safeStorageSet(STORAGE_KEY, JSON.stringify(data), "v3.25.6 interface setting save");
       } catch(_) {}
     }
   }
@@ -3957,4 +3957,173 @@ window.addEventListener("beforeunload", () => {
   document.addEventListener("DOMContentLoaded", bindDirectInterfaceHandlers);
   setTimeout(bindDirectInterfaceHandlers, 0);
   setTimeout(bindDirectInterfaceHandlers, 500);
+})();
+
+
+/* v3.25.6 definitive UI settings and focus-mode patch
+   Purpose: bypass previous layered handlers and make theme/focus settings deterministic. */
+(function(){
+  const THEME_KEY = "snookerPracticePWA.themeMode";
+  const FOCUS_KEY = "snookerPracticePWA.sessionFocusMode";
+  const QUICK_KEY = "snookerPracticePWA.quickLogAutoAdvance";
+  const MAIN_KEY = typeof STORAGE_KEY !== "undefined" ? STORAGE_KEY : "snookerPracticePWA.v3";
+  const themes = ["system", "light", "dark", "contrast"];
+  const cleanTheme = v => themes.includes(v) ? v : "system";
+  const onOff = v => v === "off" ? "off" : "on";
+  function getJSON(){
+    try { return JSON.parse(localStorage.getItem(MAIN_KEY) || "{}"); } catch(e) { return {}; }
+  }
+  function putJSON(obj){
+    try { localStorage.setItem(MAIN_KEY, JSON.stringify(obj)); } catch(e) {}
+  }
+  function readSetting(key, name, fallback){
+    try {
+      const v = localStorage.getItem(key);
+      if (v !== null && v !== undefined && v !== "") return name === "themeMode" ? cleanTheme(v) : v;
+    } catch(e) {}
+    const obj = getJSON();
+    const v = obj && obj.interfaceSettings ? obj.interfaceSettings[name] : null;
+    return v || fallback;
+  }
+  function writeSetting(key, name, value){
+    const clean = name === "themeMode" ? cleanTheme(value) : onOff(value);
+    try { localStorage.setItem(key, clean); } catch(e) {}
+    const obj = getJSON();
+    obj.interfaceSettings = obj.interfaceSettings || {};
+    obj.interfaceSettings[name] = clean;
+    obj.appVersion = typeof APP_VERSION !== "undefined" ? APP_VERSION : "3.25.6-final";
+    obj.updatedAt = new Date().toISOString();
+    putJSON(obj);
+    try {
+      if (typeof data === "object" && data) {
+        data.interfaceSettings = data.interfaceSettings || {};
+        data.interfaceSettings[name] = clean;
+      }
+    } catch(e) {}
+    return clean;
+  }
+  function resolvedTheme(mode){
+    mode = cleanTheme(mode || readTheme());
+    if (mode !== "system") return mode;
+    try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch(e) { return "light"; }
+  }
+  function readTheme(){ return cleanTheme(readSetting(THEME_KEY, "themeMode", "system")); }
+  function readFocusDefault(){ return onOff(readSetting(FOCUS_KEY, "sessionFocusMode", "on")); }
+  function readQuick(){ return onOff(readSetting(QUICK_KEY, "quickLogAutoAdvance", "on")); }
+  function applyTheme(mode){
+    const storedMode = cleanTheme(mode || readTheme());
+    const actual = resolvedTheme(storedMode);
+    const html = document.documentElement;
+    const body = document.body;
+    [html, body].filter(Boolean).forEach(el => {
+      el.classList.remove("theme-system", "theme-light", "theme-dark", "theme-contrast");
+      el.classList.add("theme-" + storedMode);
+      el.setAttribute("data-theme-mode", storedMode);
+      el.setAttribute("data-theme", actual);
+    });
+    const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", actual === "contrast" ? "#000000" : actual === "dark" ? "#07110d" : "#102b22");
+    const sel = document.getElementById("themeModeSelect");
+    if (sel && sel.value !== storedMode) sel.value = storedMode;
+  }
+  function setTheme(mode){
+    const clean = writeSetting(THEME_KEY, "themeMode", mode);
+    applyTheme(clean);
+    syncControls();
+    return clean;
+  }
+  function setFocusDefault(value){
+    const clean = writeSetting(FOCUS_KEY, "sessionFocusMode", value);
+    window.__snookerCurrentFocusActive = clean !== "off" && isActiveSessionVisible();
+    updateFocusUI();
+    syncControls();
+    return clean;
+  }
+  function setQuick(value){
+    const clean = writeSetting(QUICK_KEY, "quickLogAutoAdvance", value);
+    syncControls();
+    try { if (typeof activeSession !== "undefined" && activeSession && typeof renderCurrentRoutine === "function") renderCurrentRoutine(); } catch(e) {}
+    return clean;
+  }
+  function isActiveSessionVisible(){
+    const el = document.getElementById("activeSession");
+    return !!(el && !el.classList.contains("hidden") && typeof activeSession !== "undefined" && activeSession);
+  }
+  function updateFocusUI(){
+    const active = isActiveSessionVisible();
+    if (!active) window.__snookerCurrentFocusActive = null;
+    if (active && window.__snookerCurrentFocusActive === null) window.__snookerCurrentFocusActive = readFocusDefault() !== "off";
+    if (active && typeof window.__snookerCurrentFocusActive === "undefined") window.__snookerCurrentFocusActive = readFocusDefault() !== "off";
+    const on = !!(active && window.__snookerCurrentFocusActive);
+    if (document.body) document.body.classList.toggle("session-focus-active", on);
+    const btn = document.getElementById("toggleFocusModeBtn");
+    if (btn) {
+      btn.textContent = on ? "Exit Focus Mode" : "Focus Mode";
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  }
+  function toggleFocus(){
+    if (!isActiveSessionVisible()) return;
+    window.__snookerCurrentFocusActive = !document.body.classList.contains("session-focus-active");
+    updateFocusUI();
+  }
+  function syncControls(){
+    const theme = document.getElementById("themeModeSelect");
+    const focus = document.getElementById("sessionFocusModeSelect");
+    const quick = document.getElementById("quickLogAutoAdvanceSelect");
+    if (theme) theme.value = readTheme();
+    if (focus) focus.value = readFocusDefault();
+    if (quick) quick.value = readQuick();
+  }
+  function bind(){
+    applyTheme(readTheme());
+    syncControls();
+    const theme = document.getElementById("themeModeSelect");
+    const focus = document.getElementById("sessionFocusModeSelect");
+    const quick = document.getElementById("quickLogAutoAdvanceSelect");
+    if (theme) { theme.onchange = () => setTheme(theme.value); theme.oninput = () => setTheme(theme.value); }
+    if (focus) { focus.onchange = () => setFocusDefault(focus.value); focus.oninput = () => setFocusDefault(focus.value); }
+    if (quick) { quick.onchange = () => setQuick(quick.value); quick.oninput = () => setQuick(quick.value); }
+    updateFocusUI();
+  }
+  window.SnookerInterface = {readTheme, setTheme, applyTheme, readFocusDefault, setFocusDefault, readQuick, setQuick, toggleFocus, updateFocusUI, syncControls, bind};
+  try {
+    window.getThemeModeSetting = getThemeModeSetting = readTheme;
+    window.getSessionFocusSetting = getSessionFocusSetting = readFocusDefault;
+    window.getQuickLogAutoAdvanceSetting = getQuickLogAutoAdvanceSetting = readQuick;
+    window.applyThemeMode = applyThemeMode = function(){ applyTheme(readTheme()); };
+    window.renderInterfaceSettings = renderInterfaceSettings = function(){ applyTheme(readTheme()); syncControls(); };
+    window.updateSessionFocusState = updateSessionFocusState = updateFocusUI;
+    window.toggleSessionFocusMode = toggleSessionFocusMode = toggleFocus;
+  } catch(e) {}
+  document.addEventListener("click", function(e){
+    const btn = e.target && e.target.closest ? e.target.closest("#toggleFocusModeBtn") : null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    toggleFocus();
+  }, true);
+  document.addEventListener("change", function(e){
+    if (!e.target) return;
+    if (e.target.id === "themeModeSelect") { setTheme(e.target.value); setTimeout(() => setTheme(e.target.value), 0); }
+    if (e.target.id === "sessionFocusModeSelect") { setFocusDefault(e.target.value); setTimeout(() => setFocusDefault(e.target.value), 0); }
+    if (e.target.id === "quickLogAutoAdvanceSelect") { setQuick(e.target.value); setTimeout(() => setQuick(e.target.value), 0); }
+  }, true);
+  document.addEventListener("input", function(e){
+    if (!e.target) return;
+    if (e.target.id === "themeModeSelect") setTheme(e.target.value);
+    if (e.target.id === "sessionFocusModeSelect") setFocusDefault(e.target.value);
+    if (e.target.id === "quickLogAutoAdvanceSelect") setQuick(e.target.value);
+  }, true);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
+  setTimeout(bind, 0);
+  setTimeout(bind, 300);
+  setTimeout(bind, 1000);
+  try {
+    if (window.matchMedia) {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const fn = () => { if (readTheme() === "system") applyTheme("system"); };
+      if (mq.addEventListener) mq.addEventListener("change", fn); else if (mq.addListener) mq.addListener(fn);
+    }
+  } catch(e) {}
 })();
