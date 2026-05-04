@@ -288,5 +288,68 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
   .history-card{min-width:280px}
 }
 
-/* v3.24 side-split logging */
-.side-split-note{grid-column:1/-1;background:#f8faf8;border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--muted);font-size:13px;line-height:1.35}
+
+/* v3.25 dark mode, high contrast, focus session mode, and one-tap logging */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="contrast"]){
+    --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
+    --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b;
+    --shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
+  --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+:root[data-theme="contrast"]{
+  --bg:#000; --card:#050505; --text:#fff; --muted:#e5e5e5; --line:#fff;
+  --primary:#fff; --primary-2:#f2f2f2; --felt:#00ff9a; --gold:#ffe600; --danger:#ff4d4d;
+  --shadow:none;
+}
+:root[data-theme="dark"] input,:root[data-theme="dark"] select,:root[data-theme="dark"] textarea,
+:root[data-theme="contrast"] input,:root[data-theme="contrast"] select,:root[data-theme="contrast"] textarea{background:#0a1510;color:var(--text);border-color:var(--line)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) input,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) select,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) textarea{background:#0a1510;color:var(--text);border-color:var(--line)}
+}
+:root[data-theme="dark"] .card,:root[data-theme="dark"] .item,:root[data-theme="dark"] .history-card,:root[data-theme="dark"] .table-db-row,
+:root[data-theme="contrast"] .card,:root[data-theme="contrast"] .item,:root[data-theme="contrast"] .history-card,:root[data-theme="contrast"] .table-db-row{background:var(--card);color:var(--text)}
+:root[data-theme="dark"] .tabs,:root[data-theme="dark"] .tab,:root[data-theme="contrast"] .tabs,:root[data-theme="contrast"] .tab{background:var(--card);color:var(--text)}
+:root[data-theme="dark"] .secondary,:root[data-theme="contrast"] .secondary{background:transparent;color:var(--text);border-color:var(--line)}
+:root[data-theme="contrast"] button{border:2px solid var(--line)}
+
+.live-performance-card{margin:10px 0}
+.live-perf{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:8px;align-items:stretch;border:1px solid var(--line);border-left-width:5px;border-radius:14px;background:#fbfcfb;padding:10px}
+.live-perf>div{border-right:1px solid var(--line);padding-right:8px}.live-perf>div:last-child{border-right:0}
+.live-perf span{display:block;color:var(--muted);font-size:11px}.live-perf strong{display:block;font-size:14px;color:var(--text)}
+.live-perf.green{border-left-color:#2b8a57}.live-perf.yellow{border-left-color:#c7a753}.live-perf.red{border-left-color:#9f1d1d}.live-perf.neutral{border-left-color:var(--line)}
+.quick-score{display:block}.quick-score-block{width:100%}.quick-score-title{font-weight:800;margin:4px 0 8px;color:var(--text)}
+.score-chip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(42px,1fr));gap:7px;margin-bottom:8px}.score-chip{min-height:42px;font-size:15px}
+.quick-score-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.quick-log-row button{flex:1 1 120px}
+
+body.session-focus-active{background:var(--bg)}
+body.session-focus-active .app-header,body.session-focus-active .tabs,body.session-focus-active #backupReminderBanner,body.session-focus-active footer{display:none!important}
+body.session-focus-active main{max-width:620px;padding:10px}
+body.session-focus-active #practice>.card:not(#activeSession),body.session-focus-active #freeNextCard,body.session-focus-active #sessionSummary{display:none!important}
+body.session-focus-active #activeSession{min-height:calc(100vh - 20px);border-radius:20px;padding:18px;display:flex;flex-direction:column;justify-content:flex-start}
+body.session-focus-active #routineDescriptionBox{display:none!important}
+body.session-focus-active .session-extra-fields{display:none!important}
+body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:var(--shadow)}
+@media(max-width:760px){.live-perf{grid-template-columns:1fr 1fr}.live-perf>div{border-right:0;border-bottom:1px solid var(--line);padding-bottom:6px}.live-perf>div:last-child{border-bottom:0}.score-chip-grid{grid-template-columns:repeat(5,1fr)}body.session-focus-active main{padding:6px}body.session-focus-active #activeSession{border-radius:0;min-height:100vh}}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .item,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .folder-group,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .subfolder-header,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .analytics-note,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .chart-wrap,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .live-perf,
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .history-card{background:var(--card);color:var(--text)}
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) .secondary{background:transparent;color:var(--text);border-color:var(--line)}
+  :root:not([data-theme="light"]):not([data-theme="contrast"]) button:not(.secondary):not(.danger){background:#1f6b4d;color:#fff}
+}
+:root[data-theme="dark"] .analytics-note,:root[data-theme="dark"] .chart-wrap,:root[data-theme="dark"] .live-perf,
+:root[data-theme="contrast"] .analytics-note,:root[data-theme="contrast"] .chart-wrap,:root[data-theme="contrast"] .live-perf{background:var(--card);color:var(--text)}
+:root[data-theme="dark"] button:not(.secondary):not(.danger){background:#1f6b4d;color:#fff}
+:root[data-theme="contrast"] button:not(.secondary):not(.danger){background:#fff;color:#000}

@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.24-final";
+const APP_VERSION = "3.25-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -15,6 +15,9 @@ function structuredCloneSafe(obj) {
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
+const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
+const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
+const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -67,8 +70,7 @@ function migrateData(d) {
     folder: r.folder || r.category || "Unfiled",
     subfolder: r.subfolder || "General",
     category: r.category || "uncategorized",
-    stretchTarget: r.stretchTarget || "",
-    sideSplit: r.sideSplit || "none"
+    stretchTarget: r.stretchTarget || ""
   }));
   d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
@@ -87,11 +89,6 @@ function migrateData(d) {
       performance: l.performance || "N/A",
       ...l
     };
-    migrated.sideSplit = migrated.sideSplit || (migrated.sideScores ? "left_right" : "none");
-    if (migrated.sideScores && migrated.sideSplit === "left_right") {
-      migrated.leftSideScore = Number(migrated.leftSideScore ?? migrated.sideScores.left ?? 0);
-      migrated.rightSideScore = Number(migrated.rightSideScore ?? migrated.sideScores.right ?? 0);
-    }
     migrated.normalizedScore = Number(migrated.normalizedScore || normalizeScore(migrated));
     return migrated;
   });
@@ -113,7 +110,7 @@ function migrateData(d) {
         startedAt: first.createdAt,
         endedAt: logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0].createdAt,
         logIds: logs.map(l => l.id),
-    plannedRoutineIds: activeSession.plannedRoutineIds || activeSession.routineIds || []
+        plannedRoutineIds: [...new Set(logs.map(l => l.routineId).filter(Boolean))]
       });
     }
   });
@@ -182,38 +179,6 @@ function normalizeScore(log) {
   if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
   if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? Number(log.score || 0) / Number(log.timeMinutes || 0) : 0;
   return Number(log.score || 0);
-}
-function hasSideSplit(routineOrLog) {
-  return (routineOrLog?.sideSplit || "none") === "left_right";
-}
-function configuredAttempts(routine) {
-  if (!routine) return 0;
-  return Number(routine.attemptsPerSession || routine.attempts || 0);
-}
-function configuredTotalUnits(routine) {
-  if (!routine) return 0;
-  return Number(routine.totalUnits || 0);
-}
-function normalizeSideScore(log, value) {
-  const score = Number(value || 0);
-  if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (score / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
-  if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (score / Number(log.attempts || 0)) * 100 : 0;
-  if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? score / Number(log.timeMinutes || 0) : 0;
-  return score;
-}
-function sideSplitSummary(logs) {
-  const sideLogs = logs.filter(l => hasSideSplit(l) && Number.isFinite(Number(l.leftSideScore)) && Number.isFinite(Number(l.rightSideScore)));
-  if (!sideLogs.length) return null;
-  const left = sideLogs.map(l => Number(l.leftSideNormalized ?? normalizeSideScore(l, l.leftSideScore)));
-  const right = sideLogs.map(l => Number(l.rightSideNormalized ?? normalizeSideScore(l, l.rightSideScore)));
-  const delta = avg(left) - avg(right);
-  return {count: sideLogs.length, leftAvg: avg(left), rightAvg: avg(right), delta};
-}
-function renderSideSplitAnalytics(logs) {
-  const s = sideSplitSummary(logs);
-  if (!s) return "";
-  const stronger = Math.abs(s.delta) < 0.01 ? "balanced" : (s.delta > 0 ? "left stronger" : "right stronger");
-  return `<div class="analytics-note"><strong>Left/right split ${statHelpButton("sideSplitAnalytics")}:</strong> ${s.count} split logs · left avg ${s.leftAvg.toFixed(1)} · right avg ${s.rightAvg.toFixed(1)} · delta ${s.delta>=0?"+":""}${s.delta.toFixed(1)} (${escapeHtml(stronger)}).</div>`;
 }
 function classifyPerformance(log, routine) {
   const p = getActiveTargetProfile(routine);
@@ -294,6 +259,8 @@ function renderAll() {
   renderTodayResumeCard();
   renderTableStats();
   renderPhaseOneInsights();
+  renderInterfaceSettings();
+  updateSessionFocusState();
 }
 
 function renderRoutineSelects() {
@@ -353,7 +320,6 @@ function renderRoutineItem(r) {
     <span class="badge">Type: ${escapeHtml(r.category || "uncategorized")}</span>
     <span class="badge">${r.duration || 0} min</span>
     ${r.attempts ? `<span class="badge">${r.attempts} attempts</span>` : ""}
-    ${hasSideSplit(r) ? `<span class="badge">Side split: Left / Right</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${r.target}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
     ${r.stretchTarget ? `<span class="badge">Stretch: ${r.stretchTarget}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${r.totalUnits || "?"} ${progressiveUnitLabel(r)}</span><span class="badge">Colour: ${fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
@@ -380,7 +346,6 @@ function editRoutine(id) {
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
-  if ($("routineSideSplit")) $("routineSideSplit").value = r.sideSplit || "none";
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
@@ -400,7 +365,6 @@ function clearRoutineForm() {
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   $("routineIsAnchor").value = "no";
-  if ($("routineSideSplit")) $("routineSideSplit").value = "none";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
@@ -439,7 +403,6 @@ $("saveRoutineBtn").addEventListener("click", () => {
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
     isAnchor: $("routineIsAnchor").value === "yes",
-    sideSplit: $("routineSideSplit")?.value || "none",
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -605,6 +568,7 @@ function startRoutineScreen() {
   $("sessionSummary").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
   $("activeSession").classList.remove("hidden");
+  updateSessionFocusState();
   renderCurrentRoutine();
 }
 $("resetSessionBtn").addEventListener("click", () => {
@@ -614,7 +578,9 @@ $("resetSessionBtn").addEventListener("click", () => {
   resetTimerState();
   $("activeSession").classList.add("hidden");
   $("freeNextCard").classList.add("hidden");
+  updateSessionFocusState();
   $("sessionSummary").classList.add("hidden");
+  updateSessionFocusState();
 });
 function renderCurrentRoutine() {
   persistActiveSession();
@@ -639,21 +605,12 @@ function renderCurrentRoutine() {
   $("saveNextBtn").textContent = activeSession.type === "free" ? "Save Routine" : "Save & Next";
   $("skipBtn").classList.toggle("hidden", activeSession.type === "free");
   $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
+  updateSessionFocusState();
+  renderLivePerformanceCard(r);
 }
 function renderScoreInputs(r) {
   let html = "";
-  if (hasSideSplit(r)) {
-    const setupAttempts = configuredAttempts(r);
-    const setupUnits = configuredTotalUnits(r);
-    html += `<div class="side-split-note">Left/right split enabled. Enter one score for each side. Attempts${setupAttempts ? " ("+setupAttempts+")" : ""} and total units${setupUnits ? " ("+setupUnits+")" : ""} come from the exercise setup. The saved combined score is the average of left and right.</div>`;
-    html += `<div><label>Left side score</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left side" inputmode="decimal"></div>`;
-    html += `<div><label>Right side score</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right side" inputmode="decimal"></div>`;
-    if (r.scoring === "progressive_completion") {
-      html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
-      if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
-    }
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
-  } else if (r.scoring === "progressive_completion") {
+  if (r.scoring === "progressive_completion") {
     html += `<div><label>Average ${progressiveUnitLabel(r)} per attempt</label><input id="scoreValue" type="number" min="0" step="0.01" placeholder="e.g. 8" inputmode="decimal"></div>`;
     html += `<div><label>Best attempt (${progressiveUnitLabel(r)})</label><input id="bestAttemptValue" type="number" min="0" step="0.01" placeholder="e.g. 12" inputmode="decimal"></div>`;
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${r.attemptsPerSession || r.attempts || ""}" inputmode="numeric"></div>`;
@@ -670,10 +627,13 @@ function renderScoreInputs(r) {
   }
   $("scoreInputs").innerHTML = html;
   renderQuickScoreControls(r);
-  setTimeout(() => (hasSideSplit(r) ? $("leftSideScoreValue") : $("scoreValue"))?.focus(), 120);
-  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue"].forEach(id => {
+  setTimeout(() => $("scoreValue")?.focus(), 120);
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue"].forEach(id => {
     const el = $(id);
-    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
+    if (el) {
+      el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
+      el.addEventListener("input", () => renderLivePerformanceCard(r));
+    }
   });
 }
 
@@ -697,34 +657,52 @@ function renderQuickScoreControls(r) {
   const box = $("quickScoreControls");
   if (!box) return;
   box.classList.remove("hidden");
-  if (hasSideSplit(r)) {
-    box.innerHTML = `<button class="secondary" onclick="copyLeftRightScore()">Copy L→R</button><button class="secondary" onclick="copyRightLeftScore()">Copy R→L</button><button class="secondary" onclick="clearSideScores()">Clear sides</button>`;
-  } else if (r.scoring === "success_rate") {
-    const attempts = Number(r.attempts || 10);
+  const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
+  if (r.scoring === "success_rate") {
+    const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
+    const chips = Array.from({length: Math.min(attempts, 30) + 1}, (_, i) => i)
+      .map(i => `<button class="secondary score-chip" type="button" onclick="setScoreValue(${i}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">${i}</button>`)
+      .join("");
     box.innerHTML = `
-      <button class="secondary" onclick="setScoreValue(0)">0</button>
-      <button class="secondary" onclick="decrementScore()">-1</button>
-      <button class="secondary" onclick="incrementScore()">+1</button>
-      <button class="secondary" onclick="setScoreValue(${Math.floor(attempts/2)})">Half</button>
-      <button class="secondary" onclick="setScoreValue(${attempts})">Max</button>`;
+      <div class="quick-score-block">
+        <div class="quick-score-title">Made count</div>
+        <div class="score-chip-grid">${chips}</div>
+        ${attempts > 30 ? `<p class="muted">Large attempt count detected. Use the number field for scores above 30.</p>` : ""}
+        <div class="quick-score-row">
+          <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">0</button>
+          <button class="secondary" type="button" onclick="setScoreValue(${Math.floor(attempts/2)}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Half</button>
+          <button class="secondary" type="button" onclick="setScoreValue(${attempts}); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Max</button>
+          <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
+          <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
+          <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
+        </div>
+        ${autoMacros ? `<div class="quick-score-row quick-log-row">
+          <button type="button" onclick="quickLogScore(0)">Log 0 & next</button>
+          <button type="button" onclick="quickLogScore(${Math.floor(attempts/2)})">Log half & next</button>
+          <button type="button" onclick="quickLogScore(${attempts})">Log max & next</button>
+        </div>` : ""}
+      </div>`;
   } else {
     box.innerHTML = `
-      <button class="secondary" onclick="decrementScore()">-1</button>
-      <button class="secondary" onclick="incrementScore()">+1</button>
-      <button class="secondary" onclick="adjustScore(5)">+5</button>
-      <button class="secondary" onclick="adjustScore(10)">+10</button>
-      <button class="secondary" onclick="setScoreValue(0)">Clear</button>`;
+      <div class="quick-score-row">
+        <button class="secondary" type="button" onclick="decrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">-1</button>
+        <button class="secondary" type="button" onclick="incrementScore(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+1</button>
+        <button class="secondary" type="button" onclick="adjustScore(5); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+5</button>
+        <button class="secondary" type="button" onclick="adjustScore(10); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">+10</button>
+        <button class="secondary" type="button" onclick="setScoreValue(0); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Clear</button>
+        <button class="secondary" type="button" onclick="fillSameAsLastTime(); renderLivePerformanceCard(routineById(activeSession?.routineIds?.[activeSession?.index]));">Same as last</button>
+      </div>`;
   }
-  box.innerHTML += `<button class="secondary" onclick="fillSameAsLastTime()">Same as last</button>`;
+}
+function quickLogScore(score) {
+  setScoreValue(score);
+  saveCurrentRoutine();
 }
 function scoreNumber() { return Number($("scoreValue")?.value || 0); }
 function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; $("scoreValue").focus(); } }
 function adjustScore(delta) { setScoreValue(scoreNumber() + delta); }
 function incrementScore() { adjustScore(1); }
 function decrementScore() { adjustScore(-1); }
-function copyLeftRightScore(){ if($("leftSideScoreValue") && $("rightSideScoreValue")) $("rightSideScoreValue").value = $("leftSideScoreValue").value; }
-function copyRightLeftScore(){ if($("leftSideScoreValue") && $("rightSideScoreValue")) $("leftSideScoreValue").value = $("rightSideScoreValue").value; }
-function clearSideScores(){ if($("leftSideScoreValue")) $("leftSideScoreValue").value = ""; if($("rightSideScoreValue")) $("rightSideScoreValue").value = ""; }
 
 
 function prefillSmartDefaults(r) {
@@ -755,16 +733,12 @@ function saveCurrentRoutine() {
   if (!activeSession) return;
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
-  const isSideSplit = hasSideSplit(r);
-  const leftSideScore = isSideSplit ? Number($("leftSideScoreValue")?.value || 0) : null;
-  const rightSideScore = isSideSplit ? Number($("rightSideScoreValue")?.value || 0) : null;
-  const score = isSideSplit ? (leftSideScore + rightSideScore) / 2 : Number($("scoreValue")?.value || 0);
-  const attempts = isSideSplit ? configuredAttempts(r) : ((r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0));
+  const score = Number($("scoreValue")?.value || 0);
+  const attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
   const manualTime = Number($("manualTimeValue")?.value || 0);
   const timerMinutes = getElapsedMinutes();
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
-  if (isSideSplit && (!Number.isFinite(leftSideScore) || !Number.isFinite(rightSideScore))) return alert("Enter valid left and right side scores.");
-  if (r.scoring === "success_rate" && attempts <= 0) return alert(isSideSplit ? "Set Default attempts in the exercise setup before logging this side-split drill." : "Enter attempts.");
+  if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
   if (Number.isNaN(score)) return alert("Enter a valid score.");
   if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
@@ -792,12 +766,6 @@ function saveCurrentRoutine() {
     scoring: r.scoring,
     score,
     attempts,
-    sideSplit: isSideSplit ? "left_right" : "none",
-    leftSideScore: isSideSplit ? leftSideScore : "",
-    rightSideScore: isSideSplit ? rightSideScore : "",
-    sideScores: isSideSplit ? {left: leftSideScore, right: rightSideScore} : null,
-    sideAttempts: isSideSplit ? attempts : "",
-    sideTotalUnits: isSideSplit ? (r.totalUnits || "") : "",
     timeMinutes: Math.round(timeMinutes * 10) / 10,
     normalizedScore: 0,
     bestAttempt: Number($("bestAttemptValue")?.value || 0) || "",
@@ -826,11 +794,6 @@ function saveCurrentRoutine() {
     createdAt: new Date().toISOString()
   };
   log.normalizedScore = normalizeScore(log);
-  if (isSideSplit) {
-    log.leftSideNormalized = normalizeSideScore(log, leftSideScore);
-    log.rightSideNormalized = normalizeSideScore(log, rightSideScore);
-    log.sideDelta = log.leftSideNormalized - log.rightSideNormalized;
-  }
   log.performance = classifyPerformance(log, r);
   updateTagHistoryFromInput(log.sessionTags);
   data.logs.push(log);
@@ -841,6 +804,7 @@ function saveCurrentRoutine() {
     saveData();
     $("activeSession").classList.add("hidden");
     $("freeNextCard").classList.remove("hidden");
+    updateSessionFocusState();
   } else {
     activeSession.index += 1;
     persistActiveSession();
@@ -913,11 +877,10 @@ function updateTimerDisplay() {
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
-  const sideTxt = hasSideSplit(l) ? ` · L ${l.leftSideScore ?? "?"} / R ${l.rightSideScore ?? "?"}` : "";
-  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${sideTxt}${l.targetColour ? " · "+fmtTargetColour(l.targetColour) : ""}${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
-  if (l.scoring === "success_rate") return `${l.score}/${l.attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)${sideTxt}`;
-  if (l.scoring === "score_per_minute") return `${l.score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)${sideTxt}`;
-  return `${l.score}${sideTxt}`;
+  if (l.scoring === "progressive_completion") return `${l.score}/${l.totalUnits || "?"} ${l.unitType || "units"} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${l.targetColour ? " · "+fmtTargetColour(l.targetColour) : ""}${l.bestAttempt ? " · best "+l.bestAttempt : ""}${l.highestBreak ? " · break "+l.highestBreak : ""}`;
+  if (l.scoring === "success_rate") return `${l.score}/${l.attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
+  if (l.scoring === "score_per_minute") return `${l.score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
+  return `${l.score}`;
 }
 
 function getPeriodRange(period, dateKey) {
@@ -2002,7 +1965,6 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   renderTableStats(logs);
   html += renderCoachingEngine(logs);
   html += renderPerformanceStability(logs);
-  html += renderSideSplitAnalytics(logs);
   html += renderFatigueSlope(logs);
   html += renderDifficultyLadder(logs);
   html += renderSecondOrderAnalytics(logs, rid, rollingWindow);
@@ -2483,7 +2445,6 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   </div>
   <div class="trend">${escapeHtml(movingTrend(vals, rollingWindow))}</div>
   <div class="analytics-note"><strong>Benchmark:</strong> ${escapeHtml(benchmarkText(vals, benchmarkWindow))}<br><strong>Progression suggestion:</strong> ${escapeHtml(suggestion)}</div>
-  ${renderSideSplitAnalytics(logs)}
   ${renderTargetUpgradeButton(logs[0]?.routineId)}${renderChart(logs)}
   ${renderRollingChart(logs, rolling)}
   <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
@@ -2504,7 +2465,6 @@ function renderEditLogForm(l) {
       <div><label>Date/time</label><input id="edit-createdAt-${l.id}" type="datetime-local" value="${toDateTimeLocal(l.createdAt)}"></div>
       <div><label>Score</label><input id="edit-score-${l.id}" type="number" step="0.01" value="${l.score}"></div>
       <div><label>Attempts</label><input id="edit-attempts-${l.id}" type="number" step="1" value="${l.attempts || ""}"></div>
-      ${hasSideSplit(l) ? `<div><label>Left side score</label><input id="edit-left-${l.id}" type="number" step="0.01" value="${l.leftSideScore || ""}"></div><div><label>Right side score</label><input id="edit-right-${l.id}" type="number" step="0.01" value="${l.rightSideScore || ""}"></div>` : ""}
       <div><label>Time minutes</label><input id="edit-time-${l.id}" type="number" step="0.1" value="${l.timeMinutes || ""}"></div><div><label>Venue / table</label><select id="edit-venue-${l.id}">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input id="edit-best-${l.id}" type="number" step="0.01" value="${l.bestAttempt || ""}"></div><div><label>Completions</label><input id="edit-completions-${l.id}" type="number" step="1" value="${l.completionCount || ""}"></div><div><label>Highest break</label><input id="edit-break-${l.id}" type="number" step="1" value="${l.highestBreak || ""}"></div>` : ""}
       <div><label>Rating</label><input id="edit-rating-${l.id}" type="number" min="1" max="5" step="1" value="${l.sessionRating || ""}"></div>
       <div><label>Category</label><select id="edit-category-${l.id}">${categories().map(c => `<option value="${escapeAttr(c)}" ${c === (l.category || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
@@ -2532,15 +2492,6 @@ function saveEditedLog(id) {
   const editedDate = new Date($("edit-createdAt-"+id).value); if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time."); l.createdAt = editedDate.toISOString();
   l.score = Number($("edit-score-"+id).value || 0);
   l.attempts = Number($("edit-attempts-"+id).value || 0) || "";
-  if (hasSideSplit(l) && $("edit-left-"+id) && $("edit-right-"+id)) {
-    l.leftSideScore = Number($("edit-left-"+id).value || 0);
-    l.rightSideScore = Number($("edit-right-"+id).value || 0);
-    l.score = (l.leftSideScore + l.rightSideScore) / 2;
-    l.sideScores = {left: l.leftSideScore, right: l.rightSideScore};
-    l.leftSideNormalized = normalizeSideScore(l, l.leftSideScore);
-    l.rightSideNormalized = normalizeSideScore(l, l.rightSideScore);
-    l.sideDelta = l.leftSideNormalized - l.rightSideNormalized;
-  }
   l.timeMinutes = Number($("edit-time-"+id).value || 0);
   l.sessionRating = Number($("edit-rating-"+id).value || 0) || "";
   l.category = $("edit-category-"+id).value || l.category || "uncategorized";
@@ -2580,7 +2531,6 @@ function renderDateView(logs) {
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(logs)}
-  ${renderSideSplitAnalytics(logs)}
   <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => `<tr><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog('${l.id}')">Edit</button> <button class="danger" onclick="deleteLog('${l.id}')">Delete</button></td></tr><tr id="edit-${l.id}" class="hidden"><td colspan="9">${renderEditLogForm(l)}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderToday() {
@@ -3045,20 +2995,6 @@ const FIELD_HELP = {
       <p><strong>What it means:</strong> the specific colour constraint when the drill is built around one colour.</p>
       <div class="example"><strong>Example:</strong> choose Blue for a blue-only break-building drill; choose Black for a black-only line-up.</div>
       <p><strong>Best use:</strong> set this at exercise level when the colour changes the technical demand. Do not track colour ball-by-ball unless you are doing match analysis.</p>`
-  },
-  sideSplit: {
-    title: "Side split",
-    body: `
-      <p><strong>What it means:</strong> enables left/right scoring for drills where the same pattern is played from both sides of the table.</p>
-      <div class="example"><strong>Example:</strong> potting the black from six cushion positions on the left side and then the same six positions on the right side.</div>
-      <p><strong>Best use:</strong> turn this on when side asymmetry matters. Keep it off for standard drills where one combined score is enough.</p>`
-  },
-  sideSplitAnalytics: {
-    title: "Left/right analytics",
-    body: `
-      <p><strong>What it means:</strong> compares normalized performance on the left side versus the right side for side-split drills.</p>
-      <p><strong>How to read it:</strong> a positive delta means left side is stronger; a negative delta means right side is stronger. Small deltas are usually noise until you have several logs.</p>
-      <p><strong>Best use:</strong> use it to decide whether to allocate extra reps to the weaker side rather than averaging away the weakness.</p>`
   }
 
 };
@@ -3372,7 +3308,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.24");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3665,12 +3601,85 @@ function applyStoredStatsModeVisual() {
   }
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
+document.addEventListener("DOMContentLoaded", bindInterfaceSettings);
 
 
 
 
 
 
+
+
+/* v3.25 interface settings: theme, session focus mode, and quick-log macros */
+function getThemeModeSetting(){ return localStorage.getItem(THEME_MODE_KEY) || "system"; }
+function getSessionFocusSetting(){ return localStorage.getItem(SESSION_FOCUS_MODE_KEY) || "on"; }
+function getQuickLogAutoAdvanceSetting(){ return localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || "on"; }
+function applyThemeMode(){
+  const mode = getThemeModeSetting();
+  const root = document.documentElement;
+  if (mode === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", mode);
+  const meta = document.getElementById("themeColorMeta");
+  if (meta) meta.setAttribute("content", mode === "contrast" ? "#000000" : mode === "dark" ? "#07110d" : "#102b22");
+}
+function renderInterfaceSettings(){
+  const theme = $("themeModeSelect");
+  const focus = $("sessionFocusModeSelect");
+  const quick = $("quickLogAutoAdvanceSelect");
+  if (theme) theme.value = getThemeModeSetting();
+  if (focus) focus.value = getSessionFocusSetting();
+  if (quick) quick.value = getQuickLogAutoAdvanceSetting();
+}
+function updateSessionFocusState(){
+  const enabled = getSessionFocusSetting() !== "off";
+  const active = !!(activeSession && $("activeSession") && !$("activeSession").classList.contains("hidden"));
+  document.body.classList.toggle("session-focus-active", enabled && active);
+  const btn = $("toggleFocusModeBtn");
+  if (btn) btn.textContent = enabled ? "Exit Focus Mode" : "Focus Mode";
+}
+function toggleSessionFocusMode(){
+  const next = getSessionFocusSetting() === "off" ? "on" : "off";
+  localStorage.setItem(SESSION_FOCUS_MODE_KEY, next);
+  renderInterfaceSettings();
+  updateSessionFocusState();
+}
+function bindInterfaceSettings(){
+  applyThemeMode();
+  renderInterfaceSettings();
+  const theme = $("themeModeSelect");
+  const focus = $("sessionFocusModeSelect");
+  const quick = $("quickLogAutoAdvanceSelect");
+  const toggleFocus = $("toggleFocusModeBtn");
+  if (theme) theme.addEventListener("change", () => { localStorage.setItem(THEME_MODE_KEY, theme.value); applyThemeMode(); });
+  if (focus) focus.addEventListener("change", () => { localStorage.setItem(SESSION_FOCUS_MODE_KEY, focus.value); updateSessionFocusState(); });
+  if (quick) quick.addEventListener("change", () => { localStorage.setItem(QUICK_LOG_AUTO_ADVANCE_KEY, quick.value); if (activeSession) renderCurrentRoutine(); });
+  if (toggleFocus) toggleFocus.addEventListener("click", toggleSessionFocusMode);
+  if (window.matchMedia) {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", () => { if (getThemeModeSetting() === "system") applyThemeMode(); });
+  }
+}
+function renderLivePerformanceCard(r){
+  const box = $("livePerformanceCard");
+  if (!box || !r) return;
+  const score = Number($("scoreValue")?.value || 0);
+  const attempts = Number($("attemptsValue")?.value || r.attempts || r.attemptsPerSession || 0);
+  const draftLog = {scoring:r.scoring, score, attempts, totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
+  const normalized = normalizeScore(draftLog);
+  const profile = getActiveTargetProfile(r);
+  const target = Number(profile?.target || r.target || 0);
+  const stretch = Number(profile?.stretchTarget || r.stretchTarget || 0);
+  const recent = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,3);
+  const status = target && normalized >= stretch && stretch ? "green" : target && normalized >= target ? "green" : target && normalized >= target * 0.75 ? "yellow" : target ? "red" : "neutral";
+  const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
+  box.innerHTML = `<div class="live-perf ${status}">
+    <div><strong>Live target check</strong><span>${statusText}</span></div>
+    <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
+    <div><span>Target</span><strong>${target || "N/A"}</strong></div>
+    <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
+    <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>
+  </div>`;
+}
 
 window.addEventListener("storage", e => {
   if (e.key === STORAGE_KEY) {

@@ -1,32 +1,18 @@
-# Snooker Practice Log — v3.24
+# Snooker Practice Log — v3.25
 
-Built from v3.23.
+Built from the v3.24 working set.
 
-## Fixes
+## Added
 
-- Fixed the duplicated Venue / table field in previous-session log editing.
-- The edit form now keeps only one Venue / table selector.
+- Dark mode and high-contrast mode with system preference support.
+- Interface settings in the Data tab for theme, focus mode, and quick-log macros.
+- Full-screen session mode for active drill logging.
+- Faster one-tap score entry for success-rate drills using score chips from 0 to attempts.
+- Quick-log macros: log 0, half, or max and auto-advance.
+- Live target check card during active sessions showing current score, target, stretch target, and last three scores.
 
-## New UX
+## Package
 
-- Added global Side split at exercise setup level: None or Left / Right.
-- Logging screen shows Left side score and Right side score when side split is enabled.
-- Attempts and total units are taken from the exercise setup, not re-entered during logging.
-- One log is saved per drill. Combined score is the average of left and right.
-- Side-level data is stored internally for future analysis.
-- Added left/right analytics and helper explanations.
-- Added swipeable drill history cards for mobile-friendly Stats review.
-- Each card shows:
-  - routine name
-  - date/time
-  - score
-  - duration
-  - table
-  - performance label
-  - mini sparkline of recent scores for that routine
-  - edit/delete actions
+Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-The table view remains available for dense review.
-
-Confirm version:
-The header should show v3.24.
+Confirm version: the header should show v3.25.

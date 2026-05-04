@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v3.24</title>
-  <meta name="theme-color" content="#102b22" />
-  <link rel="manifest" href="manifest.json?v=3.24" />
-  <link rel="stylesheet" href="styles.css?v=3.24" />
-  <link rel="icon" href="icon.svg?v=3.24" type="image/svg+xml" />
+  <title>Snooker Practice Log v3.25</title>
+  <meta name="theme-color" content="#102b22" id="themeColorMeta" />
+  <link rel="manifest" href="manifest.json?v=3.25" />
+  <link rel="stylesheet" href="styles.css?v=3.25" />
+  <link rel="icon" href="icon.svg?v=3.25" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v3.24 — global left/right side split, side analytics, and v3.23 training analytics.</p>
+      <p>v3.25 — dark/high-contrast mode, focus session mode, faster one-tap score entry.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -188,12 +188,16 @@
           <button id="timerStartBtn" class="secondary">Start timer</button>
           <button id="timerPauseBtn" class="secondary">Pause</button>
           <button id="timerResetBtn" class="secondary">Reset timer</button>
+          <button id="toggleFocusModeBtn" class="secondary" type="button">Focus Mode</button>
         </div>
 
         <div id="scoreInputs" class="score-grid"></div>
 
+        <div id="livePerformanceCard" class="live-performance-card"></div>
+
         <div id="quickScoreControls" class="quick-score hidden"></div>
 
+        <div id="sessionExtraFields" class="session-extra-fields">
         <label>Training venue / table</label>
         <select id="sessionVenueTable">
           <option value="">Not specified</option>
@@ -235,6 +239,8 @@
 
         <label>Notes</label>
         <textarea id="practiceNotes" rows="3" placeholder="Optional: cueing, rhythm, focus issue, table condition..."></textarea>
+
+        </div>
 
         <div class="row sticky-log-actions primary-action-row">
           <button id="saveNextBtn">Save</button>
@@ -321,13 +327,6 @@
           <div>
             <label>Default attempts</label>
             <input id="routineAttempts" type="number" min="0" placeholder="e.g. 10" />
-          </div>
-          <div>
-            <label>Side split <button type="button" class="help-dot" onclick="showFieldHelp('sideSplit')">?</button></label>
-            <select id="routineSideSplit">
-              <option value="none">None</option>
-              <option value="left_right">Left / Right</option>
-            </select>
           </div>
           <div>
             <label>Default duration, minutes</label>
@@ -677,6 +676,36 @@
         </div>
       </div>
 
+      <div class="card">
+        <h2>Interface settings</h2>
+        <p class="muted">Use these settings to reduce friction during practice and adapt the app to low-light club conditions.</p>
+        <div class="grid three">
+          <div>
+            <label>Theme</label>
+            <select id="themeModeSelect">
+              <option value="system">System default</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="contrast">High contrast</option>
+            </select>
+          </div>
+          <div>
+            <label>Full-screen session mode</label>
+            <select id="sessionFocusModeSelect">
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+          <div>
+            <label>One-tap quick-log buttons</label>
+            <select id="quickLogAutoAdvanceSelect">
+              <option value="on">Show auto-save macros</option>
+              <option value="off">Manual save only</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="card danger-zone">
         <h2>Reset app data</h2>
         <p>This deletes saved exercises, plans, and logs from this browser.</p>
@@ -739,6 +768,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script src="app.js?v=3.24"></script>
+  <script src="app.js?v=3.25"></script>
 </body>
 </html>
