@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.11-final";
+const APP_VERSION = "3.26.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -201,7 +201,7 @@ function loadData() {
   }
 }
 
-function saveData() {
+function saveData(options = {}) {
   data.updatedAt = new Date().toISOString();
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings.themeMode = getThemeModeSetting();
@@ -210,7 +210,61 @@ function saveData() {
   ensureTablesDatabase?.();
   const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(data), "saveData");
   if (ok) renderStorageWarning();
+  const renderMode = typeof options === "string" ? options : (options && options.render) || "all";
+  renderAfterSave(renderMode);
+  return ok;
+}
+
+function isPanelActive(panelId) {
+  return !!$(panelId)?.classList.contains("active");
+}
+
+function renderAfterSave(mode = "all") {
+  if (mode === "none") return;
+  if (mode === "sessionLog") return renderAfterSessionLogSave();
+  if (mode === "logEdit") return renderAfterLogEditSave();
   renderAll();
+}
+
+function safeScopedRender(fn, label) {
+  try { if (typeof fn === "function") fn(); }
+  catch(e) { logAppError?.(e, label || "safeScopedRender"); }
+}
+
+function renderAfterSessionLogSave() {
+  safeScopedRender(renderBackupReminder, "renderAfterSessionLogSave renderBackupReminder");
+  safeScopedRender(renderSmartRecommendation, "renderAfterSessionLogSave renderSmartRecommendation");
+  safeScopedRender(renderTagSuggestions, "renderAfterSessionLogSave renderTagSuggestions");
+  safeScopedRender(renderResumeCard, "renderAfterSessionLogSave renderResumeCard");
+  safeScopedRender(renderTodayResumeCard, "renderAfterSessionLogSave renderTodayResumeCard");
+  if (isPanelActive("today")) {
+    safeScopedRender(renderToday, "renderAfterSessionLogSave renderToday");
+    safeScopedRender(renderTrainingLoad, "renderAfterSessionLogSave renderTrainingLoad");
+  }
+  if (isPanelActive("stats")) {
+    safeScopedRender(renderStats, "renderAfterSessionLogSave renderStats");
+    safeScopedRender(renderPhaseOneInsights, "renderAfterSessionLogSave renderPhaseOneInsights");
+    safeScopedRender(renderABComparison, "renderAfterSessionLogSave renderABComparison");
+  }
+  safeScopedRender(updateSessionFocusState, "renderAfterSessionLogSave updateSessionFocusState");
+}
+
+function renderAfterLogEditSave() {
+  safeScopedRender(renderTagSuggestions, "renderAfterLogEditSave renderTagSuggestions");
+  safeScopedRender(renderBackupReminder, "renderAfterLogEditSave renderBackupReminder");
+  if (isPanelActive("today")) {
+    safeScopedRender(renderToday, "renderAfterLogEditSave renderToday");
+    safeScopedRender(renderTrainingLoad, "renderAfterLogEditSave renderTrainingLoad");
+  }
+  if (isPanelActive("stats")) {
+    safeScopedRender(renderStats, "renderAfterLogEditSave renderStats");
+    safeScopedRender(renderPhaseOneInsights, "renderAfterLogEditSave renderPhaseOneInsights");
+    safeScopedRender(renderABComparison, "renderAfterLogEditSave renderABComparison");
+  }
+  if (isPanelActive("practice")) {
+    safeScopedRender(renderSmartRecommendation, "renderAfterLogEditSave renderSmartRecommendation");
+  }
+  safeScopedRender(updateSessionFocusState, "renderAfterLogEditSave updateSessionFocusState");
 }
 
 function fmtScoring(type) {
@@ -863,14 +917,14 @@ function saveCurrentRoutine() {
   stopTimer();
 
   if (activeSession.type === "free") {
-    saveData();
+    saveData({render:"sessionLog"});
     $("activeSession").classList.add("hidden");
     $("freeNextCard").classList.remove("hidden");
     updateSessionFocusState();
   } else {
     activeSession.index += 1;
     persistActiveSession();
-    saveData();
+    saveData({render:"sessionLog"});
     renderCurrentRoutine();
   }
 }
@@ -2632,7 +2686,7 @@ function saveEditedLog(id, formEl) {
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
   data.logs[idx] = l;
-  saveData();
+  saveData({render:"logEdit"});
 }
 function makeRoutineSnapshotFromLog(l) {
   return {
@@ -2651,7 +2705,7 @@ function makeRoutineSnapshotFromLog(l) {
 function deleteLog(id) {
   return confirmDeleteAction("this session log", () => {
     data.logs = data.logs.filter(l => l.id !== id);
-    saveData();
+    saveData({render:"logEdit"});
   });
 }
 
@@ -3445,7 +3499,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.11");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.26.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

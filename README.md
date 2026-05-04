@@ -1,8 +1,14 @@
-# Snooker Practice Log — v3.25.11
+# Snooker Practice Log — v3.26.0
 
 Built from the v3.25.11 working set.
 
-## Fixed
+## Fixed in v3.26.0
+
+- Added scoped rendering for session log saves and log edits so the app no longer calls full `renderAll()` after every logged score.
+- Logging a score now refreshes only the relevant visible views, storage warning, recommendation/status widgets, and focus UI instead of rebuilding the entire application DOM.
+- Kept the existing v3.25.11 fixes for settings, dark mode, duplicate log edit forms, timer persistence, and soft-deleted routines.
+
+## Prior retained fixes
 
 - Replaced the stacked interface-settings patches with one deterministic settings layer.
 - Removed competing inline handlers from `index.html` for theme, focus mode, and quick-log settings.
@@ -21,4 +27,4 @@ Built from the v3.25.11 working set.
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.25.11.
+Confirm version: the header should show v3.26.0.
