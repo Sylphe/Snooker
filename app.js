@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.4-final";
+const APP_VERSION = "3.25.5-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -3354,7 +3354,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.4");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.5");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3656,7 +3656,7 @@ document.addEventListener("DOMContentLoaded", bindInterfaceSettings);
 
 
 
-/* v3.25.4 interface settings: hard-persistent theme, session focus mode, and quick-log macros */
+/* v3.25.5 interface settings: hard-persistent theme, session focus mode, and quick-log macros */
 function storageGetSafe(key){
   try { return localStorage.getItem(key); } catch(e) { return null; }
 }
@@ -3820,3 +3820,141 @@ window.addEventListener("beforeunload", () => {
     if (timerInterval) clearInterval(timerInterval);
   } catch(e) {}
 });
+
+/* v3.25.5 definitive interface settings patch: direct persistence, body theme attribute, cache-safe theme application */
+(function(){
+  const V3255_THEME_KEY = "snookerPracticePWA.themeMode";
+  const V3255_FOCUS_KEY = "snookerPracticePWA.sessionFocusMode";
+  const V3255_QUICK_KEY = "snookerPracticePWA.quickLogAutoAdvance";
+  const validTheme = v => ["system","light","dark","contrast"].includes(v) ? v : "system";
+  function readMainDataSetting(name, fallback){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.interfaceSettings && parsed.interfaceSettings[name] ? parsed.interfaceSettings[name] : fallback;
+    } catch(e) { return fallback; }
+  }
+  function writeMainDataSetting(name, value){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : (data || {});
+      parsed.interfaceSettings = parsed.interfaceSettings || {};
+      parsed.interfaceSettings[name] = value;
+      parsed.appVersion = APP_VERSION;
+      parsed.updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      if (typeof data === "object" && data) {
+        data.interfaceSettings = data.interfaceSettings || {};
+        data.interfaceSettings[name] = value;
+      }
+    } catch(e) {
+      try {
+        data.interfaceSettings = data.interfaceSettings || {};
+        data.interfaceSettings[name] = value;
+        safeStorageSet(STORAGE_KEY, JSON.stringify(data), "v3.25.5 interface setting save");
+      } catch(_) {}
+    }
+  }
+  window.v3255ReadThemeMode = function(){ return validTheme(localStorage.getItem(V3255_THEME_KEY) || readMainDataSetting("themeMode", "system")); };
+  window.v3255ReadFocusMode = function(){ return localStorage.getItem(V3255_FOCUS_KEY) || readMainDataSetting("sessionFocusMode", "on") || "on"; };
+  window.v3255ReadQuickMode = function(){ return localStorage.getItem(V3255_QUICK_KEY) || readMainDataSetting("quickLogAutoAdvance", "on") || "on"; };
+  window.v3255ApplyThemeMode = function(mode){
+    mode = validTheme(mode || window.v3255ReadThemeMode());
+    const html = document.documentElement;
+    html.classList.remove("theme-system","theme-light","theme-dark","theme-contrast");
+    html.removeAttribute("data-theme");
+    html.setAttribute("data-theme-mode", mode);
+    html.classList.add("theme-" + mode);
+    if (mode !== "system") html.setAttribute("data-theme", mode);
+    if (document.body) {
+      document.body.classList.remove("theme-system","theme-light","theme-dark","theme-contrast");
+      document.body.removeAttribute("data-theme");
+      document.body.setAttribute("data-theme-mode", mode);
+      document.body.classList.add("theme-" + mode);
+      if (mode !== "system") document.body.setAttribute("data-theme", mode);
+    }
+    const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", mode === "contrast" ? "#000000" : mode === "dark" ? "#07110d" : "#102b22");
+    const sel = document.getElementById("themeModeSelect");
+    if (sel && sel.value !== mode) sel.value = mode;
+  };
+  window.v3255SaveThemeMode = function(mode){
+    mode = validTheme(mode);
+    localStorage.setItem(V3255_THEME_KEY, mode);
+    writeMainDataSetting("themeMode", mode);
+    window.v3255ApplyThemeMode(mode);
+    return mode;
+  };
+  window.v3255SaveFocusMode = function(value){
+    value = value === "off" ? "off" : "on";
+    localStorage.setItem(V3255_FOCUS_KEY, value);
+    writeMainDataSetting("sessionFocusMode", value);
+    const sel = document.getElementById("sessionFocusModeSelect");
+    if (sel && sel.value !== value) sel.value = value;
+    if (typeof updateSessionFocusState === "function") updateSessionFocusState();
+    return value;
+  };
+  window.v3255SaveQuickMode = function(value){
+    value = value === "off" ? "off" : "on";
+    localStorage.setItem(V3255_QUICK_KEY, value);
+    writeMainDataSetting("quickLogAutoAdvance", value);
+    const sel = document.getElementById("quickLogAutoAdvanceSelect");
+    if (sel && sel.value !== value) sel.value = value;
+    if (activeSession && typeof renderCurrentRoutine === "function") renderCurrentRoutine();
+    return value;
+  };
+
+  const oldRenderInterfaceSettings = window.renderInterfaceSettings || (typeof renderInterfaceSettings === "function" ? renderInterfaceSettings : null);
+  window.renderInterfaceSettings = renderInterfaceSettings = function(){
+    window.v3255ApplyThemeMode(window.v3255ReadThemeMode());
+    const theme = document.getElementById("themeModeSelect");
+    const focus = document.getElementById("sessionFocusModeSelect");
+    const quick = document.getElementById("quickLogAutoAdvanceSelect");
+    if (theme) theme.value = window.v3255ReadThemeMode();
+    if (focus) focus.value = window.v3255ReadFocusMode();
+    if (quick) quick.value = window.v3255ReadQuickMode();
+  };
+  window.getThemeModeSetting = getThemeModeSetting = function(){ return window.v3255ReadThemeMode(); };
+  window.getSessionFocusSetting = getSessionFocusSetting = function(){ return window.v3255ReadFocusMode(); };
+  window.getQuickLogAutoAdvanceSetting = getQuickLogAutoAdvanceSetting = function(){ return window.v3255ReadQuickMode(); };
+  window.applyThemeMode = applyThemeMode = function(){ window.v3255ApplyThemeMode(window.v3255ReadThemeMode()); };
+
+  function bindDirectInterfaceHandlers(){
+    window.v3255ApplyThemeMode(window.v3255ReadThemeMode());
+    const theme = document.getElementById("themeModeSelect");
+    const focus = document.getElementById("sessionFocusModeSelect");
+    const quick = document.getElementById("quickLogAutoAdvanceSelect");
+    if (theme) {
+      theme.value = window.v3255ReadThemeMode();
+      theme.onchange = function(){ window.v3255SaveThemeMode(this.value); };
+      theme.oninput = function(){ window.v3255SaveThemeMode(this.value); };
+    }
+    if (focus) {
+      focus.value = window.v3255ReadFocusMode();
+      focus.onchange = function(){ window.v3255SaveFocusMode(this.value); };
+      focus.oninput = function(){ window.v3255SaveFocusMode(this.value); };
+    }
+    if (quick) {
+      quick.value = window.v3255ReadQuickMode();
+      quick.onchange = function(){ window.v3255SaveQuickMode(this.value); };
+      quick.oninput = function(){ window.v3255SaveQuickMode(this.value); };
+    }
+  }
+  document.addEventListener("change", function(e){
+    if (!e.target || !e.target.id) return;
+    if (e.target.id === "themeModeSelect") window.v3255SaveThemeMode(e.target.value);
+    if (e.target.id === "sessionFocusModeSelect") window.v3255SaveFocusMode(e.target.value);
+    if (e.target.id === "quickLogAutoAdvanceSelect") window.v3255SaveQuickMode(e.target.value);
+  }, true);
+  document.addEventListener("input", function(e){
+    if (!e.target || !e.target.id) return;
+    if (e.target.id === "themeModeSelect") window.v3255SaveThemeMode(e.target.value);
+    if (e.target.id === "sessionFocusModeSelect") window.v3255SaveFocusMode(e.target.value);
+    if (e.target.id === "quickLogAutoAdvanceSelect") window.v3255SaveQuickMode(e.target.value);
+  }, true);
+  bindDirectInterfaceHandlers();
+  document.addEventListener("DOMContentLoaded", bindDirectInterfaceHandlers);
+  setTimeout(bindDirectInterfaceHandlers, 0);
+  setTimeout(bindDirectInterfaceHandlers, 500);
+})();

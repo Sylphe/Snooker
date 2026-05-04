@@ -651,7 +651,7 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
   }
 }
 
-/* v3.25.4 final hard theme coverage */
+/* v3.25.5 final hard theme coverage */
 :root[data-theme="dark"], :root.theme-dark {
   color-scheme: dark;
   --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
@@ -851,3 +851,81 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
 :root[data-theme="dark"] .tab,
 :root[data-theme="contrast"] .tabs,
 :root[data-theme="contrast"] .tab { background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important; }
+
+/* v3.25.5 definitive theme patch: body attribute + aggressive component coverage */
+html[data-theme="dark"], body[data-theme="dark"], body.theme-dark {
+  color-scheme: dark;
+  --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
+  --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b;
+  --shadow:0 8px 24px rgba(0,0,0,.35); --panel-bg:#0f1c16; --panel-bg-2:#12261d; --chip-bg:#10251c; --chip-text:#eef7f1; --chip-border:#3f6352;
+}
+html[data-theme="contrast"], body[data-theme="contrast"], body.theme-contrast {
+  color-scheme: dark;
+  --bg:#000; --card:#050505; --text:#fff; --muted:#e5e5e5; --line:#fff;
+  --primary:#fff; --primary-2:#f2f2f2; --felt:#00ff9a; --gold:#ffe600; --danger:#ff4d4d;
+  --shadow:none; --panel-bg:#050505; --panel-bg-2:#000; --chip-bg:#000; --chip-text:#fff; --chip-border:#fff;
+}
+html[data-theme="light"], body[data-theme="light"], body.theme-light {
+  color-scheme: light;
+  --bg:#f4f6f2; --card:#fff; --text:#17211c; --muted:#667168; --line:#dce4de;
+  --primary:#102b22; --primary-2:#184332; --felt:#0d4c35; --gold:#c7a753; --danger:#9f1d1d;
+  --shadow:0 8px 24px rgba(0,0,0,.08); --panel-bg:#fff; --panel-bg-2:#fbfcfb; --chip-bg:#e9efeb; --chip-text:#102b22; --chip-border:#cddbd2;
+}
+body[data-theme="dark"], body[data-theme="contrast"], body.theme-dark, body.theme-contrast { background:var(--bg)!important; color:var(--text)!important; }
+body[data-theme="dark"] .app-header, body[data-theme="contrast"] .app-header { color:#fff!important; }
+body[data-theme="dark"] .tabs, body[data-theme="dark"] .tab,
+body[data-theme="contrast"] .tabs, body[data-theme="contrast"] .tab { background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important; }
+body[data-theme="dark"] .tab.active, body[data-theme="contrast"] .tab.active { border-bottom-color:var(--gold)!important; color:var(--text)!important; }
+body[data-theme="dark"] .card, body[data-theme="dark"] .card *,
+body[data-theme="contrast"] .card, body[data-theme="contrast"] .card * { border-color:var(--line); }
+body[data-theme="dark"] .card, body[data-theme="dark"] .card.nested, body[data-theme="dark"] .item, body[data-theme="dark"] .folder-group,
+body[data-theme="dark"] .folder-header, body[data-theme="dark"] .subfolder-header, body[data-theme="dark"] .analytics-note, body[data-theme="dark"] .warning-note,
+body[data-theme="dark"] .chart-wrap, body[data-theme="dark"] .description-box, body[data-theme="dark"] .stat-card, body[data-theme="dark"] .overview-card,
+body[data-theme="dark"] .coaching-box, body[data-theme="dark"] .insight, body[data-theme="dark"] .orchestrator-box, body[data-theme="dark"] .load-card,
+body[data-theme="dark"] .review-box, body[data-theme="dark"] .training-block, body[data-theme="dark"] .phase-card, body[data-theme="dark"] .adaptive-phase,
+body[data-theme="dark"] .planned-box, body[data-theme="dark"] .table-stats, body[data-theme="dark"] .history-card, body[data-theme="dark"] .history-card-spark,
+body[data-theme="dark"] .table-db-row, body[data-theme="dark"] .log-edit, body[data-theme="dark"] .modal-card, body[data-theme="dark"] .modal-content,
+body[data-theme="dark"] .modal-body, body[data-theme="dark"] .mini-kpi, body[data-theme="dark"] .trend, body[data-theme="dark"] .quick-score-block,
+body[data-theme="dark"] .quick-score-row, body[data-theme="dark"] .score-chip-grid, body[data-theme="dark"] .live-perf, body[data-theme="dark"] .target-upgrade,
+body[data-theme="dark"] .difficulty-note, body[data-theme="dark"] .diagnostic-card, body[data-theme="dark"] .psi-card, body[data-theme="dark"] .ladder-action,
+body[data-theme="dark"] .intervention-card, body[data-theme="dark"] .help-rich .example, body[data-theme="dark"] .backup-banner, body[data-theme="dark"] .swipe-history-wrap,
+body[data-theme="dark"] .reflection-row, body[data-theme="dark"] .target-version-note, body[data-theme="dark"] .target-profile-badge,
+body[data-theme="dark"] [class*="box"], body[data-theme="dark"] [class*="Box"], body[data-theme="dark"] [class*="card"], body[data-theme="dark"] [class*="Card"], body[data-theme="dark"] [class*="panel"], body[data-theme="dark"] [class*="Panel"], body[data-theme="dark"] [class*="note"], body[data-theme="dark"] [class*="Note"],
+body[data-theme="contrast"] .card, body[data-theme="contrast"] .card.nested, body[data-theme="contrast"] .item, body[data-theme="contrast"] .folder-group,
+body[data-theme="contrast"] .folder-header, body[data-theme="contrast"] .subfolder-header, body[data-theme="contrast"] .analytics-note, body[data-theme="contrast"] .warning-note,
+body[data-theme="contrast"] .chart-wrap, body[data-theme="contrast"] .description-box, body[data-theme="contrast"] .stat-card, body[data-theme="contrast"] .overview-card,
+body[data-theme="contrast"] .coaching-box, body[data-theme="contrast"] .insight, body[data-theme="contrast"] .orchestrator-box, body[data-theme="contrast"] .load-card,
+body[data-theme="contrast"] .review-box, body[data-theme="contrast"] .training-block, body[data-theme="contrast"] .phase-card, body[data-theme="contrast"] .adaptive-phase,
+body[data-theme="contrast"] .planned-box, body[data-theme="contrast"] .table-stats, body[data-theme="contrast"] .history-card, body[data-theme="contrast"] .history-card-spark,
+body[data-theme="contrast"] .table-db-row, body[data-theme="contrast"] .log-edit, body[data-theme="contrast"] .modal-card, body[data-theme="contrast"] .modal-content,
+body[data-theme="contrast"] .modal-body, body[data-theme="contrast"] .mini-kpi, body[data-theme="contrast"] .trend, body[data-theme="contrast"] .quick-score-block,
+body[data-theme="contrast"] .quick-score-row, body[data-theme="contrast"] .score-chip-grid, body[data-theme="contrast"] .live-perf, body[data-theme="contrast"] .target-upgrade,
+body[data-theme="contrast"] .difficulty-note, body[data-theme="contrast"] .diagnostic-card, body[data-theme="contrast"] .psi-card, body[data-theme="contrast"] .ladder-action,
+body[data-theme="contrast"] .intervention-card, body[data-theme="contrast"] .help-rich .example, body[data-theme="contrast"] .backup-banner, body[data-theme="contrast"] .swipe-history-wrap,
+body[data-theme="contrast"] .reflection-row, body[data-theme="contrast"] .target-version-note, body[data-theme="contrast"] .target-profile-badge,
+body[data-theme="contrast"] [class*="box"], body[data-theme="contrast"] [class*="Box"], body[data-theme="contrast"] [class*="card"], body[data-theme="contrast"] [class*="Card"], body[data-theme="contrast"] [class*="panel"], body[data-theme="contrast"] [class*="Panel"], body[data-theme="contrast"] [class*="note"], body[data-theme="contrast"] [class*="Note"] {
+  background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important;
+}
+body[data-theme="dark"] .folder-header, body[data-theme="dark"] .subfolder-header, body[data-theme="dark"] .card.nested, body[data-theme="dark"] .stat-card,
+body[data-theme="contrast"] .folder-header, body[data-theme="contrast"] .subfolder-header, body[data-theme="contrast"] .card.nested, body[data-theme="contrast"] .stat-card { background:var(--panel-bg-2)!important; }
+body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] textarea { background:#0a1510!important; color:var(--text)!important; border-color:var(--line)!important; }
+body[data-theme="contrast"] input, body[data-theme="contrast"] select, body[data-theme="contrast"] textarea { background:#000!important; color:#fff!important; border-color:#fff!important; }
+body[data-theme="dark"] option { background:#0a1510!important; color:#eef7f1!important; }
+body[data-theme="contrast"] option { background:#000!important; color:#fff!important; }
+body[data-theme="dark"] .badge, body[data-theme="dark"] .colour-badge, body[data-theme="dark"] .target-profile-badge, body[data-theme="dark"] .anchor-badge,
+body[data-theme="dark"] .phase-pill, body[data-theme="dark"] .adaptive-pill, body[data-theme="dark"] .venue-pill, body[data-theme="dark"] .pc-kpi, body[data-theme="dark"] .stat-help, body[data-theme="dark"] .help-dot,
+body[data-theme="contrast"] .badge, body[data-theme="contrast"] .colour-badge, body[data-theme="contrast"] .target-profile-badge, body[data-theme="contrast"] .anchor-badge,
+body[data-theme="contrast"] .phase-pill, body[data-theme="contrast"] .adaptive-pill, body[data-theme="contrast"] .venue-pill, body[data-theme="contrast"] .pc-kpi, body[data-theme="contrast"] .stat-help, body[data-theme="contrast"] .help-dot {
+  background:var(--chip-bg)!important; color:var(--chip-text)!important; border:1px solid var(--chip-border)!important;
+}
+body[data-theme="dark"] .secondary, body[data-theme="contrast"] .secondary { background:transparent!important; color:var(--text)!important; border:1px solid var(--line)!important; }
+body[data-theme="dark"] button:not(.secondary):not(.danger), body[data-theme="contrast"] button:not(.secondary):not(.danger) { background:#1f6b4d!important; color:#fff!important; }
+body[data-theme="contrast"] button:not(.secondary):not(.danger) { background:#fff!important; color:#000!important; border:2px solid #fff!important; }
+body[data-theme="dark"] .muted, body[data-theme="dark"] label, body[data-theme="dark"] .item p, body[data-theme="dark"] .timer-sub, body[data-theme="dark"] .chart-label,
+body[data-theme="contrast"] .muted, body[data-theme="contrast"] label, body[data-theme="contrast"] .item p, body[data-theme="contrast"] .timer-sub, body[data-theme="contrast"] .chart-label { color:var(--muted)!important; fill:var(--muted)!important; }
+body[data-theme="dark"] .chart-axis, body[data-theme="contrast"] .chart-axis { stroke:var(--line)!important; }
+body[data-theme="dark"] .chart-grid { stroke:#294236!important; } body[data-theme="contrast"] .chart-grid { stroke:#fff!important; opacity:.35; }
+body[data-theme="dark"] .chart-line, body[data-theme="contrast"] .chart-line { stroke:var(--felt)!important; }
+body[data-theme="dark"] .chart-point, body[data-theme="contrast"] .chart-point { fill:var(--gold)!important; stroke:var(--text)!important; }
+body[data-theme="dark"] .chart-bar, body[data-theme="contrast"] .chart-bar { fill:var(--felt)!important; }
+body[data-theme="dark"] .chart-bar-alt, body[data-theme="contrast"] .chart-bar-alt { fill:var(--gold)!important; }

@@ -1,4 +1,4 @@
-# Snooker Practice Log — v3.25.4
+# Snooker Practice Log — v3.25.5
 
 Built from the v3.24 working set.
 
@@ -15,4 +15,12 @@ Built from the v3.24 working set.
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.25.4.
+Confirm version: the header should show v3.25.5.
+
+
+## Fixes in v3.25.5
+
+- Rebuilt interface settings persistence with direct localStorage + main data storage writes.
+- Theme is now applied to both `html` and `body`, preventing selector mismatch.
+- Added aggressive dark/high-contrast coverage for nested panels, badges, pills, modals, SVG chart elements and post-session reflection.
+- Updated the service worker to use network-first fetching for app shell files, reducing stale cached CSS/JS issues after deployment.
