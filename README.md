@@ -1,36 +1,29 @@
-# Snooker Practice Log — v3.31.0
+# Snooker Practice Log — v3.32.0
 
-Built from the working v3.30.0 base.
+Built from the working v3.31.0 storage-safety base.
 
-## Added in v3.31.0
+## Added in v3.32.0
 
-- Storage safety dashboard in the Data tab.
-- Shows main app data size, estimated total localStorage usage, and approximate percentage of a 5 MB localStorage ceiling.
-- Shows counts for logs, sessions, exercises, plans, tables, archived exercises, and recent errors.
-- Shows last full-backup status.
-- Adds a dedicated “Download Full Backup” action intended as the pre-migration safeguard before future IndexedDB work.
+- Migrated high-volume `logs` and `sessions` collections to IndexedDB.
+- Kept low-volume app configuration in localStorage: routines, plans, tables, interface settings, migration metadata, and backups status.
+- Added automatic one-time migration from legacy localStorage logs/sessions into IndexedDB.
+- LocalStorage now stores a compact core data object with empty `logs` and `sessions` arrays plus IndexedDB metadata.
+- Full JSON backup still exports the in-memory combined dataset, including IndexedDB logs and sessions.
+- Importing a full backup replaces the IndexedDB logs/sessions stores.
+- Clear-data also clears IndexedDB log/session stores.
 
-## Preserved from prior versions
+## Preserved
 
-- Modal / bottom-sheet log editing.
-- Simplified dark / high-contrast theme layer.
-- Scoped rendering after logging and log edits.
-- Safe-rendering helpers for dynamic HTML.
-- Timer persistence across refresh/resume.
-- Soft deletion / archiving of exercises.
-- Recommendation eligibility and weighting caps.
-- Analytics guardrails for low-variation / insufficient-data cases.
-- The `typeof getScopedStatsLogs !== "undefined"` startup-crash fix.
-
-## Still deferred
-
-- IndexedDB migration.
-- ES6 module refactor.
-- Full rendering rewrite.
-- Array immutability refactor.
+- Storage Safety Dashboard from v3.31.
+- Adaptive recommendation eligibility and analytics guardrails from v3.30.
+- Modal / bottom-sheet log editing from v3.29.
+- Simplified theme CSS from v3.28.
+- Safe rendering helpers from v3.27.
+- Scoped rendering from v3.26.
+- Timer persistence, soft deletion, and the `getScopedStatsLogs` startup-crash fix.
 
 ## Package
 
 Root-level PWA files: `index.html`, `app.js`, `styles.css`, `manifest.json`, `service-worker.js`, `icon.svg`, `README.md`.
 
-Confirm version: the header should show v3.31.0.
+Confirm version: the header should show v3.32.0.

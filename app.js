@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.31.0-final";
+const APP_VERSION = "3.32.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -18,6 +18,137 @@ const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
 const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
 const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
 const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
+
+
+const INDEXEDDB_NAME = "snookerPracticePWA.db";
+const INDEXEDDB_VERSION = 1;
+const INDEXEDDB_LOG_STORE = "logs";
+const INDEXEDDB_SESSION_STORE = "sessions";
+const INDEXEDDB_MIGRATION_KEY = "snookerPracticePWA.indexedDBMigration.v1";
+let indexedDBReady = false;
+let indexedDBUnavailable = false;
+let indexedDBSyncTimer = null;
+
+function serializeCoreData(d) {
+  const core = structuredCloneSafe(d || {});
+  if (indexedDBUnavailable) {
+    core.indexedDBStorage = {
+      enabled: false,
+      stores: [],
+      migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
+      note: "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
+    };
+    return core;
+  }
+  core.logs = [];
+  core.sessions = [];
+  core.indexedDBStorage = {
+    enabled: true,
+    stores: [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE],
+    migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
+    note: "Logs and sessions are stored in IndexedDB; this localStorage object keeps low-volume app configuration only."
+  };
+  return core;
+}
+function saveCoreData(context="saveCoreData") {
+  return safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
+}
+function openSnookerDB() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) return reject(new Error("IndexedDB is not available in this browser."));
+    const req = indexedDB.open(INDEXEDDB_NAME, INDEXEDDB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(INDEXEDDB_LOG_STORE)) {
+        const logs = db.createObjectStore(INDEXEDDB_LOG_STORE, {keyPath:"id"});
+        logs.createIndex("createdAt", "createdAt", {unique:false});
+        logs.createIndex("routineId", "routineId", {unique:false});
+        logs.createIndex("sessionId", "sessionId", {unique:false});
+      }
+      if (!db.objectStoreNames.contains(INDEXEDDB_SESSION_STORE)) {
+        const sessions = db.createObjectStore(INDEXEDDB_SESSION_STORE, {keyPath:"id"});
+        sessions.createIndex("startedAt", "startedAt", {unique:false});
+        sessions.createIndex("endedAt", "endedAt", {unique:false});
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("Could not open IndexedDB."));
+  });
+}
+function idbGetAll(storeName) {
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
+}
+function idbReplaceAll(storeName, rows) {
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+    store.clear();
+    (rows || []).forEach(row => { if (row && row.id) store.put(row); });
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
+}
+async function persistIndexedDBCollections(context="persistIndexedDBCollections") {
+  if (indexedDBUnavailable) return false;
+  try {
+    await idbReplaceAll(INDEXEDDB_LOG_STORE, data.logs || []);
+    await idbReplaceAll(INDEXEDDB_SESSION_STORE, data.sessions || []);
+    indexedDBReady = true;
+    return true;
+  } catch(e) {
+    indexedDBUnavailable = true;
+    logAppError(e, context);
+    return false;
+  }
+}
+function scheduleIndexedDBSync(context="scheduleIndexedDBSync") {
+  if (indexedDBUnavailable) return;
+  clearTimeout(indexedDBSyncTimer);
+  indexedDBSyncTimer = setTimeout(() => persistIndexedDBCollections(context), 80);
+}
+function mergeById(primary, fallback) {
+  const map = new Map();
+  (fallback || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
+  (primary || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
+  return [...map.values()];
+}
+async function hydrateIndexedDBData() {
+  if (indexedDBUnavailable) return false;
+  try {
+    const localLogs = Array.isArray(data.logs) ? data.logs : [];
+    const localSessions = Array.isArray(data.sessions) ? data.sessions : [];
+    const [idbLogs, idbSessions] = await Promise.all([idbGetAll(INDEXEDDB_LOG_STORE), idbGetAll(INDEXEDDB_SESSION_STORE)]);
+    const logs = mergeById(idbLogs, localLogs).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+    const sessions = mergeById(idbSessions, localSessions).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
+    data.logs = logs;
+    data.sessions = sessions;
+    indexedDBReady = true;
+    if (localLogs.length || localSessions.length || logs.length !== idbLogs.length || sessions.length !== idbSessions.length) {
+      await persistIndexedDBCollections("hydrateIndexedDBData migration write");
+      localStorage.setItem(INDEXEDDB_MIGRATION_KEY, new Date().toISOString());
+    }
+    saveCoreData("hydrateIndexedDBData core save");
+    return true;
+  } catch(e) {
+    indexedDBUnavailable = true;
+    logAppError(e, "hydrateIndexedDBData");
+    alert("IndexedDB storage could not initialize. The app will continue with localStorage fallback for this session. Export a full backup before adding new logs.");
+    return false;
+  }
+}
+async function bootstrapIndexedDBStorage() {
+  await hydrateIndexedDBData();
+  ensureTablesDatabase?.();
+  refreshReferenceNames?.();
+  renderAll();
+}
 
 
 function normalizeInterfaceThemeMode(value) {
@@ -88,7 +219,7 @@ const defaultData = {
 let data = loadData();
 ensureTablesDatabase();
 refreshReferenceNames();
-safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
+// Core data is compacted after IndexedDB hydration/migration succeeds.
 let planDraft = [];
 let activeSession = null;
 let timerInterval = null;
@@ -191,7 +322,7 @@ function loadData() {
     const parsedRaw = safeParseData(raw);
     if (!parsedRaw) throw new Error("Stored app data is not valid JSON.");
     const parsed = migrateData(parsedRaw);
-    safeStorageSet(STORAGE_KEY, JSON.stringify(parsed), "loadData migrated");
+    // Do not compact localStorage here. Hydration migrates legacy logs/sessions to IndexedDB first.
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
@@ -208,7 +339,8 @@ function saveData(options = {}) {
   data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
   data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
   ensureTablesDatabase?.();
-  const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(data), "saveData");
+  const ok = saveCoreData("saveData core");
+  scheduleIndexedDBSync("saveData indexedDB sync");
   if (ok) renderStorageWarning();
   const renderMode = typeof options === "string" ? options : (options && options.render) || "all";
   renderAfterSave(renderMode);
@@ -969,7 +1101,8 @@ function completeSession() {
   };
   if (existingIdx >= 0) data.sessions[existingIdx] = sessionRecord;
   else data.sessions.push(sessionRecord);
-  safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
+  saveCoreData("completeSession core save");
+  scheduleIndexedDBSync("completeSession indexedDB sync");
   resetTimerState();
   if (activeSession) activeSession.timerState = null;
   activeSession = null;
@@ -1320,7 +1453,8 @@ function saveReflection() {
       note: $("reflectionNote").value || "",
       createdAt: new Date().toISOString()
     };
-    safeStorageSet(STORAGE_KEY, JSON.stringify(data), "startup save");
+    saveCoreData("reflection core save");
+    scheduleIndexedDBSync("reflection indexedDB sync");
   }
   skipReflection();
   renderAll();
@@ -2902,12 +3036,14 @@ $("importJsonInput").addEventListener("change", async (e) => {
   const imported = migrateData(JSON.parse(await file.text()));
   if (!imported.routines || !imported.plans || !imported.logs) return alert("Invalid backup file.");
   data = imported;
+  await persistIndexedDBCollections("backup import indexedDB replace");
   saveData();
   alert("Backup imported.");
 });
-$("clearDataBtn").addEventListener("click", () => {
+$("clearDataBtn").addEventListener("click", async () => {
   if (!confirm("Clear all data? This cannot be undone unless you have exported a backup.")) return;
   localStorage.removeItem(STORAGE_KEY);
+  try { await idbReplaceAll(INDEXEDDB_LOG_STORE, []); await idbReplaceAll(INDEXEDDB_SESSION_STORE, []); } catch(e) { logAppError(e, "clearData indexedDB clear"); }
   data = loadData();
   renderAll();
 });
@@ -3168,6 +3304,15 @@ function getLocalStorageUsageBytes() {
   }
   return total;
 }
+function indexedDBStatusText() {
+  if (indexedDBUnavailable) return "Fallback";
+  if (indexedDBReady) return "Active";
+  return "Initializing";
+}
+function estimatedIndexedDBDataBytes() {
+  try { return new Blob([JSON.stringify(data.logs || []), JSON.stringify(data.sessions || [])]).size; }
+  catch(e) { return 0; }
+}
 function storageRiskLevel(mainBytes, totalBytes) {
   const assumedLimit = 5 * 1024 * 1024;
   const ratio = Math.max(mainBytes, totalBytes) / assumedLimit;
@@ -3198,6 +3343,8 @@ function renderStorageDashboard() {
     <div class="stats-grid storage-grid">
       <div class="stat-card"><span>Main app data</span><div class="value">${htmlText(formatStorageBytes(mainBytes))}</div></div>
       <div class="stat-card"><span>Total localStorage</span><div class="value">${htmlText(formatStorageBytes(totalBytes))}</div></div>
+      <div class="stat-card"><span>IndexedDB</span><div class="value">${htmlText(indexedDBStatusText())}</div></div>
+      <div class="stat-card"><span>IDB logs/sessions estimate</span><div class="value">${htmlText(formatStorageBytes(estimatedIndexedDBDataBytes()))}</div></div>
       <div class="stat-card"><span>Last full backup</span><div class="value storage-backup-value">${htmlText(backupText)}</div></div>
       <div class="stat-card"><span>Logs</span><div class="value">${numText((data.logs || []).length, "0")}</div></div>
       <div class="stat-card"><span>Sessions</span><div class="value">${numText((data.sessions || []).length, "0")}</div></div>
@@ -3206,7 +3353,7 @@ function renderStorageDashboard() {
       <div class="stat-card"><span>Tables</span><div class="value">${numText((data.tables || []).length, "0")}</div></div>
       <div class="stat-card"><span>Recent errors</span><div class="value">${numText(errorCount, "0")}</div></div>
     </div>
-    <p class="muted">This is a safety dashboard for the future IndexedDB migration. The 5 MB limit is an approximate browser localStorage threshold; actual limits vary by browser/device.</p>
+    <p class="muted">Logs and sessions now live in IndexedDB when available. The 5 MB limit applies mainly to localStorage; IndexedDB normally supports much larger datasets, but full backups are still recommended before major imports or browser changes.</p>
   </div>`;
 }
 
@@ -3267,6 +3414,8 @@ async function exportRawLocalData() {
     exportedAt: new Date().toISOString(),
     storageKey: STORAGE_KEY,
     rawMainData: localStorage.getItem(STORAGE_KEY),
+    indexedDBStatus: indexedDBStatusText(),
+    indexedDBMemorySnapshot: {logs: data.logs || [], sessions: data.sessions || []},
     activeSessionDraft: localStorage.getItem("snookerPracticePWA.activeSessionDraft"),
     lastVenueTable: localStorage.getItem("snookerPracticePWA.lastVenueTable"),
     lastTableId: localStorage.getItem("snookerPracticePWA.lastTableId"),
@@ -3289,7 +3438,9 @@ async function exportDebugInfo() {
       logs: (data.logs || []).length
     },
     errors: JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]"),
-    lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || ""
+    lastBackupAt: localStorage.getItem("snookerPracticePWA.lastBackupAt") || "",
+    indexedDBStatus: indexedDBStatusText(),
+    indexedDBEstimatedBytes: estimatedIndexedDBDataBytes()
   };
   await exportFile(`snooker-debug-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload,null,2), "application/json");
 }
@@ -3649,14 +3800,14 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.29.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.32.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
     }
   });
 }
-renderAll();
+bootstrapIndexedDBStorage();
 
 let generatedPlanDraft = [];
 let lastGeneratedPlannedRoutineIds = [];
@@ -3983,8 +4134,8 @@ function interfaceWriteSetting(storageKey, dataKey, value) {
     data.interfaceSettings = data.interfaceSettings || {};
     data.interfaceSettings[dataKey] = clean;
     data.updatedAt = new Date().toISOString();
-    if (typeof safeStorageSet === "function") safeStorageSet(STORAGE_KEY, JSON.stringify(data), "interface setting save");
-    else localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    if (typeof saveCoreData === "function") saveCoreData("interface setting core save");
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeCoreData(data)));
   } catch(e) { if (typeof logAppError === "function") logAppError(e, "interfaceWriteSetting main data"); }
   return clean;
 }
@@ -4100,8 +4251,7 @@ window.addEventListener("storage", e => {
   if (e.key === STORAGE_KEY) {
     try {
       data = loadData();
-      ensureTablesDatabase?.();
-      renderAll();
+      hydrateIndexedDBData().then(() => { ensureTablesDatabase?.(); renderAll(); });
     } catch(err) {
       logAppError(err, "storage sync");
     }
