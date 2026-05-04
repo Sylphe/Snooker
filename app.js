@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.28.0-final";
+const APP_VERSION = "3.29.0-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -2051,10 +2051,9 @@ function renderSwipeableHistoryCards(logs) {
           </div>
           <div class="history-card-spark">${miniSparkline(values)}</div>
           <div class="small-actions">
-            <button class="secondary" onclick="showEditLog(this)">Edit</button>
+            <button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button>
             <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button>
           </div>
-          <div class="hidden log-edit-row history-card-edit-row" data-log-edit-row-id="${attrText(l.id)}">${renderEditLogForm(l)}</div>
         </div>`;
       }).join("")}
     </div>
@@ -2617,28 +2616,33 @@ function renderLogRow(l) {
     <td>${escapeHtml(l.performance || "N/A")}</td>
     <td>${escapeHtml(getTargetProfileLabel(l))}</td>
     <td>${formatDurationHuman(l.timeMinutes)}</td>
-    <td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td>
-  </tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+    <td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td>
+  </tr>`;
 }
 function renderDateLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="9">${renderEditLogForm(l)}</td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr>`;
 }
 function renderSessionLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="showEditLog(this)">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr><tr class="hidden log-edit-row" data-log-edit-row-id="${attrText(l.id)}"><td colspan="7">${renderEditLogForm(l)}</td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" onclick="openLogEditModal(${jsArg(l.id)})">Edit</button> <button class="danger" onclick="deleteLog(${jsArg(l.id)})">Delete</button></td></tr>`;
 }
 function renderEditLogForm(l) {
   return `<div class="log-edit" data-log-edit-id="${attrText(l.id)}">
+    <div class="log-edit-summary">
+      <strong>${escapeHtml(getRoutineName(l))}</strong>
+      <span class="muted">${escapeHtml(getPlanName(l))} · ${escapeHtml(l.performance || "N/A")}</span>
+    </div>
     <div class="log-edit-grid">
       <div><label>Date/time</label><input class="edit-createdAt" type="datetime-local" value="${attrText(toDateTimeLocal(l.createdAt))}"></div>
       <div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${numAttr(l.score)}"></div>
       <div><label>Attempts</label><input class="edit-attempts" type="number" step="1" value="${numAttr(l.attempts || "")}"></div>
-      <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div><div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
+      <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div>
+      <div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
+      ${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
       <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${numAttr(l.sessionRating || "")}"></div>
       <div><label>Category</label><select class="edit-category">${editCategoryOptions(l.category)}</select></div>
       <div><label>Tags</label><input class="edit-tags" value="${attrText(l.sessionTags || "")}"></div>
     </div>
-    <label>Notes</label><textarea class="edit-notes" rows="2">${escapeHtml(l.notes || "")}</textarea>
-    <div class="small-actions"><button onclick="saveEditedLogFromButton(this,${jsArg(l.id)})">Save changes</button><button class="secondary" onclick="showEditLog(this)">Cancel</button></div>
+    <label>Notes</label><textarea class="edit-notes" rows="3">${escapeHtml(l.notes || "")}</textarea>
   </div>`;
 }
 function toDateTimeLocal(iso) {
@@ -2646,19 +2650,40 @@ function toDateTimeLocal(iso) {
   const pad = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function openLogEditModal(id) {
+  const log = (data.logs || []).find(l => l.id === id);
+  if (!log) return alert("Log not found.");
+  const modal = $("logEditModal");
+  const body = $("logEditModalBody");
+  if (!modal || !body) return;
+  modal.dataset.logId = id;
+  body.innerHTML = renderEditLogForm(log);
+  modal.classList.remove("hidden");
+  setTimeout(() => body.querySelector("input,select,textarea")?.focus(), 80);
+}
+function closeLogEditModal(event) {
+  if (event && event.target && event.target.id !== "logEditModal") return;
+  const modal = $("logEditModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.dataset.logId = "";
+  const body = $("logEditModalBody");
+  if (body) body.innerHTML = "";
+}
+function saveEditedLogFromModal() {
+  const modal = $("logEditModal");
+  const id = modal?.dataset?.logId || "";
+  const form = modal?.querySelector?.(".log-edit");
+  if (!id || !form) return alert("Edit form not found.");
+  saveEditedLog(id, form);
+  closeLogEditModal();
+}
 function showEditLog(source) {
-  if (typeof source === "string") {
-    const rows = Array.from(document.querySelectorAll(`[data-log-edit-row-id="${cssEscapeSafe(source)}"]`));
-    const visible = rows.find(r => r.offsetParent !== null) || rows[0];
-    if (visible) visible.classList.toggle("hidden");
-    return;
-  }
-  const row = source?.closest?.("tr");
+  if (typeof source === "string") return openLogEditModal(source);
   const card = source?.closest?.(".history-card");
-  const editRow = row?.nextElementSibling?.classList?.contains("log-edit-row")
-    ? row.nextElementSibling
-    : (source?.closest?.(".log-edit-row") || card?.querySelector?.(":scope > .log-edit-row"));
-  if (editRow) editRow.classList.toggle("hidden");
+  const row = source?.closest?.("tr");
+  const id = card?.querySelector?.(".log-edit")?.dataset?.logEditId || row?.dataset?.logRowId || "";
+  if (id) openLogEditModal(id);
 }
 function saveEditedLogFromButton(button, id) {
   const form = button?.closest?.(".log-edit");
@@ -3517,7 +3542,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.28.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.29.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

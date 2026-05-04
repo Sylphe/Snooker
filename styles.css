@@ -453,3 +453,47 @@ body[data-theme] .modal-backdrop{background:rgba(0,0,0,.72)}
 body[data-theme] .modal-close{background:var(--chip-bg);color:var(--chip-text);border:1px solid var(--chip-border)}
 body.session-focus-active #activeSession{background:var(--panel-bg);color:var(--text)}
 body.session-focus-active .sticky-log-actions{background:var(--panel-bg);border-color:var(--line)}
+
+/* v3.29 modal / bottom-sheet log editing */
+.log-edit-modal-card{
+  width:min(720px,100%);
+  max-height:min(86vh,760px);
+  display:flex;
+  flex-direction:column;
+}
+.log-edit-modal-card .modal-body{
+  overflow:auto;
+  padding-right:4px;
+}
+.log-edit-summary{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  margin-bottom:10px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel-bg);
+}
+.modal-actions{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+}
+@media(max-width:760px){
+  .modal-backdrop{
+    align-items:flex-end;
+    padding:0;
+  }
+  .modal-card,
+  .log-edit-modal-card{
+    width:100%;
+    max-height:92vh;
+    border-radius:18px 18px 0 0;
+    border-left:0;
+    border-right:0;
+    border-bottom:0;
+  }
+  .log-edit-grid{grid-template-columns:1fr!important;}
+  .modal-actions{position:sticky;bottom:0;background:var(--card);}
+}
