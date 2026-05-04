@@ -650,3 +650,204 @@ body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;backgro
     background:var(--panel-bg)!important;color:var(--text)!important;border-color:var(--line)!important;
   }
 }
+
+/* v3.25.4 final hard theme coverage */
+:root[data-theme="dark"], :root.theme-dark {
+  color-scheme: dark;
+  --bg:#07110d; --card:#0f1c16; --text:#eef7f1; --muted:#a8b8ae; --line:#294236;
+  --primary:#d9f4e6; --primary-2:#bdebd3; --felt:#62c394; --gold:#d2b867; --danger:#d85b5b;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+  --chip-bg:#10251c; --chip-text:#eef7f1; --chip-border:#3f6352;
+  --panel-bg:#0f1c16; --panel-bg-2:#12261d;
+}
+:root[data-theme="contrast"], :root.theme-contrast {
+  color-scheme: dark;
+  --bg:#000; --card:#050505; --text:#fff; --muted:#e5e5e5; --line:#fff;
+  --primary:#fff; --primary-2:#f2f2f2; --felt:#00ff9a; --gold:#ffe600; --danger:#ff4d4d;
+  --shadow:none;
+  --chip-bg:#000; --chip-text:#fff; --chip-border:#fff;
+  --panel-bg:#050505; --panel-bg-2:#000;
+}
+:root[data-theme="light"], :root.theme-light {
+  color-scheme: light;
+  --bg:#f4f6f2; --card:#fff; --text:#17211c; --muted:#667168; --line:#dce4de;
+  --primary:#102b22; --primary-2:#184332; --felt:#0d4c35; --gold:#c7a753; --danger:#9f1d1d;
+  --shadow:0 8px 24px rgba(0,0,0,.08);
+}
+:root[data-theme="dark"] body,
+:root[data-theme="contrast"] body,
+:root.theme-dark body,
+:root.theme-contrast body { background:var(--bg)!important; color:var(--text)!important; }
+
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .item,
+:root[data-theme="dark"] .folder-group,
+:root[data-theme="dark"] .folder-header,
+:root[data-theme="dark"] .subfolder-header,
+:root[data-theme="dark"] .analytics-note,
+:root[data-theme="dark"] .warning-note,
+:root[data-theme="dark"] .chart-wrap,
+:root[data-theme="dark"] .description-box,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .overview-card,
+:root[data-theme="dark"] .coaching-box,
+:root[data-theme="dark"] .insight,
+:root[data-theme="dark"] .orchestrator-box,
+:root[data-theme="dark"] .load-card,
+:root[data-theme="dark"] .review-box,
+:root[data-theme="dark"] .training-block,
+:root[data-theme="dark"] .phase-card,
+:root[data-theme="dark"] .phase-pill,
+:root[data-theme="dark"] .adaptive-phase,
+:root[data-theme="dark"] .adaptive-pill,
+:root[data-theme="dark"] .planned-box,
+:root[data-theme="dark"] .table-stats,
+:root[data-theme="dark"] .history-card,
+:root[data-theme="dark"] .history-card-spark,
+:root[data-theme="dark"] .table-db-row,
+:root[data-theme="dark"] .log-edit,
+:root[data-theme="dark"] .modal-card,
+:root[data-theme="dark"] .modal-content,
+:root[data-theme="dark"] .modal-body,
+:root[data-theme="dark"] .reflection-card,
+:root[data-theme="dark"] .mini-kpi,
+:root[data-theme="dark"] .trend,
+:root[data-theme="dark"] .quick-score-block,
+:root[data-theme="dark"] .quick-score-row,
+:root[data-theme="dark"] .score-chip-grid,
+:root[data-theme="dark"] .live-perf,
+:root[data-theme="dark"] .target-upgrade,
+:root[data-theme="dark"] .difficulty-note,
+:root[data-theme="dark"] .diagnostic-card,
+:root[data-theme="dark"] .psi-card,
+:root[data-theme="dark"] .ladder-action,
+:root[data-theme="dark"] .intervention-card,
+:root[data-theme="dark"] .help-rich .example,
+:root[data-theme="dark"] .backup-banner,
+:root[data-theme="dark"] [class*="box"],
+:root[data-theme="dark"] [class*="Box"],
+:root[data-theme="dark"] [class*="card"],
+:root[data-theme="dark"] [class*="Card"],
+:root[data-theme="dark"] [class*="panel"],
+:root[data-theme="dark"] [class*="Panel"],
+:root[data-theme="dark"] [class*="note"],
+:root[data-theme="dark"] [class*="Note"],
+:root[data-theme="contrast"] .card,
+:root[data-theme="contrast"] .item,
+:root[data-theme="contrast"] .folder-group,
+:root[data-theme="contrast"] .folder-header,
+:root[data-theme="contrast"] .subfolder-header,
+:root[data-theme="contrast"] .analytics-note,
+:root[data-theme="contrast"] .warning-note,
+:root[data-theme="contrast"] .chart-wrap,
+:root[data-theme="contrast"] .description-box,
+:root[data-theme="contrast"] .stat-card,
+:root[data-theme="contrast"] .overview-card,
+:root[data-theme="contrast"] .coaching-box,
+:root[data-theme="contrast"] .insight,
+:root[data-theme="contrast"] .orchestrator-box,
+:root[data-theme="contrast"] .load-card,
+:root[data-theme="contrast"] .review-box,
+:root[data-theme="contrast"] .training-block,
+:root[data-theme="contrast"] .phase-card,
+:root[data-theme="contrast"] .phase-pill,
+:root[data-theme="contrast"] .adaptive-phase,
+:root[data-theme="contrast"] .adaptive-pill,
+:root[data-theme="contrast"] .planned-box,
+:root[data-theme="contrast"] .table-stats,
+:root[data-theme="contrast"] .history-card,
+:root[data-theme="contrast"] .history-card-spark,
+:root[data-theme="contrast"] .table-db-row,
+:root[data-theme="contrast"] .log-edit,
+:root[data-theme="contrast"] .modal-card,
+:root[data-theme="contrast"] .modal-content,
+:root[data-theme="contrast"] .modal-body,
+:root[data-theme="contrast"] .reflection-card,
+:root[data-theme="contrast"] .mini-kpi,
+:root[data-theme="contrast"] .trend,
+:root[data-theme="contrast"] .quick-score-block,
+:root[data-theme="contrast"] .quick-score-row,
+:root[data-theme="contrast"] .score-chip-grid,
+:root[data-theme="contrast"] .live-perf,
+:root[data-theme="contrast"] .target-upgrade,
+:root[data-theme="contrast"] .difficulty-note,
+:root[data-theme="contrast"] .diagnostic-card,
+:root[data-theme="contrast"] .psi-card,
+:root[data-theme="contrast"] .ladder-action,
+:root[data-theme="contrast"] .intervention-card,
+:root[data-theme="contrast"] .help-rich .example,
+:root[data-theme="contrast"] .backup-banner,
+:root[data-theme="contrast"] [class*="box"],
+:root[data-theme="contrast"] [class*="Box"],
+:root[data-theme="contrast"] [class*="card"],
+:root[data-theme="contrast"] [class*="Card"],
+:root[data-theme="contrast"] [class*="panel"],
+:root[data-theme="contrast"] [class*="Panel"],
+:root[data-theme="contrast"] [class*="note"],
+:root[data-theme="contrast"] [class*="Note"] {
+  background:var(--panel-bg)!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="dark"] .badge,
+:root[data-theme="dark"] .colour-badge,
+:root[data-theme="dark"] .target-profile-badge,
+:root[data-theme="dark"] .anchor-badge,
+:root[data-theme="dark"] .phase-pill,
+:root[data-theme="dark"] .adaptive-pill,
+:root[data-theme="dark"] .venue-pill,
+:root[data-theme="dark"] .pc-kpi,
+:root[data-theme="dark"] .stat-help,
+:root[data-theme="contrast"] .badge,
+:root[data-theme="contrast"] .colour-badge,
+:root[data-theme="contrast"] .target-profile-badge,
+:root[data-theme="contrast"] .anchor-badge,
+:root[data-theme="contrast"] .phase-pill,
+:root[data-theme="contrast"] .adaptive-pill,
+:root[data-theme="contrast"] .venue-pill,
+:root[data-theme="contrast"] .pc-kpi,
+:root[data-theme="contrast"] .stat-help {
+  background:var(--chip-bg)!important;
+  color:var(--chip-text)!important;
+  border:1px solid var(--chip-border)!important;
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root.theme-dark input,
+:root.theme-dark select,
+:root.theme-dark textarea { background:#0a1510!important; color:var(--text)!important; border-color:var(--line)!important; }
+:root[data-theme="contrast"] input,
+:root[data-theme="contrast"] select,
+:root[data-theme="contrast"] textarea,
+:root.theme-contrast input,
+:root.theme-contrast select,
+:root.theme-contrast textarea { background:#000!important; color:#fff!important; border-color:#fff!important; }
+:root[data-theme="dark"] option { background:#0a1510!important; color:#eef7f1!important; }
+:root[data-theme="contrast"] option { background:#000!important; color:#fff!important; }
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] label,
+:root[data-theme="dark"] .item p,
+:root[data-theme="dark"] .timer-sub,
+:root[data-theme="dark"] .chart-label,
+:root[data-theme="contrast"] .muted,
+:root[data-theme="contrast"] label,
+:root[data-theme="contrast"] .item p,
+:root[data-theme="contrast"] .timer-sub,
+:root[data-theme="contrast"] .chart-label { color:var(--muted)!important; fill:var(--muted)!important; }
+:root[data-theme="dark"] .chart-axis,
+:root[data-theme="contrast"] .chart-axis { stroke:var(--line)!important; }
+:root[data-theme="dark"] .chart-grid,
+:root[data-theme="contrast"] .chart-grid { stroke:#294236!important; }
+:root[data-theme="dark"] .chart-line,
+:root[data-theme="contrast"] .chart-line { stroke:var(--felt)!important; }
+:root[data-theme="dark"] .chart-point,
+:root[data-theme="contrast"] .chart-point { fill:var(--gold)!important; stroke:var(--text)!important; }
+:root[data-theme="dark"] .chart-bar,
+:root[data-theme="contrast"] .chart-bar { fill:var(--felt)!important; }
+:root[data-theme="dark"] .chart-bar-alt,
+:root[data-theme="contrast"] .chart-bar-alt { fill:var(--gold)!important; }
+:root[data-theme="dark"] .tabs,
+:root[data-theme="dark"] .tab,
+:root[data-theme="contrast"] .tabs,
+:root[data-theme="contrast"] .tab { background:var(--panel-bg)!important; color:var(--text)!important; border-color:var(--line)!important; }

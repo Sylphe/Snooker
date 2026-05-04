@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-const APP_VERSION = "3.25.3-final";
+const APP_VERSION = "3.25.4-final";
 
 function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -105,9 +105,12 @@ function migrateData(d) {
   d.plans = d.plans || [];
   d.tagHistory = d.tagHistory || [];
   d.interfaceSettings = d.interfaceSettings || {};
-  d.interfaceSettings.themeMode = d.interfaceSettings.themeMode || localStorage.getItem(THEME_MODE_KEY) || "system";
-  d.interfaceSettings.sessionFocusMode = d.interfaceSettings.sessionFocusMode || localStorage.getItem(SESSION_FOCUS_MODE_KEY) || "on";
-  d.interfaceSettings.quickLogAutoAdvance = d.interfaceSettings.quickLogAutoAdvance || localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || "on";
+  // Interface settings are intentionally stored both as top-level localStorage keys
+  // and inside the main data object. Top-level keys take priority because they
+  // survive data imports and prevent old JSON backups from reverting the UI.
+  d.interfaceSettings.themeMode = normalizeInterfaceThemeMode(localStorage.getItem(THEME_MODE_KEY) || d.interfaceSettings.themeMode || "system");
+  d.interfaceSettings.sessionFocusMode = localStorage.getItem(SESSION_FOCUS_MODE_KEY) || d.interfaceSettings.sessionFocusMode || "on";
+  d.interfaceSettings.quickLogAutoAdvance = localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || d.interfaceSettings.quickLogAutoAdvance || "on";
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -3351,7 +3354,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=3.25.4");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3653,18 +3656,22 @@ document.addEventListener("DOMContentLoaded", bindInterfaceSettings);
 
 
 
-/* v3.25.3 interface settings: persistent theme, session focus mode, and quick-log macros */
+/* v3.25.4 interface settings: hard-persistent theme, session focus mode, and quick-log macros */
+function storageGetSafe(key){
+  try { return localStorage.getItem(key); } catch(e) { return null; }
+}
+function storageSetSafe(key, value){
+  try { localStorage.setItem(key, value); return true; } catch(e) { logAppError?.(e, "interface localStorage save"); return false; }
+}
 function getPersistedInterfaceSetting(key, dataKey, fallback){
-  try {
-    const local = localStorage.getItem(key);
-    if (local !== null && local !== undefined && local !== "") return local;
-  } catch(e) {}
+  const local = storageGetSafe(key);
+  if (local !== null && local !== undefined && local !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(local) : local;
   const stored = data?.interfaceSettings?.[dataKey];
   return stored || fallback;
 }
 function setPersistedInterfaceSetting(key, dataKey, value){
   const clean = dataKey === "themeMode" ? normalizeInterfaceThemeMode(value) : value;
-  try { localStorage.setItem(key, clean); } catch(e) { logAppError?.(e, "interface local setting save"); }
+  storageSetSafe(key, clean);
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings[dataKey] = clean;
   data.updatedAt = new Date().toISOString();
@@ -3677,15 +3684,18 @@ function getQuickLogAutoAdvanceSetting(){ return getPersistedInterfaceSetting(QU
 function applyThemeMode(){
   const mode = getThemeModeSetting();
   const root = document.documentElement;
+  root.classList.remove("theme-light", "theme-dark", "theme-contrast", "theme-system");
   if (mode === "system") {
     root.removeAttribute("data-theme");
     root.dataset.themeMode = "system";
+    root.classList.add("theme-system");
   } else {
     root.setAttribute("data-theme", mode);
     root.dataset.themeMode = mode;
+    root.classList.add("theme-" + mode);
   }
-  document.body?.setAttribute("data-theme-mode", mode);
-  const meta = document.getElementById("themeColorMeta");
+  if (document.body) document.body.setAttribute("data-theme-mode", mode);
+  const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", mode === "contrast" ? "#000000" : mode === "dark" ? "#07110d" : "#102b22");
 }
 function renderInterfaceSettings(){
@@ -3702,7 +3712,7 @@ function updateSessionFocusState(){
   const active = !!(activeSession && $("activeSession") && !$("activeSession").classList.contains("hidden"));
   document.body.classList.toggle("session-focus-active", enabled && active);
   const btn = $("toggleFocusModeBtn");
-  if (btn) btn.textContent = enabled ? "Exit Focus Mode" : "Focus Mode";
+  if (btn) btn.textContent = enabled && active ? "Exit Focus Mode" : "Focus Mode";
 }
 function toggleSessionFocusMode(){
   const next = document.body.classList.contains("session-focus-active") ? "off" : "on";
@@ -3717,6 +3727,29 @@ function bindInterfaceSettings(){
   renderInterfaceSettings();
   if (interfaceSettingsBound) return;
   interfaceSettingsBound = true;
+
+  const bindSelect = (id, handler) => {
+    const el = $(id);
+    if (!el || el.dataset.boundInterface === "1") return;
+    el.dataset.boundInterface = "1";
+    el.addEventListener("change", handler);
+    el.addEventListener("input", handler);
+  };
+
+  bindSelect("themeModeSelect", e => {
+    const mode = setPersistedInterfaceSetting(THEME_MODE_KEY, "themeMode", e.target.value);
+    e.target.value = mode;
+    applyThemeMode();
+  });
+  bindSelect("sessionFocusModeSelect", e => {
+    setPersistedInterfaceSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", e.target.value);
+    updateSessionFocusState();
+  });
+  bindSelect("quickLogAutoAdvanceSelect", e => {
+    setPersistedInterfaceSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", e.target.value);
+    if (activeSession) renderCurrentRoutine();
+  });
+
   document.addEventListener("change", e => {
     const el = e.target;
     if (!el || !el.id) return;
@@ -3724,19 +3757,14 @@ function bindInterfaceSettings(){
       const mode = setPersistedInterfaceSetting(THEME_MODE_KEY, "themeMode", el.value);
       el.value = mode;
       applyThemeMode();
-      renderInterfaceSettings();
-      return;
     }
     if (el.id === "sessionFocusModeSelect") {
       setPersistedInterfaceSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", el.value);
       updateSessionFocusState();
-      renderInterfaceSettings();
-      return;
     }
     if (el.id === "quickLogAutoAdvanceSelect") {
       setPersistedInterfaceSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", el.value);
       if (activeSession) renderCurrentRoutine();
-      renderInterfaceSettings();
     }
   });
   document.addEventListener("click", e => {
@@ -3749,6 +3777,9 @@ function bindInterfaceSettings(){
     else if (mq.addListener) mq.addListener(handler);
   }
 }
+// Bind immediately as the script is loaded at the end of body. Keep the
+// DOMContentLoaded listener as a fallback for browser/cache edge cases.
+bindInterfaceSettings();
 function renderLivePerformanceCard(r){
   const box = $("livePerformanceCard");
   if (!box || !r) return;
