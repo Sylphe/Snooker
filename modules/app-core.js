@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.7.3";
+import { APP_VERSION } from "./version.js?v=4.8.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.7.3";
+} from "./utils.js?v=4.8.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.7.3";
+} from "./settings.js?v=4.8.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.7.3";
+} from "./analytics.js?v=4.8.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.7.3";
+} from "./session.js?v=4.8.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -52,7 +52,8 @@ import {
   recommendationModeLabel,
   cappedRecencyDays,
   applyRecommendationCap
-} from "./recommendations.js?v=4.7.3";
+} from "./recommendations.js?v=4.8.0";
+import * as RenderHelpers from "./render.js?v=4.8.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -63,7 +64,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.7.3";
+} from "./store.js?v=4.8.0";
 
 
 
@@ -2706,17 +2707,7 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   ${renderRollingChart(logs, rolling)}
   <table class="history-table"><thead><tr><th>Date</th><th>Score</th><th>Normalized</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${logs.slice(-20).reverse().map(l => renderLogRow(l)).join("")}</tbody></table>`;
 }
-function renderLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}">
-    <td>${new Date(l.createdAt).toLocaleDateString()}</td>
-    <td>${displayScore(l)}</td>
-    <td>${Number(l.normalizedScore || 0).toFixed(2)}</td>
-    <td>${escapeHtml(l.performance || "N/A")}</td>
-    <td>${escapeHtml(getTargetProfileLabel(l))}</td>
-    <td>${formatDurationHuman(l.timeMinutes)}</td>
-    <td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td>
-  </tr>`;
-}
+
 function renderDateLogRow(l) {
   return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
 }
@@ -3934,7 +3925,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.8.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
