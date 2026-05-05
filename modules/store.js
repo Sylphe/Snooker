@@ -34,7 +34,7 @@ export function openSnookerDB() {
       }
       resolve(db);
     };
-    req.onblocked = () => reject(new Error("IndexedDB upgrade is blocked by another open app tab. Close other Snooker app tabs and reload."));
+    req.onblocked = () => { console.warn("IndexedDB upgrade is blocked by another open app tab. Waiting for the browser to complete the upgrade."); };
     req.onerror = () => reject(req.error || new Error("Could not open IndexedDB."));
   });
 }
@@ -49,6 +49,45 @@ export function idbGetAll(storeName) {
       req.onerror = () => reject(req.error);
       tx.oncomplete = () => db.close();
       tx.onerror = () => { db.close(); reject(tx.error); };
+    } catch(e) {
+      db.close();
+      reject(e);
+    }
+  }));
+}
+
+export function idbGetStores(storeNames) {
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    const out = {};
+    let remaining = storeNames.length;
+    let settled = false;
+    try {
+      const tx = db.transaction(storeNames, "readonly");
+      storeNames.forEach(name => {
+        const req = tx.objectStore(name).getAll();
+        req.onsuccess = () => {
+          out[name] = req.result || [];
+          remaining -= 1;
+          if (remaining === 0 && !settled) {
+            settled = true;
+            resolve(out);
+          }
+        };
+        req.onerror = () => {
+          if (!settled) {
+            settled = true;
+            reject(req.error);
+          }
+        };
+      });
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => {
+        db.close();
+        if (!settled) {
+          settled = true;
+          reject(tx.error);
+        }
+      };
     } catch(e) {
       db.close();
       reject(e);

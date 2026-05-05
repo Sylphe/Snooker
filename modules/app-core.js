@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.7.1";
+import { APP_VERSION } from "./version.js?v=4.7.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.7.1";
+} from "./utils.js?v=4.7.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.7.1";
+} from "./settings.js?v=4.7.2";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.7.1";
+} from "./analytics.js?v=4.7.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.7.1";
+} from "./session.js?v=4.7.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -52,16 +52,17 @@ import {
   recommendationModeLabel,
   cappedRecencyDays,
   applyRecommendationCap
-} from "./recommendations.js?v=4.7.1";
+} from "./recommendations.js?v=4.7.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
   INDEXEDDB_MIGRATION_KEY,
   idbGetAll,
+  idbGetStores,
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.7.1";
+} from "./store.js?v=4.7.2";
 
 
 
@@ -135,7 +136,11 @@ async function hydrateIndexedDBData() {
   try {
     const localLogs = Array.isArray(data.logs) ? data.logs : [];
     const localSessions = Array.isArray(data.sessions) ? data.sessions : [];
-    const [idbLogs, idbSessions] = await Promise.all([idbGetAll(INDEXEDDB_LOG_STORE), idbGetAll(INDEXEDDB_SESSION_STORE)]);
+    // Open IndexedDB once during startup and read both stores in a single transaction.
+    // This avoids parallel open/upgrade races on Android Chrome/PWA installs.
+    const idbStores = await idbGetStores([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE]);
+    const idbLogs = idbStores[INDEXEDDB_LOG_STORE] || [];
+    const idbSessions = idbStores[INDEXEDDB_SESSION_STORE] || [];
     const logs = mergeById(idbLogs, localLogs).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
     const sessions = mergeById(idbSessions, localSessions).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
     data.logs = logs;
@@ -151,7 +156,7 @@ async function hydrateIndexedDBData() {
   } catch(e) {
     indexedDBUnavailable = true;
     logAppError(e, "hydrateIndexedDBData");
-    alert("IndexedDB storage could not initialize. Close any other Snooker app tabs and reload once. The app will use localStorage fallback for this session; export a full backup before adding new logs.");
+    alert("IndexedDB storage could not initialize. Close any other Snooker app tabs/windows and reload once. If this repeats, export a debug log before adding new logs.");
     return false;
   }
 }
@@ -3884,7 +3889,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
