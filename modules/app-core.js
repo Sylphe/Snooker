@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.7.2";
+import { APP_VERSION } from "./version.js?v=4.7.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.7.2";
+} from "./utils.js?v=4.7.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.7.2";
+} from "./settings.js?v=4.7.3";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.7.2";
+} from "./analytics.js?v=4.7.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.7.2";
+} from "./session.js?v=4.7.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -52,17 +52,18 @@ import {
   recommendationModeLabel,
   cappedRecencyDays,
   applyRecommendationCap
-} from "./recommendations.js?v=4.7.2";
+} from "./recommendations.js?v=4.7.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
   INDEXEDDB_MIGRATION_KEY,
   idbGetAll,
   idbGetStores,
+  idbDeleteDatabase,
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.7.2";
+} from "./store.js?v=4.7.3";
 
 
 
@@ -75,6 +76,38 @@ let indexedDBReady = false;
 let indexedDBUnavailable = false;
 let indexedDBSyncTimer = null;
 let indexedDBHydrating = true;
+
+
+function serializeCoreData(d) {
+  const core = structuredCloneSafe(d || {});
+  if (indexedDBUnavailable) {
+    core.indexedDBStorage = {
+      enabled: false,
+      stores: [],
+      migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
+      note: "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
+    };
+    return core;
+  }
+  core.logs = [];
+  core.sessions = [];
+  core.indexedDBStorage = {
+    enabled: true,
+    stores: [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE],
+    migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
+    note: "Logs and sessions are stored in IndexedDB; this localStorage object keeps low-volume app configuration only."
+  };
+  return core;
+}
+
+function saveCoreData(context="saveCoreData") {
+  try {
+    return safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
+  } catch(e) {
+    logAppError(e, context);
+    return false;
+  }
+}
 
 
 function persistLogDelta(log, context="persistLogDelta") {
@@ -131,7 +164,7 @@ function mergeById(primary, fallback) {
   (primary || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
   return [...map.values()];
 }
-async function hydrateIndexedDBData() {
+async function hydrateIndexedDBData(retryAfterReset=false) {
   if (indexedDBUnavailable) return false;
   try {
     const localLogs = Array.isArray(data.logs) ? data.logs : [];
@@ -154,9 +187,21 @@ async function hydrateIndexedDBData() {
     saveCoreData("hydrateIndexedDBData core save");
     return true;
   } catch(e) {
+    logAppError(e, retryAfterReset ? "hydrateIndexedDBData retry failed" : "hydrateIndexedDBData");
+    if (!retryAfterReset) {
+      try {
+        await idbDeleteDatabase();
+        indexedDBReady = false;
+        indexedDBHydrating = true;
+        indexedDBUnavailable = false;
+        return await hydrateIndexedDBData(true);
+      } catch(resetError) {
+        logAppError(resetError, "hydrateIndexedDBData reset database");
+      }
+    }
     indexedDBUnavailable = true;
-    logAppError(e, "hydrateIndexedDBData");
-    alert("IndexedDB storage could not initialize. Close any other Snooker app tabs/windows and reload once. If this repeats, export a debug log before adding new logs.");
+    indexedDBHydrating = false;
+    alert("IndexedDB storage could not initialize. The app will use localStorage fallback for this session. Export a full backup before adding new logs.");
     return false;
   }
 }
@@ -3889,7 +3934,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

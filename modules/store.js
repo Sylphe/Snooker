@@ -143,3 +143,14 @@ export function idbDelete(storeName, id) {
     }
   }));
 }
+
+
+export function idbDeleteDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) return resolve(false);
+    const req = indexedDB.deleteDatabase(INDEXEDDB_NAME);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error || new Error("Could not delete IndexedDB database."));
+    req.onblocked = () => reject(new Error("IndexedDB delete is blocked by another open app tab. Close other Snooker app tabs and reload."));
+  });
+}

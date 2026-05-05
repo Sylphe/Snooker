@@ -1,18 +1,18 @@
-const CACHE_NAME = "snooker-practice-log-v4-7-2-final";
+const CACHE_NAME = "snooker-practice-log-v4-7-3-final";
 const ASSETS = [
-  "./index.html?v=4.7.2",
-  "./styles.css?v=4.7.2",
-  "./app.js?v=4.7.2",
-  "./modules/app-core.js?v=4.7.2",
-  "./modules/version.js?v=4.7.2",
-  "./modules/store.js?v=4.7.2",
-  "./modules/utils.js?v=4.7.2",
-  "./modules/settings.js?v=4.7.2",
-  "./modules/analytics.js?v=4.7.2",
-  "./modules/session.js?v=4.7.2",
-  "./modules/recommendations.js?v=4.7.2",
-  "./manifest.json?v=4.7.2",
-  "./icon.svg?v=4.7.2"
+  "./index.html?v=4.7.3",
+  "./styles.css?v=4.7.3",
+  "./app.js?v=4.7.3",
+  "./modules/app-core.js?v=4.7.3",
+  "./modules/version.js?v=4.7.3",
+  "./modules/store.js?v=4.7.3",
+  "./modules/utils.js?v=4.7.3",
+  "./modules/settings.js?v=4.7.3",
+  "./modules/analytics.js?v=4.7.3",
+  "./modules/session.js?v=4.7.3",
+  "./modules/recommendations.js?v=4.7.3",
+  "./manifest.json?v=4.7.3",
+  "./icon.svg?v=4.7.3"
 ];
 
 self.addEventListener("install", event => {
