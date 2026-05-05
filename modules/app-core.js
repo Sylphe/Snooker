@@ -1,120 +1,81 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.1.0";
+import { APP_VERSION } from "./version.js?v=4.7.0";
+import {
+  uuid,
+  structuredCloneSafe,
+  cssEscapeSafe,
+  escapeHtml,
+  escapeAttr,
+  htmlText,
+  attrText,
+  jsArg,
+  numText,
+  numAttr,
+  safeClassToken,
+  sortedBy
+} from "./utils.js?v=4.7.0";
+import {
+  THEME_MODE_KEY,
+  SESSION_FOCUS_MODE_KEY,
+  QUICK_LOG_AUTO_ADVANCE_KEY,
+  normalizeInterfaceThemeMode,
+  normalizeOnOff,
+  getRawStoredThemeMode,
+  resolveThemeMode,
+  applyThemeToDocument
+} from "./settings.js?v=4.7.0";
+import {
+  avg,
+  stdDev,
+  correlation,
+  corrText,
+  rollingAverage,
+  movingTrend,
+  benchmarkText,
+  progressVelocity
+} from "./analytics.js?v=4.7.0";
+import {
+  makeTimerState,
+  elapsedMsFromState,
+  elapsedMinutesFromState,
+  formatElapsedClock,
+  readActiveSessionDraft,
+  writeActiveSessionDraft,
+  clearActiveSessionDraft
+} from "./session.js?v=4.7.0";
+import {
+  recommendationMode,
+  isRecommendationEligible,
+  recommendationRecencyCap,
+  recommendationUndertrainingMultiplier,
+  recommendationModeLabel,
+  cappedRecencyDays,
+  applyRecommendationCap
+} from "./recommendations.js?v=4.7.0";
+import {
+  INDEXEDDB_LOG_STORE,
+  INDEXEDDB_SESSION_STORE,
+  INDEXEDDB_MIGRATION_KEY,
+  idbGetAll,
+  idbReplaceAll,
+  idbPut,
+  idbDelete
+} from "./store.js?v=4.7.0";
 
-function uuid() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10);
-}
-function structuredCloneSafe(obj) {
-  if (typeof structuredClone === "function") return structuredClone(obj);
-  return JSON.parse(JSON.stringify(obj));
-}
 
 
 const ACTIVE_SESSION_KEY = "snookerPracticePWA.activeSessionDraft";
 const LAST_VENUE_KEY = "snookerPracticePWA.lastVenueTable";
 const LAST_TABLE_NOTE_KEY = "snookerPracticePWA.lastTableNote";
-const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
-const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
-const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
 
 
-const INDEXEDDB_NAME = "snookerPracticePWA.db";
-const INDEXEDDB_VERSION = 1;
-const INDEXEDDB_LOG_STORE = "logs";
-const INDEXEDDB_SESSION_STORE = "sessions";
-const INDEXEDDB_MIGRATION_KEY = "snookerPracticePWA.indexedDBMigration.v1";
 let indexedDBReady = false;
 let indexedDBUnavailable = false;
 let indexedDBSyncTimer = null;
 let indexedDBHydrating = true;
 
 
-function serializeCoreData(d) {
-  const core = structuredCloneSafe(d || {});
-  if (indexedDBUnavailable) {
-    core.indexedDBStorage = {
-      enabled: false,
-      stores: [],
-      migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
-      note: "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
-    };
-    return core;
-  }
-  core.logs = [];
-  core.sessions = [];
-  core.indexedDBStorage = {
-    enabled: true,
-    stores: [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE],
-    migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
-    note: "Logs and sessions are stored in IndexedDB; this localStorage object keeps low-volume app configuration only."
-  };
-  return core;
-}
-function saveCoreData(context="saveCoreData") {
-  return safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
-}
-function openSnookerDB() {
-  return new Promise((resolve, reject) => {
-    if (!("indexedDB" in window)) return reject(new Error("IndexedDB is not available in this browser."));
-    const req = indexedDB.open(INDEXEDDB_NAME, INDEXEDDB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(INDEXEDDB_LOG_STORE)) {
-        const logs = db.createObjectStore(INDEXEDDB_LOG_STORE, {keyPath:"id"});
-        logs.createIndex("createdAt", "createdAt", {unique:false});
-        logs.createIndex("routineId", "routineId", {unique:false});
-        logs.createIndex("sessionId", "sessionId", {unique:false});
-      }
-      if (!db.objectStoreNames.contains(INDEXEDDB_SESSION_STORE)) {
-        const sessions = db.createObjectStore(INDEXEDDB_SESSION_STORE, {keyPath:"id"});
-        sessions.createIndex("startedAt", "startedAt", {unique:false});
-        sessions.createIndex("endedAt", "endedAt", {unique:false});
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error("Could not open IndexedDB."));
-  });
-}
-function idbGetAll(storeName) {
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readonly");
-    const req = tx.objectStore(storeName).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-    tx.oncomplete = () => db.close();
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  }));
-}
-function idbReplaceAll(storeName, rows) {
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readwrite");
-    const store = tx.objectStore(storeName);
-    store.clear();
-    (rows || []).forEach(row => { if (row && row.id) store.put(row); });
-    tx.oncomplete = () => { db.close(); resolve(true); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  }));
-}
-function idbPut(storeName, item) {
-  if (indexedDBUnavailable || !item || !item.id) return Promise.resolve(false);
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readwrite");
-    tx.objectStore(storeName).put(item);
-    tx.oncomplete = () => { db.close(); resolve(true); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  }));
-}
-function idbDelete(storeName, id) {
-  if (indexedDBUnavailable || !id) return Promise.resolve(false);
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readwrite");
-    tx.objectStore(storeName).delete(id);
-    tx.oncomplete = () => { db.close(); resolve(true); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  }));
-}
 function persistLogDelta(log, context="persistLogDelta") {
   if (indexedDBUnavailable || !log || !log.id) return Promise.resolve(false);
   return idbPut(INDEXEDDB_LOG_STORE, log).catch(e => { logAppError(e, context); return false; });
@@ -202,40 +163,12 @@ async function bootstrapIndexedDBStorage() {
 }
 
 
-function normalizeInterfaceThemeMode(value) {
-  return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
-}
-function getRawStoredThemeMode() {
-  try {
-    const direct = localStorage.getItem(THEME_MODE_KEY);
-    if (direct) return normalizeInterfaceThemeMode(direct);
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return normalizeInterfaceThemeMode(parsed?.interfaceSettings?.themeMode || "system");
-    }
-  } catch(e) {}
-  return "system";
-}
-function resolveThemeModeEarly(mode) {
-  const clean = normalizeInterfaceThemeMode(mode);
-  if (clean !== "system") return clean;
-  try {
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  } catch(e) {
-    return "light";
-  }
-}
+
 function applyThemeModeEarly() {
-  const mode = getRawStoredThemeMode();
-  const actual = resolveThemeModeEarly(mode);
-  const root = document.documentElement;
-  root.classList.remove("theme-system", "theme-light", "theme-dark", "theme-contrast");
-  root.classList.add("theme-" + mode);
-  root.setAttribute("data-theme-mode", mode);
-  root.setAttribute("data-theme", actual);
+  applyThemeToDocument(getRawStoredThemeMode(STORAGE_KEY));
 }
 applyThemeModeEarly();
+
 
 const defaultData = {
   appVersion: APP_VERSION,
@@ -281,10 +214,6 @@ let deferredInstallPrompt = null;
 let statsMode = localStorage.getItem("snookerPracticePWA.statsMode") || "overview";
 
 function $(id) { return document.getElementById(id); }
-function cssEscapeSafe(value) {
-  if (window.CSS && typeof window.CSS.escape === "function") return CSS.escape(String(value));
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-}
 
 function migrateData(d) {
   d.appVersion = APP_VERSION;
@@ -469,11 +398,7 @@ function fmtScoring(type) {
   }[type] || type;
 }
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
-function recommendationMode(r) { return ["active", "occasional", "excluded"].includes(r?.recommendationMode) ? r.recommendationMode : "active"; }
-function recommendationEligibleRoutines() { return activeRoutines().filter(r => recommendationMode(r) !== "excluded"); }
-function recommendationRecencyCap(routine) { return recommendationMode(routine) === "occasional" ? 7 : 14; }
-function recommendationUndertrainingMultiplier(routine) { return recommendationMode(routine) === "occasional" ? 0.35 : 1; }
-function recommendationModeLabel(value) { return {active:"Active recommendation", occasional:"Occasional only", excluded:"Excluded from recommendations"}[value] || "Active recommendation"; }
+function recommendationEligibleRoutines() { return activeRoutines().filter(isRecommendationEligible); }
 function categories() { return [...new Set(activeRoutines().map(r => r.category || "uncategorized"))].sort(); }
 function folders() { return [...new Set(activeRoutines().map(r => r.folder || "Unfiled"))].sort(); }
 function subfolders() { return [...new Set(activeRoutines().map(r => r.subfolder || "General"))].sort(); }
@@ -490,30 +415,6 @@ function classifyPerformance(log, routine) {
   return classifyPerformanceAgainstTarget(log.normalizedScore, log.targetAtLog || p?.target || routine?.target, log.stretchTargetAtLog || p?.stretchTarget || routine?.stretchTarget);
 }
 
-function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
-function stdDev(arr) {
-  if (arr.length < 2) return 0;
-  const m = avg(arr);
-  return Math.sqrt(avg(arr.map(x => Math.pow(x-m,2))));
-}
-function correlation(xs, ys) {
-  const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])]).filter(([x,y])=>Number.isFinite(x)&&Number.isFinite(y));
-  if (pairs.length < 3) return null;
-  const xvals = pairs.map(p=>p[0]), yvals = pairs.map(p=>p[1]);
-  const mx = avg(xvals), my = avg(yvals);
-  const num = pairs.reduce((a,[x,y]) => a + (x-mx)*(y-my), 0);
-  const denX = Math.sqrt(pairs.reduce((a,[x]) => a + Math.pow(x-mx,2), 0));
-  const denY = Math.sqrt(pairs.reduce((a,[,y]) => a + Math.pow(y-my,2), 0));
-  if (!denX || !denY) return null;
-  return num / (denX * denY);
-}
-function corrText(r) {
-  if (r === null) return "Not enough variation/data";
-  const abs = Math.abs(r);
-  const strength = abs >= .65 ? "strong" : abs >= .35 ? "moderate" : "weak";
-  const direction = r >= 0 ? "positive" : "negative";
-  return `${strength} ${direction} (${r.toFixed(2)})`;
-}
 function localDateKey(dateLike = new Date()) {
   const d = new Date(dateLike);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -1175,16 +1076,11 @@ async function completeSession() {
   renderStats();
 }
 
-function getElapsedMs() { return elapsedBeforeStartMs + (timerStartMs ? Date.now() - timerStartMs : 0); }
-function getElapsedMinutes() { return Math.round((getElapsedMs() / 60000) * 10) / 10; }
+function getElapsedMs() { return elapsedMsFromState(timerStartMs, elapsedBeforeStartMs); }
+function getElapsedMinutes() { return elapsedMinutesFromState(timerStartMs, elapsedBeforeStartMs); }
 function syncTimerStateToActiveSession() {
   if (!activeSession) return;
-  activeSession.timerState = {
-    timerStartMs: timerStartMs || null,
-    elapsedBeforeStartMs: Number(elapsedBeforeStartMs || 0),
-    isRunning: !!timerStartMs,
-    savedAt: new Date().toISOString()
-  };
+  activeSession.timerState = makeTimerState(timerStartMs, elapsedBeforeStartMs);
   persistActiveSession();
 }
 function restoreTimerStateFromActiveSession() {
@@ -1223,10 +1119,7 @@ $("timerPauseBtn").addEventListener("click", () => {
 $("timerResetBtn").addEventListener("click", resetTimerState);
 function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
 function updateTimerDisplay() {
-  const totalSeconds = Math.floor(getElapsedMs() / 1000);
-  const mins = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const secs = (totalSeconds % 60).toString().padStart(2, "0");
-  $("timerDisplay").textContent = `${mins}:${secs}`;
+  $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
@@ -1302,30 +1195,6 @@ function bucketLogs(logs, period) {
     b.avg = avg(b.logs.map(l => Number(l.normalizedScore || 0)));
   });
   return Object.values(buckets).sort((a,b) => a.label.localeCompare(b.label));
-}
-function rollingAverage(values, windowSize) {
-  return values.map((_, i) => {
-    const slice = values.slice(Math.max(0, i-windowSize+1), i+1);
-    return avg(slice);
-  });
-}
-function movingTrend(values, windowSize) {
-  if (values.length < windowSize * 2) return "Not enough data";
-  const recent = avg(values.slice(-windowSize));
-  const prior = avg(values.slice(-(windowSize*2), -windowSize));
-  if (!prior) return "Not enough baseline";
-  const delta = ((recent - prior) / Math.abs(prior)) * 100;
-  if (delta > 7.5) return `Improving (+${delta.toFixed(1)}% vs prior ${windowSize})`;
-  if (delta < -7.5) return `Declining (${delta.toFixed(1)}% vs prior ${windowSize})`;
-  return `Stable (${delta.toFixed(1)}% vs prior ${windowSize})`;
-}
-function benchmarkText(values, windowSize) {
-  if (!values.length) return "No data";
-  const latest = values[values.length-1];
-  const baseline = values.length > 1 ? avg(values.slice(Math.max(0, values.length-windowSize-1), -1)) : latest;
-  if (!baseline) return "No baseline";
-  const delta = ((latest - baseline) / Math.abs(baseline)) * 100;
-  return `${latest.toFixed(2)} latest vs ${baseline.toFixed(2)} personal baseline (${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%)`;
 }
 function targetHitRate(logs) {
   const targetLogs = logs.filter(l => (l.performance || "N/A") !== "N/A");
@@ -1941,32 +1810,13 @@ function loadAdaptiveSessionIntoPlanBuilder() {
 
 
 function getPersistedActiveSession() {
-  try {
-    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || !Array.isArray(s.routineIds) || Number(s.index || 0) >= s.routineIds.length) return null;
-    return s;
-  } catch(e) {
-    logAppError(e, "getPersistedActiveSession");
-    return null;
-  }
+  return readActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
 }
 function persistActiveSession() {
-  try {
-    if (typeof activeSession !== "undefined" && activeSession) {
-      safeStorageSet(ACTIVE_SESSION_KEY, JSON.stringify({...activeSession, savedAt:new Date().toISOString()}), "persistActiveSession");
-    }
-  } catch(e) {
-    logAppError(e, "persistActiveSession");
-  }
+  return writeActiveSessionDraft(ACTIVE_SESSION_KEY, activeSession, safeStorageSet, logAppError);
 }
 function clearPersistedActiveSession() {
-  try {
-    localStorage.removeItem(ACTIVE_SESSION_KEY);
-  } catch(e) {
-    logAppError(e, "clearPersistedActiveSession");
-  }
+  return clearActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
 }
 
 function renderSmartRecommendation() {
@@ -2534,21 +2384,6 @@ function exerciseTransferEffect(allLogs, targetRid) {
     return {category:cat, corr:correlation(xs,ys), n:xs.length};
   }).filter(r=>r.corr!==null).sort((a,b)=>Math.abs(b.corr)-Math.abs(a.corr));
   return results[0] || null;
-}
-
-function progressVelocity(logs, windowSize=10) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  if (vals.length < 3) return null;
-  const use = vals.slice(-windowSize);
-  const n = use.length;
-  const xs = use.map((_,i)=>i+1);
-  const mx = avg(xs), my = avg(use);
-  const num = xs.reduce((a,x,i)=>a+(x-mx)*(use[i]-my),0);
-  const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
-  if (!Number.isFinite(den) || den === 0) return {slope:0, n, label:"Flat", note:"No time/order variation"};
-  const slope = num/den;
-  if (!Number.isFinite(slope)) return {slope:0, n, label:"Flat", note:"Not enough variation"};
-  return {slope, n, label: slope>0.5?"Improving":slope<-0.5?"Declining":"Flat"};
 }
 
 function plateauDetector(logs, windowSize=8, thresholdPct=3) {
@@ -3120,25 +2955,6 @@ function csvEscape(value) {
   const s = String(value ?? "");
   return '"' + s.replace(/"/g, '""') + '"';
 }
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, ch => ({
-    "&":"&amp;",
-    "<":"&lt;",
-    ">":"&gt;",
-    '"':"&quot;",
-    "'":"&#39;"
-  }[ch]));
-}
-function escapeAttr(str) { return escapeHtml(str).replaceAll("`","&#096;"); }
-function htmlText(value) { return escapeHtml(value); }
-function attrText(value) { return escapeAttr(value); }
-function jsArg(value) { return escapeAttr(JSON.stringify(String(value ?? ""))); }
-function numText(value, fallback="") {
-  const n = Number(value);
-  return Number.isFinite(n) ? String(n) : escapeHtml(fallback);
-}
-function numAttr(value, fallback="") { return escapeAttr(numText(value, fallback)); }
-function safeClassToken(value, allowed, fallback="") { return allowed.includes(value) ? value : fallback; }
 
 
 function confirmDeleteAction(label, callback) {
@@ -4068,7 +3884,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.1.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4127,7 +3943,7 @@ function routineMixedStrategyScore(routine,stats,strategy){
   if (recommendationMode(routine) === "excluded") return -999;
   let score=stats.score||0;
   const days=stats.logs.length?daysSince(stats.logs[stats.logs.length-1].createdAt):recommendationRecencyCap(routine);
-  const cappedDays=Math.min(days,recommendationRecencyCap(routine));
+  const cappedDays=cappedRecencyDays(days, routine);
   const undertraining=undertrainedCategoryBonus(routine.id)*recommendationUndertrainingMultiplier(routine);
   if(strategy==="exploit") score+=(stats.hit===null?5:Math.max(0,80-stats.hit)*0.55);
   else if(strategy==="explore"){score+=Math.min(24,cappedDays*1.5); score+=undertraining*1.1;}
@@ -4372,18 +4188,6 @@ function applyStoredStatsModeVisual() {
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 /* v3.25.9 interface settings core — single deterministic API. */
-function normalizeOnOff(value, fallback="on") {
-  return value === "off" ? "off" : (value === "on" ? "on" : fallback);
-}
-function resolveThemeMode(mode) {
-  const clean = normalizeInterfaceThemeMode(mode || getThemeModeSetting());
-  if (clean !== "system") return clean;
-  try {
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  } catch(e) {
-    return "light";
-  }
-}
 function interfaceReadSetting(storageKey, dataKey, fallback) {
   try {
     const local = localStorage.getItem(storageKey);
@@ -4412,15 +4216,7 @@ function getSessionFocusSetting(){ return interfaceReadSetting(SESSION_FOCUS_MOD
 function getQuickLogAutoAdvanceSetting(){ return interfaceReadSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", "on"); }
 function applyThemeMode(mode){
   const storedMode = normalizeInterfaceThemeMode(mode || getThemeModeSetting());
-  const actualTheme = resolveThemeMode(storedMode);
-  [document.documentElement, document.body].filter(Boolean).forEach(el => {
-    el.classList.remove("theme-system", "theme-light", "theme-dark", "theme-contrast");
-    el.classList.add("theme-" + storedMode);
-    el.setAttribute("data-theme-mode", storedMode);
-    el.setAttribute("data-theme", actualTheme);
-  });
-  const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", actualTheme === "contrast" ? "#000000" : actualTheme === "dark" ? "#07110d" : "#102b22");
+  applyThemeToDocument(storedMode);
 }
 function renderInterfaceSettings(){
   applyThemeMode();
@@ -4601,7 +4397,7 @@ try { window.addEventListener("beforeunload", syncTimerStateToActiveSession); } 
    The application now runs as an ES module. Existing generated markup still uses
    inline event handlers, so explicitly expose the legacy UI API on window. */
 function exposeV4LegacyGlobals() {
-  // v4.1: narrow compatibility bridge only. State variables stay module-scoped.
+  // v4.2: narrow compatibility bridge only. State variables stay module-scoped.
   Object.assign(window, {
     showFieldHelp,
     hideFieldHelp,

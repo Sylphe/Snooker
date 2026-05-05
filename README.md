@@ -1,8 +1,8 @@
-# Snooker Practice Log — v4.1.0
+# Snooker Practice Log — v4.7.0
 
 Built from the validated v4.0.0 ES-module release.
 
-## v4.1.0 production-safety patch
+## v4.7.0 production-safety patch
 
 - Fixed IndexedDB save race risk by writing critical log/session changes immediately instead of relying on a delayed timer.
 - Added single-record IndexedDB helpers for log/session puts and log deletion.
@@ -37,4 +37,46 @@ Root-level PWA files plus `/modules`:
 - `modules/app-core.js`
 - `modules/version.js`
 
-Confirm version: the header should show v4.1.0.
+Confirm version: the header should show v4.7.0.
+
+
+## v4.7.0
+
+- First small ES module split: IndexedDB/localStorage primitives moved into `modules/store.js`.
+- `modules/app-core.js` keeps orchestration, rendering, and application state for now.
+- No feature changes; this is a controlled modularization step before deeper v4 splits.
+
+
+## v4.7.0
+
+- Second small ES module split: shared utilities moved into `modules/utils.js`.
+- Extracted UUID generation, safe cloning, HTML/attribute escaping, numeric formatting helpers, CSS escaping, class-token guarding, and immutable sort helper.
+- No feature changes; this is a controlled modularization step.
+
+
+## v4.7.0
+
+- Third small ES module split: interface setting constants and theme helpers moved into `modules/settings.js`.
+- `app-core.js` still owns session focus state and event binding so runtime behavior remains unchanged.
+- No feature changes; this is another controlled modularization step.
+
+
+## v4.7.0
+
+- Fourth small ES module split: pure analytics helpers moved into `modules/analytics.js`.
+- Extracted average, standard deviation, correlation text, rolling average, trend/benchmark text, and progress-velocity helpers.
+- UI rendering, session flow, recommendations, and app state remain in `app-core.js`.
+
+
+## v4.7.0
+
+- Fifth small ES module split: session/timer primitives moved into `modules/session.js`.
+- Extracted active-session draft read/write/clear helpers and timer-state formatting/math helpers.
+- High-risk logging flow, rendering, and active session orchestration remain in `app-core.js` for stability.
+
+
+## v4.7.0
+
+- Sixth small ES module split: recommendation eligibility and weighting-cap helpers moved into `modules/recommendations.js`.
+- Adaptive/session recommendation orchestration remains in `app-core.js` for stability.
+- No feature changes; this release continues the controlled modularization path.
