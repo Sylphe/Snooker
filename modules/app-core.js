@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.8.1";
+import { APP_VERSION } from "./version.js?v=4.8.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.8.1";
+} from "./utils.js?v=4.8.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.8.1";
+} from "./settings.js?v=4.8.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.8.1";
+} from "./analytics.js?v=4.8.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.8.1";
+} from "./session.js?v=4.8.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -52,8 +52,8 @@ import {
   recommendationModeLabel,
   cappedRecencyDays,
   applyRecommendationCap
-} from "./recommendations.js?v=4.8.1";
-import * as RenderHelpers from "./render.js?v=4.8.1";
+} from "./recommendations.js?v=4.8.0";
+import * as RenderHelpers from "./render.js?v=4.8.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -64,7 +64,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.8.1";
+} from "./store.js?v=4.8.0";
 
 
 
@@ -494,8 +494,8 @@ document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", (
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   btn.classList.add("active");
   $(btn.dataset.tab).classList.add("active");
-  if (btn.dataset.tab === "today") RenderHelpers.renderToday();
-  if (btn.dataset.tab === "stats") RenderHelpers.renderStats();
+  if (btn.dataset.tab === "today") renderToday();
+  if (btn.dataset.tab === "stats") renderStats();
 }));
 
 function renderAll() {
@@ -503,8 +503,8 @@ function renderAll() {
   renderRoutineList();
   renderPlanBuilder();
   renderPlanList();
-  RenderHelpers.renderStats();
-  RenderHelpers.renderToday();
+  renderStats();
+  renderToday();
   renderSmartRecommendation();
   renderTagSuggestions();
   renderBackupReminder();
@@ -1122,9 +1122,9 @@ async function completeSession() {
   $("practice")?.classList.add("active");
   document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
   document.querySelector('.tab[data-tab="practice"]')?.classList.add("active");
-  RenderHelpers.renderToday();
+  renderToday();
   openReflectionModal(completedSessionId);
-  RenderHelpers.renderStats();
+  renderStats();
 }
 
 function getElapsedMs() { return elapsedMsFromState(timerStartMs, elapsedBeforeStartMs); }
@@ -1928,23 +1928,23 @@ $("statsOverviewBtn").addEventListener("click", () => {
   localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
   $("statsOverviewBtn").classList.add("active-subtab");
   $("statsAdvancedBtn").classList.remove("active-subtab");
-  RenderHelpers.renderStats();
+  renderStats();
 });
 $("statsAdvancedBtn").addEventListener("click", () => {
   statsMode = "advanced";
   localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
   $("statsAdvancedBtn").classList.add("active-subtab");
   $("statsOverviewBtn").classList.remove("active-subtab");
-  RenderHelpers.renderStats();
+  renderStats();
 });
 ["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener("change", renderABComparison);
 });
 
-$("statsRoutineSelect").addEventListener("change", () => { RenderHelpers.renderStats(); renderPhaseOneInsights(); });
+$("statsRoutineSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("statsDateSelect").addEventListener("change", renderStats);
-$("statsPeriodSelect").addEventListener("change", () => { RenderHelpers.renderStats(); renderPhaseOneInsights(); });
+$("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("rollingWindowInput").addEventListener("input", renderStats);
 $("benchmarkWindowInput").addEventListener("input", renderStats);
 
@@ -2172,6 +2172,45 @@ function renderSwipeableHistoryCards(logs) {
   </div>`;
 }
 
+function renderStats() {
+  const period = $("statsPeriodSelect").value || "daily";
+  const rid = $("statsRoutineSelect").value;
+  const dateKey = $("statsDateSelect").value || localDateKey();
+  const range = getPeriodRange(period, dateKey);
+  const rollingWindow = Math.max(2, Number($("rollingWindowInput").value || 5));
+  const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
+
+  let scopedLogs = period === "overall" ? data.logs.slice() : logsInRange(data.logs, range.start, range.end);
+  scopedLogs = scopedLogs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  if (statsMode === "overview") {
+    $("statsOutput").innerHTML = renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    return;
+  }
+
+  let html = `<h3>${period === "exercise" ? "Per exercise view" : "Training view"} — ${escapeHtml(range.label)}</h3>`;
+  html += renderDateView(scopedLogs);
+
+  if (scopedLogs.length) {
+    html += `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(scopedLogs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
+    html += `<h3>Exercise mix</h3>${renderCategoryChart(scopedLogs)}`;
+    const alloc = computeAllocation(scopedLogs); html += `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
+    html += renderAdvancedAnalytics(scopedLogs, rollingWindow, benchmarkWindow);
+    html += renderSecondOrderAnalytics(scopedLogs, rid, rollingWindow);
+    html += renderPerformanceStability(scopedLogs);
+    html += renderFatigueSlope(scopedLogs);
+    html += renderDifficultyLadder(scopedLogs);
+    html += renderCoachingEngine(scopedLogs);
+  }
+
+  if (rid) {
+    const exerciseBase = period === "exercise" || period === "overall" ? data.logs : scopedLogs;
+    const exerciseLogs = exerciseBase.filter(l => l.routineId === rid).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+    html += renderExerciseProgression(exerciseLogs, rollingWindow, benchmarkWindow);
+  }
+
+  $("statsOutput").innerHTML = html;
+}
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
@@ -2809,6 +2848,31 @@ function renderDateView(logs) {
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(logs)}
   <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
+}
+function renderToday() {
+  const today = localDateKey();
+  const logs = data.logs.filter(l => sameDate(l, today)).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+  if (!logs.length) { $("todaySummary").innerHTML = "<p>No training logged today yet.</p>"; return; }
+
+  const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
+  const byType = {}, bySession = {};
+  logs.forEach(l => {
+    byType[l.category || "uncategorized"] = (byType[l.category || "uncategorized"] || 0) + 1;
+    bySession[l.sessionId] ||= {name: getPlanName(l), type: l.sessionType || "", logs: []};
+    bySession[l.sessionId].logs.push(l);
+  });
+  const hit = targetHitRate(logs);
+
+  $("todaySummary").innerHTML = `<div class="stats-grid">
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
+    <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
+    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+  </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
+  <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
+  ${Object.values(bySession).map(s => {
+    const st = s.logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
+    return `<div class="item"><div class="item-title"><strong>${escapeHtml(s.name)}</strong><span class="badge">${s.logs.length} exercises · ${st.toFixed(1)}m</span></div><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Time</th><th>Actions</th></tr></thead><tbody>${s.logs.map(l => renderSessionLogRow(l)).join("")}</tbody></table></div>`;
+  }).join("")}`;
 }
 
 function renderVolumeChart(buckets, metric, title) {
@@ -3861,7 +3925,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.8.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.8.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
