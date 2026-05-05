@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.7.0";
+import { APP_VERSION } from "./version.js?v=4.7.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.7.0";
+} from "./utils.js?v=4.7.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.7.0";
+} from "./settings.js?v=4.7.1";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.7.0";
+} from "./analytics.js?v=4.7.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.7.0";
+} from "./session.js?v=4.7.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -52,7 +52,7 @@ import {
   recommendationModeLabel,
   cappedRecencyDays,
   applyRecommendationCap
-} from "./recommendations.js?v=4.7.0";
+} from "./recommendations.js?v=4.7.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -61,7 +61,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.7.0";
+} from "./store.js?v=4.7.1";
 
 
 
@@ -151,7 +151,7 @@ async function hydrateIndexedDBData() {
   } catch(e) {
     indexedDBUnavailable = true;
     logAppError(e, "hydrateIndexedDBData");
-    alert("IndexedDB storage could not initialize. The app will continue with localStorage fallback for this session. Export a full backup before adding new logs.");
+    alert("IndexedDB storage could not initialize. Close any other Snooker app tabs and reload once. The app will use localStorage fallback for this session; export a full backup before adding new logs.");
     return false;
   }
 }
@@ -3884,7 +3884,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.7.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
