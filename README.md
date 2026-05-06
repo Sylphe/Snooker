@@ -1,12 +1,12 @@
-# Snooker Practice Log — v4.14.0
+# Snooker Practice Log — v4.14.1
 
 Built from the stable v4 architecture line.
 
-## Current release: v4.14.0
+## Current release: v4.14.1
 
 Smart Recommendation now uses the Bayesian confidence signal introduced in v4.12 and integrated into ranking in v4.13.
 
-### v4.14.0 changes
+### v4.14.1 changes
 
 - Added Bayesian signal visibility inside the main Smart Recommendation card.
 - Shows the Bayesian action, reason, posterior ability estimate, credible interval, and confidence label for success-rate drills.
@@ -53,12 +53,18 @@ http://localhost:8000/
 
 ## Upgrade / testing checklist
 
-After deploying v4.14.0:
+After deploying v4.14.1:
 
 1. Open the app and verify no IndexedDB fallback warning appears.
 2. Check Data → storage integrity.
-3. Confirm the loaded app version shows `4.14.0-final`.
+3. Confirm the loaded app version shows `4.14.1-final`.
 4. Open Smart Recommendation and verify Bayesian signal text appears for success-rate routines with data.
 5. Log a success-rate drill and confirm Bayesian validation still updates.
 6. Confirm Today and Stats tabs still render normally.
 7. Export a full backup.
+
+
+## v4.14.1
+
+- Hotfix: repaired malformed `renderLivePerformanceCard()` template caused by misplaced Bayesian validation helpers in v4.14.0.
+- Restored tab binding/data hydration startup by making `app-core.js` parse as a valid ES module.
