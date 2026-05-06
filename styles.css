@@ -672,22 +672,3 @@ body.session-focus-active #skipBtn{
 @media(max-width:760px){
   .bayes-grid{grid-template-columns:1fr 1fr;}
 }
-
-/* v4.13 Bayesian recommendation signal */
-.bayes-signal{
-  display:inline-block;
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:4px 8px;
-  margin:3px;
-  background:var(--panel-bg, var(--card));
-  color:var(--text);
-  font-size:12px;
-  font-weight:800;
-}
-
-/* v4.14 smart recommendation Bayesian integration */
-.bayes-rec-note{
-  margin-top:10px;
-  border-left:4px solid var(--felt);
-}

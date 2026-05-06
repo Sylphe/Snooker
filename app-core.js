@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.14.1";
+import { APP_VERSION } from "./version.js?v=4.12.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.14.1";
+} from "./utils.js?v=4.12.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.14.1";
+} from "./settings.js?v=4.12.0";
 import {
   avg,
   stdDev,
@@ -34,15 +34,14 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.14.1";
+} from "./analytics.js?v=4.12.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
   bayesianReliabilityLabel,
   formatPercent,
-  bayesianAdvice,
-  bayesianRecommendationSignal
-} from "./bayesian.js?v=4.14.1";
+  bayesianAdvice
+} from "./bayesian.js?v=4.12.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -51,7 +50,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.14.1";
+} from "./session.js?v=4.12.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -63,8 +62,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.14.1";
-import * as RenderHelpers from "./render.js?v=4.14.1";
+} from "./recommendations.js?v=4.12.0";
+import * as RenderHelpers from "./render.js?v=4.12.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -75,7 +74,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.14.1";
+} from "./store.js?v=4.12.0";
 
 
 
@@ -483,16 +482,6 @@ function recentRoutineIds(limit=8) {
 }
 function getLastLogForRoutine(routineId) {
   return (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0] || null;
-}
-function bayesianStatsForRoutine(routineId) {
-  const r = routineById(routineId);
-  if (!r || r.scoring !== "success_rate") return null;
-  const logs = (data.logs || []).filter(l => l.routineId === routineId && l.scoring === "success_rate");
-  const agg = aggregateSuccessRateLogs(logs);
-  const posterior = betaPosterior(agg.successes, agg.attempts);
-  const reliability = bayesianReliabilityLabel(posterior);
-  const signal = bayesianRecommendationSignal({posterior, targetPct:Number(r.target || 0)});
-  return {agg, posterior, reliability, signal};
 }
 function applyLastScoreSetup() {
   if (!activeSession) return;
@@ -1915,10 +1904,8 @@ function renderSmartRecommendation() {
       const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
       const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
       const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
-      const bayesian = bayesianStatsForRoutine(rid);
-      const bayesDelta = bayesian?.signal?.scoreDelta || 0;
-      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty + bayesDelta;
-      return {rid, logs, score, hit, recent, prior, bayesian};
+      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty;
+      return {rid, logs, score, hit, recent, prior};
     }).sort((a,b)=>b.score-a.score);
   const top = candidates[0];
   const routine = top ? routineById(top.rid) : null;
@@ -1929,20 +1916,11 @@ function renderSmartRecommendation() {
     box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
-  const bayesian = top.bayesian;
-  const bayesSignal = bayesian?.signal;
-  const bayesLine = bayesian ? `<div class="analytics-note bayes-rec-note">
-      <strong>Bayesian signal:</strong> ${htmlText(bayesSignal.label)} · ${htmlText(bayesSignal.reason)}
-      <br><span class="muted">Posterior ability ${formatPercent(bayesian.posterior.mean)} (${formatPercent(bayesian.posterior.lower)}–${formatPercent(bayesian.posterior.upper)} credible interval), ${htmlText(bayesian.reliability.label.toLowerCase())}</span>
-    </div>` : "";
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    ${bayesSignal ? `<span class="badge">Bayesian: ${htmlText(bayesSignal.action)}</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and Bayesian confidence for success-rate drills.</p>
-    ${bayesLine}
-    <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p><div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
   const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -3956,7 +3934,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.14.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.12.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4006,7 +3984,6 @@ function getRoutinePriorityReasons(item){
   if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
   if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
   if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
-  if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -4084,10 +4061,9 @@ function routineStats(routineId) {
   const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, Math.abs(avg(vals))) * 30) : 5;
   const modePenalty = recommendationMode(routine) === "occasional" ? 8 : 0;
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
-  const bayesian = bayesianStatsForRoutine(routineId);
   return {
-    logs, vals, hit, recent, prior, bayesian,
-    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0)
+    logs, vals, hit, recent, prior,
+    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty
   };
 }
 
@@ -4428,9 +4404,7 @@ function renderLivePerformanceCard(r){
     <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
     <div><span>Target</span><strong>${target || "N/A"}</strong></div>
     <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
-    <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>
-  </div>`;
-}
+    <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ")
 
 function ensureBayesianValidationPanel() {
   const statsPanel = $("stats");
@@ -4442,6 +4416,11 @@ function ensureBayesianValidationPanel() {
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureBayesianValidationPanel);
 else ensureBayesianValidationPanel();
+ : "N/A"}</strong></div>
+  </div>`;
+}
+
+
 
 function renderBayesianValidationForRoutine(routineId) {
   const r = routineById(routineId);

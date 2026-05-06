@@ -1,41 +1,17 @@
-# Snooker Practice Log — v4.14.1
+# Snooker Practice Log — v4.12.0.2.1
 
-Built from the stable v4 architecture line.
+Built from the validated v4.0.0 ES-module release.
 
-## Current release: v4.14.1
+## v4.12.0.2.1 production-safety patch
 
-Smart Recommendation now uses the Bayesian confidence signal introduced in v4.12 and integrated into ranking in v4.13.
-
-### v4.14.1 changes
-
-- Added Bayesian signal visibility inside the main Smart Recommendation card.
-- Shows the Bayesian action, reason, posterior ability estimate, credible interval, and confidence label for success-rate drills.
-- Smart Recommendation scoring now includes Bayesian confidence deltas for success-rate routines.
-- Preserved the v4.7.3 storage fix and v4.8.2 rendering rollback safety.
-- No storage, IndexedDB, session lifecycle, or render-orchestration changes.
-
-## Key stability checkpoints preserved
-
-- `saveCoreData()` and `serializeCoreData()` are present.
-- IndexedDB logs/sessions storage remains active.
-- IndexedDB recovery helper is present.
-- `renderToday()` and `renderStats()` remain in `app-core.js`.
-- `render.js` remains limited to the validated low-risk Phase 1 extraction.
-- Service worker cache marker is `snooker-practice-log-v4-14-0-final`.
-
-## Module structure
-
-- `app.js` — ES module bootstrap.
-- `modules/app-core.js` — app orchestration, state, session flow, major rendering.
-- `modules/store.js` — IndexedDB/localStorage primitives.
-- `modules/utils.js` — generic helpers.
-- `modules/settings.js` — theme/interface settings helpers.
-- `modules/analytics.js` — statistical helpers.
-- `modules/bayesian.js` — Bayesian success-rate analytics.
-- `modules/session.js` — session/timer primitives.
-- `modules/recommendations.js` — recommendation helpers.
-- `modules/render.js` — validated low-risk render helpers.
-- `modules/version.js` — version constants.
+- Fixed IndexedDB save race risk by writing critical log/session changes immediately instead of relying on a delayed timer.
+- Added single-record IndexedDB helpers for log/session puts and log deletion.
+- Kept full IndexedDB replacement only for migration, import, clear-data, and synthetic-test workflows.
+- Added a hydration guard so `saveData()` cannot persist empty log/session arrays before IndexedDB hydration completes.
+- Added `visibilitychange` / `beforeunload` flushing for pending non-critical IndexedDB syncs.
+- Updated service-worker cache fallback to use `ignoreSearch: true` so offline loading works with or without version query strings.
+- Removed global `window` exposure for state variables (`data`, `activeSession`, `planDraft`, `adaptivePlanDraft`) while keeping the legacy function bridge for generated inline handlers.
+- Documented that ES-module local development requires a web server, not direct `file://` opening.
 
 ## Local development
 
@@ -45,26 +21,121 @@ Because v4 uses ES modules, do not open `index.html` directly via `file://`. Run
 python -m http.server
 ```
 
-Then open:
+Then open `http://localhost:8000/`.
 
-```text
-http://localhost:8000/
-```
+## Package
 
-## Upgrade / testing checklist
+Root-level PWA files plus `/modules`:
 
-After deploying v4.14.1:
+- `index.html`
+- `app.js`
+- `styles.css`
+- `manifest.json`
+- `service-worker.js`
+- `icon.svg`
+- `README.md`
+- `modules/app-core.js`
+- `modules/version.js`
 
-1. Open the app and verify no IndexedDB fallback warning appears.
-2. Check Data → storage integrity.
-3. Confirm the loaded app version shows `4.14.1-final`.
-4. Open Smart Recommendation and verify Bayesian signal text appears for success-rate routines with data.
-5. Log a success-rate drill and confirm Bayesian validation still updates.
-6. Confirm Today and Stats tabs still render normally.
-7. Export a full backup.
+Confirm version: the header should show v4.12.0.2.1.
 
 
-## v4.14.1
+## v4.12.0.2.1
 
-- Hotfix: repaired malformed `renderLivePerformanceCard()` template caused by misplaced Bayesian validation helpers in v4.14.0.
-- Restored tab binding/data hydration startup by making `app-core.js` parse as a valid ES module.
+- First small ES module split: IndexedDB/localStorage primitives moved into `modules/store.js`.
+- `modules/app-core.js` keeps orchestration, rendering, and application state for now.
+- No feature changes; this is a controlled modularization step before deeper v4 splits.
+
+
+## v4.12.0.2.1
+
+- Second small ES module split: shared utilities moved into `modules/utils.js`.
+- Extracted UUID generation, safe cloning, HTML/attribute escaping, numeric formatting helpers, CSS escaping, class-token guarding, and immutable sort helper.
+- No feature changes; this is a controlled modularization step.
+
+
+## v4.12.0.2.1
+
+- Third small ES module split: interface setting constants and theme helpers moved into `modules/settings.js`.
+- `app-core.js` still owns session focus state and event binding so runtime behavior remains unchanged.
+- No feature changes; this is another controlled modularization step.
+
+
+## v4.12.0.2.1
+
+- Fourth small ES module split: pure analytics helpers moved into `modules/analytics.js`.
+- Extracted average, standard deviation, correlation text, rolling average, trend/benchmark text, and progress-velocity helpers.
+- UI rendering, session flow, recommendations, and app state remain in `app-core.js`.
+
+
+## v4.12.0.2.1
+
+- Fifth small ES module split: session/timer primitives moved into `modules/session.js`.
+- Extracted active-session draft read/write/clear helpers and timer-state formatting/math helpers.
+- High-risk logging flow, rendering, and active session orchestration remain in `app-core.js` for stability.
+
+
+## v4.12.0.2.1
+
+- Sixth small ES module split: recommendation eligibility and weighting-cap helpers moved into `modules/recommendations.js`.
+- Adaptive/session recommendation orchestration remains in `app-core.js` for stability.
+- No feature changes; this release continues the controlled modularization path.
+
+
+## v4.12.0.2
+
+- Hotfix: hardened IndexedDB schema initialization after the v4.7 module split.
+- Bumped IndexedDB schema version to force object-store validation/upgrade.
+- Added clearer handling for blocked IndexedDB upgrades when another app tab is open.
+
+
+## v4.12.0.2
+
+- Hotfix: startup IndexedDB hydration now opens the database once and reads logs/sessions in a single transaction.
+- Avoids parallel IndexedDB open/upgrade races observed on Android Chrome/PWA installs.
+- Blocked upgrades now wait instead of immediately forcing localStorage fallback.
+
+
+## v4.12.0.2
+
+- Hotfix: restored missing `serializeCoreData()` and `saveCoreData()` functions lost during module splitting.
+- IndexedDB hydration now recovers once from a broken/missing-store database by recreating the database and retrying.
+- No feature changes; this is a startup/storage regression fix.
+
+
+## v4.12.0
+
+- Hotfix rollback of failed v4.8 Phase 2.
+- Keeps validated v4.8 Phase 1 only: low-risk pure render helpers in `modules/render.js`.
+- `renderToday`, `renderStats`, storage diagnostics, routine rendering, and dashboard rendering remain in `app-core.js` because they depend on app-scoped state and helper functions.
+- No storage, IndexedDB, or session logic changes.
+
+
+## v4.12.0
+
+- Final controlled architecture split: pure adaptive/recommendation scoring helpers moved into `modules/recommendations.js`.
+- Extracted adaptive action copy, adaptive priority scoring, and mixed-strategy routine scoring as pure parameterized functions.
+- Stateful adaptive orchestration, rendering, and session flow remain in `app-core.js` to avoid the failed v4.8 Phase 2 dependency issue.
+- Preserves the validated v4.8.2 rollback and v4.7.3 storage fixes.
+
+
+## v4.12.0
+
+- Mobile practice-flow release.
+- Added a bottom-sheet exercise picker for free training and next-routine selection.
+- Existing native dropdowns remain as fallback.
+- Added search inside the picker with large tappable exercise rows.
+- Polished focus-mode layout with sticky session header and larger quick-score controls.
+- No storage, IndexedDB, render orchestration, or module-splitting changes.
+
+
+## v4.12.0
+
+- Added Bayesian analytics validation for success-rate drills using a beta-binomial model.
+- Added confidence/reliability labels, credible intervals, and target decision guidance.
+- Added bottom-sheet picker support for plan-builder routine selection and stats routine filtering.
+- Added favorite routines and recent routines in the bottom-sheet picker.
+- Added a favorite toggle in the exercise database.
+- Added repeat-last-score-setup shortcut in quick-score controls.
+- Improved focus-mode Save/Next layout.
+- No storage or IndexedDB architecture changes.
