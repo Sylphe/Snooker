@@ -685,3 +685,9 @@ body.session-focus-active #skipBtn{
   font-size:12px;
   font-weight:800;
 }
+
+/* v4.14 smart recommendation Bayesian integration */
+.bayes-rec-note{
+  margin-top:10px;
+  border-left:4px solid var(--felt);
+}

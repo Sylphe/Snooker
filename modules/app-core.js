@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.13.0";
+import { APP_VERSION } from "./version.js?v=4.14.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.13.0";
+} from "./utils.js?v=4.14.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.13.0";
+} from "./settings.js?v=4.14.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.13.0";
+} from "./analytics.js?v=4.14.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -42,7 +42,7 @@ import {
   formatPercent,
   bayesianAdvice,
   bayesianRecommendationSignal
-} from "./bayesian.js?v=4.13.0";
+} from "./bayesian.js?v=4.14.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -51,7 +51,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.13.0";
+} from "./session.js?v=4.14.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -63,8 +63,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.13.0";
-import * as RenderHelpers from "./render.js?v=4.13.0";
+} from "./recommendations.js?v=4.14.0";
+import * as RenderHelpers from "./render.js?v=4.14.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -75,7 +75,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.13.0";
+} from "./store.js?v=4.14.0";
 
 
 
@@ -1915,8 +1915,10 @@ function renderSmartRecommendation() {
       const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
       const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
       const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
-      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty;
-      return {rid, logs, score, hit, recent, prior};
+      const bayesian = bayesianStatsForRoutine(rid);
+      const bayesDelta = bayesian?.signal?.scoreDelta || 0;
+      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty + bayesDelta;
+      return {rid, logs, score, hit, recent, prior, bayesian};
     }).sort((a,b)=>b.score-a.score);
   const top = candidates[0];
   const routine = top ? routineById(top.rid) : null;
@@ -1927,11 +1929,20 @@ function renderSmartRecommendation() {
     box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
+  const bayesian = top.bayesian;
+  const bayesSignal = bayesian?.signal;
+  const bayesLine = bayesian ? `<div class="analytics-note bayes-rec-note">
+      <strong>Bayesian signal:</strong> ${htmlText(bayesSignal.label)} · ${htmlText(bayesSignal.reason)}
+      <br><span class="muted">Posterior ability ${formatPercent(bayesian.posterior.mean)} (${formatPercent(bayesian.posterior.lower)}–${formatPercent(bayesian.posterior.upper)} credible interval), ${htmlText(bayesian.reliability.label.toLowerCase())}</span>
+    </div>` : "";
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p><div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+    ${bayesSignal ? `<span class="badge">Bayesian: ${htmlText(bayesSignal.action)}</span>` : ""}
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and Bayesian confidence for success-rate drills.</p>
+    ${bayesLine}
+    <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
   const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -3945,7 +3956,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.13.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.14.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
