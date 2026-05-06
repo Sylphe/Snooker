@@ -1,4 +1,4 @@
-/* v4.11.0 phase1: extracted pure render helpers */
+/* v4.13.0 phase1: extracted pure render helpers */
 
 function renderLogRow(l) {
   return `<tr data-log-row-id="${attrText(l.id)}">
