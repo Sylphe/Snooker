@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.8.0";
+import { APP_VERSION } from "./version.js?v=4.9.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.8.0";
+} from "./utils.js?v=4.9.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.8.0";
+} from "./settings.js?v=4.9.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.8.0";
+} from "./analytics.js?v=4.9.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.8.0";
+} from "./session.js?v=4.9.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -51,9 +51,12 @@ import {
   recommendationUndertrainingMultiplier,
   recommendationModeLabel,
   cappedRecencyDays,
-  applyRecommendationCap
-} from "./recommendations.js?v=4.8.0";
-import * as RenderHelpers from "./render.js?v=4.8.0";
+  applyRecommendationCap,
+  adaptiveActionForState,
+  scoreAdaptivePriority,
+  scoreMixedStrategyRoutine
+} from "./recommendations.js?v=4.9.0";
+import * as RenderHelpers from "./render.js?v=4.9.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -64,7 +67,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.8.0";
+} from "./store.js?v=4.9.0";
 
 
 
@@ -1697,48 +1700,9 @@ function adaptiveRoutineState(routineId) {
 }
 
 function adaptivePriorityScore(state, goal="auto") {
-  let score = 0;
-  const r = state.routine;
-  if (!r) return -999;
-  if (r.isAnchor) score += 18;
-  if (state.hit !== null) score += Math.max(0, 75 - state.hit) * 0.4;
-  if (state.psi && state.psi.psi < 70) score += (70 - state.psi.psi) * 0.35;
-  if (state.drift && state.drift.deltaPct < 0) score += Math.min(20, Math.abs(state.drift.deltaPct));
-  if (state.plateau && state.plateau.isPlateau) score += 14;
-  if (state.days >= 7) score += Math.min(12, Math.min(state.days, recommendationRecencyCap(r)));
-  if (undertrainedCategoryBonus(r.id)) score += undertrainedCategoryBonus(r.id) * 0.8 * recommendationUndertrainingMultiplier(r);
-
-  if (goal === "stability") {
-    if (state.phase === "stabilize" || r.isAnchor) score += 25;
-  } else if (goal === "progression") {
-    if (state.phase === "progress" || state.upgrade) score += 25;
-  } else if (goal === "recovery") {
-    if (state.phase === "recover" || (state.fatigue && state.fatigue.slope < -0.25)) score += 25;
-  } else if (goal === "variety") {
-    if (state.phase === "vary" || state.days >= 10) score += recommendationMode(r) === "occasional" ? 10 : 18;
-  } else {
-    if (["stabilize","progress","vary","recover","refresh"].includes(state.phase)) score += 15;
-  }
-  return score;
-}
-
-function adaptiveActionForState(state) {
-  switch(state.phase) {
-    case "baseline":
-      return "Log baseline data with normal target. Do not adjust difficulty yet.";
-    case "stabilize":
-      return "Repeat current setup. Keep target stable and focus on consistency.";
-    case "progress":
-      return state.upgrade ? "Increase target or constraint. Apply target version if appropriate." : "Raise difficulty slightly or add a constraint.";
-    case "vary":
-      return "Inject one variation: position, distance, cushion, or random order.";
-    case "recover":
-      return "Use lighter block. Reduce duration or complexity; avoid target increase.";
-    case "refresh":
-      return "Re-test this drill to keep the dataset current.";
-    default:
-      return "Maintain current drill and collect more evidence.";
-  }
+  const r = state?.routine;
+  const undertrained = r ? undertrainedCategoryBonus(r.id) : 0;
+  return scoreAdaptivePriority(state, goal, undertrained);
 }
 
 function adaptiveSessionStructure(goal, duration, strictness) {
@@ -3925,7 +3889,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.8.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.9.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3981,16 +3945,9 @@ function getRoutinePriorityReasons(item){
   return reasons;
 }
 function routineMixedStrategyScore(routine,stats,strategy){
-  if (recommendationMode(routine) === "excluded") return -999;
-  let score=stats.score||0;
-  const days=stats.logs.length?daysSince(stats.logs[stats.logs.length-1].createdAt):recommendationRecencyCap(routine);
-  const cappedDays=cappedRecencyDays(days, routine);
-  const undertraining=undertrainedCategoryBonus(routine.id)*recommendationUndertrainingMultiplier(routine);
-  if(strategy==="exploit") score+=(stats.hit===null?5:Math.max(0,80-stats.hit)*0.55);
-  else if(strategy==="explore"){score+=Math.min(24,cappedDays*1.5); score+=undertraining*1.1;}
-  else {score+=Math.min(14,cappedDays); score+=routine.isAnchor?8:0;}
-  if (recommendationMode(routine) === "occasional") score -= 8;
-  return score;
+  const days = stats.logs.length ? daysSince(stats.logs[stats.logs.length-1].createdAt) : recommendationRecencyCap(routine);
+  const undertrainedBonus = undertrainedCategoryBonus(routine.id);
+  return scoreMixedStrategyRoutine({routine, stats, strategy, days, undertrainedBonus});
 }
 function weightedPick(items,usedIds){
   const pool=items.filter(x=>!usedIds.has(x.routine.id)); if(!pool.length) return null;
