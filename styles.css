@@ -613,3 +613,81 @@ body.session-focus-active #quickScoreControls button{
   .routine-picker-backdrop{align-items:center;}
   .routine-picker-sheet{border-radius:24px;}
 }
+
+
+/* v4.12 Bayesian validation and practice-flow polish */
+.routine-picker-group{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:850;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  padding:12px 6px 2px;
+}
+.bayes-card{
+  border:1px solid var(--line);
+  border-left-width:5px;
+  border-radius:16px;
+  background:var(--card);
+  color:var(--text);
+  padding:13px;
+  margin:10px 0;
+}
+.bayes-low{border-left-color:var(--danger);}
+.bayes-medium{border-left-color:var(--gold);}
+.bayes-high{border-left-color:var(--felt);}
+.bayes-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin:10px 0;
+}
+.bayes-grid div{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:8px;
+  background:var(--panel-bg, var(--card));
+}
+.bayes-grid span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+}
+.bayes-grid strong{
+  display:block;
+  margin-top:3px;
+}
+body.session-focus-active .primary-action-row{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:8px;
+}
+body.session-focus-active #saveNextBtn{
+  min-height:52px;
+  font-size:17px;
+}
+body.session-focus-active #skipBtn{
+  min-height:52px;
+}
+@media(max-width:760px){
+  .bayes-grid{grid-template-columns:1fr 1fr;}
+}
+
+/* v4.13 Bayesian recommendation signal */
+.bayes-signal{
+  display:inline-block;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:4px 8px;
+  margin:3px;
+  background:var(--panel-bg, var(--card));
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+}
+
+/* v4.14 smart recommendation Bayesian integration */
+.bayes-rec-note{
+  margin-top:10px;
+  border-left:4px solid var(--felt);
+}
