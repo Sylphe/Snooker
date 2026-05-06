@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.11.0";
+import { APP_VERSION } from "./version.js?v=4.14.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.11.0";
+} from "./utils.js?v=4.14.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.11.0";
+} from "./settings.js?v=4.14.1";
 import {
   avg,
   stdDev,
@@ -34,7 +34,15 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.11.0";
+} from "./analytics.js?v=4.14.1";
+import {
+  betaPosterior,
+  aggregateSuccessRateLogs,
+  bayesianReliabilityLabel,
+  formatPercent,
+  bayesianAdvice,
+  bayesianRecommendationSignal
+} from "./bayesian.js?v=4.14.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +51,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.11.0";
+} from "./session.js?v=4.14.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -55,8 +63,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.11.0";
-import * as RenderHelpers from "./render.js?v=4.11.0";
+} from "./recommendations.js?v=4.14.1";
+import * as RenderHelpers from "./render.js?v=4.14.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -67,7 +75,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.11.0";
+} from "./store.js?v=4.14.1";
 
 
 
@@ -458,6 +466,47 @@ function folders() { return [...new Set(activeRoutines().map(r => r.folder || "U
 function subfolders() { return [...new Set(activeRoutines().map(r => r.subfolder || "General"))].sort(); }
 function routineById(id) { return (data.routines || []).find(r => r.id === id); }
 
+function favoriteRoutineIds() { return new Set(data.favoriteRoutineIds || []); }
+function isFavoriteRoutine(id) { return favoriteRoutineIds().has(id); }
+function toggleFavoriteRoutine(id) {
+  data.favoriteRoutineIds = data.favoriteRoutineIds || [];
+  if (data.favoriteRoutineIds.includes(id)) data.favoriteRoutineIds = data.favoriteRoutineIds.filter(x => x !== id);
+  else data.favoriteRoutineIds.push(id);
+  saveData({render:"all", immediateIDB:true});
+}
+function recentRoutineIds(limit=8) {
+  const ids = [];
+  (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).forEach(l => {
+    if (l.routineId && !ids.includes(l.routineId) && routineById(l.routineId) && !routineById(l.routineId).isDeleted) ids.push(l.routineId);
+  });
+  return ids.slice(0, limit);
+}
+function getLastLogForRoutine(routineId) {
+  return (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0] || null;
+}
+function bayesianStatsForRoutine(routineId) {
+  const r = routineById(routineId);
+  if (!r || r.scoring !== "success_rate") return null;
+  const logs = (data.logs || []).filter(l => l.routineId === routineId && l.scoring === "success_rate");
+  const agg = aggregateSuccessRateLogs(logs);
+  const posterior = betaPosterior(agg.successes, agg.attempts);
+  const reliability = bayesianReliabilityLabel(posterior);
+  const signal = bayesianRecommendationSignal({posterior, targetPct:Number(r.target || 0)});
+  return {agg, posterior, reliability, signal};
+}
+function applyLastScoreSetup() {
+  if (!activeSession) return;
+  const r = routineById(activeSession.routineIds[activeSession.index]);
+  if (!r) return;
+  const last = getLastLogForRoutine(r.id);
+  if (!last) return alert("No previous log for this exercise yet.");
+  if ($("scoreValue")) $("scoreValue").value = Number(last.score || 0);
+  if ($("attemptsValue")) $("attemptsValue").value = Number(last.attempts || r.attempts || 0);
+  if ($("manualTimeValue")) $("manualTimeValue").value = Number(last.timeMinutes || r.duration || 0);
+  if ($("practiceNotes") && last.notes) $("practiceNotes").value = last.notes;
+  refreshCurrentRoutineLivePerformance();
+}
+
 function normalizeScore(log) {
   if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
   if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
@@ -524,6 +573,7 @@ function renderAll() {
   renderTodayResumeCard();
   renderTableStats();
   renderPhaseOneInsights();
+  renderBayesianAnalyticsValidation();
   renderInterfaceSettings();
   updateSessionFocusState();
   if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
@@ -592,7 +642,8 @@ function renderRoutineItem(r) {
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
       <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
-      <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
+      <button class="secondary" data-action="toggle-favorite-routine" data-id="${attrText(r.id)}">${isFavoriteRoutine(r.id) ? "Unfavorite" : "Favorite"}</button>
+              <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
       <button class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
     </div>
   </div>`;
@@ -863,6 +914,8 @@ function renderCurrentRoutine() {
   $("currentRoutineName").textContent = r.name;
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
   $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
+  const saveBtn = $("saveNextBtn");
+  if (saveBtn) saveBtn.textContent = activeSession.index >= activeSession.routineIds.length - 1 ? "Save & Finish" : "Save & Next";
   $("practiceNotes").value = "";
   $("sessionVenueTable").value = activeSession.tableId || getLastTableId() || "";
   
@@ -947,7 +1000,8 @@ function renderQuickScoreControls(r) {
           <button class="secondary" type="button" data-action="score-set" data-score="${attempts}">Max</button>
           <button class="secondary" type="button" data-action="score-adjust" data-delta="-1">-1</button>
           <button class="secondary" type="button" data-action="score-adjust" data-delta="1">+1</button>
-          <button class="secondary" type="button" data-action="same-as-last">Same as last</button>
+          <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
         </div>
         ${autoMacros ? `<div class="quick-score-row quick-log-row">
           <button type="button" data-action="quick-log" data-score="0">Log 0 & next</button>
@@ -963,7 +1017,8 @@ function renderQuickScoreControls(r) {
         <button class="secondary" type="button" data-action="score-adjust" data-delta="5">+5</button>
         <button class="secondary" type="button" data-action="score-adjust" data-delta="10">+10</button>
         <button class="secondary" type="button" data-action="score-set" data-score="0">Clear</button>
-        <button class="secondary" type="button" data-action="same-as-last">Same as last</button>
+        <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
       </div>`;
   }
 }
@@ -1860,8 +1915,10 @@ function renderSmartRecommendation() {
       const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
       const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
       const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
-      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty;
-      return {rid, logs, score, hit, recent, prior};
+      const bayesian = bayesianStatsForRoutine(rid);
+      const bayesDelta = bayesian?.signal?.scoreDelta || 0;
+      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty + bayesDelta;
+      return {rid, logs, score, hit, recent, prior, bayesian};
     }).sort((a,b)=>b.score-a.score);
   const top = candidates[0];
   const routine = top ? routineById(top.rid) : null;
@@ -1872,11 +1929,20 @@ function renderSmartRecommendation() {
     box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
+  const bayesian = top.bayesian;
+  const bayesSignal = bayesian?.signal;
+  const bayesLine = bayesian ? `<div class="analytics-note bayes-rec-note">
+      <strong>Bayesian signal:</strong> ${htmlText(bayesSignal.label)} · ${htmlText(bayesSignal.reason)}
+      <br><span class="muted">Posterior ability ${formatPercent(bayesian.posterior.mean)} (${formatPercent(bayesian.posterior.lower)}–${formatPercent(bayesian.posterior.upper)} credible interval), ${htmlText(bayesian.reliability.label.toLowerCase())}</span>
+    </div>` : "";
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p><div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+    ${bayesSignal ? `<span class="badge">Bayesian: ${htmlText(bayesSignal.action)}</span>` : ""}
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and Bayesian confidence for success-rate drills.</p>
+    ${bayesLine}
+    <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
   const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -3890,7 +3956,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.11.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.14.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3940,6 +4006,7 @@ function getRoutinePriorityReasons(item){
   if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
   if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
   if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
+  if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -4017,9 +4084,10 @@ function routineStats(routineId) {
   const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, Math.abs(avg(vals))) * 30) : 5;
   const modePenalty = recommendationMode(routine) === "occasional" ? 8 : 0;
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
+  const bayesian = bayesianStatsForRoutine(routineId);
   return {
-    logs, vals, hit, recent, prior,
-    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty
+    logs, vals, hit, recent, prior, bayesian,
+    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0)
   };
 }
 
@@ -4315,6 +4383,7 @@ function handleDelegatedUIAction(event) {
     case "edit-routine": return editRoutine(id);
     case "duplicate-routine": return duplicateRoutine(id);
     case "delete-routine": return deleteRoutine(id);
+    case "toggle-favorite-routine": return toggleFavoriteRoutine(id);
     case "move-plan-routine": return movePlanRoutine(Number(actionEl.dataset.index || 0), Number(actionEl.dataset.direction || 0));
     case "remove-plan-routine": return removePlanRoutine(Number(actionEl.dataset.index || 0));
     case "load-plan": return loadPlanToBuilder(id);
@@ -4326,6 +4395,7 @@ function handleDelegatedUIAction(event) {
     case "score-set": setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
     case "score-adjust": adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
+    case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
     case "open-data-tab": return document.querySelector('[data-tab="data"]')?.click();
     case "apply-target-upgrade": return applyTargetUpgrade(id);
@@ -4362,6 +4432,50 @@ function renderLivePerformanceCard(r){
   </div>`;
 }
 
+function ensureBayesianValidationPanel() {
+  const statsPanel = $("stats");
+  if (!statsPanel || $("bayesianValidationOutput")) return;
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<div id="bayesianValidationOutput"></div>`;
+  statsPanel.appendChild(card);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureBayesianValidationPanel);
+else ensureBayesianValidationPanel();
+
+function renderBayesianValidationForRoutine(routineId) {
+  const r = routineById(routineId);
+  if (!r || r.scoring !== "success_rate") return "";
+  const logs = (data.logs || []).filter(l => l.routineId === routineId && l.scoring === "success_rate");
+  const agg = aggregateSuccessRateLogs(logs);
+  const posterior = betaPosterior(agg.successes, agg.attempts);
+  const reliability = bayesianReliabilityLabel(posterior);
+  const target = Number(r.target || 0);
+  return `<div class="bayes-card bayes-${safeClassToken(reliability.level, ["low","medium","high"], "low")}">
+    <strong>Bayesian confidence — ${htmlText(r.name)}</strong>
+    <div class="bayes-grid">
+      <div><span>Posterior ability</span><strong>${formatPercent(posterior.mean)}</strong></div>
+      <div><span>Credible interval</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
+      <div><span>Evidence</span><strong>${numText(agg.attempts, "0")} attempts / ${numText(agg.sessions, "0")} logs</strong></div>
+      <div><span>Reliability</span><strong>${htmlText(reliability.label)}</strong></div>
+    </div>
+    <p class="muted">${htmlText(reliability.detail)} ${htmlText(bayesianAdvice(posterior, target))}</p>
+  </div>`;
+}
+function renderBayesianAnalyticsValidation() {
+  const box = $("bayesianValidationOutput");
+  if (!box) return;
+  const selected = $("statsRoutineSelect")?.value || "";
+  const successRoutines = activeRoutines().filter(r => r.scoring === "success_rate");
+  const chosen = selected && selected !== "all" ? successRoutines.filter(r => r.id === selected) : successRoutines.slice(0, 8);
+  if (!chosen.length) {
+    box.innerHTML = `<div class="analytics-note">Bayesian validation currently applies to success-rate drills. Create or select a success-rate drill to see confidence estimates.</div>`;
+    return;
+  }
+  box.innerHTML = `<h3>Bayesian analytics validation</h3>
+    <p class="muted">Beta-binomial confidence estimates for success-rate drills. Use this to avoid overreacting to small samples.</p>
+    ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
+}
 
 /* v4.11 mobile practice-flow helpers */
 function ensureRoutinePickerSheet() {
@@ -4412,20 +4526,36 @@ function routinePickerSourceOptions() {
   if (!select) return [];
   return [...select.options].filter(o => o.value).map(o => ({id:o.value, label:o.textContent || o.value}));
 }
+function routinePickerOrderedOptions() {
+  const options = routinePickerSourceOptions();
+  const byId = new Map(options.map(o => [o.id, o]));
+  const favs = [...favoriteRoutineIds()].map(id => byId.get(id)).filter(Boolean);
+  const recents = recentRoutineIds(8).map(id => byId.get(id)).filter(Boolean).filter(o => !favs.some(f => f.id === o.id));
+  const rest = options.filter(o => !favs.some(f => f.id === o.id) && !recents.some(r => r.id === o.id));
+  return [
+    ...favs.map(o => ({...o, group:"Favorites"})),
+    ...recents.map(o => ({...o, group:"Recent"})),
+    ...rest.map(o => ({...o, group:"All exercises"}))
+  ];
+}
 function renderRoutinePickerList() {
   const list = $("routinePickerList");
   if (!list) return;
   const q = ($("routinePickerSearch")?.value || "").trim().toLowerCase();
-  const options = routinePickerSourceOptions().filter(o => !q || o.label.toLowerCase().includes(q));
+  const options = routinePickerOrderedOptions().filter(o => !q || o.label.toLowerCase().includes(q));
   if (!options.length) {
     list.innerHTML = `<div class="routine-picker-empty">No matching exercise.</div>`;
     return;
   }
+  let lastGroup = "";
   list.innerHTML = options.map(o => {
     const r = routineById(o.id);
     const meta = r ? `${htmlText(r.folder || "Unfiled")} · ${htmlText(r.subfolder || "General")} · ${htmlText(r.scoring || "")}` : "";
-    return `<button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
-      <span><strong>${htmlText(o.label)}</strong>${meta ? `<small>${meta}</small>` : ""}</span>
+    const group = o.group || "All exercises";
+    const header = group !== lastGroup ? `<div class="routine-picker-group">${htmlText(group)}</div>` : "";
+    lastGroup = group;
+    return `${header}<button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
+      <span><strong>${isFavoriteRoutine(o.id) ? "★ " : ""}${htmlText(o.label)}</strong>${meta ? `<small>${meta}</small>` : ""}</span>
       <span class="routine-picker-chevron">›</span>
     </button>`;
   }).join("");
@@ -4442,7 +4572,9 @@ function renderRoutinePickerList() {
 function ensureRoutinePickerButtons() {
   [
     ["freeRoutineSelect", "Open Exercise Picker", "Choose free training routine"],
-    ["nextFreeRoutineSelect", "Open Exercise Picker", "Choose next routine"]
+    ["nextFreeRoutineSelect", "Open Exercise Picker", "Choose next routine"],
+    ["routineToAdd", "Open Exercise Picker", "Choose routine for plan"],
+    ["statsRoutineSelect", "Open Exercise Picker", "Choose stats routine"]
   ].forEach(([selectId, label, title]) => {
     const select = $(selectId);
     if (!select || select.dataset.pickerButtonReady === "1") return;
