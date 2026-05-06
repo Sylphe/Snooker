@@ -1,20 +1,20 @@
-const CACHE_NAME = "snooker-practice-log-v4-14-1-final";
+const CACHE_NAME = "snooker-practice-log-v4-14-2-final";
 const ASSETS = [
-  "./index.html?v=4.14.1",
-  "./styles.css?v=4.14.1",
-  "./app.js?v=4.14.1",
-  "./modules/app-core.js?v=4.14.1",
-  "./modules/version.js?v=4.14.1",
-  "./modules/store.js?v=4.14.1",
-  "./modules/utils.js?v=4.14.1",
-  "./modules/settings.js?v=4.14.1",
-  "./modules/analytics.js?v=4.14.1",
-  "./modules/bayesian.js?v=4.14.1",
-  "./modules/session.js?v=4.14.1",
-  "./modules/recommendations.js?v=4.14.1",
-  "./modules/render.js?v=4.14.1",
-  "./manifest.json?v=4.14.1",
-  "./icon.svg?v=4.14.1"
+  "./index.html?v=4.14.2",
+  "./styles.css?v=4.14.2",
+  "./app.js?v=4.14.2",
+  "./modules/app-core.js?v=4.14.2",
+  "./modules/version.js?v=4.14.2",
+  "./modules/store.js?v=4.14.2",
+  "./modules/utils.js?v=4.14.2",
+  "./modules/settings.js?v=4.14.2",
+  "./modules/analytics.js?v=4.14.2",
+  "./modules/bayesian.js?v=4.14.2",
+  "./modules/session.js?v=4.14.2",
+  "./modules/recommendations.js?v=4.14.2",
+  "./modules/render.js?v=4.14.2",
+  "./manifest.json?v=4.14.2",
+  "./icon.svg?v=4.14.2"
 ];
 
 self.addEventListener("install", event => {
@@ -34,7 +34,7 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  const isAppFile = ["index.html", "app.js", "app-core.js", "version.js", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+  const isAppFile = url.pathname.endsWith(".js") || ["index.html", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
   if (isAppFile) {
     event.respondWith(fetch(request).then(response => {
       const copy = response.clone();

@@ -78,7 +78,7 @@ svg.chart{height:170px!important;min-width:280px}
 .quick-score button{padding:8px 10px;font-size:13px;flex:0 0 auto}
 .primary-action-row button:first-child{flex:2}
 input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);border-color:#c7a753}
-.sticky-log-actions{position:sticky;bottom:0;background:rgba(244,246,242,.94);backdrop-filter:blur(4px);padding:10px;border-top:1px solid var(--line);margin:12px -18px -18px}
+.sticky-log-actions{position:sticky;bottom:env(safe-area-inset-bottom, 0px);background:rgba(244,246,242,.94);backdrop-filter:blur(4px);padding:10px;border-top:1px solid var(--line);margin:12px -18px -18px}
 @media(max-width:760px){.quick-score button{flex:1 1 28%}.sticky-log-actions{margin-left:-18px;margin-right:-18px}}
 
 /* v3.7 coaching engine / stats overview */
@@ -310,7 +310,7 @@ body.session-focus-active #activeSession{min-height:calc(100vh - 20px);border-ra
 body.session-focus-active #routineDescriptionBox{display:none!important}
 body.session-focus-active .session-focus-optional{display:none!important}
 body.session-focus-active #sessionExtraFields{display:block!important}
-body.session-focus-active .sticky-log-actions{position:sticky;bottom:8px;background:var(--panel-bg);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:var(--shadow)}
+body.session-focus-active .sticky-log-actions{position:sticky;bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);background:var(--panel-bg);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:var(--shadow)}
 @media(max-width:760px){.live-perf{grid-template-columns:1fr 1fr}.live-perf>div{border-right:0;border-bottom:1px solid var(--line);padding-bottom:6px}.live-perf>div:last-child{border-bottom:0}.score-chip-grid{grid-template-columns:repeat(5,1fr)}body.session-focus-active main{padding:6px}body.session-focus-active #activeSession{border-radius:0;min-height:100vh}}
 
 /* Theme tokens */
@@ -684,10 +684,4 @@ body.session-focus-active #skipBtn{
   color:var(--text);
   font-size:12px;
   font-weight:800;
-}
-
-/* v4.14 smart recommendation Bayesian integration */
-.bayes-rec-note{
-  margin-top:10px;
-  border-left:4px solid var(--felt);
 }
