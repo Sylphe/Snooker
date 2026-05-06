@@ -511,3 +511,105 @@ body.session-focus-active .sticky-log-actions{background:var(--panel-bg);border-
 .storage-backup-value{font-size:16px!important;line-height:1.2}
 body[data-theme] :is(.storage-dashboard,.storage-status){background:var(--panel-bg);color:var(--text);border-color:var(--line)}
 body[data-theme] .storage-status-top span{color:var(--muted)}
+
+
+/* v4.11 mobile practice-flow polish */
+.routine-picker-trigger{
+  margin-top:8px;
+  width:100%;
+}
+.routine-picker-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.42);
+  z-index:1200;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  padding:12px;
+}
+.routine-picker-sheet{
+  width:min(720px,100%);
+  max-height:82vh;
+  overflow:hidden;
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:24px 24px 16px 16px;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+}
+.routine-picker-handle{
+  width:46px;
+  height:5px;
+  border-radius:999px;
+  background:var(--line);
+  margin:10px auto 4px;
+}
+.routine-picker-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 16px 8px;
+  border-bottom:1px solid var(--line);
+}
+.routine-picker-header p{margin:4px 0 0;}
+.routine-picker-search{
+  margin:12px 16px;
+  width:calc(100% - 32px);
+}
+.routine-picker-list{
+  overflow:auto;
+  padding:0 12px 14px;
+}
+.routine-picker-row{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  text-align:left;
+  background:var(--panel-bg, var(--card));
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:13px 14px;
+  margin:8px 0;
+}
+.routine-picker-row:hover{background:var(--panel-bg-2, var(--card));}
+.routine-picker-row span:first-child{display:flex;flex-direction:column;gap:3px;}
+.routine-picker-row small{color:var(--muted);font-weight:600;}
+.routine-picker-chevron{
+  font-size:24px;
+  color:var(--muted);
+}
+.routine-picker-empty{
+  padding:18px;
+  color:var(--muted);
+  text-align:center;
+}
+body.routine-picker-open{overflow:hidden;}
+
+body.session-focus-active #activeSession .session-top{
+  position:sticky;
+  top:0;
+  z-index:4;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  margin-bottom:10px;
+}
+body.session-focus-active #scoreInputs{
+  font-size:1.05rem;
+}
+body.session-focus-active #quickScoreControls .score-chip,
+body.session-focus-active #quickScoreControls button{
+  min-height:46px;
+}
+@media(min-width:761px){
+  .routine-picker-backdrop{align-items:center;}
+  .routine-picker-sheet{border-radius:24px;}
+}

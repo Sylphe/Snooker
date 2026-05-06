@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.9.0";
+import { APP_VERSION } from "./version.js?v=4.11.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.9.0";
+} from "./utils.js?v=4.11.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.9.0";
+} from "./settings.js?v=4.11.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,7 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.9.0";
+} from "./analytics.js?v=4.11.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -43,7 +43,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.9.0";
+} from "./session.js?v=4.11.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -55,8 +55,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.9.0";
-import * as RenderHelpers from "./render.js?v=4.9.0";
+} from "./recommendations.js?v=4.11.0";
+import * as RenderHelpers from "./render.js?v=4.11.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -67,7 +67,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.9.0";
+} from "./store.js?v=4.11.0";
 
 
 
@@ -526,6 +526,7 @@ function renderAll() {
   renderPhaseOneInsights();
   renderInterfaceSettings();
   updateSessionFocusState();
+  if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
 }
 
 function renderRoutineSelects() {
@@ -3889,7 +3890,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.9.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.11.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4360,6 +4361,109 @@ function renderLivePerformanceCard(r){
     <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>
   </div>`;
 }
+
+
+/* v4.11 mobile practice-flow helpers */
+function ensureRoutinePickerSheet() {
+  if ($("routinePickerSheet")) return;
+  const sheet = document.createElement("div");
+  sheet.id = "routinePickerSheet";
+  sheet.className = "routine-picker-backdrop hidden";
+  sheet.innerHTML = `
+    <div class="routine-picker-sheet" role="dialog" aria-modal="true" aria-label="Choose exercise">
+      <div class="routine-picker-handle"></div>
+      <div class="routine-picker-header">
+        <div>
+          <strong id="routinePickerTitle">Choose exercise</strong>
+          <p class="muted">Search and tap to select. Existing dropdown remains as fallback.</p>
+        </div>
+        <button type="button" id="routinePickerCloseBtn" class="secondary">Close</button>
+      </div>
+      <input id="routinePickerSearch" class="routine-picker-search" placeholder="Search exercise..." autocomplete="off" />
+      <div id="routinePickerList" class="routine-picker-list"></div>
+    </div>`;
+  document.body.appendChild(sheet);
+  $("routinePickerCloseBtn")?.addEventListener("click", closeRoutinePickerSheet);
+  sheet.addEventListener("click", e => { if (e.target === sheet) closeRoutinePickerSheet(); });
+  $("routinePickerSearch")?.addEventListener("input", renderRoutinePickerList);
+}
+
+let routinePickerTargetSelectId = "";
+function openRoutinePickerSheet(selectId, title="Choose exercise") {
+  const select = $(selectId);
+  if (!select) return;
+  routinePickerTargetSelectId = selectId;
+  ensureRoutinePickerSheet();
+  const titleEl = $("routinePickerTitle");
+  if (titleEl) titleEl.textContent = title;
+  const search = $("routinePickerSearch");
+  if (search) search.value = "";
+  renderRoutinePickerList();
+  $("routinePickerSheet")?.classList.remove("hidden");
+  document.body.classList.add("routine-picker-open");
+  setTimeout(() => $("routinePickerSearch")?.focus(), 50);
+}
+function closeRoutinePickerSheet() {
+  $("routinePickerSheet")?.classList.add("hidden");
+  document.body.classList.remove("routine-picker-open");
+}
+function routinePickerSourceOptions() {
+  const select = $(routinePickerTargetSelectId);
+  if (!select) return [];
+  return [...select.options].filter(o => o.value).map(o => ({id:o.value, label:o.textContent || o.value}));
+}
+function renderRoutinePickerList() {
+  const list = $("routinePickerList");
+  if (!list) return;
+  const q = ($("routinePickerSearch")?.value || "").trim().toLowerCase();
+  const options = routinePickerSourceOptions().filter(o => !q || o.label.toLowerCase().includes(q));
+  if (!options.length) {
+    list.innerHTML = `<div class="routine-picker-empty">No matching exercise.</div>`;
+    return;
+  }
+  list.innerHTML = options.map(o => {
+    const r = routineById(o.id);
+    const meta = r ? `${htmlText(r.folder || "Unfiled")} · ${htmlText(r.subfolder || "General")} · ${htmlText(r.scoring || "")}` : "";
+    return `<button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
+      <span><strong>${htmlText(o.label)}</strong>${meta ? `<small>${meta}</small>` : ""}</span>
+      <span class="routine-picker-chevron">›</span>
+    </button>`;
+  }).join("");
+  list.querySelectorAll("[data-routine-picker-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const select = $(routinePickerTargetSelectId);
+      if (!select) return;
+      select.value = btn.getAttribute("data-routine-picker-id") || "";
+      select.dispatchEvent(new Event("change", {bubbles:true}));
+      closeRoutinePickerSheet();
+    });
+  });
+}
+function ensureRoutinePickerButtons() {
+  [
+    ["freeRoutineSelect", "Open Exercise Picker", "Choose free training routine"],
+    ["nextFreeRoutineSelect", "Open Exercise Picker", "Choose next routine"]
+  ].forEach(([selectId, label, title]) => {
+    const select = $(selectId);
+    if (!select || select.dataset.pickerButtonReady === "1") return;
+    select.dataset.pickerButtonReady = "1";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary routine-picker-trigger";
+    btn.textContent = label;
+    btn.addEventListener("click", () => openRoutinePickerSheet(selectId, title));
+    select.insertAdjacentElement("afterend", btn);
+  });
+}
+function bindMobilePracticeUX() {
+  ensureRoutinePickerSheet();
+  ensureRoutinePickerButtons();
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !$("routinePickerSheet")?.classList.contains("hidden")) closeRoutinePickerSheet();
+  });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindMobilePracticeUX);
+else bindMobilePracticeUX();
 
 window.addEventListener("storage", e => {
   if (e.key === STORAGE_KEY) {
