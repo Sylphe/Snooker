@@ -116,3 +116,53 @@ export function bayesianRecommendationSignal({posterior, targetPct=0}) {
     reason:"Bayesian baseline available"
   };
 }
+
+
+export function bayesianActionPolicy(signal, posterior, targetPct=0) {
+  const action = signal?.action || "hold";
+  const target = Number(targetPct || 0);
+  const ability = posterior ? formatPercent(posterior.mean) : "N/A";
+  const interval = posterior ? `${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}` : "N/A";
+
+  if (action === "repeat") {
+    return {
+      action,
+      title:"Repeat drill",
+      instruction:"Repeat this drill before changing difficulty. The current evidence base is still too uncertain.",
+      coaching:"Collect more attempts under the same setup so the estimate can tighten.",
+      badge:"Repeat",
+      detail:`Posterior ability ${ability}; credible interval ${interval}.`
+    };
+  }
+
+  if (action === "progress") {
+    return {
+      action,
+      title:"Increase difficulty",
+      instruction:"Increase difficulty slightly: harder position, tighter constraint, fewer attempts, or higher target.",
+      coaching:"Progress only one variable at a time so the next logs remain interpretable.",
+      badge:"Progress",
+      detail:`Posterior ability ${ability} is confidently above the ${target || "current"} target.`
+    };
+  }
+
+  if (action === "stabilize" || action === "rebuild") {
+    return {
+      action:"rebuild",
+      title:"Deload / rebuild",
+      instruction:"Simplify the drill or deload the target until consistency recovers.",
+      coaching:"Use easier positions or reduce constraints; rebuild mechanics before increasing pressure.",
+      badge:"Rebuild",
+      detail:`Posterior credible interval ${interval} is below target.`
+    };
+  }
+
+  return {
+    action:"hold",
+    title:"Keep target",
+    instruction:"Keep the current target and continue logging. The credible interval overlaps the target.",
+    coaching:"Do not raise difficulty yet; collect more evidence at the same setup.",
+    badge:"Hold",
+    detail:`Posterior ability ${ability}; credible interval ${interval}.`
+  };
+}

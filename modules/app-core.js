@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.14.2";
+import { APP_VERSION } from "./version.js?v=4.15.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.14.2";
+} from "./utils.js?v=4.15.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.14.2";
+} from "./settings.js?v=4.15.0";
 import {
   avg,
   stdDev,
@@ -34,15 +34,16 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.14.2";
+} from "./analytics.js?v=4.15.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
   bayesianReliabilityLabel,
   formatPercent,
   bayesianAdvice,
-  bayesianRecommendationSignal
-} from "./bayesian.js?v=4.14.2";
+  bayesianRecommendationSignal,
+  bayesianActionPolicy
+} from "./bayesian.js?v=4.15.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -51,7 +52,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.14.2";
+} from "./session.js?v=4.15.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -63,8 +64,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.14.2";
-import * as RenderHelpers from "./render.js?v=4.14.2";
+} from "./recommendations.js?v=4.15.0";
+import * as RenderHelpers from "./render.js?v=4.15.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -75,7 +76,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.14.2";
+} from "./store.js?v=4.15.0";
 
 
 
@@ -492,7 +493,8 @@ function bayesianStatsForRoutine(routineId) {
   const posterior = betaPosterior(agg.successes, agg.attempts);
   const reliability = bayesianReliabilityLabel(posterior);
   const signal = bayesianRecommendationSignal({posterior, targetPct:Number(r.target || 0)});
-  return {agg, posterior, reliability, signal};
+  const policy = bayesianActionPolicy(signal, posterior, Number(r.target || 0));
+  return {agg, posterior, reliability, signal, policy};
 }
 function applyLastScoreSetup() {
   if (!activeSession) return;
@@ -1915,8 +1917,10 @@ function renderSmartRecommendation() {
       const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
       const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
       const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
-      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty;
-      return {rid, logs, score, hit, recent, prior};
+      const bayesian = bayesianStatsForRoutine(rid);
+      const bayesDelta = bayesian?.signal?.scoreDelta || 0;
+      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty + bayesDelta;
+      return {rid, logs, score, hit, recent, prior, bayesian};
     }).sort((a,b)=>b.score-a.score);
   const top = candidates[0];
   const routine = top ? routineById(top.rid) : null;
@@ -1927,11 +1931,21 @@ function renderSmartRecommendation() {
     box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
+  const bayesian = top.bayesian;
+  const policy = bayesian?.policy;
+  const policyHtml = policy ? `<div class="bayes-action-box smart-bayes-action">
+      <strong>${htmlText(policy.title)}</strong>
+      <p>${htmlText(policy.instruction)}</p>
+      <p class="muted">${htmlText(policy.detail)} ${htmlText(policy.coaching)}</p>
+    </div>` : "";
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, and undertrained categories.</p><div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+    ${policy ? `<span class="badge">Bayesian action: ${htmlText(policy.badge)}</span>` : ""}
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and Bayesian confidence for success-rate drills.</p>
+    ${policyHtml}
+    <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
   const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -3945,7 +3959,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.14.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.15.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -3995,7 +4009,7 @@ function getRoutinePriorityReasons(item){
   if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
   if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
   if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
-  if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
+  if(s.bayesian?.policy?.title) reasons.push(`Bayesian action: ${s.bayesian.policy.title}`); else if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -4441,13 +4455,20 @@ function renderBayesianValidationForRoutine(routineId) {
   const posterior = betaPosterior(agg.successes, agg.attempts);
   const reliability = bayesianReliabilityLabel(posterior);
   const target = Number(r.target || 0);
-  return `<div class="bayes-card bayes-${safeClassToken(reliability.level, ["low","medium","high"], "low")}">
-    <strong>Bayesian confidence — ${htmlText(r.name)}</strong>
+  const signal = bayesianRecommendationSignal({posterior, targetPct:target});
+  const policy = bayesianActionPolicy(signal, posterior, target);
+  return `<div class="bayes-card bayes-${safeClassToken(reliability.level, ["low","medium","high"], "low")} bayes-action-${safeClassToken(policy.action, ["repeat","progress","hold","rebuild"], "hold")}">
+    <div class="bayes-card-title"><strong>Bayesian confidence — ${htmlText(r.name)}</strong><span class="bayes-action-badge">${htmlText(policy.badge)}</span></div>
     <div class="bayes-grid">
       <div><span>Posterior ability</span><strong>${formatPercent(posterior.mean)}</strong></div>
       <div><span>Credible interval</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
       <div><span>Evidence</span><strong>${numText(agg.attempts, "0")} effective attempts / ${numText(agg.sessions, "0")} logs</strong></div>
       <div><span>Reliability</span><strong>${htmlText(reliability.label)}</strong></div>
+    </div>
+    <div class="bayes-action-box">
+      <strong>${htmlText(policy.title)}</strong>
+      <p>${htmlText(policy.instruction)}</p>
+      <p class="muted">${htmlText(policy.coaching)} ${htmlText(policy.detail)}</p>
     </div>
     <p class="muted">${htmlText(reliability.detail)} ${htmlText(bayesianAdvice(posterior, target))}</p>
   </div>`;

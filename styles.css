@@ -685,3 +685,36 @@ body.session-focus-active #skipBtn{
   font-size:12px;
   font-weight:800;
 }
+
+/* v4.15 Bayesian action policy */
+.bayes-card-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.bayes-action-badge{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:4px 9px;
+  font-size:12px;
+  font-weight:900;
+  background:var(--panel-bg, var(--card));
+  white-space:nowrap;
+}
+.bayes-action-box{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px;
+  margin:10px 0;
+  background:var(--panel-bg, var(--card));
+}
+.bayes-action-box p{margin:5px 0 0;}
+.bayes-action-repeat .bayes-action-badge{border-color:var(--gold);}
+.bayes-action-progress .bayes-action-badge{border-color:var(--felt);}
+.bayes-action-hold .bayes-action-badge{border-color:var(--line);}
+.bayes-action-rebuild .bayes-action-badge{border-color:var(--danger);}
+.smart-bayes-action{
+  margin-top:10px;
+  border-left:4px solid var(--felt);
+}
