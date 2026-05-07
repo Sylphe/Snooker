@@ -718,3 +718,35 @@ body.session-focus-active #skipBtn{
   margin-top:10px;
   border-left:4px solid var(--felt);
 }
+
+
+/* v4.16 Plateau diagnostics */
+.plateau-section{margin-top:18px;}
+.plateau-card{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  margin:12px 0;
+  background:var(--card);
+}
+.plateau-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.plateau-badge{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:12px;
+  font-weight:800;
+}
+.plateau-action{
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid var(--line);
+}
+.plateau-plateau .plateau-badge{border-color:var(--gold);}
+.plateau-fatigue .plateau-badge{border-color:var(--danger);}
+.plateau-progressing .plateau-badge{border-color:var(--felt);}

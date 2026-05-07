@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.15.0";
+import { APP_VERSION } from "./version.js?v=4.16.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.15.0";
+} from "./utils.js?v=4.16.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.15.0";
+} from "./settings.js?v=4.16.0";
 import {
   avg,
   stdDev,
@@ -34,7 +34,10 @@ import {
   movingTrend,
   benchmarkText,
   progressVelocity
-} from "./analytics.js?v=4.15.0";
+  ,
+  detectPlateauState,
+  plateauActionRecommendation
+} from "./analytics.js?v=4.16.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -43,7 +46,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.15.0";
+} from "./bayesian.js?v=4.16.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -52,7 +55,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.15.0";
+} from "./session.js?v=4.16.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -64,8 +67,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.15.0";
-import * as RenderHelpers from "./render.js?v=4.15.0";
+} from "./recommendations.js?v=4.16.0";
+import * as RenderHelpers from "./render.js?v=4.16.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -76,7 +79,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.15.0";
+} from "./store.js?v=4.16.0";
 
 
 
@@ -3959,7 +3962,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.15.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.16.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4473,6 +4476,52 @@ function renderBayesianValidationForRoutine(routineId) {
     <p class="muted">${htmlText(reliability.detail)} ${htmlText(bayesianAdvice(posterior, target))}</p>
   </div>`;
 }
+
+function renderPlateauDiagnostics() {
+  const box = $("bayesianValidationOutput");
+  if (!box) return;
+
+  const selected = $("statsRoutineSelect")?.value || "all";
+  const routines = activeRoutines().filter(r => selected === "all" || r.id === selected);
+
+  const html = routines.slice(0, 6).map(r => {
+    const logs = (data.logs || []).filter(l => l.routineId === r.id);
+    if (logs.length < 4) return "";
+
+    const bayes = typeof bayesianStatsForRoutine === "function"
+      ? bayesianStatsForRoutine(r.id)
+      : null;
+
+    const uncertainty = bayes?.posterior
+      ? (bayes.posterior.upper - bayes.posterior.lower)
+      : 0;
+
+    const plateau = detectPlateauState(logs, { uncertainty });
+    const action = plateauActionRecommendation(plateau.state);
+
+    return `<div class="plateau-card plateau-${safeClassToken(plateau.state, ["plateau","fatigue","uncertain","progressing","mixed","insufficient"], "mixed")}">
+      <div class="plateau-head">
+        <strong>${htmlText(r.name)}</strong>
+        <span class="plateau-badge">${htmlText(plateau.label)}</span>
+      </div>
+      <p>${htmlText(plateau.detail)}</p>
+      <div class="plateau-action">
+        <strong>${htmlText(action.title)}</strong>
+        <p>${htmlText(action.instruction)}</p>
+      </div>
+    </div>`;
+  }).filter(Boolean).join("");
+
+  if (!html) return;
+
+  box.innerHTML += `<div class="plateau-section">
+    <h3>Plateau diagnostics</h3>
+    <p class="muted">Combines trend slope, volatility, and Bayesian uncertainty to distinguish plateaus from fatigue or noisy samples.</p>
+    ${html}
+  </div>`;
+}
+
+
 function renderBayesianAnalyticsValidation() {
   const box = $("bayesianValidationOutput");
   if (!box) return;
@@ -4486,6 +4535,7 @@ function renderBayesianAnalyticsValidation() {
   box.innerHTML = `<h3>Bayesian analytics validation</h3>
     <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
     ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
+  renderPlateauDiagnostics();
 }
 
 /* v4.11 mobile practice-flow helpers */

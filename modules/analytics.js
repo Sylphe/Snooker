@@ -68,3 +68,102 @@ export function progressVelocity(logs, windowSize=10) {
   const slope = num/den;
   return {slope, n, label: slope>0.5?"Improving":slope<-0.5?"Declining":"Flat"};
 }
+
+
+export function detectPlateauState(logs, options = {}) {
+  const vals = (logs || []).map(l => Number(l.normalizedScore || l.score || 0)).filter(Number.isFinite);
+
+  if (vals.length < 6) {
+    return {
+      state: "insufficient",
+      label: "Insufficient sample",
+      detail: "Not enough recent sessions to evaluate plateau state reliably."
+    };
+  }
+
+  const recent = vals.slice(-8);
+  const avg = recent.reduce((a,b)=>a+b,0) / recent.length;
+  const variance = recent.reduce((a,v)=>a + Math.pow(v - avg, 2), 0) / recent.length;
+  const std = Math.sqrt(variance);
+
+  const n = recent.length;
+  const meanX = (n - 1) / 2;
+  let num = 0;
+  let den = 0;
+
+  recent.forEach((v, i) => {
+    num += (i - meanX) * (v - avg);
+    den += Math.pow(i - meanX, 2);
+  });
+
+  const slope = den === 0 ? 0 : num / den;
+  const uncertainty = Number(options.uncertainty || 0);
+
+  if (uncertainty > 0.22) {
+    return {
+      state: "uncertain",
+      label: "High uncertainty",
+      detail: "The current evidence is still too noisy for stable classification."
+    };
+  }
+
+  if (Math.abs(slope) < 0.35 && std < Math.max(4, avg * 0.08)) {
+    return {
+      state: "plateau",
+      label: "Stable plateau",
+      detail: "Performance is stable but improvement momentum has slowed."
+    };
+  }
+
+  if (slope < -0.6 && std > Math.max(5, avg * 0.1)) {
+    return {
+      state: "fatigue",
+      label: "Fatigue / inconsistency",
+      detail: "Recent sessions show declining trend and elevated variability."
+    };
+  }
+
+  if (slope > 0.5) {
+    return {
+      state: "progressing",
+      label: "Progressing",
+      detail: "Recent performance trend still indicates measurable progression."
+    };
+  }
+
+  return {
+    state: "mixed",
+    label: "Mixed signal",
+    detail: "Performance variation does not yet indicate a stable state."
+  };
+}
+
+export function plateauActionRecommendation(state) {
+  switch(state) {
+    case "plateau":
+      return {
+        title: "Constraint variation",
+        instruction: "Keep the drill but vary one constraint: angle, distance, speed, or pressure."
+      };
+    case "fatigue":
+      return {
+        title: "Deload / rebuild",
+        instruction: "Reduce intensity temporarily and rebuild consistency."
+      };
+    case "uncertain":
+      return {
+        title: "Collect evidence",
+        instruction: "Repeat the same setup before changing targets or drill difficulty."
+      };
+    case "progressing":
+      return {
+        title: "Increase difficulty",
+        instruction: "Increase difficulty gradually while preserving execution quality."
+      };
+    default:
+      return {
+        title: "Maintain target",
+        instruction: "Keep the current setup and continue collecting data."
+      };
+  }
+}
