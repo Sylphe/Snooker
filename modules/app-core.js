@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.20.0";
+import { APP_VERSION } from "./version.js?v=4.21.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.20.0";
+} from "./utils.js?v=4.21.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.20.0";
+} from "./settings.js?v=4.21.0";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.20.0";
+} from "./analytics.js?v=4.21.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.20.0";
+} from "./bayesian.js?v=4.21.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.20.0";
+} from "./session.js?v=4.21.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.20.0";
+} from "./pressure.js?v=4.21.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.20.0";
-import * as RenderHelpers from "./render.js?v=4.20.0";
+} from "./recommendations.js?v=4.21.0";
+import * as RenderHelpers from "./render.js?v=4.21.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.20.0";
+} from "./store.js?v=4.21.0";
 
 
 
@@ -3976,7 +3976,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.20.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4835,7 +4835,10 @@ function startPressureSession() {
     routineId:routine.id,
     mode,
     lives:mode === "lives" ? n : 3,
-    targetStreak:mode === "streak" ? n : 5
+    targetStreak:mode === "streak" ? n : 5,
+    suddenDeath:($("pressureSuddenDeathSelect")?.value || "off") === "on",
+    finalReps:Number($("pressureFinalRepsInput")?.value || 3),
+    escalationStep:Number($("pressureEscalationStepInput")?.value || 2)
   });
 
   $("pressureSessionPanel")?.classList.remove("hidden");
@@ -4850,9 +4853,9 @@ function updatePressurePanel() {
 
   if ($("pressureRoutineName")) $("pressureRoutineName").textContent = routine?.name || "Pressure drill";
   if ($("pressureModeLabel")) $("pressureModeLabel").textContent =
-    pressureSession.mode === "streak" ? `Streak ladder · target ${pressureSession.targetStreak}` :
-    pressureSession.mode === "lives" ? `Limited lives · start ${pressureSession.livesStart}` :
-    "Recovery after miss";
+    pressureSession.mode === "streak" ? `Streak ladder · target ${pressureSession.targetStreak}${pressureSession.suddenDeath ? " · sudden death" : ""}` :
+    pressureSession.mode === "lives" ? `Limited lives · start ${pressureSession.livesStart}${pressureSession.suddenDeath ? " · sudden death" : ""}` :
+    `Recovery after miss${pressureSession.suddenDeath ? " · sudden death" : ""}`;
 
   const set = (id, value) => { const el = $(id); if (el) el.textContent = value; };
   set("pressureScoreValue", summary.pressureScore);
@@ -4864,6 +4867,8 @@ function updatePressurePanel() {
   set("pressureLives", pressureSession.mode === "lives" ? pressureSession.livesRemaining : "—");
   set("pressureRecovery", pressureSession.mode === "recovery" ? `${pressureSession.recoverySuccesses}/${pressureSession.recoveryAttempts}` : "—");
   set("pressureLevel", summary.pressureLevel);
+  set("pressureClutch", pressureSession.clutchAttempts ? `${Math.round(summary.clutchRate * 100)}%` : "—");
+  set("pressureFatigue", `${summary.fatigueRisk}%`);
 
   const showRecovery = pressureSession.mode === "recovery" && pressureSession.recoveryMode;
   $("pressureRecoveryOkBtn")?.classList.toggle("hidden", !showRecovery);
@@ -4949,8 +4954,14 @@ async function finishPressureSession() {
     pressureLevel:summary.pressureLevel,
     pressureScore:summary.pressureScore,
     pressureSuccessRate:summary.successRate,
+    pressureWeightedSuccessRate:summary.weightedSuccessRate,
     pressureRecoveryRate:summary.recoveryRate,
+    pressureClutchRate:summary.clutchRate,
     pressureCollapseRate:summary.collapseRate,
+    pressureFatigueRisk:summary.fatigueRisk,
+    pressureSuddenDeath:pressureSession.suddenDeath,
+    pressureFinalReps:pressureSession.finalReps,
+    pressureEscalationStep:pressureSession.escalationStep,
     streakDepth:pressureSession.bestStreak,
     bestStreak:pressureSession.bestStreak,
     finalStreak:pressureSession.streak,
@@ -4959,6 +4970,8 @@ async function finishPressureSession() {
     livesRemaining:pressureSession.livesRemaining,
     recoveryAttempts:pressureSession.recoveryAttempts,
     recoverySuccesses:pressureSession.recoverySuccesses,
+    clutchAttempts:pressureSession.clutchAttempts,
+    clutchMakes:pressureSession.clutchMakes,
     escalationLevel:pressureSession.escalationLevel,
     collapseEvents:pressureSession.collapseEvents,
     pressureEvents:pressureSession.eventHistory.length,
@@ -5001,6 +5014,10 @@ function bindPressureOverlay() {
     const mode = $("pressureModeSelect")?.value || "streak";
     const input = $("pressureTargetInput");
     if (input) input.value = mode === "lives" ? 3 : 5;
+    const finalReps = $("pressureFinalRepsInput");
+    if (finalReps) finalReps.value = mode === "recovery" ? 2 : 3;
+    const step = $("pressureEscalationStepInput");
+    if (step) step.value = mode === "lives" ? 1 : 2;
   });
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindPressureOverlay);
