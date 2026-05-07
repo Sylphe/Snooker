@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.19.0</title>
+  <title>Snooker Practice Log v4.20.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.19.0" />
-  <link rel="stylesheet" href="styles.css?v=4.19.0" />
-  <link rel="icon" href="icon.svg?v=4.19.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.20.0" />
+  <link rel="stylesheet" href="styles.css?v=4.20.0" />
+  <link rel="icon" href="icon.svg?v=4.20.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.19.0.2.1 — ES module architecture with IndexedDB production-safety fixes.</p>
+      <p>v4.20.0.2.1 — ES module architecture with IndexedDB production-safety fixes.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -74,6 +74,74 @@
           <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
           <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
           <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
+        </div>
+      </div>
+
+
+      <div id="pressureOverlayCard" class="card">
+        <h2>Pressure simulation</h2>
+        <p class="muted">One-tap pressure logging. Select an exercise, choose a pressure mode, then tap Made / Miss while you practice.</p>
+
+        <div class="grid three">
+          <div>
+            <label>Pressure routine</label>
+            <select id="pressureRoutineSelect"></select>
+          </div>
+          <div>
+            <label>Pressure mode</label>
+            <select id="pressureModeSelect">
+              <option value="streak">Streak ladder</option>
+              <option value="lives">Limited lives</option>
+              <option value="recovery">Recovery after miss</option>
+            </select>
+          </div>
+          <div>
+            <label>Target streak / lives</label>
+            <input id="pressureTargetInput" type="number" min="1" max="20" value="5">
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="startPressureSessionBtn" type="button">Start Pressure Drill</button>
+        </div>
+
+        <div id="pressureSessionPanel" class="pressure-session hidden">
+          <div class="pressure-header">
+            <div>
+              <h3 id="pressureRoutineName">Pressure drill</h3>
+              <p id="pressureModeLabel" class="muted"></p>
+            </div>
+            <div class="pressure-score">
+              <span>Pressure score</span>
+              <strong id="pressureScoreValue">0</strong>
+            </div>
+          </div>
+
+          <div class="pressure-metrics">
+            <div><span>Attempts</span><strong id="pressureAttempts">0</strong></div>
+            <div><span>Made</span><strong id="pressureMakes">0</strong></div>
+            <div><span>Misses</span><strong id="pressureMisses">0</strong></div>
+            <div><span>Streak</span><strong id="pressureStreak">0</strong></div>
+            <div><span>Best streak</span><strong id="pressureBestStreak">0</strong></div>
+            <div><span>Lives</span><strong id="pressureLives">—</strong></div>
+            <div><span>Recovery</span><strong id="pressureRecovery">—</strong></div>
+            <div><span>Level</span><strong id="pressureLevel">Low</strong></div>
+          </div>
+
+          <div class="pressure-actions">
+            <button id="pressureMadeBtn" type="button" class="pressure-made">MADE</button>
+            <button id="pressureMissBtn" type="button" class="pressure-miss">MISS</button>
+            <button id="pressureRecoveryOkBtn" type="button" class="pressure-recovery hidden">RECOVERY OK</button>
+            <button id="pressureRecoveryFailBtn" type="button" class="pressure-recovery hidden">RECOVERY FAIL</button>
+          </div>
+
+          <div class="row">
+            <button id="pressureUndoBtn" type="button" class="secondary">Undo</button>
+            <button id="pressureFinishBtn" type="button">Finish & Save</button>
+            <button id="pressureCancelBtn" type="button" class="secondary">Cancel</button>
+          </div>
+
+          <div id="pressureCompletionNote" class="analytics-note hidden"></div>
         </div>
       </div>
 
@@ -857,6 +925,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.19.0"></script>
+  <script type="module" src="app.js?v=4.20.0"></script>
 </body>
 </html>

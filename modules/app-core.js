@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.19.0";
+import { APP_VERSION } from "./version.js?v=4.20.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.19.0";
+} from "./utils.js?v=4.20.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.19.0";
+} from "./settings.js?v=4.20.0";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.19.0";
+} from "./analytics.js?v=4.20.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.19.0";
+} from "./bayesian.js?v=4.20.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,15 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.19.0";
+} from "./session.js?v=4.20.0";
+import {
+  createPressureSession,
+  recordPressureEvent,
+  undoPressureEvent,
+  calculatePressureScore,
+  pressureSummary,
+  pressureLevelLabel
+} from "./pressure.js?v=4.20.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -72,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.19.0";
-import * as RenderHelpers from "./render.js?v=4.19.0";
+} from "./recommendations.js?v=4.20.0";
+import * as RenderHelpers from "./render.js?v=4.20.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -84,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.19.0";
+} from "./store.js?v=4.20.0";
 
 
 
@@ -562,6 +570,7 @@ document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", (
 
 function renderAll() {
   renderRoutineSelects();
+  if (typeof renderPressureRoutineOptions === "function") renderPressureRoutineOptions();
   renderRoutineList();
   renderPlanBuilder();
   renderPlanList();
@@ -3967,7 +3976,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.19.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.20.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4798,6 +4807,205 @@ function renderBayesianAnalyticsValidation() {
   renderTournamentPrepPlanner();
   renderPredictorContributionModel();
 }
+
+
+let pressureSession = null;
+
+function currentPressureRoutine() {
+  const rid = $("pressureRoutineSelect")?.value || "";
+  return routineById(rid);
+}
+
+function renderPressureRoutineOptions() {
+  const select = $("pressureRoutineSelect");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = activeRoutines().map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}</option>`).join("") || `<option value="">No exercises yet</option>`;
+  if (current && [...select.options].some(o => o.value === current)) select.value = current;
+}
+
+function startPressureSession() {
+  const routine = currentPressureRoutine();
+  if (!routine) return alert("Select an exercise for pressure mode.");
+
+  const mode = $("pressureModeSelect")?.value || "streak";
+  const n = Math.max(1, Number($("pressureTargetInput")?.value || (mode === "lives" ? 3 : 5)));
+
+  pressureSession = createPressureSession({
+    routineId:routine.id,
+    mode,
+    lives:mode === "lives" ? n : 3,
+    targetStreak:mode === "streak" ? n : 5
+  });
+
+  $("pressureSessionPanel")?.classList.remove("hidden");
+  $("pressureCompletionNote")?.classList.add("hidden");
+  updatePressurePanel();
+}
+
+function updatePressurePanel() {
+  if (!pressureSession) return;
+  const routine = routineById(pressureSession.routineId);
+  const summary = pressureSummary(pressureSession);
+
+  if ($("pressureRoutineName")) $("pressureRoutineName").textContent = routine?.name || "Pressure drill";
+  if ($("pressureModeLabel")) $("pressureModeLabel").textContent =
+    pressureSession.mode === "streak" ? `Streak ladder · target ${pressureSession.targetStreak}` :
+    pressureSession.mode === "lives" ? `Limited lives · start ${pressureSession.livesStart}` :
+    "Recovery after miss";
+
+  const set = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+  set("pressureScoreValue", summary.pressureScore);
+  set("pressureAttempts", pressureSession.attempts);
+  set("pressureMakes", pressureSession.makes);
+  set("pressureMisses", pressureSession.misses);
+  set("pressureStreak", pressureSession.streak);
+  set("pressureBestStreak", pressureSession.bestStreak);
+  set("pressureLives", pressureSession.mode === "lives" ? pressureSession.livesRemaining : "—");
+  set("pressureRecovery", pressureSession.mode === "recovery" ? `${pressureSession.recoverySuccesses}/${pressureSession.recoveryAttempts}` : "—");
+  set("pressureLevel", summary.pressureLevel);
+
+  const showRecovery = pressureSession.mode === "recovery" && pressureSession.recoveryMode;
+  $("pressureRecoveryOkBtn")?.classList.toggle("hidden", !showRecovery);
+  $("pressureRecoveryFailBtn")?.classList.toggle("hidden", !showRecovery);
+
+  if (pressureSession.completed) {
+    const note = $("pressureCompletionNote");
+    if (note) {
+      note.classList.remove("hidden");
+      note.textContent = pressureSession.mode === "streak"
+        ? "Target streak reached. Finish now or continue to push the best streak."
+        : "Lives exhausted. Finish and save the pressure drill.";
+    }
+  }
+}
+
+function recordPressure(type) {
+  if (!pressureSession) return;
+  pressureSession = recordPressureEvent(pressureSession, type);
+  updatePressurePanel();
+}
+
+function undoPressure() {
+  if (!pressureSession) return;
+  pressureSession = undoPressureEvent(pressureSession);
+  updatePressurePanel();
+}
+
+async function finishPressureSession() {
+  if (!pressureSession) return;
+  const routine = routineById(pressureSession.routineId);
+  if (!routine) return alert("Pressure routine no longer exists.");
+
+  const summary = pressureSummary(pressureSession);
+  const attempts = Math.max(0, Number(pressureSession.attempts || 0));
+  if (!attempts) return alert("No pressure attempts recorded.");
+
+  const now = new Date().toISOString();
+  const log = {
+    id:uuid(),
+    sessionId:`pressure-${Date.now()}`,
+    sessionName:"Pressure simulation",
+    sessionType:"pressure",
+    planId:"",
+    sessionPlanId:"",
+    planNameSnapshot:"",
+    routineId:routine.id,
+    routineName:routine.name,
+    routineNameSnapshot:routine.name,
+    folder:routine.folder || "Unfiled",
+    subfolder:routine.subfolder || "General",
+    category:routine.category || "uncategorized",
+    scoring:"success_rate",
+    score:pressureSession.makes,
+    attempts,
+    timeMinutes:Number(routine.duration || 0) || 0,
+    normalizedScore:attempts ? pressureSession.makes / attempts * 100 : 0,
+    bestAttempt:"",
+    completionCount:"",
+    highestBreak:"",
+    totalUnits:"",
+    unitType:"",
+    targetMode:routine.targetMode || "",
+    targetProfileId:"",
+    targetAtLog:routine.target || "",
+    stretchTargetAtLog:routine.stretchTarget || "",
+    totalUnitsAtLog:"",
+    attemptsPerSessionAtLog:attempts,
+    difficultyLabelAtLog:routine.difficultyLabel || "",
+    targetColour:routine.targetColour || "",
+    performance:"N/A",
+    tableId:"",
+    venueTable:"",
+    venueTableSnapshot:"",
+    tableNote:"",
+    sessionIntervention:"pressure",
+    sessionInterventionNote:"",
+    sessionRating:"",
+    sessionTags:"pressure",
+    notes:`Pressure ${pressureSession.mode}: best streak ${pressureSession.bestStreak}, score ${summary.pressureScore}`,
+    pressureEnabled:true,
+    pressureMode:pressureSession.mode,
+    pressureLevel:summary.pressureLevel,
+    pressureScore:summary.pressureScore,
+    pressureSuccessRate:summary.successRate,
+    pressureRecoveryRate:summary.recoveryRate,
+    pressureCollapseRate:summary.collapseRate,
+    streakDepth:pressureSession.bestStreak,
+    bestStreak:pressureSession.bestStreak,
+    finalStreak:pressureSession.streak,
+    resets:pressureSession.resets,
+    livesStart:pressureSession.livesStart,
+    livesRemaining:pressureSession.livesRemaining,
+    recoveryAttempts:pressureSession.recoveryAttempts,
+    recoverySuccesses:pressureSession.recoverySuccesses,
+    escalationLevel:pressureSession.escalationLevel,
+    collapseEvents:pressureSession.collapseEvents,
+    pressureEvents:pressureSession.eventHistory.length,
+    createdAt:now
+  };
+
+  log.performance = classifyPerformance(log, routine);
+  data.logs.push(log);
+  await persistLogDelta(log, "finishPressureSession log put");
+  saveData({render:"sessionLog", idbSync:"skip"});
+
+  pressureSession = null;
+  $("pressureSessionPanel")?.classList.add("hidden");
+  renderPressureRoutineOptions();
+  renderSmartRecommendation();
+  if (isPanelActive("stats")) {
+    renderStats();
+    renderBayesianAnalyticsValidation?.();
+  }
+}
+
+function cancelPressureSession() {
+  if (!pressureSession) return;
+  if (!confirm("Cancel this pressure drill without saving?")) return;
+  pressureSession = null;
+  $("pressureSessionPanel")?.classList.add("hidden");
+}
+
+function bindPressureOverlay() {
+  renderPressureRoutineOptions();
+  $("startPressureSessionBtn")?.addEventListener("click", startPressureSession);
+  $("pressureMadeBtn")?.addEventListener("click", () => recordPressure("make"));
+  $("pressureMissBtn")?.addEventListener("click", () => recordPressure("miss"));
+  $("pressureRecoveryOkBtn")?.addEventListener("click", () => recordPressure("recovery_ok"));
+  $("pressureRecoveryFailBtn")?.addEventListener("click", () => recordPressure("recovery_fail"));
+  $("pressureUndoBtn")?.addEventListener("click", undoPressure);
+  $("pressureFinishBtn")?.addEventListener("click", finishPressureSession);
+  $("pressureCancelBtn")?.addEventListener("click", cancelPressureSession);
+  $("pressureModeSelect")?.addEventListener("change", () => {
+    const mode = $("pressureModeSelect")?.value || "streak";
+    const input = $("pressureTargetInput");
+    if (input) input.value = mode === "lives" ? 3 : 5;
+  });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindPressureOverlay);
+else bindPressureOverlay();
+
 
 /* v4.11 mobile practice-flow helpers */
 function ensureRoutinePickerSheet() {
