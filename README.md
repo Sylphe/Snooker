@@ -1,33 +1,38 @@
-# Snooker Practice Log — v4.21.0
+# Snooker Practice Log — v4.22.0
 
-## Pressure escalation follow-up
+## Pressure Coach UX Layer
 
-Builds on the v4.20 pressure overlay foundation.
+Adds discoverability and interpretation for the pressure simulator.
 
-Added:
-- sudden death option in clutch zones,
-- weighted final reps,
-- configurable escalation step,
-- clutch-zone analytics,
-- clutch conversion rate,
-- pressure fatigue risk,
-- weighted pressure success rate,
-- additional pressure metadata on saved logs.
+Implemented:
+- Pressure help button and bottom-sheet guide.
+- Recommended pressure presets:
+  - Consistency Builder
+  - Match Pressure
+  - Clutch Finishing
+  - Recovery Stability
+  - Confidence Rebuild
+  - Tournament Prep
+- Inline pressure mode explanation.
+- Preset summary guidance.
+- Contextual live metric guidance.
+- Explanation of sudden death, final rep weighting, escalation step, clutch rate, and fatigue risk.
 
-Pressure modes remain low-friction:
-- Made,
-- Miss,
-- Recovery OK,
-- Recovery Fail.
+Design goal:
+- keep one-tap pressure logging low friction,
+- make the settings understandable,
+- avoid adding more data-entry burden.
 
-Design principle:
-- increase competitive realism without adding form-entry friction.
+Preserved:
+- v4.21 pressure escalation features,
+- v4.20 pressure foundation,
+- v4.19 predictor contribution model,
+- storage/render stability path.
 
 Testing checklist:
-1. Start a pressure drill.
-2. Test Streak ladder with sudden death on/off.
-3. Test Limited lives.
-4. Test Recovery mode.
-5. Confirm Clutch and Fatigue risk metrics update.
-6. Finish & Save and confirm pressure log is saved.
-7. Confirm tabs, routines, and storage dashboard still work.
+1. Open Pressure simulation.
+2. Tap the ? helper button.
+3. Test each preset and confirm settings update.
+4. Start pressure drill and confirm metric guidance updates.
+5. Finish & Save a pressure log.
+6. Confirm tabs, routines, and Data storage dashboard still work.

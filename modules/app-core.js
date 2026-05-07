@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.0";
+import { APP_VERSION } from "./version.js?v=4.22.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.0";
+} from "./utils.js?v=4.22.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.0";
+} from "./settings.js?v=4.22.0";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.0";
+} from "./analytics.js?v=4.22.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.0";
+} from "./bayesian.js?v=4.22.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.0";
+} from "./session.js?v=4.22.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.0";
+} from "./pressure.js?v=4.22.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.0";
-import * as RenderHelpers from "./render.js?v=4.21.0";
+} from "./recommendations.js?v=4.22.0";
+import * as RenderHelpers from "./render.js?v=4.22.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.0";
+} from "./store.js?v=4.22.0";
 
 
 
@@ -3976,7 +3976,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4809,6 +4809,122 @@ function renderBayesianAnalyticsValidation() {
 }
 
 
+
+const PRESSURE_PRESETS = {
+  custom:{
+    label:"Custom",
+    mode:null,
+    target:5,
+    suddenDeath:"off",
+    finalReps:3,
+    escalationStep:2,
+    summary:"Custom setup. Adjust mode and intensity manually."
+  },
+  consistency:{
+    label:"Consistency Builder",
+    mode:"streak",
+    target:5,
+    suddenDeath:"off",
+    finalReps:2,
+    escalationStep:3,
+    summary:"Best for stable cue delivery. Gentle escalation; miss resets streak but does not over-punish."
+  },
+  match:{
+    label:"Match Pressure",
+    mode:"lives",
+    target:3,
+    suddenDeath:"off",
+    finalReps:3,
+    escalationStep:1,
+    summary:"Best for match-like consequence. Limited lives create pressure without ending too quickly."
+  },
+  clutch:{
+    label:"Clutch Finishing",
+    mode:"streak",
+    target:5,
+    suddenDeath:"on",
+    finalReps:3,
+    escalationStep:1,
+    summary:"Best for final-ball nerves. Sudden death activates near completion."
+  },
+  recovery:{
+    label:"Recovery Stability",
+    mode:"recovery",
+    target:5,
+    suddenDeath:"off",
+    finalReps:2,
+    escalationStep:2,
+    summary:"Best for emotional reset after mistakes. Use Recovery OK / FAIL after misses."
+  },
+  confidence:{
+    label:"Confidence Rebuild",
+    mode:"streak",
+    target:3,
+    suddenDeath:"off",
+    finalReps:1,
+    escalationStep:4,
+    summary:"Best after a poor session. Low pressure and short target rebuild execution confidence."
+  },
+  tournament:{
+    label:"Tournament Prep",
+    mode:"lives",
+    target:2,
+    suddenDeath:"on",
+    finalReps:3,
+    escalationStep:1,
+    summary:"Best close to competition. Higher consequence; avoid major technical changes."
+  }
+};
+
+function pressureModeHelpText(mode) {
+  if (mode === "streak") return "Streak ladder trains repeatable execution and closing nerves. Use Made/Miss only.";
+  if (mode === "lives") return "Limited lives trains elimination pressure. Every miss has consequence.";
+  if (mode === "recovery") return "Recovery mode trains emotional reset after misses. Use Recovery OK/FAIL after a miss.";
+  return "Choose a pressure mode or preset.";
+}
+
+function pressureMetricHelpText() {
+  if (!pressureSession) return "";
+  const summary = pressureSummary(pressureSession);
+  const warnings = [];
+  if (summary.fatigueRisk >= 60) warnings.push("Fatigue risk is high: consider ending or switching to rebuild work.");
+  if (pressureSession.clutchAttempts >= 3 && summary.clutchRate < 0.4) warnings.push("Clutch conversion is weak: reduce sudden death or lower target briefly.");
+  if (pressureSession.bestStreak >= pressureSession.targetStreak && pressureSession.mode === "streak") warnings.push("Target reached: finish now or continue to extend best streak.");
+  if (!warnings.length) warnings.push("Keep tapping Made/Miss. The app tracks pressure metrics automatically.");
+  return warnings.join(" ");
+}
+
+function updatePressureExplanations() {
+  const mode = $("pressureModeSelect")?.value || "streak";
+  const preset = $("pressurePresetSelect")?.value || "custom";
+  const explainer = $("pressureModeExplainer");
+  const summary = $("pressurePresetSummary");
+  const metric = $("pressureMetricExplainer");
+  if (explainer) explainer.textContent = pressureModeHelpText(mode);
+  if (summary) summary.textContent = PRESSURE_PRESETS[preset]?.summary || PRESSURE_PRESETS.custom.summary;
+  if (metric) metric.textContent = pressureMetricHelpText();
+}
+
+function applyPressurePreset(key) {
+  const preset = PRESSURE_PRESETS[key] || PRESSURE_PRESETS.custom;
+  if (preset.mode && $("pressureModeSelect")) $("pressureModeSelect").value = preset.mode;
+  if ($("pressureTargetInput")) $("pressureTargetInput").value = preset.target;
+  if ($("pressureSuddenDeathSelect")) $("pressureSuddenDeathSelect").value = preset.suddenDeath;
+  if ($("pressureFinalRepsInput")) $("pressureFinalRepsInput").value = preset.finalReps;
+  if ($("pressureEscalationStepInput")) $("pressureEscalationStepInput").value = preset.escalationStep;
+  updatePressureExplanations();
+}
+
+function openPressureHelpSheet() {
+  $("pressureHelpSheet")?.classList.remove("hidden");
+  document.body.classList.add("routine-picker-open");
+}
+
+function closePressureHelpSheet() {
+  $("pressureHelpSheet")?.classList.add("hidden");
+  document.body.classList.remove("routine-picker-open");
+}
+
 let pressureSession = null;
 
 function currentPressureRoutine() {
@@ -4873,6 +4989,8 @@ function updatePressurePanel() {
   const showRecovery = pressureSession.mode === "recovery" && pressureSession.recoveryMode;
   $("pressureRecoveryOkBtn")?.classList.toggle("hidden", !showRecovery);
   $("pressureRecoveryFailBtn")?.classList.toggle("hidden", !showRecovery);
+
+  updatePressureExplanations();
 
   if (pressureSession.completed) {
     const note = $("pressureCompletionNote");
@@ -5010,6 +5128,10 @@ function bindPressureOverlay() {
   $("pressureUndoBtn")?.addEventListener("click", undoPressure);
   $("pressureFinishBtn")?.addEventListener("click", finishPressureSession);
   $("pressureCancelBtn")?.addEventListener("click", cancelPressureSession);
+  $("pressureHelpBtn")?.addEventListener("click", openPressureHelpSheet);
+  $("pressureHelpCloseBtn")?.addEventListener("click", closePressureHelpSheet);
+  $("pressureHelpSheet")?.addEventListener("click", e => { if (e.target === $("pressureHelpSheet")) closePressureHelpSheet(); });
+  $("pressurePresetSelect")?.addEventListener("change", () => applyPressurePreset($("pressurePresetSelect")?.value || "custom"));
   $("pressureModeSelect")?.addEventListener("change", () => {
     const mode = $("pressureModeSelect")?.value || "streak";
     const input = $("pressureTargetInput");
@@ -5018,7 +5140,13 @@ function bindPressureOverlay() {
     if (finalReps) finalReps.value = mode === "recovery" ? 2 : 3;
     const step = $("pressureEscalationStepInput");
     if (step) step.value = mode === "lives" ? 1 : 2;
+    if ($("pressurePresetSelect")) $("pressurePresetSelect").value = "custom";
+    updatePressureExplanations();
   });
+  ["pressureTargetInput","pressureSuddenDeathSelect","pressureFinalRepsInput","pressureEscalationStepInput"].forEach(id => {
+    $(id)?.addEventListener("change", updatePressureExplanations);
+  });
+  updatePressureExplanations();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindPressureOverlay);
 else bindPressureOverlay();

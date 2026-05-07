@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.21.0</title>
+  <title>Snooker Practice Log v4.22.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.21.0" />
-  <link rel="stylesheet" href="styles.css?v=4.21.0" />
-  <link rel="icon" href="icon.svg?v=4.21.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.0" />
+  <link rel="stylesheet" href="styles.css?v=4.22.0" />
+  <link rel="icon" href="icon.svg?v=4.22.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.21.0.2.1 — ES module architecture with IndexedDB production-safety fixes.</p>
+      <p>v4.22.0.2.1 — ES module architecture with IndexedDB production-safety fixes.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -79,13 +79,29 @@
 
 
       <div id="pressureOverlayCard" class="card">
-        <h2>Pressure simulation</h2>
+        <div class="section-title-row">
+          <h2>Pressure simulation</h2>
+          <button id="pressureHelpBtn" type="button" class="secondary helper-btn">?</button>
+        </div>
         <p class="muted">One-tap pressure logging. Select an exercise, choose a pressure mode, then tap Made / Miss while you practice.</p>
+        <div class="pressure-helper-note" id="pressureModeExplainer">Choose a pressure mode or preset to see what it trains.</div>
 
         <div class="grid three">
           <div>
             <label>Pressure routine</label>
             <select id="pressureRoutineSelect"></select>
+          </div>
+          <div>
+            <label>Recommended preset</label>
+            <select id="pressurePresetSelect">
+              <option value="custom">Custom</option>
+              <option value="consistency">Consistency Builder</option>
+              <option value="match">Match Pressure</option>
+              <option value="clutch">Clutch Finishing</option>
+              <option value="recovery">Recovery Stability</option>
+              <option value="confidence">Confidence Rebuild</option>
+              <option value="tournament">Tournament Prep</option>
+            </select>
           </div>
           <div>
             <label>Pressure mode</label>
@@ -118,6 +134,7 @@
             <input id="pressureEscalationStepInput" type="number" min="1" max="5" value="2">
           </div>
         </div>
+        <div class="pressure-preset-summary" id="pressurePresetSummary">Custom setup. Lower friction: use a preset when you want the app to configure pressure automatically.</div>
 
         <div class="row">
           <button id="startPressureSessionBtn" type="button">Start Pressure Drill</button>
@@ -161,7 +178,34 @@
             <button id="pressureCancelBtn" type="button" class="secondary">Cancel</button>
           </div>
 
+          <div id="pressureMetricExplainer" class="pressure-metric-explainer"></div>
           <div id="pressureCompletionNote" class="analytics-note hidden"></div>
+        </div>
+
+        <div id="pressureHelpSheet" class="pressure-help-backdrop hidden">
+          <div class="pressure-help-sheet" role="dialog" aria-modal="true" aria-label="Pressure simulator help">
+            <div class="routine-picker-handle"></div>
+            <div class="pressure-help-header">
+              <div>
+                <strong>Pressure simulator guide</strong>
+                <p class="muted">Use this when you want match-like consequence without detailed shot-by-shot forms.</p>
+              </div>
+              <button id="pressureHelpCloseBtn" type="button" class="secondary">Close</button>
+            </div>
+            <div class="pressure-help-content">
+              <h4>Modes</h4>
+              <p><strong>Streak ladder:</strong> best for cue delivery stability and frame-closing nerves. Misses reset streak pressure.</p>
+              <p><strong>Limited lives:</strong> best for elimination pressure. Misses remove lives; useful for match-ball pressure.</p>
+              <p><strong>Recovery after miss:</strong> best for emotional reset. After a miss, log whether the recovery response was stable.</p>
+              <h4>Settings</h4>
+              <p><strong>Sudden death:</strong> a miss in the clutch zone ends the pressure attempt. Use sparingly.</p>
+              <p><strong>Final reps weighting:</strong> makes late attempts count more because they feel closer to match pressure.</p>
+              <p><strong>Escalation step:</strong> lower values make pressure rise faster.</p>
+              <h4>Metrics</h4>
+              <p><strong>Clutch:</strong> success rate when the drill is near completion or in high-pressure state.</p>
+              <p><strong>Fatigue risk:</strong> short-term risk signal based on recent misses, recovery fails, and collapse events.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -945,6 +989,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.21.0"></script>
+  <script type="module" src="app.js?v=4.22.0"></script>
 </body>
 </html>
