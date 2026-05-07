@@ -167,3 +167,155 @@ export function plateauActionRecommendation(state) {
       };
   }
 }
+
+
+export function computeRoutineAllocationBalance(logs, routines, options = {}) {
+  const targetAllocation = options.targetAllocation || {
+    potting: 0.30,
+    cue_ball: 0.20,
+    safety: 0.20,
+    break_building: 0.20,
+    mental: 0.10
+  };
+
+  const totals = {};
+  let totalLogs = 0;
+
+  (logs || []).forEach(l => {
+    const r = (routines || []).find(x => x.id === l.routineId);
+    if (!r) return;
+
+    const cat = String(r.category || "uncategorized").toLowerCase();
+    totals[cat] = (totals[cat] || 0) + 1;
+    totalLogs += 1;
+  });
+
+  const result = Object.entries(targetAllocation).map(([cat, target]) => {
+    const actual = totalLogs > 0 ? (totals[cat] || 0) / totalLogs : 0;
+    return {
+      category: cat,
+      target,
+      actual,
+      delta: actual - target,
+      undertrained: actual < target * 0.7
+    };
+  });
+
+  result.sort((a,b)=>a.delta-b.delta);
+  return result;
+}
+
+export function recommendedAllocationFocus(balance) {
+  const under = (balance || []).filter(x => x.undertrained);
+
+  if (!under.length) {
+    return {
+      label: "Balanced allocation",
+      detail: "Recent training distribution remains close to target allocation."
+    };
+  }
+
+  return {
+    label: "Undertrained categories",
+    detail: under.map(x => `${x.category} (${Math.round(x.actual*100)}% vs target ${Math.round(x.target*100)}%)`).join(", ")
+  };
+}
+
+
+export function computePredictorContributions(input = {}) {
+  const contributions = [];
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, Number(v || 0)));
+
+  const hit = input.hitRate;
+  if (hit === null || hit === undefined || !Number.isFinite(Number(hit))) {
+    contributions.push({
+      key:"target_hit_rate",
+      label:"Target hit rate",
+      value:10,
+      direction:"needs-data",
+      detail:"No stable target hit-rate data yet."
+    });
+  } else {
+    const missPressure = clamp((80 - Number(hit)) * 0.55, -12, 28);
+    contributions.push({
+      key:"target_hit_rate",
+      label:"Target hit rate",
+      value:missPressure,
+      direction:missPressure > 8 ? "priority-up" : missPressure < -4 ? "priority-down" : "neutral",
+      detail:Number(hit) < 65 ? "Low hit rate increases priority." : "Hit rate is not a major pressure signal."
+    });
+  }
+
+  const bayes = input.bayesianSignal;
+  if (bayes) {
+    contributions.push({
+      key:"bayesian_confidence",
+      label:"Bayesian confidence",
+      value:clamp(bayes.scoreDelta || 0, -12, 20),
+      direction:(bayes.scoreDelta || 0) > 5 ? "priority-up" : (bayes.scoreDelta || 0) < -3 ? "priority-down" : "neutral",
+      detail:bayes.reason || "Bayesian signal included."
+    });
+  }
+
+  const plateau = input.plateauState;
+  if (plateau) {
+    const v = plateau === "plateau" ? 10 : plateau === "fatigue" ? 14 : plateau === "progressing" ? -6 : plateau === "uncertain" ? 8 : 0;
+    contributions.push({
+      key:"plateau_state",
+      label:"Plateau / fatigue state",
+      value:v,
+      direction:v > 5 ? "priority-up" : v < -3 ? "priority-down" : "neutral",
+      detail:plateau === "plateau" ? "Stable plateau suggests constraint variation." :
+        plateau === "fatigue" ? "Fatigue/inconsistency suggests rebuild work." :
+        plateau === "progressing" ? "Progressing routines need less corrective priority." :
+        plateau === "uncertain" ? "Uncertainty suggests repeating the setup." :
+        "No strong plateau signal."
+    });
+  }
+
+  const allocation = input.allocationDelta;
+  if (allocation !== null && allocation !== undefined && Number.isFinite(Number(allocation))) {
+    const v = clamp(-Number(allocation) * 45, -10, 18);
+    contributions.push({
+      key:"allocation_balance",
+      label:"Allocation balance",
+      value:v,
+      direction:v > 5 ? "priority-up" : v < -3 ? "priority-down" : "neutral",
+      detail:Number(allocation) < 0 ? "Category is under target allocation." : "Category is not undertrained."
+    });
+  }
+
+  const days = Number(input.daysSinceLast || 0);
+  const recency = clamp(days * 0.8, 0, 14);
+  contributions.push({
+    key:"recency",
+    label:"Recency",
+    value:recency,
+    direction:recency > 6 ? "priority-up" : "neutral",
+    detail:days >= 7 ? "Not practiced recently." : "Recently practiced."
+  });
+
+  const fatigue = input.sessionFatigue;
+  if (fatigue !== null && fatigue !== undefined && Number.isFinite(Number(fatigue))) {
+    const v = clamp(-Number(fatigue) * 5, -8, 12);
+    contributions.push({
+      key:"session_rating",
+      label:"Session rating / fatigue",
+      value:v,
+      direction:v > 5 ? "priority-up" : v < -3 ? "priority-down" : "neutral",
+      detail:v > 5 ? "Recent subjective fatigue raises rebuild priority." : "Session rating is not a major risk signal."
+    });
+  }
+
+  const total = contributions.reduce((a,b)=>a + Number(b.value || 0), 0);
+  const sorted = contributions.slice().sort((a,b)=>Math.abs(b.value)-Math.abs(a.value));
+  return {total, contributions:sorted};
+}
+
+export function predictorRecommendationLabel(total) {
+  const t = Number(total || 0);
+  if (t >= 35) return {label:"High corrective priority", detail:"Several signals point toward targeted practice."};
+  if (t >= 18) return {label:"Moderate priority", detail:"Some signals suggest this routine should stay in the rotation."};
+  if (t <= 0) return {label:"Low corrective pressure", detail:"Current signals do not require extra priority."};
+  return {label:"Light priority", detail:"Routine can be included opportunistically."};
+}

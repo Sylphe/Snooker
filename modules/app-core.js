@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.16.0";
+import { APP_VERSION } from "./version.js?v=4.19.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.16.0";
+} from "./utils.js?v=4.19.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.16.0";
+} from "./settings.js?v=4.19.0";
 import {
   avg,
   stdDev,
@@ -37,7 +37,12 @@ import {
   ,
   detectPlateauState,
   plateauActionRecommendation
-} from "./analytics.js?v=4.16.0";
+  ,
+  computeRoutineAllocationBalance,
+  recommendedAllocationFocus,
+  computePredictorContributions,
+  predictorRecommendationLabel
+} from "./analytics.js?v=4.19.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -46,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.16.0";
+} from "./bayesian.js?v=4.19.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -55,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.16.0";
+} from "./session.js?v=4.19.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -67,8 +72,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.16.0";
-import * as RenderHelpers from "./render.js?v=4.16.0";
+} from "./recommendations.js?v=4.19.0";
+import * as RenderHelpers from "./render.js?v=4.19.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -79,7 +84,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.16.0";
+} from "./store.js?v=4.19.0";
 
 
 
@@ -3962,7 +3967,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.16.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.19.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4477,6 +4482,259 @@ function renderBayesianValidationForRoutine(routineId) {
   </div>`;
 }
 
+
+
+function computeTournamentPrepPlan() {
+  const daysInput = Number($("tournamentPrepDays")?.value || 14);
+  const format = $("tournamentPrepFormat")?.value || "best_of_7";
+  const focus = $("tournamentPrepFocus")?.value || "balanced";
+  const risk = $("tournamentPrepRisk")?.value || "balanced";
+  const minutes = Number($("tournamentPrepMinutes")?.value || 90);
+
+  const daysRemaining = Math.max(1, daysInput);
+
+  let intensity = "moderate";
+  let taper = "No taper required yet.";
+
+  if (daysRemaining <= 3) {
+    intensity = "low";
+    taper = "Avoid major technical changes; prioritize confidence and rhythm.";
+  } else if (daysRemaining <= 7) {
+    intensity = "controlled";
+    taper = "Reduce total volume slightly while maintaining match realism.";
+  }
+
+  const blocks = [];
+
+  if (focus === "potting") {
+    blocks.push("Long potting under pressure");
+    blocks.push("Straight cue-ball control");
+  } else if (focus === "safety") {
+    blocks.push("Distance safety exchanges");
+    blocks.push("Thin contact control");
+  } else if (focus === "break_building") {
+    blocks.push("Break conversion drills");
+    blocks.push("Transition position routes");
+  } else {
+    blocks.push("Mixed match simulation");
+    blocks.push("Pressure scoring routines");
+  }
+
+  if (risk === "aggressive") {
+    blocks.push("High-pressure scoring finishes");
+  } else if (risk === "conservative") {
+    blocks.push("Stability and percentage shot selection");
+  }
+
+  return {
+    daysRemaining,
+    format,
+    focus,
+    risk,
+    minutes,
+    intensity,
+    taper,
+    blocks
+  };
+}
+
+
+function allocationDeltaForRoutine(routine) {
+  if (!routine) return null;
+  const recentLogs = (data.logs || []).slice(-120);
+  const balance = computeRoutineAllocationBalance(recentLogs, activeRoutines());
+  const key = String(routine.category || "uncategorized").toLowerCase();
+  const row = balance.find(x => x.category === key);
+  return row ? row.delta : null;
+}
+
+function recentSessionFatigueForRoutine(routineId) {
+  const logs = (data.logs || [])
+    .filter(l => l.routineId === routineId && l.sessionRating)
+    .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
+    .slice(0,5);
+  if (!logs.length) return null;
+  const avgRating = logs.reduce((a,b)=>a + Number(b.sessionRating || 0),0) / logs.length;
+  return Math.max(-1, Math.min(1, (3 - avgRating) / 2));
+}
+
+function predictorModelForRoutine(routine) {
+  if (!routine) return null;
+  const stats = routineStats(routine.id);
+  const logs = stats.logs || [];
+  const bayes = stats.bayesian || null;
+  const uncertainty = bayes?.posterior ? (bayes.posterior.upper - bayes.posterior.lower) : 0;
+  const plateau = detectPlateauState(logs, {uncertainty});
+  const last = logs.length ? logs[logs.length-1] : null;
+  const days = last ? daysSince(last.createdAt) : recommendationRecencyCap(routine);
+  return computePredictorContributions({
+    hitRate:stats.hit,
+    bayesianSignal:bayes?.signal || null,
+    plateauState:plateau.state,
+    allocationDelta:allocationDeltaForRoutine(routine),
+    daysSinceLast:days,
+    sessionFatigue:recentSessionFatigueForRoutine(routine.id)
+  });
+}
+
+function renderPredictorContributionModel() {
+  const box = $("bayesianValidationOutput");
+  if (!box) return;
+
+  const selected = $("statsRoutineSelect")?.value || "all";
+  const routines = activeRoutines()
+    .filter(r => selected === "all" || r.id === selected)
+    .map(r => ({routine:r, model:predictorModelForRoutine(r)}))
+    .filter(x => x.model)
+    .sort((a,b)=>b.model.total-a.model.total)
+    .slice(0,5);
+
+  if (!routines.length) return;
+
+  const cards = routines.map(({routine, model}) => {
+    const label = predictorRecommendationLabel(model.total);
+    const rows = model.contributions.slice(0,6).map(c => `
+      <div class="predictor-row predictor-${safeClassToken(c.direction, ["priority-up","priority-down","neutral","needs-data"], "neutral")}">
+        <div>
+          <strong>${htmlText(c.label)}</strong>
+          <small>${htmlText(c.detail)}</small>
+        </div>
+        <span>${Number(c.value || 0).toFixed(1)}</span>
+      </div>
+    `).join("");
+
+    return `<div class="predictor-card">
+      <div class="predictor-head">
+        <strong>${htmlText(routine.name)}</strong>
+        <span>${htmlText(label.label)}</span>
+      </div>
+      <p class="muted">${htmlText(label.detail)} Total contribution score: ${Number(model.total || 0).toFixed(1)}.</p>
+      <div class="predictor-list">${rows}</div>
+    </div>`;
+  }).join("");
+
+  box.innerHTML += `<div class="predictor-section">
+    <h3>Predictor contribution model</h3>
+    <p class="muted">Transparent Lasso-style scoring proxy. It explains which signals are pushing a routine up or down without using a black-box model.</p>
+    ${cards}
+  </div>`;
+}
+
+
+function renderTournamentPrepPlanner() {
+  const host = $("bayesianValidationOutput");
+  if (!host) return;
+
+  const plan = computeTournamentPrepPlan();
+
+  host.innerHTML += `
+    <div class="tournament-prep-card">
+      <h3>Tournament preparation planner</h3>
+
+      <div class="tournament-controls">
+        <label>
+          <span>Days remaining</span>
+          <input id="tournamentPrepDays" type="number" min="1" max="90" value="${plan.daysRemaining}">
+        </label>
+
+        <label>
+          <span>Format</span>
+          <select id="tournamentPrepFormat">
+            <option value="best_of_5" ${plan.format==="best_of_5" ? "selected" : ""}>Best of 5</option>
+            <option value="best_of_7" ${plan.format==="best_of_7" ? "selected" : ""}>Best of 7</option>
+            <option value="best_of_11" ${plan.format==="best_of_11" ? "selected" : ""}>Best of 11+</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Primary focus</span>
+          <select id="tournamentPrepFocus">
+            <option value="balanced" ${plan.focus==="balanced" ? "selected" : ""}>Balanced</option>
+            <option value="potting" ${plan.focus==="potting" ? "selected" : ""}>Potting</option>
+            <option value="safety" ${plan.focus==="safety" ? "selected" : ""}>Safety</option>
+            <option value="break_building" ${plan.focus==="break_building" ? "selected" : ""}>Break building</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Risk profile</span>
+          <select id="tournamentPrepRisk">
+            <option value="conservative" ${plan.risk==="conservative" ? "selected" : ""}>Conservative</option>
+            <option value="balanced" ${plan.risk==="balanced" ? "selected" : ""}>Balanced</option>
+            <option value="aggressive" ${plan.risk==="aggressive" ? "selected" : ""}>Aggressive</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Practice minutes</span>
+          <input id="tournamentPrepMinutes" type="number" min="15" max="480" step="15" value="${plan.minutes}">
+        </label>
+      </div>
+
+      <div class="tournament-plan-summary">
+        <div><span>Intensity</span><strong>${htmlText(plan.intensity)}</strong></div>
+        <div><span>Daily duration</span><strong>${plan.minutes} min</strong></div>
+      </div>
+
+      <div class="tournament-plan-blocks">
+        <strong>Recommended session blocks</strong>
+        <ul>
+          ${plan.blocks.map(x => `<li>${htmlText(x)}</li>`).join("")}
+        </ul>
+      </div>
+
+      <div class="tournament-plan-taper">
+        <strong>Taper guidance</strong>
+        <p>${htmlText(plan.taper)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderAllocationOptimization() {
+  const box = $("bayesianValidationOutput");
+  if (!box) return;
+
+  const recentLogs = (data.logs || []).slice(-120);
+  const balance = computeRoutineAllocationBalance(recentLogs, activeRoutines());
+
+  if (!balance.length) return;
+
+  const focus = recommendedAllocationFocus(balance);
+
+  const rows = balance.map(item => `
+    <div class="allocation-row ${item.undertrained ? "undertrained" : ""}">
+      <div>
+        <strong>${htmlText(item.category)}</strong>
+      </div>
+      <div>${Math.round(item.actual * 100)}%</div>
+      <div>${Math.round(item.target * 100)}%</div>
+    </div>
+  `).join("");
+
+  box.innerHTML += `
+    <div class="allocation-card">
+      <h3>Routine allocation optimization</h3>
+      <p class="muted">Balances training volume across categories to prevent recommendation drift toward a narrow drill set.</p>
+
+      <div class="allocation-grid">
+        <div class="allocation-head">
+          <span>Category</span>
+          <span>Actual</span>
+          <span>Target</span>
+        </div>
+        ${rows}
+      </div>
+
+      <div class="allocation-focus">
+        <strong>${htmlText(focus.label)}</strong>
+        <p>${htmlText(focus.detail)}</p>
+      </div>
+    </div>
+  `;
+}
+
+
 function renderPlateauDiagnostics() {
   const box = $("bayesianValidationOutput");
   if (!box) return;
@@ -4536,6 +4794,9 @@ function renderBayesianAnalyticsValidation() {
     <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
     ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
   renderPlateauDiagnostics();
+  renderAllocationOptimization();
+  renderTournamentPrepPlanner();
+  renderPredictorContributionModel();
 }
 
 /* v4.11 mobile practice-flow helpers */
@@ -4706,3 +4967,18 @@ function exposeV4LegacyGlobals() {
   });
 }
 exposeV4LegacyGlobals();
+
+
+
+document.addEventListener("change", (event) => {
+  const id = event.target?.id || "";
+  if (
+    id === "tournamentPrepDays" ||
+    id === "tournamentPrepFormat" ||
+    id === "tournamentPrepFocus" ||
+    id === "tournamentPrepRisk" ||
+    id === "tournamentPrepMinutes"
+  ) {
+    renderBayesianAnalyticsValidation?.();
+  }
+});
