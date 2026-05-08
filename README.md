@@ -1,38 +1,38 @@
-# Snooker Practice Log — v4.22.0
+# Snooker Practice Log — v4.21.1
 
-## Pressure Coach UX Layer
+## Left / Right Side Split Restoration
 
-Adds discoverability and interpretation for the pressure simulator.
+Built from v4.21.
+
+Restores the left/right side split that existed in earlier v3.24 builds.
 
 Implemented:
-- Pressure help button and bottom-sheet guide.
-- Recommended pressure presets:
-  - Consistency Builder
-  - Match Pressure
-  - Clutch Finishing
-  - Recovery Stability
-  - Confidence Rebuild
-  - Tournament Prep
-- Inline pressure mode explanation.
-- Preset summary guidance.
-- Contextual live metric guidance.
-- Explanation of sudden death, final rep weighting, escalation step, clutch rate, and fatigue risk.
-
-Design goal:
-- keep one-tap pressure logging low friction,
-- make the settings understandable,
-- avoid adding more data-entry burden.
+- Side split selector in the exercise setup form:
+  - None
+  - Left / Right
+- Left and right score inputs during logging when enabled.
+- One combined log is saved.
+- Combined score = average of left and right side score.
+- Side-level metadata saved on the log:
+  - sideMode
+  - sideSplitEnabled
+  - leftSideScore
+  - rightSideScore
+  - sideScores
+- Exercise database shows a Left / Right badge.
+- Quick-score macros are disabled for side-split drills to avoid corrupting side-specific input.
 
 Preserved:
-- v4.21 pressure escalation features,
-- v4.20 pressure foundation,
-- v4.19 predictor contribution model,
-- storage/render stability path.
+- v4.21 pressure escalation features.
+- v4.20 pressure foundation.
+- IndexedDB/storage safety path.
+- renderToday/renderStats rollback safety.
 
 Testing checklist:
-1. Open Pressure simulation.
-2. Tap the ? helper button.
-3. Test each preset and confirm settings update.
-4. Start pressure drill and confirm metric guidance updates.
-5. Finish & Save a pressure log.
-6. Confirm tabs, routines, and Data storage dashboard still work.
+1. Create or edit an exercise.
+2. Set Side split = Left / Right.
+3. Start that exercise.
+4. Confirm Left side score and Right side score appear.
+5. Enter both values and save.
+6. Confirm one log is created with combined score.
+7. Confirm normal non-side-split exercises still work.

@@ -974,69 +974,24 @@ body.session-focus-active #skipBtn{
 }
 
 
-/* v4.22 Pressure coach UX helpers */
-.section-title-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-.helper-btn{
-  width:36px;
-  height:36px;
-  border-radius:999px;
-  padding:0;
-  font-weight:900;
-}
-.pressure-helper-note,
-.pressure-preset-summary,
-.pressure-metric-explainer{
+/* v4.21.1 restored left/right side split */
+.side-split-panel{
+  grid-column:1/-1;
   border:1px solid var(--line);
-  border-radius:14px;
-  padding:10px;
-  margin:10px 0;
-  color:var(--muted);
+  border-radius:16px;
+  padding:12px;
   background:var(--panel-bg, var(--card));
 }
-.pressure-metric-explainer{
-  font-weight:700;
-}
-.pressure-help-backdrop{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.45);
-  z-index:1300;
+.side-split-title{
   display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  padding:12px;
-}
-.pressure-help-sheet{
-  width:min(720px,100%);
-  max-height:82vh;
-  overflow:auto;
-  background:var(--card);
-  color:var(--text);
-  border:1px solid var(--line);
-  border-radius:24px 24px 16px 16px;
-  box-shadow:var(--shadow);
-  padding:0 16px 16px;
-}
-.pressure-help-header{
-  display:flex;
-  align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
-  padding:12px 0;
-  border-bottom:1px solid var(--line);
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:10px;
 }
-.pressure-help-content h4{
-  margin:14px 0 6px;
-}
-.pressure-help-content p{
-  margin:8px 0;
-}
-@media(min-width:761px){
-  .pressure-help-backdrop{align-items:center;}
-  .pressure-help-sheet{border-radius:24px;}
+.side-split-title span,
+.side-split-note,
+.helper-text{
+  color:var(--muted);
+  font-size:12px;
 }

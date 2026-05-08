@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.22.0";
+import { APP_VERSION } from "./version.js?v=4.21.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.0";
+} from "./utils.js?v=4.21.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.0";
+} from "./settings.js?v=4.21.1";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.0";
+} from "./analytics.js?v=4.21.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.0";
+} from "./bayesian.js?v=4.21.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.0";
+} from "./session.js?v=4.21.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.0";
+} from "./pressure.js?v=4.21.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.0";
-import * as RenderHelpers from "./render.js?v=4.22.0";
+} from "./recommendations.js?v=4.21.1";
+import * as RenderHelpers from "./render.js?v=4.21.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.0";
+} from "./store.js?v=4.21.1";
 
 
 
@@ -525,6 +525,19 @@ function applyLastScoreSetup() {
   refreshCurrentRoutineLivePerformance();
 }
 
+
+function normalizeSideMode(value) {
+  return value === "left_right" || value === "lr" || value === "side_split" ? "left_right" : "none";
+}
+function routineUsesSideSplit(r) {
+  return normalizeSideMode(r?.sideMode || r?.sideSplitMode || r?.sideSplit) === "left_right";
+}
+function computeSideCombinedScore(left, right) {
+  const l = Number(left || 0);
+  const r = Number(right || 0);
+  return Math.round(((l + r) / 2) * 100) / 100;
+}
+
 function normalizeScore(log) {
   if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
   if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
@@ -682,6 +695,7 @@ function editRoutine(id) {
   $("routineSubfolderNew").value = "";
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
+  if ($("routineSideMode")) $("routineSideMode").value = normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit);
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
   $("routineTarget").value = r.target || "";
@@ -702,6 +716,7 @@ function clearRoutineForm() {
   $("routineEditId").value = "";
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
+  if ($("routineSideMode")) $("routineSideMode").value = "none";
   $("routineIsAnchor").value = "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
   $("routineCategorySelect").value = "all";
@@ -742,6 +757,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
+    sideMode: normalizeSideMode($("routineSideMode")?.value || "none"),
     isAnchor: $("routineIsAnchor").value === "yes",
     recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
     target: Number($("routineTarget").value || 0) || "",
@@ -970,10 +986,22 @@ function renderScoreInputs(r) {
     html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   }
+  if (routineUsesSideSplit(r)) {
+    const attemptsDefault = Number(r.attempts || r.attemptsPerSession || 0) || "";
+    html += `<div class="side-split-panel">
+      <div class="side-split-title"><strong>Left / Right split</strong><span>Combined score is calculated automatically as the average of both sides.</span></div>
+      <div class="grid two">
+        <div><label>Left side score</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
+        <div><label>Right side score</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
+      </div>
+      <div class="side-split-note">For success-rate drills, attempts are still taken from the Attempts field / exercise setup.</div>
+    </div>`;
+    if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
+  }
   $("scoreInputs").innerHTML = html;
   renderQuickScoreControls(r);
   setTimeout(() => $("scoreValue")?.focus(), 120);
-  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue"].forEach(id => {
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue"].forEach(id => {
     const el = $(id);
     if (el) {
       el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
@@ -994,6 +1022,8 @@ function fillSameAsLastTime() {
   if ($("bestAttemptValue")) $("bestAttemptValue").value = last.bestAttempt || "";
   if ($("completionCountValue")) $("completionCountValue").value = last.completionCount || "";
   if ($("highestBreakValue")) $("highestBreakValue").value = last.highestBreak || "";
+  if ($("leftSideScoreValue")) $("leftSideScoreValue").value = last.leftSideScore || last.sideLeftScore || "";
+  if ($("rightSideScoreValue")) $("rightSideScoreValue").value = last.rightSideScore || last.sideRightScore || "";
   if ($("sessionRating") && last.sessionRating) $("sessionRating").value = last.sessionRating;
   if ($("sessionTags") && last.sessionTags) $("sessionTags").value = last.sessionTags;
 }
@@ -1003,6 +1033,10 @@ function renderQuickScoreControls(r) {
   if (!box) return;
   box.classList.remove("hidden");
   const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
+  if (routineUsesSideSplit(r)) {
+    box.innerHTML = `<div class="analytics-note">Left / Right split is active. Enter both side scores; the app saves one combined log.</div>`;
+    return;
+  }
   if (r.scoring === "success_rate") {
     const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
     const chips = Array.from({length: Math.min(attempts, 30) + 1}, (_, i) => i)
@@ -1080,12 +1114,16 @@ async function saveCurrentRoutine() {
   if (!activeSession) return;
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
-  const score = Number($("scoreValue")?.value || 0);
+  const sideSplitEnabled = routineUsesSideSplit(r);
+  const leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
+  const rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
+  const score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
   const attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
   const manualTime = Number($("manualTimeValue")?.value || 0);
   const timerMinutes = getElapsedMinutes();
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
   if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
+  if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return alert("Enter valid left and right side scores.");
   if (Number.isNaN(score)) return alert("Enter a valid score.");
   if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
@@ -1113,6 +1151,11 @@ async function saveCurrentRoutine() {
     scoring: r.scoring,
     score,
     attempts,
+    sideMode: normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit),
+    sideSplitEnabled,
+    leftSideScore,
+    rightSideScore,
+    sideScores: sideSplitEnabled ? {left:leftSideScore, right:rightSideScore} : "",
     timeMinutes: Math.round(timeMinutes * 10) / 10,
     normalizedScore: 0,
     bestAttempt: Number($("bestAttemptValue")?.value || 0) || "",
@@ -3976,7 +4019,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4434,7 +4477,8 @@ window.SnookerInterface = {
 function renderLivePerformanceCard(r){
   const box = $("livePerformanceCard");
   if (!box || !r) return;
-  const score = Number($("scoreValue")?.value || 0);
+  const sideSplitEnabled = routineUsesSideSplit(r);
+  const score = sideSplitEnabled ? computeSideCombinedScore($("leftSideScoreValue")?.value || 0, $("rightSideScoreValue")?.value || 0) : Number($("scoreValue")?.value || 0);
   const attempts = Number($("attemptsValue")?.value || r.attempts || r.attemptsPerSession || 0);
   const draftLog = {scoring:r.scoring, score, attempts, totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
   const normalized = normalizeScore(draftLog);
@@ -4809,122 +4853,6 @@ function renderBayesianAnalyticsValidation() {
 }
 
 
-
-const PRESSURE_PRESETS = {
-  custom:{
-    label:"Custom",
-    mode:null,
-    target:5,
-    suddenDeath:"off",
-    finalReps:3,
-    escalationStep:2,
-    summary:"Custom setup. Adjust mode and intensity manually."
-  },
-  consistency:{
-    label:"Consistency Builder",
-    mode:"streak",
-    target:5,
-    suddenDeath:"off",
-    finalReps:2,
-    escalationStep:3,
-    summary:"Best for stable cue delivery. Gentle escalation; miss resets streak but does not over-punish."
-  },
-  match:{
-    label:"Match Pressure",
-    mode:"lives",
-    target:3,
-    suddenDeath:"off",
-    finalReps:3,
-    escalationStep:1,
-    summary:"Best for match-like consequence. Limited lives create pressure without ending too quickly."
-  },
-  clutch:{
-    label:"Clutch Finishing",
-    mode:"streak",
-    target:5,
-    suddenDeath:"on",
-    finalReps:3,
-    escalationStep:1,
-    summary:"Best for final-ball nerves. Sudden death activates near completion."
-  },
-  recovery:{
-    label:"Recovery Stability",
-    mode:"recovery",
-    target:5,
-    suddenDeath:"off",
-    finalReps:2,
-    escalationStep:2,
-    summary:"Best for emotional reset after mistakes. Use Recovery OK / FAIL after misses."
-  },
-  confidence:{
-    label:"Confidence Rebuild",
-    mode:"streak",
-    target:3,
-    suddenDeath:"off",
-    finalReps:1,
-    escalationStep:4,
-    summary:"Best after a poor session. Low pressure and short target rebuild execution confidence."
-  },
-  tournament:{
-    label:"Tournament Prep",
-    mode:"lives",
-    target:2,
-    suddenDeath:"on",
-    finalReps:3,
-    escalationStep:1,
-    summary:"Best close to competition. Higher consequence; avoid major technical changes."
-  }
-};
-
-function pressureModeHelpText(mode) {
-  if (mode === "streak") return "Streak ladder trains repeatable execution and closing nerves. Use Made/Miss only.";
-  if (mode === "lives") return "Limited lives trains elimination pressure. Every miss has consequence.";
-  if (mode === "recovery") return "Recovery mode trains emotional reset after misses. Use Recovery OK/FAIL after a miss.";
-  return "Choose a pressure mode or preset.";
-}
-
-function pressureMetricHelpText() {
-  if (!pressureSession) return "";
-  const summary = pressureSummary(pressureSession);
-  const warnings = [];
-  if (summary.fatigueRisk >= 60) warnings.push("Fatigue risk is high: consider ending or switching to rebuild work.");
-  if (pressureSession.clutchAttempts >= 3 && summary.clutchRate < 0.4) warnings.push("Clutch conversion is weak: reduce sudden death or lower target briefly.");
-  if (pressureSession.bestStreak >= pressureSession.targetStreak && pressureSession.mode === "streak") warnings.push("Target reached: finish now or continue to extend best streak.");
-  if (!warnings.length) warnings.push("Keep tapping Made/Miss. The app tracks pressure metrics automatically.");
-  return warnings.join(" ");
-}
-
-function updatePressureExplanations() {
-  const mode = $("pressureModeSelect")?.value || "streak";
-  const preset = $("pressurePresetSelect")?.value || "custom";
-  const explainer = $("pressureModeExplainer");
-  const summary = $("pressurePresetSummary");
-  const metric = $("pressureMetricExplainer");
-  if (explainer) explainer.textContent = pressureModeHelpText(mode);
-  if (summary) summary.textContent = PRESSURE_PRESETS[preset]?.summary || PRESSURE_PRESETS.custom.summary;
-  if (metric) metric.textContent = pressureMetricHelpText();
-}
-
-function applyPressurePreset(key) {
-  const preset = PRESSURE_PRESETS[key] || PRESSURE_PRESETS.custom;
-  if (preset.mode && $("pressureModeSelect")) $("pressureModeSelect").value = preset.mode;
-  if ($("pressureTargetInput")) $("pressureTargetInput").value = preset.target;
-  if ($("pressureSuddenDeathSelect")) $("pressureSuddenDeathSelect").value = preset.suddenDeath;
-  if ($("pressureFinalRepsInput")) $("pressureFinalRepsInput").value = preset.finalReps;
-  if ($("pressureEscalationStepInput")) $("pressureEscalationStepInput").value = preset.escalationStep;
-  updatePressureExplanations();
-}
-
-function openPressureHelpSheet() {
-  $("pressureHelpSheet")?.classList.remove("hidden");
-  document.body.classList.add("routine-picker-open");
-}
-
-function closePressureHelpSheet() {
-  $("pressureHelpSheet")?.classList.add("hidden");
-  document.body.classList.remove("routine-picker-open");
-}
-
 let pressureSession = null;
 
 function currentPressureRoutine() {
@@ -4989,8 +4917,6 @@ function updatePressurePanel() {
   const showRecovery = pressureSession.mode === "recovery" && pressureSession.recoveryMode;
   $("pressureRecoveryOkBtn")?.classList.toggle("hidden", !showRecovery);
   $("pressureRecoveryFailBtn")?.classList.toggle("hidden", !showRecovery);
-
-  updatePressureExplanations();
 
   if (pressureSession.completed) {
     const note = $("pressureCompletionNote");
@@ -5128,10 +5054,6 @@ function bindPressureOverlay() {
   $("pressureUndoBtn")?.addEventListener("click", undoPressure);
   $("pressureFinishBtn")?.addEventListener("click", finishPressureSession);
   $("pressureCancelBtn")?.addEventListener("click", cancelPressureSession);
-  $("pressureHelpBtn")?.addEventListener("click", openPressureHelpSheet);
-  $("pressureHelpCloseBtn")?.addEventListener("click", closePressureHelpSheet);
-  $("pressureHelpSheet")?.addEventListener("click", e => { if (e.target === $("pressureHelpSheet")) closePressureHelpSheet(); });
-  $("pressurePresetSelect")?.addEventListener("change", () => applyPressurePreset($("pressurePresetSelect")?.value || "custom"));
   $("pressureModeSelect")?.addEventListener("change", () => {
     const mode = $("pressureModeSelect")?.value || "streak";
     const input = $("pressureTargetInput");
@@ -5140,13 +5062,7 @@ function bindPressureOverlay() {
     if (finalReps) finalReps.value = mode === "recovery" ? 2 : 3;
     const step = $("pressureEscalationStepInput");
     if (step) step.value = mode === "lives" ? 1 : 2;
-    if ($("pressurePresetSelect")) $("pressurePresetSelect").value = "custom";
-    updatePressureExplanations();
   });
-  ["pressureTargetInput","pressureSuddenDeathSelect","pressureFinalRepsInput","pressureEscalationStepInput"].forEach(id => {
-    $(id)?.addEventListener("change", updatePressureExplanations);
-  });
-  updatePressureExplanations();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindPressureOverlay);
 else bindPressureOverlay();
