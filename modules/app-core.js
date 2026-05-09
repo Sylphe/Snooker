@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.1";
+import { APP_VERSION } from "./version.js?v=4.21.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.1";
+} from "./utils.js?v=4.21.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.1";
+} from "./settings.js?v=4.21.2";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.1";
+} from "./analytics.js?v=4.21.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.1";
+} from "./bayesian.js?v=4.21.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.1";
+} from "./session.js?v=4.21.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.1";
+} from "./pressure.js?v=4.21.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.1";
-import * as RenderHelpers from "./render.js?v=4.21.1";
+} from "./recommendations.js?v=4.21.2";
+import * as RenderHelpers from "./render.js?v=4.21.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.1";
+} from "./store.js?v=4.21.2";
 
 
 
@@ -285,6 +285,7 @@ refreshReferenceNames();
 // Core data is compacted after IndexedDB hydration/migration succeeds.
 let planDraft = [];
 let activeSession = null;
+let isResumingActiveSession = false;
 let timerInterval = null;
 let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
@@ -942,7 +943,7 @@ $("resetSessionBtn").addEventListener("click", () => {
   updateSessionFocusState();
 });
 function renderCurrentRoutine() {
-  persistActiveSession();
+  if (!isResumingActiveSession) persistActiveSession();
   if (!activeSession || activeSession.index >= activeSession.routineIds.length) return completeSession();
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
@@ -4019,7 +4020,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4047,7 +4048,7 @@ function renderTodayResumeCard() {
   const box = $("todayResumeSessionBox");
   const actions = $("todayResumeActions");
   if (!card || !box || !actions) return;
-  const s = getPersistedActiveSession();
+  const s = normalizePersistedSessionDraft(getPersistedActiveSession());
   if (!s) {
     box.innerHTML = `<div class="session-status-empty">No unfinished session detected. Completed training logs for today are shown below.</div>`;
     actions.classList.add("hidden");
@@ -4111,9 +4112,88 @@ function applyTargetUpgrade(routineId){
 
 
 
-function renderResumeCard(){const card=$("resumeSessionCard"),box=$("resumeSessionBox"); if(!card||!box)return; const s=getPersistedActiveSession(); if(!s||activeSession){card.classList.add("hidden");box.innerHTML="";return;} const r=routineById(s.routineIds[s.index]); card.classList.remove("hidden"); box.innerHTML=`<div class="resume-detail"><strong>${escapeHtml(s.planName||"Unfinished session")}</strong></div><div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name||"Missing exercise")}</div><div class="resume-detail">Started: ${new Date(s.startedAt||s.savedAt).toLocaleString()}</div>`;}
-function resumePersistedSession(){const s=getPersistedActiveSession(); if(!s)return alert("No unfinished session to resume."); const savedTimerState=s.timerState?{...s.timerState}:null; activeSession=s; suppressTimerPersistence=true; startRoutineScreen(); suppressTimerPersistence=false; if(savedTimerState) activeSession.timerState=savedTimerState; restoreTimerStateFromActiveSession(); syncTimerStateToActiveSession();}
-function discardPersistedSession(){if(!confirm("Discard unfinished session? Existing saved logs will remain."))return; clearPersistedActiveSession(); renderResumeCard();}
+function renderResumeCard(){
+  const card=$("resumeSessionCard"),box=$("resumeSessionBox");
+  if(!card||!box)return;
+  const s=normalizePersistedSessionDraft(getPersistedActiveSession());
+  if(!s||activeSession){card.classList.add("hidden");box.innerHTML="";return;}
+  const r=routineById(s.routineIds[s.index]);
+  card.classList.remove("hidden");
+  box.innerHTML=`<div class="resume-detail"><strong>${escapeHtml(s.planName||"Unfinished session")}</strong></div>
+    <div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name||"Missing exercise")}</div>
+    <div class="resume-detail">Started: ${new Date(s.startedAt||s.savedAt).toLocaleString()}</div>`;
+}
+function normalizePersistedSessionDraft(s) {
+  if (!s || !Array.isArray(s.routineIds) || !s.routineIds.length) return null;
+  const copy = structuredCloneSafe(s);
+  copy.id = copy.id || uuid();
+  copy.type = copy.type || "free";
+  copy.planName = copy.planName || "Unfinished session";
+  copy.startedAt = copy.startedAt || copy.savedAt || new Date().toISOString();
+  copy.completedLogs = Array.isArray(copy.completedLogs) ? copy.completedLogs : [];
+  copy.index = Math.max(0, Number(copy.index || 0));
+
+  if (copy.index >= copy.routineIds.length) return null;
+
+  // If the stored current routine was deleted, move to the next still-existing routine.
+  if (!routineById(copy.routineIds[copy.index])) {
+    const nextIdx = copy.routineIds.findIndex((rid, idx) => idx >= copy.index && !!routineById(rid));
+    if (nextIdx < 0) return null;
+    copy.index = nextIdx;
+  }
+  return copy;
+}
+
+function showPracticePanelForResume() {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  $("practice")?.classList.add("active");
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  document.querySelector('.tab[data-tab="practice"]')?.classList.add("active");
+}
+
+function refreshResumeCards() {
+  renderResumeCard?.();
+  renderTodayResumeCard?.();
+}
+
+function resumePersistedSession() {
+  const s = normalizePersistedSessionDraft(getPersistedActiveSession());
+  if (!s) {
+    clearPersistedActiveSession();
+    refreshResumeCards();
+    return alert("No valid unfinished session to resume.");
+  }
+
+  const savedTimerState = s.timerState ? {...s.timerState} : null;
+  activeSession = s;
+  if (savedTimerState) activeSession.timerState = savedTimerState;
+
+  showPracticePanelForResume();
+  $("sessionSummary")?.classList.add("hidden");
+  $("freeNextCard")?.classList.add("hidden");
+  $("activeSession")?.classList.remove("hidden");
+
+  suppressTimerPersistence = true;
+  isResumingActiveSession = true;
+  try {
+    renderCurrentRoutine();
+  } finally {
+    isResumingActiveSession = false;
+    suppressTimerPersistence = false;
+  }
+
+  if (savedTimerState) activeSession.timerState = savedTimerState;
+  restoreTimerStateFromActiveSession();
+  syncTimerStateToActiveSession();
+  updateSessionFocusState?.();
+  refreshResumeCards();
+}
+
+function discardPersistedSession(){
+  if(!confirm("Discard unfinished session? Existing saved logs will remain."))return;
+  clearPersistedActiveSession();
+  refreshResumeCards();
+}
 function plannedVsCompletedSummary(){
   const recent=(data.sessions||[]).slice().sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
   const rows=recent.filter(s=>(s.plannedRoutineIds||[]).length).map(s=>{const planned=new Set(s.plannedRoutineIds||[]); const completed=new Set((s.logIds||[]).map(id=>(data.logs||[]).find(l=>l.id===id)?.routineId).filter(Boolean)); const done=[...planned].filter(id=>completed.has(id)).length; const skipped=[...planned].filter(id=>!completed.has(id)); return {planned:planned.size,done,skipped,rate:planned.size?done/planned.size*100:null};});

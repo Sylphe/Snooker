@@ -1,38 +1,30 @@
-# Snooker Practice Log — v4.21.1
+# Snooker Practice Log — v4.21.2
 
-## Left / Right Side Split Restoration
+## Resume Session Hotfix
 
-Built from v4.21.
+Built from v4.21.1 left/right hotfix.
 
-Restores the left/right side split that existed in earlier v3.24 builds.
-
-Implemented:
-- Side split selector in the exercise setup form:
-  - None
-  - Left / Right
-- Left and right score inputs during logging when enabled.
-- One combined log is saved.
-- Combined score = average of left and right side score.
-- Side-level metadata saved on the log:
-  - sideMode
-  - sideSplitEnabled
-  - leftSideScore
-  - rightSideScore
-  - sideScores
-- Exercise database shows a Left / Right badge.
-- Quick-score macros are disabled for side-split drills to avoid corrupting side-specific input.
+Fixes:
+- Resume Session now restores the persisted active session more robustly.
+- Resume from either Practice tab or Today tab uses the same normalized session draft.
+- Resume now switches back to the Practice tab automatically.
+- Resume no longer overwrites saved timer/session state while restoring.
+- Discard now refreshes both resume cards.
+- Invalid stale session drafts are cleared safely.
 
 Preserved:
+- v4.21.1 Left / Right side split restoration.
 - v4.21 pressure escalation features.
 - v4.20 pressure foundation.
 - IndexedDB/storage safety path.
 - renderToday/renderStats rollback safety.
 
 Testing checklist:
-1. Create or edit an exercise.
-2. Set Side split = Left / Right.
-3. Start that exercise.
-4. Confirm Left side score and Right side score appear.
-5. Enter both values and save.
-6. Confirm one log is created with combined score.
-7. Confirm normal non-side-split exercises still work.
+1. Start a plan or free training session.
+2. Leave before finishing.
+3. Reopen app.
+4. Tap Resume Session from Practice.
+5. Confirm the current exercise screen appears.
+6. Repeat from Today tab.
+7. Confirm timer/session state does not reset unexpectedly.
+8. Confirm Left / Right drills still show left/right inputs.
