@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.2";
+import { APP_VERSION } from "./version.js?v=4.21.6";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.2";
+} from "./utils.js?v=4.21.6";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.2";
+} from "./settings.js?v=4.21.6";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.2";
+} from "./analytics.js?v=4.21.6";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.2";
+} from "./bayesian.js?v=4.21.6";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.2";
+} from "./session.js?v=4.21.6";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.2";
+} from "./pressure.js?v=4.21.6";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.2";
-import * as RenderHelpers from "./render.js?v=4.21.2";
+} from "./recommendations.js?v=4.21.6";
+import * as RenderHelpers from "./render.js?v=4.21.6";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.2";
+} from "./store.js?v=4.21.6";
 
 
 
@@ -304,7 +304,9 @@ function migrateData(d) {
     category: r.category || "uncategorized",
     stretchTarget: r.stretchTarget || "",
     isDeleted: !!r.isDeleted,
-    deletedAt: r.deletedAt || ""
+    deletedAt: r.deletedAt || "",
+    sideMode: normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit || "none"),
+    attemptMode: routineUsesSideSplit(r) ? normalizeAttemptMode(r.attemptMode || r.sideAttemptMode || r.leftRightAttemptMode || "shared") : "shared"
   }));
   d.routines = (d.routines || []).map(r => ensureTargetHistory(r));
   d.plans = d.plans || [];
@@ -330,7 +332,23 @@ function migrateData(d) {
       performance: l.performance || "N/A",
       ...l
     };
-    migrated.normalizedScore = Number(migrated.normalizedScore || normalizeScore(migrated));
+    if (logUsesSideSplit(migrated)) {
+      const left = getLogLeftSideScore(migrated);
+      const right = getLogRightSideScore(migrated);
+      migrated.leftSideScore = Number.isFinite(left) ? left : 0;
+      migrated.rightSideScore = Number.isFinite(right) ? right : 0;
+      migrated.sideMode = normalizeSideMode(migrated.sideMode || migrated.sideSplitMode || migrated.sideSplit || "left_right");
+      migrated.sideSplitEnabled = true;
+      migrated.attemptMode = normalizeAttemptMode(migrated.attemptMode || migrated.sideAttemptMode || migrated.leftRightAttemptMode || "shared");
+      migrated.effectiveAttempts = effectiveLogAttempts(migrated);
+      migrated.sideScores = {left:migrated.leftSideScore, right:migrated.rightSideScore};
+      migrated.score = computeSideCombinedScore(migrated.leftSideScore, migrated.rightSideScore);
+      migrated.normalizedScore = normalizeScore(migrated);
+    } else {
+      migrated.attemptMode = normalizeAttemptMode(migrated.attemptMode || "shared");
+      migrated.effectiveAttempts = effectiveLogAttempts(migrated);
+      migrated.normalizedScore = Number(migrated.normalizedScore || normalizeScore(migrated));
+    }
     return migrated;
   });
   // Lightweight session layer: rebuild missing session records from logs
@@ -533,17 +551,69 @@ function normalizeSideMode(value) {
 function routineUsesSideSplit(r) {
   return normalizeSideMode(r?.sideMode || r?.sideSplitMode || r?.sideSplit) === "left_right";
 }
+function normalizeAttemptMode(value) {
+  return value === "per_side" || value === "perSide" || value === "side" ? "per_side" : "shared";
+}
+function getRoutineAttemptMode(r) {
+  return routineUsesSideSplit(r) ? normalizeAttemptMode(r?.attemptMode || r?.sideAttemptMode || r?.leftRightAttemptMode || "shared") : "shared";
+}
+function getLogAttemptMode(log) {
+  return logUsesSideSplit(log) ? normalizeAttemptMode(log?.attemptMode || log?.sideAttemptMode || log?.leftRightAttemptMode || "shared") : "shared";
+}
+function effectiveLogAttempts(log) {
+  const attempts = Number(log?.attempts || 0);
+  if (!attempts || attempts < 0) return 0;
+  return logUsesSideSplit(log) && getLogAttemptMode(log) === "per_side" ? attempts * 2 : attempts;
+}
+function attemptModeLabel(mode) {
+  return normalizeAttemptMode(mode) === "per_side" ? "per side" : "total";
+}
+function validateSideSuccessRateInputs({left, right, attempts, attemptMode}) {
+  const l = Number(left || 0);
+  const r = Number(right || 0);
+  const a = Number(attempts || 0);
+  if (!a) return "Enter attempts.";
+  if (normalizeAttemptMode(attemptMode) === "per_side") {
+    if (l > a || r > a) return "For per-side mode, each side score must be less than or equal to the Attempts value.";
+  } else if (l + r > a) {
+    return "For shared mode, Left + Right must be less than or equal to total Attempts.";
+  }
+  return "";
+}
+function getLogLeftSideScore(log) {
+  const raw = log?.leftSideScore ?? log?.sideLeftScore ?? log?.sideScores?.left ?? "";
+  return raw === "" || raw === null || raw === undefined ? "" : Number(raw);
+}
+function getLogRightSideScore(log) {
+  const raw = log?.rightSideScore ?? log?.sideRightScore ?? log?.sideScores?.right ?? "";
+  return raw === "" || raw === null || raw === undefined ? "" : Number(raw);
+}
+function logUsesSideSplit(log) {
+  return !!(log?.sideSplitEnabled || normalizeSideMode(log?.sideMode || log?.sideSplitMode || log?.sideSplit) === "left_right" || log?.sideScores || log?.leftSideScore !== undefined || log?.rightSideScore !== undefined || log?.sideLeftScore !== undefined || log?.sideRightScore !== undefined);
+}
 function computeSideCombinedScore(left, right) {
   const l = Number(left || 0);
   const r = Number(right || 0);
-  return Math.round(((l + r) / 2) * 100) / 100;
+  return Math.round((l + r) * 100) / 100;
+}
+function effectiveLogScore(log) {
+  if (logUsesSideSplit(log)) {
+    const left = getLogLeftSideScore(log);
+    const right = getLogRightSideScore(log);
+    if (Number.isFinite(left) || Number.isFinite(right)) return computeSideCombinedScore(Number.isFinite(left) ? left : 0, Number.isFinite(right) ? right : 0);
+  }
+  return Number(log?.score || 0);
 }
 
 function normalizeScore(log) {
-  if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (Number(log.score || 0) / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
-  if (log.scoring === "success_rate") return Number(log.attempts || 0) > 0 ? (Number(log.score || 0) / Number(log.attempts || 0)) * 100 : 0;
-  if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? Number(log.score || 0) / Number(log.timeMinutes || 0) : 0;
-  return Number(log.score || 0);
+  const score = effectiveLogScore(log);
+  if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (score / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
+  if (log.scoring === "success_rate") {
+    const attempts = effectiveLogAttempts(log);
+    return attempts > 0 ? (score / attempts) * 100 : 0;
+  }
+  if (log.scoring === "score_per_minute") return Number(log.timeMinutes || 0) > 0 ? score / Number(log.timeMinutes || 0) : 0;
+  return score;
 }
 function classifyPerformance(log, routine) {
   const p = getActiveTargetProfile(routine);
@@ -635,7 +705,14 @@ function renderRoutineSelects() {
   $("freeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("nextFreeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("planSelect").innerHTML = data.plans.map(p => `<option value="${attrText(p.id)}">${htmlText(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
-  $("statsRoutineSelect").innerHTML = (data.routines || []).map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("") || `<option value="">No exercises yet</option>`;
+  const statsSelect = $("statsRoutineSelect");
+  if (statsSelect) {
+    const previousStatsRoutine = statsSelect.value || "all";
+    const statRoutines = (data.routines || []).slice().sort((a,b) => String(a.name || "").localeCompare(String(b.name || "")));
+    const statIds = statRoutines.map(r => String(r.id));
+    statsSelect.innerHTML = `<option value="all">All exercises</option>` + statRoutines.map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("");
+    statsSelect.value = statIds.includes(previousStatsRoutine) || previousStatsRoutine === "all" ? previousStatsRoutine : "all";
+  }
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
@@ -697,6 +774,7 @@ function editRoutine(id) {
   $("routineAttempts").value = r.attempts || "";
   $("routineDuration").value = r.duration || "";
   if ($("routineSideMode")) $("routineSideMode").value = normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit);
+  if ($("routineAttemptMode")) $("routineAttemptMode").value = getRoutineAttemptMode(r);
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
   $("routineTarget").value = r.target || "";
@@ -718,6 +796,7 @@ function clearRoutineForm() {
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
   if ($("routineSideMode")) $("routineSideMode").value = "none";
+  if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
   $("routineIsAnchor").value = "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
   $("routineCategorySelect").value = "all";
@@ -759,6 +838,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
     attempts: Number($("routineAttempts").value || 0) || "",
     duration: Number($("routineDuration").value || 0) || "",
     sideMode: normalizeSideMode($("routineSideMode")?.value || "none"),
+    attemptMode: normalizeSideMode($("routineSideMode")?.value || "none") === "left_right" ? normalizeAttemptMode($("routineAttemptMode")?.value || "shared") : "shared",
     isAnchor: $("routineIsAnchor").value === "yes",
     recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
     target: Number($("routineTarget").value || 0) || "",
@@ -990,18 +1070,25 @@ function renderScoreInputs(r) {
   if (routineUsesSideSplit(r)) {
     const attemptsDefault = Number(r.attempts || r.attemptsPerSession || 0) || "";
     html += `<div class="side-split-panel">
-      <div class="side-split-title"><strong>Left / Right split</strong><span>Combined score is calculated automatically as the average of both sides.</span></div>
+      <div class="side-split-title"><strong>Left / Right split</strong><span>Combined score is calculated automatically as Left + Right.</span></div>
       <div class="grid two">
         <div><label>Left side score</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
         <div><label>Right side score</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
       </div>
-      <div class="side-split-note">For success-rate drills, attempts are still taken from the Attempts field / exercise setup.</div>
+      <div class="side-split-note">Attempt mode: ${attemptModeLabel(getRoutineAttemptMode(r))}. ${getRoutineAttemptMode(r) === "per_side" ? "The Attempts field is counted once for Left and once for Right." : "The Attempts field is counted as one shared total."}</div>
     </div>`;
     if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
   }
   $("scoreInputs").innerHTML = html;
   renderQuickScoreControls(r);
-  setTimeout(() => $("scoreValue")?.focus(), 120);
+  setTimeout(() => {
+    if (document.body?.classList.contains("session-focus-active")) {
+      if (document.activeElement && ["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName)) document.activeElement.blur();
+      resetSessionFocusScrollTop();
+      return;
+    }
+    $("scoreValue")?.focus();
+  }, 120);
   ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue"].forEach(id => {
     const el = $(id);
     if (el) {
@@ -1081,7 +1168,7 @@ function quickLogScore(score) {
   saveCurrentRoutine();
 }
 function scoreNumber() { return Number($("scoreValue")?.value || 0); }
-function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; $("scoreValue").focus(); } }
+function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; if (!document.body?.classList.contains("session-focus-active")) $("scoreValue").focus(); } }
 function adjustScore(delta) { setScoreValue(scoreNumber() + delta); }
 function incrementScore() { adjustScore(1); }
 function decrementScore() { adjustScore(-1); }
@@ -1116,6 +1203,7 @@ async function saveCurrentRoutine() {
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
   const sideSplitEnabled = routineUsesSideSplit(r);
+  const attemptMode = getRoutineAttemptMode(r);
   const leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
   const rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
   const score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
@@ -1125,6 +1213,10 @@ async function saveCurrentRoutine() {
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
   if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
   if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return alert("Enter valid left and right side scores.");
+  if (sideSplitEnabled && r.scoring === "success_rate") {
+    const sideError = validateSideSuccessRateInputs({left:leftSideScore, right:rightSideScore, attempts, attemptMode});
+    if (sideError) return alert(sideError);
+  }
   if (Number.isNaN(score)) return alert("Enter a valid score.");
   if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
@@ -1154,6 +1246,8 @@ async function saveCurrentRoutine() {
     attempts,
     sideMode: normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit),
     sideSplitEnabled,
+    attemptMode,
+    effectiveAttempts: sideSplitEnabled && attemptMode === "per_side" ? attempts * 2 : attempts,
     leftSideScore,
     rightSideScore,
     sideScores: sideSplitEnabled ? {left:leftSideScore, right:rightSideScore} : "",
@@ -1296,8 +1390,18 @@ function updateTimerDisplay() {
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
 function displayScore(l) {
-  const score = numText(l.score, "0");
+  const rawScore = effectiveLogScore(l);
+  const score = numText(rawScore, "0");
   const attempts = numText(l.attempts, "0");
+  if (logUsesSideSplit(l)) {
+    const left = getLogLeftSideScore(l);
+    const right = getLogRightSideScore(l);
+    const sideText = `L ${numText(Number.isFinite(left) ? left : 0, "0")} + R ${numText(Number.isFinite(right) ? right : 0, "0")} = ${score}`;
+    const attemptsText = getLogAttemptMode(l) === "per_side" ? `${attempts}/side (${numText(effectiveLogAttempts(l), "0")} total)` : `${attempts} total`;
+    if (l.scoring === "success_rate") return `${sideText}/${attemptsText} (${Number(normalizeScore(l) || 0).toFixed(1)}%)`;
+    if (l.scoring === "score_per_minute") return `${sideText} (${Number(normalizeScore(l) || 0).toFixed(2)}/min)`;
+    return sideText;
+  }
   if (l.scoring === "progressive_completion") {
     const total = numText(l.totalUnits, "?");
     const unit = htmlText(l.unitType || "units");
@@ -2269,13 +2373,15 @@ function renderSwipeableHistoryCards(logs) {
 
 function renderStats() {
   const period = $("statsPeriodSelect").value || "daily";
-  const rid = $("statsRoutineSelect").value;
+  const selectedRoutineId = $("statsRoutineSelect").value || "all";
+  const rid = selectedRoutineId === "all" ? "" : selectedRoutineId;
   const dateKey = $("statsDateSelect").value || localDateKey();
   const range = getPeriodRange(period, dateKey);
   const rollingWindow = Math.max(2, Number($("rollingWindowInput").value || 5));
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
   let scopedLogs = period === "overall" ? data.logs.slice() : logsInRange(data.logs, range.start, range.end);
+  if (rid) scopedLogs = scopedLogs.filter(l => String(l.routineId) === String(rid));
   scopedLogs = scopedLogs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   if (statsMode === "overview") {
@@ -2299,8 +2405,8 @@ function renderStats() {
   }
 
   if (rid) {
-    const exerciseBase = period === "exercise" || period === "overall" ? data.logs : scopedLogs;
-    const exerciseLogs = exerciseBase.filter(l => l.routineId === rid).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+    const exerciseBase = period === "exercise" || period === "overall" ? (data.logs || []).filter(l => String(l.routineId) === String(rid)) : scopedLogs;
+    const exerciseLogs = exerciseBase.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
     html += renderExerciseProgression(exerciseLogs, rollingWindow, benchmarkWindow);
   }
 
@@ -2316,7 +2422,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   const gap = skillGapIndex(logs);
   const weak = weaknessConcentration(logs)[0];
   const fatigue = fatigueCurve(logs);
-  const st = streaks(data.logs);
+  const st = streaks(logs);
 
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-grid">
@@ -2761,7 +2867,7 @@ function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
   const durations = logs.map(l => Number(l.timeMinutes || 0));
   const ratings = logs.map(l => Number(l.sessionRating || 0));
   const hit = targetHitRate(logs);
-  const st = streaks(data.logs);
+  const st = streaks(logs);
   const corrTime = correlation(durations, vals);
   const corrRating = correlation(ratings, vals);
 
@@ -2817,8 +2923,8 @@ function renderEditLogForm(l) {
     </div>
     <div class="log-edit-grid">
       <div><label>Date/time</label><input class="edit-createdAt" type="datetime-local" value="${attrText(toDateTimeLocal(l.createdAt))}"></div>
-      <div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${numAttr(l.score)}"></div>
-      <div><label>Attempts</label><input class="edit-attempts" type="number" step="1" value="${numAttr(l.attempts || "")}"></div>
+      ${logUsesSideSplit(l) ? `<div><label>Left side score</label><input class="edit-left-side-score" type="number" step="0.01" value="${numAttr(getLogLeftSideScore(l) || "")}"></div><div><label>Right side score</label><input class="edit-right-side-score" type="number" step="0.01" value="${numAttr(getLogRightSideScore(l) || "")}"></div><div><label>Combined score</label><input class="edit-score" type="number" step="0.01" value="${numAttr(effectiveLogScore(l))}" readonly></div><div><label>Attempt mode</label><select class="edit-attempt-mode"><option value="shared" ${getLogAttemptMode(l) === "shared" ? "selected" : ""}>Shared total attempts</option><option value="per_side" ${getLogAttemptMode(l) === "per_side" ? "selected" : ""}>Attempts per side</option></select></div>` : `<div><label>Score</label><input class="edit-score" type="number" step="0.01" value="${numAttr(l.score)}"></div>`}
+      <div><label>${logUsesSideSplit(l) ? "Attempts" : "Attempts"}</label><input class="edit-attempts" type="number" step="1" value="${numAttr(l.attempts || "")}"></div>
       <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div>
       <div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
       ${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
@@ -2842,6 +2948,15 @@ function openLogEditModal(id) {
   if (!modal || !body) return;
   modal.dataset.logId = id;
   body.innerHTML = renderEditLogForm(log);
+  const leftField = body.querySelector(".edit-left-side-score");
+  const rightField = body.querySelector(".edit-right-side-score");
+  const combinedField = body.querySelector(".edit-score[readonly]");
+  if (leftField && rightField && combinedField) {
+    const refreshCombined = () => { combinedField.value = computeSideCombinedScore(leftField.value || 0, rightField.value || 0); };
+    leftField.addEventListener("input", refreshCombined);
+    rightField.addEventListener("input", refreshCombined);
+    refreshCombined();
+  }
   modal.classList.remove("hidden");
   setTimeout(() => body.querySelector("input,select,textarea")?.focus(), 80);
 }
@@ -2884,8 +2999,26 @@ async function saveEditedLog(id, formEl) {
   const editedDate = new Date(field("edit-createdAt")?.value || l.createdAt);
   if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time.");
   l.createdAt = editedDate.toISOString();
-  l.score = Number(field("edit-score")?.value || 0);
+  if (logUsesSideSplit(l) || field("edit-left-side-score") || field("edit-right-side-score")) {
+    const left = Number(field("edit-left-side-score")?.value || 0);
+    const right = Number(field("edit-right-side-score")?.value || 0);
+    if (Number.isNaN(left) || Number.isNaN(right)) return alert("Enter valid left and right side scores.");
+    l.leftSideScore = left;
+    l.rightSideScore = right;
+    l.sideMode = normalizeSideMode(l.sideMode || "left_right");
+    l.sideSplitEnabled = true;
+    l.attemptMode = normalizeAttemptMode(field("edit-attempt-mode")?.value || l.attemptMode || "shared");
+    l.sideScores = {left, right};
+    l.score = computeSideCombinedScore(left, right);
+  } else {
+    l.score = Number(field("edit-score")?.value || 0);
+  }
   l.attempts = Number(field("edit-attempts")?.value || 0) || "";
+  l.effectiveAttempts = effectiveLogAttempts(l);
+  if (logUsesSideSplit(l) && l.scoring === "success_rate") {
+    const sideError = validateSideSuccessRateInputs({left:l.leftSideScore, right:l.rightSideScore, attempts:l.attempts, attemptMode:l.attemptMode});
+    if (sideError) return alert(sideError);
+  }
   l.timeMinutes = Number(field("edit-time")?.value || 0);
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
@@ -2916,6 +3049,8 @@ function makeRoutineSnapshotFromLog(l) {
     stretchTarget: l.stretchTargetAtLog || "",
     totalUnits: l.totalUnitsAtLog || l.totalUnits || "",
     attemptsPerSession: l.attemptsPerSessionAtLog || l.attempts || "",
+    sideMode: normalizeSideMode(l.sideMode || l.sideSplitMode || l.sideSplit || "none"),
+    attemptMode: getLogAttemptMode(l),
     category: l.category || "uncategorized",
     folder: l.folder || "Unfiled",
     subfolder: l.subfolder || "General"
@@ -3044,7 +3179,7 @@ function exportValue(log, field) {
 }
 
 $("exportCsvBtn").addEventListener("click", async () => {
-  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
+  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","attemptMode","effectiveAttempts","leftSideScore","rightSideScore","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
@@ -4020,7 +4155,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.6");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4442,11 +4577,21 @@ function isActiveSessionVisible(){
   const el = $("activeSession");
   return !!(activeSession && el && !el.classList.contains("hidden"));
 }
+function resetSessionFocusScrollTop(){
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const activeCard = $("activeSession");
+  try { window.scrollTo({ top: 0, left: 0, behavior: "auto" }); } catch(e) { window.scrollTo(0, 0); }
+  try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch(e) {}
+  if (activeCard && typeof activeCard.scrollTo === "function") {
+    try { activeCard.scrollTo({ top: 0, left: 0, behavior: "auto" }); } catch(e) { activeCard.scrollTop = 0; }
+  }
+}
 function updateSessionFocusState(){
   const active = isActiveSessionVisible();
   if (!active) currentSessionFocusActive = null;
   if (active && currentSessionFocusActive == null) currentSessionFocusActive = getSessionFocusSetting() !== "off";
   document.body?.classList.toggle("session-focus-active", !!(active && currentSessionFocusActive));
+  if (active && currentSessionFocusActive) setTimeout(resetSessionFocusScrollTop, 0);
   const btn = $("toggleFocusModeBtn");
   if (btn) {
     btn.textContent = active && currentSessionFocusActive ? "Exit Focus Mode" : "Focus Mode";
@@ -4560,7 +4705,7 @@ function renderLivePerformanceCard(r){
   const sideSplitEnabled = routineUsesSideSplit(r);
   const score = sideSplitEnabled ? computeSideCombinedScore($("leftSideScoreValue")?.value || 0, $("rightSideScoreValue")?.value || 0) : Number($("scoreValue")?.value || 0);
   const attempts = Number($("attemptsValue")?.value || r.attempts || r.attemptsPerSession || 0);
-  const draftLog = {scoring:r.scoring, score, attempts, totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
+  const draftLog = {scoring:r.scoring, score, attempts, sideMode: sideSplitEnabled ? "left_right" : "none", sideSplitEnabled, attemptMode: sideSplitEnabled ? getRoutineAttemptMode(r) : "shared", totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
   const normalized = normalizeScore(draftLog);
   const profile = getActiveTargetProfile(r);
   const target = Number(profile?.target || r.target || 0);

@@ -1,30 +1,34 @@
-# Snooker Practice Log — v4.21.2
+# Snooker Practice Log — v4.21.6
 
-## Resume Session Hotfix
+Built from `v4.21.3-left-right-score-fix`.
 
-Built from v4.21.1 left/right hotfix.
+## v4.21.6 — Left / Right attempt-mode architecture
 
-Fixes:
-- Resume Session now restores the persisted active session more robustly.
-- Resume from either Practice tab or Today tab uses the same normalized session draft.
-- Resume now switches back to the Practice tab automatically.
-- Resume no longer overwrites saved timer/session state while restoring.
-- Discard now refreshes both resume cards.
-- Invalid stale session drafts are cleared safely.
+This release adds explicit attempt-mode handling for Left / Right drills while preserving legacy compatibility.
 
-Preserved:
-- v4.21.1 Left / Right side split restoration.
-- v4.21 pressure escalation features.
-- v4.20 pressure foundation.
-- IndexedDB/storage safety path.
-- renderToday/renderStats rollback safety.
+### Changes
 
-Testing checklist:
-1. Start a plan or free training session.
-2. Leave before finishing.
-3. Reopen app.
-4. Tap Resume Session from Practice.
-5. Confirm the current exercise screen appears.
-6. Repeat from Today tab.
-7. Confirm timer/session state does not reset unexpectedly.
-8. Confirm Left / Right drills still show left/right inputs.
+- Added `attemptMode` for side-split routines and logs.
+- Legacy side-split routines/logs default to `shared` mode.
+- Added routine setup selector: `Shared total attempts` vs `Attempts per side`.
+- Added log edit selector so legacy logs can be converted later.
+- Success-rate normalization now uses effective attempts:
+  - `shared`: attempts = the total entered in the Attempts field.
+  - `per_side`: effective attempts = Attempts × 2.
+- Left / Right display now shows the attempt basis, e.g. `10/side (20 total)`.
+- Bayesian confidence aggregation now uses effective attempts for side-split logs.
+- CSV export now includes `attemptMode`, `effectiveAttempts`, `leftSideScore`, and `rightSideScore`.
+
+### Example
+
+For a Left / Right drill with Attempts = 10 and score Left = 3, Right = 4:
+
+- Shared mode: 7 / 10 = 70%.
+- Per-side mode: 7 / 20 = 35%.
+
+## Baseline retained
+
+- Resume-session hotfix retained.
+- Left / Right score editing retained.
+- IndexedDB storage architecture retained.
+- ES module architecture retained.

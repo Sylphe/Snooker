@@ -974,7 +974,7 @@ body.session-focus-active #skipBtn{
 }
 
 
-/* v4.21.2 restored left/right side split */
+/* v4.21.4 restored left/right side split */
 .side-split-panel{
   grid-column:1/-1;
   border:1px solid var(--line);

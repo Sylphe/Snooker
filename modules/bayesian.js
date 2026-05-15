@@ -18,13 +18,28 @@ export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2) {
   };
 }
 
+function bayesianLogUsesSideSplit(log) {
+  const mode = log?.sideMode || log?.sideSplitMode || log?.sideSplit;
+  return !!(log?.sideSplitEnabled || mode === "left_right" || mode === "lr" || mode === "side_split" || log?.sideScores || log?.leftSideScore !== undefined || log?.rightSideScore !== undefined || log?.sideLeftScore !== undefined || log?.sideRightScore !== undefined);
+}
+
+function bayesianAttemptMode(log) {
+  const mode = log?.attemptMode || log?.sideAttemptMode || log?.leftRightAttemptMode;
+  return mode === "per_side" || mode === "perSide" || mode === "side" ? "per_side" : "shared";
+}
+
+function bayesianEffectiveAttempts(log) {
+  const attempts = Math.max(0, Number(log?.attempts || 0));
+  return bayesianLogUsesSideSplit(log) && bayesianAttemptMode(log) === "per_side" ? attempts * 2 : attempts;
+}
+
 export const BAYESIAN_DECAY_HALF_LIFE_DAYS = 30;
 
 export function aggregateSuccessRateLogs(logs, options = {}) {
   const now = Number(options.now || Date.now());
   const halfLifeDays = Number(options.halfLifeDays || BAYESIAN_DECAY_HALF_LIFE_DAYS);
   return (logs || []).reduce((acc, l) => {
-    const attempts = Math.max(0, Number(l.attempts || 0));
+    const attempts = bayesianEffectiveAttempts(l);
     const score = Math.max(0, Number(l.score || 0));
     if (attempts > 0) {
       const logDate = l.createdAt ? new Date(l.createdAt).getTime() : now;
