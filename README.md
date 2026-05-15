@@ -1,8 +1,14 @@
-# Snooker Practice Log — v4.21.6
+# Snooker Practice Log — v4.21.7
 
 Built from `v4.21.3-left-right-score-fix`.
 
-## v4.21.6 — Left / Right attempt-mode architecture
+## v4.21.7 — Stats filter and modal width fix
+
+- Stats exercise filter now uses one centralized scope function across overview, advanced stats, and phase-one insights.
+- Added visible active-scope banner so filter/date/period changes are immediately auditable.
+- Exercise picker and helper modals are constrained to viewport width on mobile.
+
+## v4.21.4 — Left / Right attempt-mode architecture
 
 This release adds explicit attempt-mode handling for Left / Right drills while preserving legacy compatibility.
 

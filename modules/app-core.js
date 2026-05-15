@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.6";
+import { APP_VERSION } from "./version.js?v=4.21.7";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.6";
+} from "./utils.js?v=4.21.7";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.6";
+} from "./settings.js?v=4.21.7";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.6";
+} from "./analytics.js?v=4.21.7";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.6";
+} from "./bayesian.js?v=4.21.7";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.6";
+} from "./session.js?v=4.21.7";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.6";
+} from "./pressure.js?v=4.21.7";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.6";
-import * as RenderHelpers from "./render.js?v=4.21.6";
+} from "./recommendations.js?v=4.21.7";
+import * as RenderHelpers from "./render.js?v=4.21.7";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.6";
+} from "./store.js?v=4.21.7";
 
 
 
@@ -2310,10 +2310,10 @@ function renderForecastInsight(logs){
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
-  const rid = $("statsRoutineSelect")?.value || "all";
-  const logs = (typeof getScopedStatsLogs !== "undefined" && typeof getScopedStatsLogs === "function") ? getScopedStatsLogs() : ((data.logs || []).filter(l => rid === "all" || l.routineId === rid));
+  const scope = getStatsScope();
+  const logs = getScopedStatsLogs();
   if (!logs.length) {
-    box.innerHTML = `<div class="insight-card watch">No logs available for selected scope.</div>`;
+    box.innerHTML = `<div class="insight-card watch">No logs available for selected scope${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
   box.innerHTML = `<div class="insight-grid">
@@ -2371,25 +2371,42 @@ function renderSwipeableHistoryCards(logs) {
   </div>`;
 }
 
-function renderStats() {
-  const period = $("statsPeriodSelect").value || "daily";
-  const selectedRoutineId = $("statsRoutineSelect").value || "all";
-  const rid = selectedRoutineId === "all" ? "" : selectedRoutineId;
-  const dateKey = $("statsDateSelect").value || localDateKey();
+function getStatsScope() {
+  const period = $("statsPeriodSelect")?.value || "daily";
+  const selectedRoutineId = $("statsRoutineSelect")?.value || "all";
+  const rid = selectedRoutineId && selectedRoutineId !== "all" ? selectedRoutineId : "";
+  const dateKey = $("statsDateSelect")?.value || localDateKey();
   const range = getPeriodRange(period, dateKey);
+  const routine = rid ? routineById(rid) : null;
+  return { period, selectedRoutineId, rid, dateKey, range, routine, routineName: routine ? routine.name : "" };
+}
+function getScopedStatsLogs() {
+  const scope = getStatsScope();
+  let logs = (scope.period === "overall" || scope.period === "exercise") ? (data.logs || []).slice() : logsInRange(data.logs || [], scope.range.start, scope.range.end);
+  if (scope.rid) logs = logs.filter(l => String(l.routineId) === String(scope.rid));
+  return logs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+function renderStatsScopeBanner(scope, logs) {
+  const filterLabel = scope.rid ? htmlText(scope.routineName || "Selected exercise") : "All exercises";
+  const periodLabel = scope.period === "exercise" ? "All history" : htmlText(scope.range.label);
+  return `<div class="analytics-note stats-scope-banner"><strong>Active stats scope:</strong> ${filterLabel} · ${periodLabel} · ${logs.length} log${logs.length === 1 ? "" : "s"}</div>`;
+}
+
+function renderStats() {
+  const scope = getStatsScope();
+  const { period, rid, range } = scope;
   const rollingWindow = Math.max(2, Number($("rollingWindowInput").value || 5));
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
-  let scopedLogs = period === "overall" ? data.logs.slice() : logsInRange(data.logs, range.start, range.end);
-  if (rid) scopedLogs = scopedLogs.filter(l => String(l.routineId) === String(rid));
-  scopedLogs = scopedLogs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+  let scopedLogs = getScopedStatsLogs();
 
   if (statsMode === "overview") {
-    $("statsOutput").innerHTML = renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    $("statsOutput").innerHTML = renderStatsScopeBanner(scope, scopedLogs) + renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
     return;
   }
 
-  let html = `<h3>${period === "exercise" ? "Per exercise view" : "Training view"} — ${escapeHtml(range.label)}</h3>`;
+  let html = renderStatsScopeBanner(scope, scopedLogs);
+  html += `<h3>${period === "exercise" ? "Per exercise view" : "Training view"} — ${escapeHtml(range.label)}</h3>`;
   html += renderDateView(scopedLogs);
 
   if (scopedLogs.length) {
@@ -4155,7 +4172,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.6");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.7");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5366,8 +5383,9 @@ function renderRoutinePickerList() {
   let lastGroup = "";
   list.innerHTML = options.map(o => {
     const r = routineById(o.id);
-    const meta = r ? `${htmlText(r.folder || "Unfiled")} · ${htmlText(r.subfolder || "General")} · ${htmlText(r.scoring || "")}` : "";
-    const group = o.group || "All exercises";
+    const isAllStatsOption = routinePickerTargetSelectId === "statsRoutineSelect" && o.id === "all";
+    const meta = isAllStatsOption ? "No exercise filter" : (r ? `${htmlText(r.folder || "Unfiled")} · ${htmlText(r.subfolder || "General")} · ${htmlText(r.scoring || "")}` : "");
+    const group = isAllStatsOption ? "Stats scope" : (o.group || "All exercises");
     const header = group !== lastGroup ? `<div class="routine-picker-group">${htmlText(group)}</div>` : "";
     lastGroup = group;
     return `${header}<button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
