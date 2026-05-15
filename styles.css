@@ -997,62 +997,23 @@ body.session-focus-active #skipBtn{
 }
 
 
-/* v4.21.9 sticky stats control bar */
-.stats-control-bar{
-  position:sticky;
-  top:45px;
-  z-index:8;
-  background:color-mix(in srgb, var(--card) 94%, transparent);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:12px;
-  margin:0 0 14px;
-  box-shadow:0 8px 20px rgba(0,0,0,.06);
-  backdrop-filter:blur(10px);
-}
-.stats-control-grid{margin-top:8px;}
-.stats-control-bar label{margin-top:6px;}
-.stats-control-bar input,
-.stats-control-bar select{padding:10px;font-size:14px;}
-.stats-scope-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;}
-.stats-scope-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#f7faf8;color:var(--primary);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:750;max-width:100%;}
-.stats-scope-chip strong{font-weight:850;}
-.stats-scope-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px;}
+/* v4.21.10 stats overview KPI dashboard */
+.overview-kpi-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 14px;}
+.overview-kpi{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;min-width:0;box-shadow:0 1px 0 rgba(16,43,34,.03);}
+.overview-kpi.primary{grid-column:span 2;background:linear-gradient(180deg,#fbfdfb,#f5f8f6);}
+.overview-kpi span{display:block;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.01em;line-height:1.25;}
+.overview-kpi .value{font-size:25px;font-weight:900;line-height:1.05;margin-top:6px;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.overview-kpi.primary .value{font-size:30px;}
+.overview-kpi small{display:block;margin-top:6px;color:var(--muted);font-size:11px;font-weight:700;line-height:1.25;}
+.overview-exec-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px;}
+.overview-mini-card{border:1px solid var(--line);background:#fbfcfb;border-radius:14px;padding:10px;min-width:0;}
+.overview-mini-card strong{display:block;font-size:12px;color:var(--primary);margin-bottom:4px;}
+.overview-mini-card span{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @media(max-width:760px){
-  .stats-control-bar{top:41px;margin-left:-6px;margin-right:-6px;padding:10px;border-radius:14px;}
-  .stats-control-bar .stats-subtabs{margin-bottom:6px;}
-  .stats-control-bar .stats-subtabs button{flex:1 1 calc(50% - 4px);padding:8px 9px;font-size:13px;}
-  .stats-control-bar input,
-  .stats-control-bar select{padding:9px;font-size:14px;}
-  .stats-scope-chip{font-size:11px;padding:4px 7px;}
-  .stats-scope-chip span{max-width:150px;}
-}
-
-
-/* v4.21.7 mobile-safe stats picker and helper modals */
-.stats-scope-banner{font-size:13px;}
-.modal-backdrop,
-.routine-picker-backdrop{max-width:100vw;overflow:hidden;}
-.modal-card,
-.log-edit-modal-card,
-.routine-picker-sheet{max-width:calc(100vw - 24px);min-width:0;}
-.modal-header,
-.modal-body,
-.modal-body *,
-.routine-picker-header,
-.routine-picker-row,
-.routine-picker-row *{min-width:0;overflow-wrap:anywhere;word-break:break-word;}
-.modal-body{max-width:100%;overflow-x:auto;}
-.routine-picker-row span:first-child{flex:1 1 auto;min-width:0;}
-.routine-picker-chevron{flex:0 0 auto;}
-@media(max-width:760px){
-  .modal-backdrop{padding:8px;align-items:flex-end;}
-  .modal-card,
-  .log-edit-modal-card{width:100%;max-width:calc(100vw - 16px);max-height:88dvh;overflow:auto;border-radius:18px;}
-  .routine-picker-backdrop{padding:8px;align-items:flex-end;}
-  .routine-picker-sheet{width:100%;max-width:calc(100vw - 16px);max-height:88dvh;border-radius:18px;}
-  .routine-picker-header{padding:12px 12px 8px;}
-  .routine-picker-search{margin:10px 12px;width:calc(100% - 24px);}
-  .routine-picker-list{padding:0 8px 12px;}
-  .routine-picker-row{padding:12px;gap:8px;}
+  .overview-kpi-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .overview-kpi.primary{grid-column:span 1;}
+  .overview-kpi{padding:10px;border-radius:14px;}
+  .overview-kpi .value{font-size:21px;}
+  .overview-kpi.primary .value{font-size:23px;}
+  .overview-exec-strip{grid-template-columns:1fr;gap:7px;}
 }

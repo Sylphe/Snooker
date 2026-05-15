@@ -1,13 +1,17 @@
-# Snooker Practice Log — v4.21.9
+# Snooker Practice Log — v4.21.10
 
-Built from `v4.21.3-left-right-score-fix`.
+Built from `v4.21.9-sticky-stats-control-bar`, with only the sticky Stats control-bar layout reverted before adding the Overview KPI dashboard.
 
 
-## v4.21.9 — Sticky stats control bar
+## v4.21.10 — Stats Overview KPI dashboard
 
-- Added a sticky Stats control bar so Overview / Advanced, period, date, exercise filter, rolling window, and benchmark window remain accessible while scrolling.
-- Added compact scope chips under the controls: mode, exercise, period, and scoped log count.
-- Kept all existing Overview and Advanced Stats information intact.
+- Reverted only the sticky Stats control-bar layout introduced in v4.21.9.
+- Restored the normal non-sticky Stats controls from v4.21.8 while preserving the stats filter fixes.
+- Redesigned the Overview top section as a compact KPI dashboard.
+- Added primary KPI cards for average score, target hit rate, total practice, streak, momentum, consistency, skill gap, pressure success, side balance, and weakest area.
+- Added compact executive cards for best exercise, weakest exercise, and most improved exercise.
+- Kept all existing Overview and Advanced Stats information below the new KPI dashboard.
+
 
 ## v4.21.8 — Stats picker state fix / filter stability
 

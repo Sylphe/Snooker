@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.9";
+import { APP_VERSION } from "./version.js?v=4.21.10";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.9";
+} from "./utils.js?v=4.21.10";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.9";
+} from "./settings.js?v=4.21.10";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.9";
+} from "./analytics.js?v=4.21.10";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.9";
+} from "./bayesian.js?v=4.21.10";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.9";
+} from "./session.js?v=4.21.10";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.9";
+} from "./pressure.js?v=4.21.10";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.9";
-import * as RenderHelpers from "./render.js?v=4.21.9";
+} from "./recommendations.js?v=4.21.10";
+import * as RenderHelpers from "./render.js?v=4.21.10";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.9";
+} from "./store.js?v=4.21.10";
 
 
 
@@ -2441,7 +2441,6 @@ function renderStats() {
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
   let scopedLogs = getScopedStatsLogs();
-  renderStatsScopeChips(scope, scopedLogs);
 
   if (statsMode === "overview") {
     $("statsOutput").innerHTML = renderStatsScopeBanner(scope, scopedLogs) + renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
@@ -2478,20 +2477,37 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
 
   const totalTime = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
   const vals = logs.map(l=>Number(l.normalizedScore||0));
+  const avgScore = avg(vals);
   const hit = targetHitRate(logs);
   const gap = skillGapIndex(logs);
   const weak = weaknessConcentration(logs)[0];
   const fatigue = fatigueCurve(logs);
   const st = streaks(logs);
+  const momentum = movingTrend(vals, rollingWindow);
+  const stability = performanceStabilityIndex(logs, 10);
+  const pressure = pressureOverviewMetric(logs);
+  const side = sideImbalanceMetric(logs);
+  const bestRoutine = routinePerformanceLeader(logs, "best");
+  const weakestRoutine = routinePerformanceLeader(logs, "weakest");
+  const improved = mostImprovedRoutine(logs);
 
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
-    <div class="overview-grid">
-      <div class="overview-card"><span>Total practice</span><div class="big">${formatDurationHuman(totalTime)}</div></div>
-      <div class="overview-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="big">${logs.length}</div></div>
-      <div class="overview-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="big">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
-      <div class="overview-card"><span>Momentum</span><div class="big">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
-      <div class="overview-card"><span>Skill gap</span><div class="big">${gap === null ? "N/A" : gap.toFixed(2)}</div></div>
-      <div class="overview-card"><span>Streak</span><div class="big">${st.current}d</div></div>
+    <div class="overview-kpi-dashboard">
+      <div class="overview-kpi primary"><span>Average score</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
+      <div class="overview-kpi primary"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
+      <div class="overview-kpi"><span>Total practice</span><div class="value">${formatDurationHuman(totalTime)}</div><small>${logs.length} logged exercise${logs.length === 1 ? "" : "s"}</small></div>
+      <div class="overview-kpi"><span>Current streak</span><div class="value">${st.current}d</div><small>Best streak ${st.best}d</small></div>
+      <div class="overview-kpi"><span>Momentum</span><div class="value">${escapeHtml(momentum)}</div><small>Rolling window: ${rollingWindow} logs.</small></div>
+      <div class="overview-kpi"><span>Consistency</span><div class="value">${stability ? stability.psi.toFixed(0)+"/100" : "N/A"}</div><small>${stability ? escapeHtml(stability.label) : "More data needed"}</small></div>
+      <div class="overview-kpi"><span>Skill gap</span><div class="value">${gap === null ? "N/A" : gap.toFixed(2)}</div><small>Best performance minus average.</small></div>
+      <div class="overview-kpi"><span>Pressure success</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs in scope"}</small></div>
+      <div class="overview-kpi"><span>Side balance</span><div class="value">${side ? side.label : "N/A"}</div><small>${side ? escapeHtml(side.detail) : "No left/right logs in scope"}</small></div>
+      <div class="overview-kpi"><span>Weakest area</span><div class="value">${weak ? escapeHtml(weak.category) : "N/A"}</div><small>${weak && weak.hitRate !== null ? `Hit rate ${weak.hitRate.toFixed(1)}%` : "More target data needed"}</small></div>
+    </div>
+    <div class="overview-exec-strip">
+      <div class="overview-mini-card"><strong>Best exercise</strong><span>${bestRoutine ? `${escapeHtml(bestRoutine.name)} · ${bestRoutine.metric}` : "More logs needed"}</span></div>
+      <div class="overview-mini-card"><strong>Weakest exercise</strong><span>${weakestRoutine ? `${escapeHtml(weakestRoutine.name)} · ${weakestRoutine.metric}` : "More logs needed"}</span></div>
+      <div class="overview-mini-card"><strong>Most improved</strong><span>${improved ? `${escapeHtml(improved.name)} · ${improved.metric}` : "More history needed"}</span></div>
     </div>`;
 
   renderTableStats(logs);
@@ -2517,6 +2533,72 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
 
   return html;
 }
+
+function routinePerformanceLeader(logs, mode="best") {
+  const groups = {};
+  logs.forEach(l => {
+    const rid = l.routineId || "unknown";
+    groups[rid] ||= [];
+    groups[rid].push(l);
+  });
+  const rows = Object.entries(groups).map(([rid, arr]) => {
+    const routine = routineById(rid);
+    const score = avg(arr.map(l => Number(l.normalizedScore || 0)).filter(v => Number.isFinite(v)));
+    const hit = targetHitRate(arr);
+    return {rid, name:routine?.name || arr[0]?.routineName || "Unknown exercise", count:arr.length, score, hit};
+  }).filter(r => r.count >= 2 && Number.isFinite(r.score));
+  if (!rows.length) return null;
+  rows.sort((a,b) => mode === "weakest" ? a.score - b.score : b.score - a.score);
+  const top = rows[0];
+  return {name: top.name, metric: `${top.score.toFixed(1)} avg · ${top.count} logs`};
+}
+
+function mostImprovedRoutine(logs) {
+  const groups = {};
+  logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(l => {
+    const rid = l.routineId || "unknown";
+    groups[rid] ||= [];
+    groups[rid].push(l);
+  });
+  const rows = Object.entries(groups).map(([rid, arr]) => {
+    if (arr.length < 4) return null;
+    const split = Math.floor(arr.length / 2);
+    const early = avg(arr.slice(0, split).map(l => Number(l.normalizedScore || 0)));
+    const late = avg(arr.slice(split).map(l => Number(l.normalizedScore || 0)));
+    const routine = routineById(rid);
+    return {name:routine?.name || arr[0]?.routineName || "Unknown exercise", delta: late - early, count:arr.length};
+  }).filter(Boolean).filter(r => Number.isFinite(r.delta));
+  if (!rows.length) return null;
+  rows.sort((a,b)=>b.delta-a.delta);
+  const top = rows[0];
+  return {name:top.name, metric:`${top.delta >= 0 ? "+" : ""}${top.delta.toFixed(1)} pts · ${top.count} logs`};
+}
+
+function pressureOverviewMetric(logs) {
+  const arr = logs.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+  if (!arr.length) return null;
+  const rates = arr.map(l => Number(l.pressureSuccessRate ?? l.normalizedScore ?? 0)).filter(v => Number.isFinite(v));
+  if (!rates.length) return null;
+  const mean = avg(rates);
+  return {label:`${mean.toFixed(1)}%`, count:arr.length};
+}
+
+function sideImbalanceMetric(logs) {
+  const arr = logs.filter(l => l.sideModeEnabled || l.sideMode || l.leftScore !== undefined || l.rightScore !== undefined);
+  if (!arr.length) return null;
+  let left=0, right=0;
+  arr.forEach(l => {
+    left += Number(l.leftScore || 0);
+    right += Number(l.rightScore || 0);
+  });
+  const total = left + right;
+  if (!total) return {label:"0", detail:`L ${left} · R ${right}`};
+  const diff = left - right;
+  const pct = Math.abs(diff) / total * 100;
+  const side = diff === 0 ? "Even" : diff > 0 ? "L+" : "R+";
+  return {label: diff === 0 ? "Even" : `${side}${pct.toFixed(0)}%`, detail:`L ${left} · R ${right}`};
+}
+
 
 function skillGapIndex(logs) {
   if (logs.length < 2) return null;
@@ -4215,7 +4297,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.9");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.10");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
