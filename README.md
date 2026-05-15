@@ -1,51 +1,22 @@
-# Snooker Practice Log — v4.21.10
+# Snooker Practice Log — v4.21.11
 
-Built from `v4.21.9-sticky-stats-control-bar`, with only the sticky Stats control-bar layout reverted before adding the Overview KPI dashboard.
+Built from `v4.21.10-stats-kpi-overview`.
 
+## v4.21.11 — Stats picker stabilization + modular advanced stats
 
-## v4.21.10 — Stats Overview KPI dashboard
-
-- Reverted only the sticky Stats control-bar layout introduced in v4.21.9.
-- Restored the normal non-sticky Stats controls from v4.21.8 while preserving the stats filter fixes.
-- Redesigned the Overview top section as a compact KPI dashboard.
-- Added primary KPI cards for average score, target hit rate, total practice, streak, momentum, consistency, skill gap, pressure success, side balance, and weakest area.
-- Added compact executive cards for best exercise, weakest exercise, and most improved exercise.
-- Kept all existing Overview and Advanced Stats information below the new KPI dashboard.
-
-
-## v4.21.8 — Stats picker state fix / filter stability
-
-- Stats exercise filter now uses one centralized scope function across overview, advanced stats, and phase-one insights.
-- Added visible active-scope banner so filter/date/period changes are immediately auditable.
-- Exercise picker and helper modals are constrained to viewport width on mobile.
-
-## v4.21.4 — Left / Right attempt-mode architecture
-
-This release adds explicit attempt-mode handling for Left / Right drills while preserving legacy compatibility.
-
-### Changes
-
-- Added `attemptMode` for side-split routines and logs.
-- Legacy side-split routines/logs default to `shared` mode.
-- Added routine setup selector: `Shared total attempts` vs `Attempts per side`.
-- Added log edit selector so legacy logs can be converted later.
-- Success-rate normalization now uses effective attempts:
-  - `shared`: attempts = the total entered in the Attempts field.
-  - `per_side`: effective attempts = Attempts × 2.
-- Left / Right display now shows the attempt basis, e.g. `10/side (20 total)`.
-- Bayesian confidence aggregation now uses effective attempts for side-split logs.
-- CSV export now includes `attemptMode`, `effectiveAttempts`, `leftSideScore`, and `rightSideScore`.
-
-### Example
-
-For a Left / Right drill with Attempts = 10 and score Left = 3, Right = 4:
-
-- Shared mode: 7 / 10 = 70%.
-- Per-side mode: 7 / 20 = 35%.
-
-## Baseline retained
-
-- Resume-session hotfix retained.
-- Left / Right score editing retained.
-- IndexedDB storage architecture retained.
-- ES module architecture retained.
+- Fixed the Stats exercise filter state so the visible picker/select value is the source of truth.
+- Synced the persisted `statsRoutineFilter` from the active select value to avoid re-render drift back to `All exercises`.
+- Kept the v4.21.10 KPI Overview dashboard.
+- Implemented Advanced Stats as expandable modules:
+  - Logs in scope
+  - Volume & exercise mix
+  - Core analytics
+  - Second-order analytics
+  - Performance stability
+  - Fatigue slope
+  - Difficulty ladder
+  - Coaching engine
+  - Selected exercise progression when an exercise is filtered
+- Ensured table/venue stats are refreshed from the current scoped logs.
+- Added mobile-safe width guardrails for the exercise picker and helper pop-ups.
+- Updated version/cache markers to `v4.21.11`.

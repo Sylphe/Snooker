@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.10";
+import { APP_VERSION } from "./version.js?v=4.21.11";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.10";
+} from "./utils.js?v=4.21.11";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.10";
+} from "./settings.js?v=4.21.11";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.10";
+} from "./analytics.js?v=4.21.11";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.10";
+} from "./bayesian.js?v=4.21.11";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.10";
+} from "./session.js?v=4.21.11";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.10";
+} from "./pressure.js?v=4.21.11";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.10";
-import * as RenderHelpers from "./render.js?v=4.21.10";
+} from "./recommendations.js?v=4.21.11";
+import * as RenderHelpers from "./render.js?v=4.21.11";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.10";
+} from "./store.js?v=4.21.11";
 
 
 
@@ -2401,8 +2401,13 @@ function renderSwipeableHistoryCards(logs) {
 
 function getStatsScope() {
   const period = $("statsPeriodSelect")?.value || "daily";
-  const selectValue = $("statsRoutineSelect")?.value || statsRoutineFilterId || "all";
-  const selectedRoutineId = normalizeStatsRoutineFilter(statsRoutineFilterId || selectValue);
+  const select = $("statsRoutineSelect");
+  const selectValue = normalizeStatsRoutineFilter(select?.value || statsRoutineFilterId || "all");
+  const selectedRoutineId = select ? selectValue : normalizeStatsRoutineFilter(statsRoutineFilterId || "all");
+  if (selectedRoutineId !== statsRoutineFilterId) {
+    statsRoutineFilterId = selectedRoutineId;
+    localStorage.setItem(STATS_ROUTINE_FILTER_KEY, statsRoutineFilterId);
+  }
   const rid = selectedRoutineId && selectedRoutineId !== "all" ? selectedRoutineId : "";
   const dateKey = $("statsDateSelect")?.value || localDateKey();
   const range = getPeriodRange(period, dateKey);
@@ -2434,6 +2439,45 @@ function renderStatsScopeChips(scope, logs) {
   ].join("");
 }
 
+function statsModule(title, subtitle, bodyHtml, open = false) {
+  const content = bodyHtml || `<p class="muted">No data available for this module in the current scope.</p>`;
+  return `<details class="advanced-stats-module" ${open ? "open" : ""}>
+    <summary><span><strong>${htmlText(title)}</strong>${subtitle ? `<small>${htmlText(subtitle)}</small>` : ""}</span><span class="advanced-module-chevron">›</span></summary>
+    <div class="advanced-module-body">${content}</div>
+  </details>`;
+}
+
+function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, benchmarkWindow }) {
+  const viewTitle = period === "exercise" ? "Per exercise view" : "Training view";
+  if (!logs.length) {
+    return `<h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+  }
+
+  const alloc = computeAllocation(logs);
+  const allocationHtml = `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
+  const volumeMixHtml = `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}<h3>Exercise mix</h3>${renderCategoryChart(logs)}${allocationHtml}`;
+
+  let exerciseHtml = "";
+  if (rid) {
+    const exerciseBase = period === "exercise" || period === "overall" ? (data.logs || []).filter(l => String(l.routineId) === String(rid)) : logs;
+    const exerciseLogs = exerciseBase.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+    exerciseHtml = renderExerciseProgression(exerciseLogs, rollingWindow, benchmarkWindow);
+  }
+
+  return `<h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3>
+    <div class="advanced-stats-modules">
+      ${statsModule("Logs in scope", "Raw daily/session table for the active filter", renderDateView(logs), true)}
+      ${statsModule("Volume & exercise mix", "Training volume, category split, allocation", volumeMixHtml, true)}
+      ${statsModule("Core analytics", "Momentum, hit-rate, streaks, correlations", renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow), false)}
+      ${statsModule("Second-order analytics", "Variance, skill gap, weakness concentration", renderSecondOrderAnalytics(logs, rid, rollingWindow), false)}
+      ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
+      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+      ${statsModule("Difficulty ladder", "Difficulty distribution and progression", renderDifficultyLadder(logs), false)}
+      ${statsModule("Coaching engine", "Decision-oriented recommendations", renderCoachingEngine(logs), true)}
+      ${rid ? statsModule("Selected exercise progression", "Longitudinal drill-specific history", exerciseHtml, true) : ""}
+    </div>`;
+}
+
 function renderStats() {
   const scope = getStatsScope();
   const { period, rid, range } = scope;
@@ -2441,6 +2485,7 @@ function renderStats() {
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
   let scopedLogs = getScopedStatsLogs();
+  renderTableStats(scopedLogs);
 
   if (statsMode === "overview") {
     $("statsOutput").innerHTML = renderStatsScopeBanner(scope, scopedLogs) + renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
@@ -2448,26 +2493,7 @@ function renderStats() {
   }
 
   let html = renderStatsScopeBanner(scope, scopedLogs);
-  html += `<h3>${period === "exercise" ? "Per exercise view" : "Training view"} — ${escapeHtml(range.label)}</h3>`;
-  html += renderDateView(scopedLogs);
-
-  if (scopedLogs.length) {
-    html += `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(scopedLogs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
-    html += `<h3>Exercise mix</h3>${renderCategoryChart(scopedLogs)}`;
-    const alloc = computeAllocation(scopedLogs); html += `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
-    html += renderAdvancedAnalytics(scopedLogs, rollingWindow, benchmarkWindow);
-    html += renderSecondOrderAnalytics(scopedLogs, rid, rollingWindow);
-    html += renderPerformanceStability(scopedLogs);
-    html += renderFatigueSlope(scopedLogs);
-    html += renderDifficultyLadder(scopedLogs);
-    html += renderCoachingEngine(scopedLogs);
-  }
-
-  if (rid) {
-    const exerciseBase = period === "exercise" || period === "overall" ? (data.logs || []).filter(l => String(l.routineId) === String(rid)) : scopedLogs;
-    const exerciseLogs = exerciseBase.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
-    html += renderExerciseProgression(exerciseLogs, rollingWindow, benchmarkWindow);
-  }
+  html += renderAdvancedStatsModules(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
 
   $("statsOutput").innerHTML = html;
 }
@@ -4297,7 +4323,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.10");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.11");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
