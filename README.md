@@ -1,22 +1,18 @@
-# Snooker Practice Log — v4.21.11
+# Snooker Practice Log — v4.21.12
 
-Built from `v4.21.10-stats-kpi-overview`.
+## v4.21.12 — Internal Stats navigation + KPI dark-mode fix
 
-## v4.21.11 — Stats picker stabilization + modular advanced stats
+Built from v4.21.11.
 
-- Fixed the Stats exercise filter state so the visible picker/select value is the source of truth.
-- Synced the persisted `statsRoutineFilter` from the active select value to avoid re-render drift back to `All exercises`.
-- Kept the v4.21.10 KPI Overview dashboard.
-- Implemented Advanced Stats as expandable modules:
-  - Logs in scope
-  - Volume & exercise mix
-  - Core analytics
-  - Second-order analytics
-  - Performance stability
-  - Fatigue slope
-  - Difficulty ladder
-  - Coaching engine
-  - Selected exercise progression when an exercise is filtered
-- Ensured table/venue stats are refreshed from the current scoped logs.
-- Added mobile-safe width guardrails for the exercise picker and helper pop-ups.
-- Updated version/cache markers to `v4.21.11`.
+Changes:
+
+- Added build timestamp next to the visible app version in the header.
+- Added `APP_BUILD_TIMESTAMP` in `modules/version.js` and diagnostic version display.
+- Implemented internal Stats navigation tabs: Overview, Trends, Routines, Pressure, Insights.
+- Preserved existing Stats information by moving advanced analytics into section-specific expandable modules.
+- Fixed KPI dashboard dark-mode styling by replacing hard-coded white backgrounds with theme variables.
+- Updated version/cache markers to `v4.21.12`.
+
+Validation:
+
+- JavaScript syntax checks passed across app bootstrap and modules.

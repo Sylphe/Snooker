@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.21.11</title>
+  <title>Snooker Practice Log v4.21.12</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.21.11" />
-  <link rel="stylesheet" href="styles.css?v=4.21.11" />
-  <link rel="icon" href="icon.svg?v=4.21.11" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.21.12" />
+  <link rel="stylesheet" href="styles.css?v=4.21.12" />
+  <link rel="icon" href="icon.svg?v=4.21.12" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.21.11 — ES module architecture with IndexedDB production-safety fixes.</p>
+      <p>v4.21.12 · Build 2026-05-15 23:22 CET — ES module architecture with IndexedDB production-safety fixes.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -683,9 +683,12 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <div class="stats-subtabs">
-          <button id="statsOverviewBtn" class="secondary active-subtab" type="button">Overview</button>
-          <button id="statsAdvancedBtn" class="secondary" type="button">Advanced Stats</button>
+        <div class="stats-subtabs stats-internal-nav" role="tablist" aria-label="Stats sections">
+          <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
+          <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
+          <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
+          <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
+          <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
         </div>
         <div class="grid three">
           <div>
@@ -961,6 +964,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.21.11"></script>
+  <script type="module" src="app.js?v=4.21.12"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.11";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.12";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.11";
+} from "./utils.js?v=4.21.12";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.11";
+} from "./settings.js?v=4.21.12";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.11";
+} from "./analytics.js?v=4.21.12";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.11";
+} from "./bayesian.js?v=4.21.12";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.11";
+} from "./session.js?v=4.21.12";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.11";
+} from "./pressure.js?v=4.21.12";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.11";
-import * as RenderHelpers from "./render.js?v=4.21.11";
+} from "./recommendations.js?v=4.21.12";
+import * as RenderHelpers from "./render.js?v=4.21.12";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.11";
+} from "./store.js?v=4.21.12";
 
 
 
@@ -251,6 +251,7 @@ applyThemeModeEarly();
 
 const defaultData = {
   appVersion: APP_VERSION,
+  appBuildTimestamp: APP_BUILD_TIMESTAMP,
   routines: [
     {
       id: uuid(), name: "Line-up", scoring: "raw", attempts: "", duration: 20, target: 50, stretchTarget: 65,
@@ -291,7 +292,14 @@ let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let deferredInstallPrompt = null;
-let statsMode = localStorage.getItem("snookerPracticePWA.statsMode") || "overview";
+const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
+const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights"]);
+function normalizeStatsMode(value) {
+  const v = String(value || "overview");
+  if (v === "advanced") return "trends";
+  return STATS_MODES.has(v) ? v : "overview";
+}
+let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
 const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
 let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
 
@@ -2150,19 +2158,14 @@ function computeAllocation(logs){
   return Object.entries(byCat).map(([cat,time])=>({cat,time,pct:total?time/total*100:0}));
 }
 
-$("statsOverviewBtn").addEventListener("click", () => {
-  statsMode = "overview";
-  localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
-  $("statsOverviewBtn").classList.add("active-subtab");
-  $("statsAdvancedBtn").classList.remove("active-subtab");
+function setStatsMode(mode) {
+  statsMode = normalizeStatsMode(mode);
+  localStorage.setItem(STATS_MODE_KEY, statsMode);
+  applyStoredStatsModeVisual();
   renderStats();
-});
-$("statsAdvancedBtn").addEventListener("click", () => {
-  statsMode = "advanced";
-  localStorage.setItem("snookerPracticePWA.statsMode", statsMode);
-  $("statsAdvancedBtn").classList.add("active-subtab");
-  $("statsOverviewBtn").classList.remove("active-subtab");
-  renderStats();
+}
+document.querySelectorAll(".stats-nav-btn[data-stats-mode]").forEach(btn => {
+  btn.addEventListener("click", () => setStatsMode(btn.dataset.statsMode));
 });
 ["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
   const el = $(id);
@@ -2430,7 +2433,7 @@ function renderStatsScopeChips(scope, logs) {
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = statsMode === "advanced" ? "Advanced" : "Overview";
+  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights"}[statsMode] || "Overview");
   el.innerHTML = [
     `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
@@ -2478,6 +2481,67 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
     </div>`;
 }
 
+
+function renderStatsEmptySection(title, range) {
+  return `<h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+}
+
+function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow }) {
+  if (!logs.length) return renderStatsEmptySection("Trends", range);
+  const chartPeriod = period === "overall" || period === "exercise" ? "monthly" : period;
+  const volumeHtml = `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(logs, chartPeriod), "time", "Training time")}<h3>Exercise mix</h3>${renderCategoryChart(logs)}`;
+  return `<h3>Trends — ${escapeHtml(range.label)}</h3>
+    <div class="advanced-stats-modules">
+      ${statsModule("Volume & mix", "Training time, category split, and exercise allocation", volumeHtml, true)}
+      ${statsModule("Core analytics", "Momentum, target hit-rate, streaks, and correlations", renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow), true)}
+      ${statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, "", rollingWindow), false)}
+      ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
+      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+    </div>`;
+}
+
+function renderStatsRoutines(logs, { period, rid, range, rollingWindow, benchmarkWindow }) {
+  if (!logs.length) return renderStatsEmptySection("Routines", range);
+  const alloc = computeAllocation(logs);
+  const allocationHtml = `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
+  let exerciseHtml = "";
+  if (rid) {
+    const exerciseBase = period === "exercise" || period === "overall" ? (data.logs || []).filter(l => String(l.routineId) === String(rid)) : logs;
+    const exerciseLogs = exerciseBase.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+    exerciseHtml = renderExerciseProgression(exerciseLogs, rollingWindow, benchmarkWindow);
+  }
+  return `<h3>Routines — ${escapeHtml(range.label)}</h3>
+    <div class="advanced-stats-modules">
+      ${statsModule("Logs in scope", "Raw daily/session table for the active exercise filter", renderDateView(logs), true)}
+      ${statsModule("Exercise mix", "Category distribution and allocation", `${renderCategoryChart(logs)}${allocationHtml}`, true)}
+      ${statsModule("Difficulty ladder", "Difficulty distribution and progression", renderDifficultyLadder(logs), false)}
+      ${rid ? statsModule("Selected exercise progression", "Longitudinal drill-specific history", exerciseHtml, true) : statsModule("Selected exercise progression", "Choose one exercise in the filter to see drill-specific history", `<p class="muted">Select a specific exercise above to show longitudinal routine progression.</p>`, false)}
+    </div>`;
+}
+
+function renderStatsPressure(logs, { range }) {
+  if (!logs.length) return renderStatsEmptySection("Pressure", range);
+  const pressureLogs = logs.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+  const body = pressureLogs.length ? renderDateView(pressureLogs) : `<p class="muted">No pressure-mode logs in the current scope.</p>`;
+  return `<h3>Pressure — ${escapeHtml(range.label)}</h3>
+    <div class="advanced-stats-modules">
+      ${statsModule("Pressure logs", "Pressure-mode history and hit-rate", body, true)}
+      ${statsModule("Pressure analytics", "Core analytics restricted to pressure logs", pressureLogs.length ? renderAdvancedAnalytics(pressureLogs, 5, 10) : `<p class="muted">More pressure logs needed.</p>`, pressureLogs.length > 0)}
+      ${statsModule("Pressure stability", "Volatility and consistency under pressure", pressureLogs.length ? renderPerformanceStability(pressureLogs) : `<p class="muted">More pressure logs needed.</p>`, false)}
+    </div>`;
+}
+
+function renderStatsInsights(logs, { range, rid, rollingWindow }) {
+  if (!logs.length) return renderStatsEmptySection("Insights", range);
+  return `<h3>Insights — ${escapeHtml(range.label)}</h3>
+    <div class="advanced-stats-modules">
+      ${statsModule("Coaching engine", "Decision-oriented recommendations", renderCoachingEngine(logs), true)}
+      ${statsModule("Weakness concentration", "Where underperformance is concentrated", renderSecondOrderAnalytics(logs, rid, rollingWindow), true)}
+      ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
+      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+    </div>`;
+}
+
 function renderStats() {
   const scope = getStatsScope();
   const { period, rid, range } = scope;
@@ -2487,14 +2551,18 @@ function renderStats() {
   let scopedLogs = getScopedStatsLogs();
   renderTableStats(scopedLogs);
 
-  if (statsMode === "overview") {
-    $("statsOutput").innerHTML = renderStatsScopeBanner(scope, scopedLogs) + renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
-    return;
-  }
-
   let html = renderStatsScopeBanner(scope, scopedLogs);
-  html += renderAdvancedStatsModules(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-
+  if (statsMode === "overview") {
+    html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+  } else if (statsMode === "trends") {
+    html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "routines") {
+    html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "pressure") {
+    html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else {
+    html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  }
   $("statsOutput").innerHTML = html;
 }
 
@@ -3663,6 +3731,7 @@ function renderStorageDashboard() {
       <div class="stat-card"><span>IndexedDB</span><div class="value">${htmlText(indexedDBStatusText())}</div></div>
       <div class="stat-card"><span>IDB logs/sessions estimate</span><div class="value">${htmlText(formatStorageBytes(estimatedIndexedDBDataBytes()))}</div></div>
       <div class="stat-card"><span>Loaded version</span><div class="value">${htmlText(APP_VERSION)}</div></div>
+      <div class="stat-card"><span>Build timestamp</span><div class="value">${htmlText(APP_BUILD_TIMESTAMP)}</div></div>
       <div class="stat-card"><span>Page URL version</span><div class="value">${htmlText(new URLSearchParams(location.search).get("v") || "none")}</div></div>
       <div class="stat-card"><span>Last full backup</span><div class="value storage-backup-value">${htmlText(backupText)}</div></div>
       <div class="stat-card"><span>Logs</span><div class="value">${numText((data.logs || []).length, "0")}</div></div>
@@ -3773,7 +3842,7 @@ function setDiagnosticsOutput(html, cls="analytics-note") {
 }
 function syncLoadedVersionDisplay() {
   const el = $("loadedVersionDisplay");
-  if (el) el.value = `${APP_VERSION} · URL v=${new URLSearchParams(location.search).get("v") || "none"}`;
+  if (el) el.value = `${APP_VERSION} · Build ${APP_BUILD_TIMESTAMP} · URL v=${new URLSearchParams(location.search).get("v") || "none"}`;
 }
 async function idbCount(storeName) {
   if (indexedDBUnavailable) return null;
@@ -4323,7 +4392,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.11");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.12");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4690,14 +4759,11 @@ document.addEventListener("change", e=>{
 document.addEventListener("DOMContentLoaded", updateTargetHints);
 
 function applyStoredStatsModeVisual() {
-  if (!$("statsOverviewBtn") || !$("statsAdvancedBtn")) return;
-  if (statsMode === "advanced") {
-    $("statsAdvancedBtn").classList.add("active-subtab");
-    $("statsOverviewBtn").classList.remove("active-subtab");
-  } else {
-    $("statsOverviewBtn").classList.add("active-subtab");
-    $("statsAdvancedBtn").classList.remove("active-subtab");
-  }
+  statsMode = normalizeStatsMode(statsMode);
+  document.querySelectorAll(".stats-nav-btn[data-stats-mode]").forEach(btn => {
+    btn.classList.toggle("active-subtab", normalizeStatsMode(btn.dataset.statsMode) === statsMode);
+    btn.setAttribute("aria-selected", normalizeStatsMode(btn.dataset.statsMode) === statsMode ? "true" : "false");
+  });
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 /* v3.25.9 interface settings core — single deterministic API. */
