@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.21.12</title>
+  <title>Snooker Practice Log v4.21.13</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.21.12" />
-  <link rel="stylesheet" href="styles.css?v=4.21.12" />
-  <link rel="icon" href="icon.svg?v=4.21.12" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.21.13" />
+  <link rel="stylesheet" href="styles.css?v=4.21.13" />
+  <link rel="icon" href="icon.svg?v=4.21.13" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.21.12 · Build 2026-05-15 23:22 CET — ES module architecture with IndexedDB production-safety fixes.</p>
+      <p>v4.21.13 · Build 2026-05-15 23:31 CET — Stats subtab separation and reduced analytics wall layout.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -689,6 +689,9 @@
           <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
           <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
           <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
+          <button id="statsABBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="ab">A/B</button>
+          <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Counterfactual</button>
+          <button id="statsTournamentBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="tournament">Tournament</button>
         </div>
         <div class="grid three">
           <div>
@@ -722,7 +725,7 @@
           </div>
         </div>
         
-        <div class="card nested">
+        <div class="card nested stats-standalone-panel hidden" id="statsABPanel">
           <h3>A/B period comparison <button type="button" class="stat-help" data-action="field-help" data-help-key="abComparison">?</button></h3>
           <div class="grid three">
             <div>
@@ -757,7 +760,7 @@
         </div>
 
         <div id="weeklyReviewBox"></div>
-        <div class="card nested" id="regretEnginePanel">
+        <div class="card nested stats-standalone-panel hidden" id="regretEnginePanel">
           <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="regretEngine">?</button></h3>
           <p class="muted">Estimates whether another routine may have been a better choice in similar conditions. This is heuristic, not causal proof.</p>
           <div class="grid three">
@@ -964,6 +967,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.21.12"></script>
+  <script type="module" src="app.js?v=4.21.13"></script>
 </body>
 </html>

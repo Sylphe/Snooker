@@ -997,7 +997,7 @@ body.session-focus-active #skipBtn{
 }
 
 
-/* v4.21.12 stats overview KPI dashboard */
+/* v4.21.13 stats overview KPI dashboard */
 .overview-kpi-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 14px;}
 .overview-kpi{border:1px solid var(--line);background:var(--panel-bg);color:var(--text);border-radius:16px;padding:12px;min-width:0;box-shadow:0 1px 0 rgba(16,43,34,.03);}
 .overview-kpi.primary{grid-column:span 2;background:linear-gradient(180deg,var(--panel-bg),var(--panel-bg-2));}
@@ -1018,7 +1018,7 @@ body.session-focus-active #skipBtn{
   .overview-exec-strip{grid-template-columns:1fr;gap:7px;}
 }
 
-/* v4.21.12 advanced stats module layout */
+/* v4.21.13 advanced stats module layout */
 .advanced-stats-modules{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
 .advanced-stats-module{border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:0 1px 0 rgba(16,43,34,.03);overflow:hidden;}
 .advanced-stats-module>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;font-weight:850;background:var(--panel-bg, #f7faf8);}
@@ -1034,7 +1034,7 @@ body.session-focus-active #skipBtn{
   .advanced-module-body{padding:10px 10px 12px;overflow-x:auto;}
 }
 
-/* v4.21.12 mobile-safe picker and help modal guardrails */
+/* v4.21.13 mobile-safe picker and help modal guardrails */
 .modal-backdrop{box-sizing:border-box;max-width:100vw;overflow-x:hidden;}
 .modal-card{box-sizing:border-box;max-width:calc(100vw - 24px);overflow-wrap:anywhere;}
 .modal-body{max-width:100%;overflow-wrap:anywhere;}
@@ -1046,7 +1046,7 @@ body.session-focus-active #skipBtn{
 .routine-picker-row strong,.routine-picker-row small{overflow-wrap:anywhere;word-break:break-word;}
 
 
-/* v4.21.12 internal stats navigation */
+/* v4.21.13 internal stats navigation */
 .stats-internal-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px;}
 .stats-internal-nav .stats-nav-btn{min-width:0;padding:9px 8px;white-space:nowrap;}
 body[data-theme] :is(.overview-kpi,.overview-mini-card,.advanced-stats-module){background:var(--panel-bg);color:var(--text);border-color:var(--line);}

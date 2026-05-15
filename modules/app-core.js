@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.12";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.13";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.12";
+} from "./utils.js?v=4.21.13";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.12";
+} from "./settings.js?v=4.21.13";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.12";
+} from "./analytics.js?v=4.21.13";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.12";
+} from "./bayesian.js?v=4.21.13";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.12";
+} from "./session.js?v=4.21.13";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.12";
+} from "./pressure.js?v=4.21.13";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.12";
-import * as RenderHelpers from "./render.js?v=4.21.12";
+} from "./recommendations.js?v=4.21.13";
+import * as RenderHelpers from "./render.js?v=4.21.13";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.12";
+} from "./store.js?v=4.21.13";
 
 
 
@@ -293,7 +293,7 @@ let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
-const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights"]);
+const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
   if (v === "advanced") return "trends";
@@ -711,6 +711,7 @@ function renderAll() {
   renderTableStats();
   renderPhaseOneInsights();
   renderBayesianAnalyticsValidation();
+  toggleStatsStandalonePanels();
   renderInterfaceSettings();
   updateSessionFocusState();
   if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
@@ -2433,7 +2434,7 @@ function renderStatsScopeChips(scope, logs) {
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights"}[statsMode] || "Overview");
+  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
   el.innerHTML = [
     `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
@@ -2542,6 +2543,39 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
     </div>`;
 }
 
+function renderStatsABSection(logs, { range }) {
+  const note = logs.length
+    ? `Use the controls above to compare two periods. Current global scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
+    : "Use the controls above to compare two periods once logs exist.";
+  return `<h3>A/B comparison — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
+}
+
+function renderStatsCounterfactualSection(logs, { range }) {
+  const note = logs.length
+    ? `Select a chosen routine and an alternative routine above, then run the comparison. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
+    : "Select routines above once you have enough logged sessions.";
+  return `<h3>Counterfactual engine — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
+}
+
+function renderStatsTournamentSection(logs, { range }) {
+  return `<h3>Tournament preparation — ${escapeHtml(range.label)}</h3>
+    <p class="muted">Dedicated preparation planner. It is separated from Insights so the stats tab does not become a continuous wall of analytics.</p>
+    ${tournamentPrepPlannerHtml()}`;
+}
+
+function toggleStatsStandalonePanels() {
+  const abPanel = $("statsABPanel");
+  if (abPanel) abPanel.classList.toggle("hidden", statsMode !== "ab");
+  const regretPanel = $("regretEnginePanel");
+  if (regretPanel) regretPanel.classList.toggle("hidden", statsMode !== "counterfactual");
+  const phasePanel = $("phaseOneInsightsPanel");
+  if (phasePanel) phasePanel.classList.toggle("hidden", statsMode !== "insights");
+  const weekly = $("weeklyReviewBox");
+  if (weekly) weekly.classList.toggle("hidden", statsMode !== "insights");
+  const tableStats = $("tableStatsBox");
+  if (tableStats) tableStats.classList.toggle("hidden", !(statsMode === "overview" || statsMode === "routines"));
+}
+
 function renderStats() {
   const scope = getStatsScope();
   const { period, rid, range } = scope;
@@ -2560,10 +2594,19 @@ function renderStats() {
     html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
   } else if (statsMode === "pressure") {
     html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else {
+  } else if (statsMode === "insights") {
     html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "ab") {
+    html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "counterfactual") {
+    html += renderStatsCounterfactualSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "tournament") {
+    html += renderStatsTournamentSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else {
+    html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
   }
   $("statsOutput").innerHTML = html;
+  toggleStatsStandalonePanels();
 }
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
@@ -4392,7 +4435,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.12");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.13");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4764,6 +4807,7 @@ function applyStoredStatsModeVisual() {
     btn.classList.toggle("active-subtab", normalizeStatsMode(btn.dataset.statsMode) === statsMode);
     btn.setAttribute("aria-selected", normalizeStatsMode(btn.dataset.statsMode) === statsMode ? "true" : "false");
   });
+  toggleStatsStandalonePanels();
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 /* v3.25.9 interface settings core — single deterministic API. */
@@ -4961,6 +5005,7 @@ function ensureBayesianValidationPanel() {
   if (!statsPanel || $("bayesianValidationOutput")) return;
   const card = document.createElement("div");
   card.className = "card";
+  card.id = "statsBayesianPanel";
   card.innerHTML = `<div id="bayesianValidationOutput"></div>`;
   statsPanel.appendChild(card);
 }
@@ -5133,13 +5178,9 @@ function renderPredictorContributionModel() {
 }
 
 
-function renderTournamentPrepPlanner() {
-  const host = $("bayesianValidationOutput");
-  if (!host) return;
-
+function tournamentPrepPlannerHtml() {
   const plan = computeTournamentPrepPlan();
-
-  host.innerHTML += `
+  return `
     <div class="tournament-prep-card">
       <h3>Tournament preparation planner</h3>
 
@@ -5201,6 +5242,12 @@ function renderTournamentPrepPlanner() {
       </div>
     </div>
   `;
+}
+
+function renderTournamentPrepPlanner() {
+  const host = $("bayesianValidationOutput");
+  if (!host) return;
+  host.innerHTML += tournamentPrepPlannerHtml();
 }
 
 function renderAllocationOptimization() {
@@ -5294,7 +5341,14 @@ function renderPlateauDiagnostics() {
 
 function renderBayesianAnalyticsValidation() {
   const box = $("bayesianValidationOutput");
+  const panel = $("statsBayesianPanel") || box?.closest?.(".card");
   if (!box) return;
+  if (statsMode !== "insights") {
+    box.innerHTML = "";
+    if (panel) panel.classList.add("hidden");
+    return;
+  }
+  if (panel) panel.classList.remove("hidden");
   const selected = $("statsRoutineSelect")?.value || "";
   const successRoutines = activeRoutines().filter(r => r.scoring === "success_rate");
   const chosen = selected && selected !== "all" ? successRoutines.filter(r => String(r.id) === String(selected)) : successRoutines.slice(0, 8);
@@ -5307,7 +5361,6 @@ function renderBayesianAnalyticsValidation() {
     ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
   renderPlateauDiagnostics();
   renderAllocationOptimization();
-  renderTournamentPrepPlanner();
   renderPredictorContributionModel();
 }
 
@@ -5713,6 +5766,7 @@ document.addEventListener("change", (event) => {
     id === "tournamentPrepRisk" ||
     id === "tournamentPrepMinutes"
   ) {
-    renderBayesianAnalyticsValidation?.();
+    if (statsMode === "tournament") renderStats();
+    else renderBayesianAnalyticsValidation?.();
   }
 });
