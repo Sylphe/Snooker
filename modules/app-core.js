@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION } from "./version.js?v=4.21.7";
+import { APP_VERSION } from "./version.js?v=4.21.9";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.7";
+} from "./utils.js?v=4.21.9";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.7";
+} from "./settings.js?v=4.21.9";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.7";
+} from "./analytics.js?v=4.21.9";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.7";
+} from "./bayesian.js?v=4.21.9";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.7";
+} from "./session.js?v=4.21.9";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.7";
+} from "./pressure.js?v=4.21.9";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.7";
-import * as RenderHelpers from "./render.js?v=4.21.7";
+} from "./recommendations.js?v=4.21.9";
+import * as RenderHelpers from "./render.js?v=4.21.9";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.7";
+} from "./store.js?v=4.21.9";
 
 
 
@@ -292,8 +292,34 @@ let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let deferredInstallPrompt = null;
 let statsMode = localStorage.getItem("snookerPracticePWA.statsMode") || "overview";
+const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
+let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
 
 function $(id) { return document.getElementById(id); }
+function normalizeStatsRoutineFilter(value) {
+  const v = String(value || "all");
+  return v && v !== "" ? v : "all";
+}
+function setStatsRoutineFilter(value, options = {}) {
+  statsRoutineFilterId = normalizeStatsRoutineFilter(value);
+  localStorage.setItem(STATS_ROUTINE_FILTER_KEY, statsRoutineFilterId);
+  const select = $("statsRoutineSelect");
+  if (select && select.value !== statsRoutineFilterId) {
+    select.value = statsRoutineFilterId;
+    if (select.value !== statsRoutineFilterId) {
+      const opt = document.createElement("option");
+      opt.value = statsRoutineFilterId;
+      const r = routineById(statsRoutineFilterId);
+      opt.textContent = r ? r.name : "Selected exercise";
+      select.appendChild(opt);
+      select.value = statsRoutineFilterId;
+    }
+  }
+  if (!options.silent) {
+    renderStats();
+    renderPhaseOneInsights();
+  }
+}
 
 function migrateData(d) {
   d.appVersion = APP_VERSION;
@@ -500,7 +526,7 @@ function recommendationEligibleRoutines() { return activeRoutines().filter(isRec
 function categories() { return [...new Set(activeRoutines().map(r => r.category || "uncategorized"))].sort(); }
 function folders() { return [...new Set(activeRoutines().map(r => r.folder || "Unfiled"))].sort(); }
 function subfolders() { return [...new Set(activeRoutines().map(r => r.subfolder || "General"))].sort(); }
-function routineById(id) { return (data.routines || []).find(r => r.id === id); }
+function routineById(id) { return (data.routines || []).find(r => String(r.id) === String(id)); }
 
 function favoriteRoutineIds() { return new Set(data.favoriteRoutineIds || []); }
 function isFavoriteRoutine(id) { return favoriteRoutineIds().has(id); }
@@ -707,11 +733,13 @@ function renderRoutineSelects() {
   $("planSelect").innerHTML = data.plans.map(p => `<option value="${attrText(p.id)}">${htmlText(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
   const statsSelect = $("statsRoutineSelect");
   if (statsSelect) {
-    const previousStatsRoutine = statsSelect.value || "all";
+    const previousStatsRoutine = normalizeStatsRoutineFilter(statsRoutineFilterId || statsSelect.value || "all");
     const statRoutines = (data.routines || []).slice().sort((a,b) => String(a.name || "").localeCompare(String(b.name || "")));
     const statIds = statRoutines.map(r => String(r.id));
     statsSelect.innerHTML = `<option value="all">All exercises</option>` + statRoutines.map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("");
-    statsSelect.value = statIds.includes(previousStatsRoutine) || previousStatsRoutine === "all" ? previousStatsRoutine : "all";
+    statsRoutineFilterId = statIds.includes(previousStatsRoutine) || previousStatsRoutine === "all" ? previousStatsRoutine : "all";
+    statsSelect.value = statsRoutineFilterId;
+    localStorage.setItem(STATS_ROUTINE_FILTER_KEY, statsRoutineFilterId);
   }
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
@@ -2141,7 +2169,7 @@ $("statsAdvancedBtn").addEventListener("click", () => {
   if (el) el.addEventListener("change", renderABComparison);
 });
 
-$("statsRoutineSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
+$("statsRoutineSelect").addEventListener("change", (event) => { setStatsRoutineFilter(event.target.value); });
 $("statsDateSelect").addEventListener("change", renderStats);
 $("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("rollingWindowInput").addEventListener("input", renderStats);
@@ -2373,7 +2401,8 @@ function renderSwipeableHistoryCards(logs) {
 
 function getStatsScope() {
   const period = $("statsPeriodSelect")?.value || "daily";
-  const selectedRoutineId = $("statsRoutineSelect")?.value || "all";
+  const selectValue = $("statsRoutineSelect")?.value || statsRoutineFilterId || "all";
+  const selectedRoutineId = normalizeStatsRoutineFilter(statsRoutineFilterId || selectValue);
   const rid = selectedRoutineId && selectedRoutineId !== "all" ? selectedRoutineId : "";
   const dateKey = $("statsDateSelect")?.value || localDateKey();
   const range = getPeriodRange(period, dateKey);
@@ -2391,6 +2420,19 @@ function renderStatsScopeBanner(scope, logs) {
   const periodLabel = scope.period === "exercise" ? "All history" : htmlText(scope.range.label);
   return `<div class="analytics-note stats-scope-banner"><strong>Active stats scope:</strong> ${filterLabel} · ${periodLabel} · ${logs.length} log${logs.length === 1 ? "" : "s"}</div>`;
 }
+function renderStatsScopeChips(scope, logs) {
+  const el = $("statsScopeChips");
+  if (!el) return;
+  const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
+  const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
+  const modeLabel = statsMode === "advanced" ? "Advanced" : "Overview";
+  el.innerHTML = [
+    `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
+    `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
+    `<span class="stats-scope-chip"><strong>Period</strong><span>${htmlText(periodLabel)}</span></span>`,
+    `<span class="stats-scope-chip"><strong>Logs</strong><span>${logs.length}</span></span>`
+  ].join("");
+}
 
 function renderStats() {
   const scope = getStatsScope();
@@ -2399,6 +2441,7 @@ function renderStats() {
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
   let scopedLogs = getScopedStatsLogs();
+  renderStatsScopeChips(scope, scopedLogs);
 
   if (statsMode === "overview") {
     $("statsOutput").innerHTML = renderStatsScopeBanner(scope, scopedLogs) + renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
@@ -4172,7 +4215,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.7");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.9");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4878,7 +4921,7 @@ function renderPredictorContributionModel() {
 
   const selected = $("statsRoutineSelect")?.value || "all";
   const routines = activeRoutines()
-    .filter(r => selected === "all" || r.id === selected)
+    .filter(r => selected === "all" || String(r.id) === String(selected))
     .map(r => ({routine:r, model:predictorModelForRoutine(r)}))
     .filter(x => x.model)
     .sort((a,b)=>b.model.total-a.model.total)
@@ -5035,7 +5078,7 @@ function renderPlateauDiagnostics() {
   if (!box) return;
 
   const selected = $("statsRoutineSelect")?.value || "all";
-  const routines = activeRoutines().filter(r => selected === "all" || r.id === selected);
+  const routines = activeRoutines().filter(r => selected === "all" || String(r.id) === String(selected));
 
   const html = routines.slice(0, 6).map(r => {
     const logs = (data.logs || []).filter(l => l.routineId === r.id);
@@ -5080,7 +5123,7 @@ function renderBayesianAnalyticsValidation() {
   if (!box) return;
   const selected = $("statsRoutineSelect")?.value || "";
   const successRoutines = activeRoutines().filter(r => r.scoring === "success_rate");
-  const chosen = selected && selected !== "all" ? successRoutines.filter(r => r.id === selected) : successRoutines.slice(0, 8);
+  const chosen = selected && selected !== "all" ? successRoutines.filter(r => String(r.id) === String(selected)) : successRoutines.slice(0, 8);
   if (!chosen.length) {
     box.innerHTML = `<div class="analytics-note">Bayesian validation currently applies to success-rate drills. Create or select a success-rate drill to see confidence estimates.</div>`;
     return;
@@ -5397,8 +5440,13 @@ function renderRoutinePickerList() {
     btn.addEventListener("click", () => {
       const select = $(routinePickerTargetSelectId);
       if (!select) return;
-      select.value = btn.getAttribute("data-routine-picker-id") || "";
-      select.dispatchEvent(new Event("change", {bubbles:true}));
+      const pickedId = btn.getAttribute("data-routine-picker-id") || "";
+      if (routinePickerTargetSelectId === "statsRoutineSelect") {
+        setStatsRoutineFilter(pickedId);
+      } else {
+        select.value = pickedId;
+        select.dispatchEvent(new Event("change", {bubbles:true}));
+      }
       closeRoutinePickerSheet();
     });
   });

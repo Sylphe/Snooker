@@ -997,6 +997,38 @@ body.session-focus-active #skipBtn{
 }
 
 
+/* v4.21.9 sticky stats control bar */
+.stats-control-bar{
+  position:sticky;
+  top:45px;
+  z-index:8;
+  background:color-mix(in srgb, var(--card) 94%, transparent);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  margin:0 0 14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+  backdrop-filter:blur(10px);
+}
+.stats-control-grid{margin-top:8px;}
+.stats-control-bar label{margin-top:6px;}
+.stats-control-bar input,
+.stats-control-bar select{padding:10px;font-size:14px;}
+.stats-scope-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+.stats-scope-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#f7faf8;color:var(--primary);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:750;max-width:100%;}
+.stats-scope-chip strong{font-weight:850;}
+.stats-scope-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px;}
+@media(max-width:760px){
+  .stats-control-bar{top:41px;margin-left:-6px;margin-right:-6px;padding:10px;border-radius:14px;}
+  .stats-control-bar .stats-subtabs{margin-bottom:6px;}
+  .stats-control-bar .stats-subtabs button{flex:1 1 calc(50% - 4px);padding:8px 9px;font-size:13px;}
+  .stats-control-bar input,
+  .stats-control-bar select{padding:9px;font-size:14px;}
+  .stats-scope-chip{font-size:11px;padding:4px 7px;}
+  .stats-scope-chip span{max-width:150px;}
+}
+
+
 /* v4.21.7 mobile-safe stats picker and helper modals */
 .stats-scope-banner{font-size:13px;}
 .modal-backdrop,

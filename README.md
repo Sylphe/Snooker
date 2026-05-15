@@ -1,8 +1,15 @@
-# Snooker Practice Log — v4.21.7
+# Snooker Practice Log — v4.21.9
 
 Built from `v4.21.3-left-right-score-fix`.
 
-## v4.21.7 — Stats filter and modal width fix
+
+## v4.21.9 — Sticky stats control bar
+
+- Added a sticky Stats control bar so Overview / Advanced, period, date, exercise filter, rolling window, and benchmark window remain accessible while scrolling.
+- Added compact scope chips under the controls: mode, exercise, period, and scoped log count.
+- Kept all existing Overview and Advanced Stats information intact.
+
+## v4.21.8 — Stats picker state fix / filter stability
 
 - Stats exercise filter now uses one centralized scope function across overview, advanced stats, and phase-one insights.
 - Added visible active-scope banner so filter/date/period changes are immediately auditable.
