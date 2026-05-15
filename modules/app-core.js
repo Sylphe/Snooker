@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.13";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.14";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.13";
+} from "./utils.js?v=4.21.14";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -24,7 +24,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.13";
+} from "./settings.js?v=4.21.14";
 import {
   avg,
   stdDev,
@@ -42,7 +42,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.13";
+} from "./analytics.js?v=4.21.14";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +51,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.13";
+} from "./bayesian.js?v=4.21.14";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +60,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.13";
+} from "./session.js?v=4.21.14";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +68,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.13";
+} from "./pressure.js?v=4.21.14";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +80,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.13";
-import * as RenderHelpers from "./render.js?v=4.21.13";
+} from "./recommendations.js?v=4.21.14";
+import * as RenderHelpers from "./render.js?v=4.21.14";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +92,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.13";
+} from "./store.js?v=4.21.14";
 
 
 
@@ -293,7 +293,7 @@ let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
-const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "ab", "counterfactual", "tournament"]);
+const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
   if (v === "advanced") return "trends";
@@ -2434,7 +2434,7 @@ function renderStatsScopeChips(scope, logs) {
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
+  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"Bayesian", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
   el.innerHTML = [
     `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
@@ -2543,6 +2543,13 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
     </div>`;
 }
 
+function renderStatsBayesianSection(logs, { range }) {
+  const note = logs.length
+    ? `Bayesian/Lasso models use the active stats scope where applicable. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
+    : "Bayesian and Lasso-style analytics will appear once success-rate logs exist.";
+  return `<h3>Bayesian & Lasso — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
+}
+
 function renderStatsABSection(logs, { range }) {
   const note = logs.length
     ? `Use the controls above to compare two periods. Current global scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
@@ -2572,6 +2579,8 @@ function toggleStatsStandalonePanels() {
   if (phasePanel) phasePanel.classList.toggle("hidden", statsMode !== "insights");
   const weekly = $("weeklyReviewBox");
   if (weekly) weekly.classList.toggle("hidden", statsMode !== "insights");
+  const bayesianPanel = $("statsBayesianPanel");
+  if (bayesianPanel) bayesianPanel.classList.toggle("hidden", statsMode !== "bayesian");
   const tableStats = $("tableStatsBox");
   if (tableStats) tableStats.classList.toggle("hidden", !(statsMode === "overview" || statsMode === "routines"));
 }
@@ -2596,6 +2605,8 @@ function renderStats() {
     html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
   } else if (statsMode === "insights") {
     html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+  } else if (statsMode === "bayesian") {
+    html += renderStatsBayesianSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
   } else if (statsMode === "ab") {
     html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
   } else if (statsMode === "counterfactual") {
@@ -2607,6 +2618,68 @@ function renderStats() {
   }
   $("statsOutput").innerHTML = html;
   toggleStatsStandalonePanels();
+  renderBayesianAnalyticsValidation?.();
+}
+
+function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
+  const r = routineById(rid);
+  if (!r || !logs.length) return "";
+  const ordered = logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const vals = ordered.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+  const current = vals.length ? vals[vals.length-1] : null;
+  const recentVals = vals.slice(-Math.max(2, Number(rollingWindow || 5)));
+  const rolling = recentVals.length ? avg(recentVals) : null;
+  const best = vals.length ? Math.max(...vals) : null;
+  const hit = targetHitRate(ordered);
+  const last = ordered[ordered.length-1];
+  const days = last ? daysSince(last.createdAt) : null;
+  const target = Number(r.target || 0);
+  let evidence = `${ordered.length} log${ordered.length === 1 ? "" : "s"}`;
+  let confidenceLabel = "Not enough success-rate evidence";
+  let trueSkill = "N/A";
+  let interval = "N/A";
+  let bayesHtml = "";
+  if (r.scoring === "success_rate") {
+    const agg = aggregateSuccessRateLogs(ordered.filter(l => l.scoring === "success_rate" || !l.scoring));
+    evidence = `${numText(agg.attempts, "0")} effective attempts · ${numText(agg.sessions, "0")} logs`;
+    const posterior = betaPosterior(agg.successes, agg.attempts);
+    const reliability = bayesianReliabilityLabel(posterior);
+    const policy = bayesianActionPolicy(bayesianRecommendationSignal({posterior, targetPct:target}), posterior, target);
+    confidenceLabel = reliability.label;
+    trueSkill = formatPercent(posterior.mean);
+    interval = `${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}`;
+    bayesHtml = `<div class="exercise-focus-action"><strong>${htmlText(policy.title)}</strong><p>${htmlText(policy.instruction)}</p></div>`;
+  }
+  const bayes = r.scoring === "success_rate" ? bayesianStatsForRoutine(rid) : null;
+  const uncertainty = bayes?.posterior ? (bayes.posterior.upper - bayes.posterior.lower) : 0;
+  const plateau = detectPlateauState(ordered, { uncertainty });
+  const action = plateauActionRecommendation(plateau.state);
+  const side = sideImbalanceMetric(ordered);
+  const pressure = pressureOverviewMetric(ordered);
+  return `<div class="exercise-focus-dashboard">
+    <div class="exercise-focus-head">
+      <div><h3>Selected exercise dashboard — ${htmlText(r.name)}</h3><p class="muted">The overview is now drill-specific because an exercise filter is active.</p></div>
+      <span class="badge">${htmlText(r.category || r.folder || "Exercise")}</span>
+    </div>
+    <div class="overview-kpi-dashboard exercise-focus-grid">
+      <div class="overview-kpi primary"><span>Current level</span><div class="value">${current === null ? "N/A" : current.toFixed(1)}</div><small>Most recent normalized score.</small></div>
+      <div class="overview-kpi primary"><span>Rolling score</span><div class="value">${rolling === null ? "N/A" : rolling.toFixed(1)}</div><small>Last ${recentVals.length || 0} logged result${recentVals.length === 1 ? "" : "s"}.</small></div>
+      <div class="overview-kpi"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>Target ${target || "not set"}.</small></div>
+      <div class="overview-kpi"><span>Estimated true skill</span><div class="value">${trueSkill}</div><small>${htmlText(confidenceLabel)} · ${htmlText(interval)}</small></div>
+      <div class="overview-kpi"><span>Evidence</span><div class="value">${htmlText(evidence)}</div><small>Uses effective attempts for per-side drills.</small></div>
+      <div class="overview-kpi"><span>Best score</span><div class="value">${best === null ? "N/A" : best.toFixed(1)}</div><small>Best normalized result in scope.</small></div>
+      <div class="overview-kpi"><span>Plateau state</span><div class="value">${htmlText(plateau.label)}</div><small>${htmlText(plateau.detail)}</small></div>
+      <div class="overview-kpi"><span>Last trained</span><div class="value">${days === null ? "N/A" : days+"d"}</div><small>${last ? htmlText(new Date(last.createdAt).toLocaleDateString()) : "No date"}</small></div>
+      <div class="overview-kpi"><span>Pressure</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs"}</small></div>
+      <div class="overview-kpi"><span>Side balance</span><div class="value">${side ? htmlText(side.label) : "N/A"}</div><small>${side ? htmlText(side.detail) : "No left/right logs"}</small></div>
+    </div>
+    <div class="overview-exec-strip">
+      <div class="overview-mini-card"><strong>Plateau action</strong><span>${htmlText(action.title)} — ${htmlText(action.instruction)}</span></div>
+      <div class="overview-mini-card"><strong>Last result</strong><span>${last ? `${htmlText(displayScore(last))} · ${htmlText(last.performance || "N/A")}` : "No log yet"}</span></div>
+      <div class="overview-mini-card"><strong>Scoring type</strong><span>${htmlText(r.scoring || "standard")} · ${htmlText(getRoutineAttemptMode(r) || "shared")}</span></div>
+    </div>
+    ${bayesHtml}
+  </div>`;
 }
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
@@ -2628,7 +2701,8 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   const weakestRoutine = routinePerformanceLeader(logs, "weakest");
   const improved = mostImprovedRoutine(logs);
 
-  let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
+  let html = rid ? renderSelectedExerciseDashboard(logs, rid, rollingWindow) : "";
+  html += `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-kpi-dashboard">
       <div class="overview-kpi primary"><span>Average score</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
       <div class="overview-kpi primary"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
@@ -4435,7 +4509,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.13");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.14");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5343,7 +5417,7 @@ function renderBayesianAnalyticsValidation() {
   const box = $("bayesianValidationOutput");
   const panel = $("statsBayesianPanel") || box?.closest?.(".card");
   if (!box) return;
-  if (statsMode !== "insights") {
+  if (statsMode !== "bayesian") {
     box.innerHTML = "";
     if (panel) panel.classList.add("hidden");
     return;
@@ -5353,12 +5427,12 @@ function renderBayesianAnalyticsValidation() {
   const successRoutines = activeRoutines().filter(r => r.scoring === "success_rate");
   const chosen = selected && selected !== "all" ? successRoutines.filter(r => String(r.id) === String(selected)) : successRoutines.slice(0, 8);
   if (!chosen.length) {
-    box.innerHTML = `<div class="analytics-note">Bayesian validation currently applies to success-rate drills. Create or select a success-rate drill to see confidence estimates.</div>`;
-    return;
+    box.innerHTML = `<h3>Bayesian & Lasso analytics</h3><div class="analytics-note">Bayesian validation currently applies to success-rate drills. Create or select a success-rate drill to see confidence estimates.</div>`;
+  } else {
+    box.innerHTML = `<h3>Bayesian analytics validation</h3>
+      <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
+      ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
   }
-  box.innerHTML = `<h3>Bayesian analytics validation</h3>
-    <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
-    ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
   renderPlateauDiagnostics();
   renderAllocationOptimization();
   renderPredictorContributionModel();
