@@ -2300,14 +2300,27 @@ function computeAllocation(logs){
 }
 
 function setStatsMode(mode) {
-  statsMode = normalizeStatsMode(mode);
+  const nextMode = normalizeStatsMode(mode);
+  statsMode = nextMode;
   localStorage.setItem(STATS_MODE_KEY, statsMode);
   applyStoredStatsModeVisual();
-  renderStats();
+  if ($("statsOutput")) renderStats();
 }
-document.querySelectorAll(".stats-nav-btn[data-stats-mode]").forEach(btn => {
-  btn.addEventListener("click", () => setStatsMode(btn.dataset.statsMode));
-});
+
+function bindStatsNavigation() {
+  const nav = document.querySelector(".stats-internal-nav");
+  if (!nav || nav.dataset.bound === "true") return;
+  nav.dataset.bound = "true";
+  nav.addEventListener("click", event => {
+    const btn = event.target?.closest?.(".stats-nav-btn[data-stats-mode]");
+    if (!btn) return;
+    event.preventDefault();
+    setStatsMode(btn.dataset.statsMode || "overview");
+  });
+}
+
+bindStatsNavigation();
+document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 ["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener("change", renderABComparison);
