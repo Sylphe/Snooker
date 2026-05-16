@@ -2,6 +2,8 @@ export const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
 export const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
 export const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
 export const DISPLAY_DENSITY_KEY = "snookerPracticePWA.displayDensity";
+export const TIMER_AUTOSTART_KEY = "snookerPracticePWA.timerAutostart";
+export const TIMER_AUTOSTART_DELAY_KEY = "snookerPracticePWA.timerAutostartDelaySeconds";
 
 export function normalizeInterfaceThemeMode(value) {
   return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
@@ -13,6 +15,16 @@ export function normalizeOnOff(value, fallback="on") {
 
 export function normalizeDisplayDensity(value) {
   return value === "compact" ? "compact" : "comfortable";
+}
+
+export function normalizeTimerAutostart(value) {
+  return value === "auto" ? "auto" : "manual";
+}
+
+export function normalizeTimerAutostartDelay(value) {
+  const n = Math.round(Number(value || 0));
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(300, n));
 }
 
 export function getRawStoredThemeMode(storageKey) {

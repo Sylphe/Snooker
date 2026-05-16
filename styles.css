@@ -1238,3 +1238,11 @@ body[data-density="compact"] .data-main-nav .data-nav-btn,body[data-density="com
   .data-main-nav,.data-subnav{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
   .data-main-nav .data-nav-btn,.data-subnav .data-subnav-btn{flex:0 0 auto;white-space:nowrap;}
 }
+
+/* v4.22.6 Timer autostart controls */
+.setting-box{min-width:0;}
+.setting-box select{width:100%;max-width:100%;box-sizing:border-box;}
+.setting-box .tiny{font-size:12px;line-height:1.35;margin:6px 0 0;}
+.timer-autostart-setting{border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel-bg,var(--card));}
+body[data-density="compact"] .timer-autostart-setting{padding:8px;border-radius:11px;}
+@media(max-width:520px){.timer-autostart-setting{padding:9px;}}

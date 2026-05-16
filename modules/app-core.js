@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.5";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.6";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,19 +14,23 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.5";
+} from "./utils.js?v=4.22.6";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
   QUICK_LOG_AUTO_ADVANCE_KEY,
   DISPLAY_DENSITY_KEY,
+  TIMER_AUTOSTART_KEY,
+  TIMER_AUTOSTART_DELAY_KEY,
   normalizeInterfaceThemeMode,
   normalizeOnOff,
   normalizeDisplayDensity,
+  normalizeTimerAutostart,
+  normalizeTimerAutostartDelay,
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.5";
+} from "./settings.js?v=4.22.6";
 import {
   avg,
   stdDev,
@@ -48,7 +52,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.5";
+} from "./analytics.js?v=4.22.6";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -57,7 +61,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.5";
+} from "./bayesian.js?v=4.22.6";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -66,7 +70,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.5";
+} from "./session.js?v=4.22.6";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -74,7 +78,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.5";
+} from "./pressure.js?v=4.22.6";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -86,8 +90,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.5";
-import * as RenderHelpers from "./render.js?v=4.22.5";
+} from "./recommendations.js?v=4.22.6";
+import * as RenderHelpers from "./render.js?v=4.22.6";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -99,7 +103,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.5";
+} from "./store.js?v=4.22.6";
 
 
 
@@ -324,6 +328,8 @@ let timerInterval = null;
 let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
+let timerAutostartDelayInterval = null;
+let timerAutostartDelayEndsAt = null;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
 const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
@@ -386,6 +392,8 @@ function migrateData(d) {
   d.interfaceSettings.sessionFocusMode = localStorage.getItem(SESSION_FOCUS_MODE_KEY) || d.interfaceSettings.sessionFocusMode || "on";
   d.interfaceSettings.quickLogAutoAdvance = localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || d.interfaceSettings.quickLogAutoAdvance || "on";
   d.interfaceSettings.displayDensity = normalizeDisplayDensity(localStorage.getItem(DISPLAY_DENSITY_KEY) || d.interfaceSettings.displayDensity || "comfortable");
+  d.interfaceSettings.timerAutostart = normalizeTimerAutostart(localStorage.getItem(TIMER_AUTOSTART_KEY) || d.interfaceSettings.timerAutostart || "manual");
+  d.interfaceSettings.timerAutostartDelaySeconds = normalizeTimerAutostartDelay(localStorage.getItem(TIMER_AUTOSTART_DELAY_KEY) || d.interfaceSettings.timerAutostartDelaySeconds || 0);
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -492,6 +500,8 @@ function saveData(options = {}) {
   data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
   data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
   data.interfaceSettings.displayDensity = getDisplayDensitySetting();
+  data.interfaceSettings.timerAutostart = getTimerAutostartSetting();
+  data.interfaceSettings.timerAutostartDelaySeconds = getTimerAutostartDelaySetting();
   ensureTablesDatabase?.();
   const ok = saveCoreData("saveData core");
   if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
@@ -1123,6 +1133,7 @@ function renderCurrentRoutine() {
   $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
   updateSessionFocusState();
   renderLivePerformanceCard(r);
+  scheduleTimerAutostartForCurrentRoutine();
 }
 function renderScoreInputs(r) {
   let html = "";
@@ -1439,16 +1450,24 @@ function restoreTimerStateFromActiveSession() {
   updateTimerDisplay();
   return true;
 }
-function resetTimerState() { stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); }
-$("timerStartBtn").addEventListener("click", () => {
+function cancelTimerAutostartDelay() {
+  if (timerAutostartDelayInterval) clearInterval(timerAutostartDelayInterval);
+  timerAutostartDelayInterval = null;
+  timerAutostartDelayEndsAt = null;
+}
+function startPracticeTimer() {
+  cancelTimerAutostartDelay();
   if (timerStartMs) return;
   timerStartMs = Date.now();
   timerInterval = setInterval(updateTimerDisplay, 250);
-  $("timerState").textContent = "timer running";
+  if ($("timerState")) $("timerState").textContent = "timer running";
   updateTimerDisplay();
   syncTimerStateToActiveSession();
-});
+}
+function resetTimerState() { cancelTimerAutostartDelay(); stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); }
+$("timerStartBtn").addEventListener("click", startPracticeTimer);
 $("timerPauseBtn").addEventListener("click", () => {
+  cancelTimerAutostartDelay();
   if (!timerStartMs) return;
   elapsedBeforeStartMs += Date.now() - timerStartMs;
   timerStartMs = null;
@@ -1460,8 +1479,26 @@ $("timerPauseBtn").addEventListener("click", () => {
 $("timerResetBtn").addEventListener("click", resetTimerState);
 function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
 function updateTimerDisplay() {
-  $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
-  if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
+  if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
+  if (!timerStartMs && getElapsedMs() === 0 && !timerAutostartDelayInterval && $("timerState")) $("timerState").textContent = "timer stopped";
+}
+function updateTimerAutostartDelayDisplay() {
+  if (!timerAutostartDelayEndsAt) return;
+  const remainingMs = Math.max(0, timerAutostartDelayEndsAt - Date.now());
+  const remainingSec = Math.ceil(remainingMs / 1000);
+  if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(remainingSec * 1000);
+  if ($("timerState")) $("timerState").textContent = remainingSec > 0 ? `auto-start in ${remainingSec}s` : "starting timer";
+  if (remainingMs <= 0) startPracticeTimer();
+}
+function scheduleTimerAutostartForCurrentRoutine() {
+  cancelTimerAutostartDelay();
+  if (!activeSession || getTimerAutostartSetting() !== "auto" || isResumingActiveSession) return;
+  if (timerStartMs || getElapsedMs() > 0) return;
+  const delaySec = getTimerAutostartDelaySetting();
+  if (delaySec <= 0) { startPracticeTimer(); return; }
+  timerAutostartDelayEndsAt = Date.now() + delaySec * 1000;
+  updateTimerAutostartDelayDisplay();
+  timerAutostartDelayInterval = setInterval(updateTimerAutostartDelayDisplay, 250);
 }
 
 function renderLogRow(l) {
@@ -4694,7 +4731,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.5");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.6");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5070,19 +5107,26 @@ function applyStoredStatsModeVisual() {
 }
 document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 /* v3.25.9 interface settings core — single deterministic API. */
+function normalizeInterfaceSettingValue(dataKey, value, fallback) {
+  if (dataKey === "themeMode") return normalizeInterfaceThemeMode(value);
+  if (dataKey === "displayDensity") return normalizeDisplayDensity(value);
+  if (dataKey === "timerAutostart") return normalizeTimerAutostart(value);
+  if (dataKey === "timerAutostartDelaySeconds") return normalizeTimerAutostartDelay(value);
+  return normalizeOnOff(value, fallback);
+}
 function interfaceReadSetting(storageKey, dataKey, fallback) {
   try {
     const local = localStorage.getItem(storageKey);
-    if (local !== null && local !== undefined && local !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(local) : (dataKey === "displayDensity" ? normalizeDisplayDensity(local) : normalizeOnOff(local, fallback));
+    if (local !== null && local !== undefined && local !== "") return normalizeInterfaceSettingValue(dataKey, local, fallback);
   } catch(e) {}
   try {
     const stored = data && data.interfaceSettings ? data.interfaceSettings[dataKey] : null;
-    if (stored !== null && stored !== undefined && stored !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(stored) : (dataKey === "displayDensity" ? normalizeDisplayDensity(stored) : normalizeOnOff(stored, fallback));
+    if (stored !== null && stored !== undefined && stored !== "") return normalizeInterfaceSettingValue(dataKey, stored, fallback);
   } catch(e) {}
   return fallback;
 }
 function interfaceWriteSetting(storageKey, dataKey, value) {
-  const clean = dataKey === "themeMode" ? normalizeInterfaceThemeMode(value) : (dataKey === "displayDensity" ? normalizeDisplayDensity(value) : normalizeOnOff(value, "on"));
+  const clean = normalizeInterfaceSettingValue(dataKey, value, dataKey === "timerAutostart" ? "manual" : "on");
   try { localStorage.setItem(storageKey, clean); } catch(e) { if (typeof logAppError === "function") logAppError(e, "interfaceWriteSetting localStorage"); }
   try {
     data.interfaceSettings = data.interfaceSettings || {};
@@ -5097,6 +5141,8 @@ function getThemeModeSetting(){ return interfaceReadSetting(THEME_MODE_KEY, "the
 function getSessionFocusSetting(){ return interfaceReadSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", "on"); }
 function getQuickLogAutoAdvanceSetting(){ return interfaceReadSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", "on"); }
 function getDisplayDensitySetting(){ return interfaceReadSetting(DISPLAY_DENSITY_KEY, "displayDensity", "comfortable"); }
+function getTimerAutostartSetting(){ return interfaceReadSetting(TIMER_AUTOSTART_KEY, "timerAutostart", "manual"); }
+function getTimerAutostartDelaySetting(){ return Number(interfaceReadSetting(TIMER_AUTOSTART_DELAY_KEY, "timerAutostartDelaySeconds", 0)) || 0; }
 function applyDisplayDensity(mode){
   const clean = normalizeDisplayDensity(mode || getDisplayDensitySetting());
   [document.documentElement, document.body].filter(Boolean).forEach(el => {
@@ -5117,10 +5163,14 @@ function renderInterfaceSettings(){
   const focus = $("sessionFocusModeSelect");
   const quick = $("quickLogAutoAdvanceSelect");
   const density = $("displayDensitySelect");
+  const timerAuto = $("timerAutostartSelect");
+  const timerDelay = $("timerAutostartDelaySelect");
   if (theme) theme.value = getThemeModeSetting();
   if (focus) focus.value = getSessionFocusSetting();
   if (quick) quick.value = getQuickLogAutoAdvanceSetting();
   if (density) density.value = getDisplayDensitySetting();
+  if (timerAuto) timerAuto.value = getTimerAutostartSetting();
+  if (timerDelay) timerDelay.value = String(getTimerAutostartDelaySetting());
 }
 var currentSessionFocusActive = null;
 function isActiveSessionVisible(){
@@ -5181,6 +5231,14 @@ function bindInterfaceSettings(){
       el.value = clean;
       applyDisplayDensity(clean);
       renderStats();
+    } else if (el.id === "timerAutostartSelect") {
+      const clean = interfaceWriteSetting(TIMER_AUTOSTART_KEY, "timerAutostart", el.value);
+      el.value = clean;
+      if (activeSession) { cancelTimerAutostartDelay(); scheduleTimerAutostartForCurrentRoutine(); }
+    } else if (el.id === "timerAutostartDelaySelect") {
+      const clean = interfaceWriteSetting(TIMER_AUTOSTART_DELAY_KEY, "timerAutostartDelaySeconds", el.value);
+      el.value = String(clean);
+      if (activeSession && getTimerAutostartSetting() === "auto" && !timerStartMs && getElapsedMs() === 0) scheduleTimerAutostartForCurrentRoutine();
     }
   });
   const focusBtn = $("toggleFocusModeBtn");
@@ -5281,6 +5339,8 @@ window.SnookerInterface = {
   readFocusDefault:getSessionFocusSetting, setFocusDefault:function(v){ const c=interfaceWriteSetting(SESSION_FOCUS_MODE_KEY,"sessionFocusMode",v); renderInterfaceSettings(); updateSessionFocusState(); return c; },
   readQuick:getQuickLogAutoAdvanceSetting, setQuick:function(v){ const c=interfaceWriteSetting(QUICK_LOG_AUTO_ADVANCE_KEY,"quickLogAutoAdvance",v); renderInterfaceSettings(); if(activeSession) renderCurrentRoutine(); return c; },
   readDensity:getDisplayDensitySetting, setDensity:function(v){ const c=interfaceWriteSetting(DISPLAY_DENSITY_KEY,"displayDensity",v); applyDisplayDensity(c); renderInterfaceSettings(); renderStats(); return c; },
+  readTimerAutostart:getTimerAutostartSetting, setTimerAutostart:function(v){ const c=interfaceWriteSetting(TIMER_AUTOSTART_KEY,"timerAutostart",v); renderInterfaceSettings(); if(activeSession) scheduleTimerAutostartForCurrentRoutine(); return c; },
+  readTimerAutostartDelay:getTimerAutostartDelaySetting, setTimerAutostartDelay:function(v){ const c=interfaceWriteSetting(TIMER_AUTOSTART_DELAY_KEY,"timerAutostartDelaySeconds",v); renderInterfaceSettings(); if(activeSession) scheduleTimerAutostartForCurrentRoutine(); return c; },
   toggleFocus:toggleSessionFocusMode, updateFocusUI:updateSessionFocusState, syncControls:renderInterfaceSettings, bind:bindInterfaceSettings
 };
 function renderLivePerformanceCard(r){
