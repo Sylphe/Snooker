@@ -1059,7 +1059,7 @@ body[data-theme] .advanced-stats-module>summary{background:var(--panel-bg-2);col
   .stats-internal-nav .stats-nav-btn{flex:0 0 auto;}
 }
 
-/* v4.21.14 Bayesian tab + exercise-specific overview */
+/* v4.21.15 Bayesian tab + exercise-specific overview */
 .exercise-focus-dashboard{
   border:1px solid var(--line);
   background:var(--card);
@@ -1089,4 +1089,61 @@ body[data-theme] .advanced-stats-module>summary{background:var(--panel-bg-2);col
   .exercise-focus-dashboard{padding:11px;border-radius:14px;}
   .exercise-focus-head{display:block;}
   .exercise-focus-head .badge{display:inline-block;margin-top:6px;}
+}
+
+
+/* v4.21.15 compact display density */
+:root[data-density="compact"],body[data-density="compact"]{
+  --density-scale:.86;
+}
+body[data-density="compact"] .card{padding:12px;}
+body[data-density="compact"] #stats .card{padding:10px 10px 12px;}
+body[data-density="compact"] #stats h2{margin-bottom:8px;}
+body[data-density="compact"] #stats h3{margin:10px 0 7px;font-size:16px;}
+body[data-density="compact"] #stats .grid{gap:8px;}
+body[data-density="compact"] #stats label{font-size:12px;margin-bottom:4px;}
+body[data-density="compact"] #stats select,
+body[data-density="compact"] #stats input{padding:8px 9px;font-size:13px;}
+body[data-density="compact"] .stats-internal-nav{gap:5px;margin-bottom:8px;}
+body[data-density="compact"] .stats-internal-nav .stats-nav-btn{padding:7px 7px;font-size:12px;border-radius:10px;}
+body[data-density="compact"] .stats-scope-banner{padding:8px 10px;margin:8px 0;font-size:12px;line-height:1.25;}
+body[data-density="compact"] .stats-scope-chip{padding:5px 7px;font-size:11px;}
+body[data-density="compact"] .overview-kpi-dashboard{gap:6px;margin:8px 0 10px;}
+body[data-density="compact"] .overview-kpi{padding:8px;border-radius:12px;}
+body[data-density="compact"] .overview-kpi span{font-size:10.5px;line-height:1.15;}
+body[data-density="compact"] .overview-kpi .value{font-size:19px;margin-top:4px;}
+body[data-density="compact"] .overview-kpi.primary .value{font-size:21px;}
+body[data-density="compact"] .overview-kpi small{font-size:10px;margin-top:4px;line-height:1.15;}
+body[data-density="compact"] .overview-exec-strip{gap:6px;margin-bottom:8px;}
+body[data-density="compact"] .overview-mini-card{padding:7px 8px;border-radius:11px;}
+body[data-density="compact"] .overview-mini-card strong{font-size:11px;margin-bottom:2px;}
+body[data-density="compact"] .overview-mini-card span{font-size:11px;}
+body[data-density="compact"] .exercise-focus-dashboard{padding:10px;border-radius:13px;margin:8px 0 12px;}
+body[data-density="compact"] .exercise-focus-head{gap:8px;}
+body[data-density="compact"] .advanced-stats-modules{gap:6px;margin-top:8px;}
+body[data-density="compact"] .advanced-stats-module{border-radius:12px;}
+body[data-density="compact"] .advanced-stats-module>summary{padding:8px 10px;gap:8px;}
+body[data-density="compact"] .advanced-stats-module>summary small{font-size:10.5px;line-height:1.15;}
+body[data-density="compact"] .advanced-module-chevron{font-size:18px;}
+body[data-density="compact"] .advanced-module-body{padding:8px 10px 10px;}
+body[data-density="compact"] .stat-card{padding:8px;border-radius:12px;}
+body[data-density="compact"] .stat-card span{font-size:11px;}
+body[data-density="compact"] .stat-card .value{font-size:18px;}
+body[data-density="compact"] .stats-grid{gap:6px;}
+body[data-density="compact"] .badge,
+body[data-density="compact"] .phase-pill,
+body[data-density="compact"] .adaptive-pill,
+body[data-density="compact"] .target-profile-badge{padding:3px 6px;font-size:10.5px;}
+body[data-density="compact"] .analytics-note{padding:8px 9px;font-size:12px;line-height:1.3;}
+body[data-density="compact"] table{font-size:12px;}
+body[data-density="compact"] th,
+body[data-density="compact"] td{padding:6px 7px;}
+@media(max-width:760px){
+  body[data-density="compact"] .card{padding:10px;}
+  body[data-density="compact"] .overview-kpi-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;}
+  body[data-density="compact"] .overview-kpi{padding:7px;}
+  body[data-density="compact"] .overview-kpi .value{font-size:18px;}
+  body[data-density="compact"] .overview-kpi.primary .value{font-size:19px;}
+  body[data-density="compact"] .advanced-module-body{padding:7px 8px 9px;}
+  body[data-density="compact"] .stats-internal-nav .stats-nav-btn{padding:6px 7px;}
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.21.14</title>
+  <title>Snooker Practice Log v4.21.15</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.21.14" />
-  <link rel="stylesheet" href="styles.css?v=4.21.14" />
-  <link rel="icon" href="icon.svg?v=4.21.14" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.21.15" />
+  <link rel="stylesheet" href="styles.css?v=4.21.15" />
+  <link rel="icon" href="icon.svg?v=4.21.15" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.21.14 · Build 2026-05-15 23:55 CET — Bayesian stats tab and exercise-specific overview dashboard.</p>
+      <p>v4.21.15 · Build 2026-05-16 17:30 CEST — Compact display mode for stats and dense mobile review.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -888,6 +888,13 @@
               <option value="off">Manual save only</option>
             </select>
           </div>
+          <div>
+            <label>Display density</label>
+            <select id="displayDensitySelect">
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -968,6 +975,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.21.14"></script>
+  <script type="module" src="app.js?v=4.21.15"></script>
 </body>
 </html>

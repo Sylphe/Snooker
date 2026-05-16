@@ -1,6 +1,7 @@
 export const THEME_MODE_KEY = "snookerPracticePWA.themeMode";
 export const SESSION_FOCUS_MODE_KEY = "snookerPracticePWA.sessionFocusMode";
 export const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvance";
+export const DISPLAY_DENSITY_KEY = "snookerPracticePWA.displayDensity";
 
 export function normalizeInterfaceThemeMode(value) {
   return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
@@ -8,6 +9,10 @@ export function normalizeInterfaceThemeMode(value) {
 
 export function normalizeOnOff(value, fallback="on") {
   return value === "off" ? "off" : (value === "on" ? "on" : fallback);
+}
+
+export function normalizeDisplayDensity(value) {
+  return value === "compact" ? "compact" : "comfortable";
 }
 
 export function getRawStoredThemeMode(storageKey) {

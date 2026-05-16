@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.14";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.15";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,17 +14,19 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.14";
+} from "./utils.js?v=4.21.15";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
   QUICK_LOG_AUTO_ADVANCE_KEY,
+  DISPLAY_DENSITY_KEY,
   normalizeInterfaceThemeMode,
   normalizeOnOff,
+  normalizeDisplayDensity,
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.14";
+} from "./settings.js?v=4.21.15";
 import {
   avg,
   stdDev,
@@ -42,7 +44,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.14";
+} from "./analytics.js?v=4.21.15";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -51,7 +53,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.14";
+} from "./bayesian.js?v=4.21.15";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -60,7 +62,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.14";
+} from "./session.js?v=4.21.15";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -68,7 +70,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.14";
+} from "./pressure.js?v=4.21.15";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -80,8 +82,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.14";
-import * as RenderHelpers from "./render.js?v=4.21.14";
+} from "./recommendations.js?v=4.21.15";
+import * as RenderHelpers from "./render.js?v=4.21.15";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -92,7 +94,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.14";
+} from "./store.js?v=4.21.15";
 
 
 
@@ -352,6 +354,7 @@ function migrateData(d) {
   d.interfaceSettings.themeMode = normalizeInterfaceThemeMode(localStorage.getItem(THEME_MODE_KEY) || d.interfaceSettings.themeMode || "system");
   d.interfaceSettings.sessionFocusMode = localStorage.getItem(SESSION_FOCUS_MODE_KEY) || d.interfaceSettings.sessionFocusMode || "on";
   d.interfaceSettings.quickLogAutoAdvance = localStorage.getItem(QUICK_LOG_AUTO_ADVANCE_KEY) || d.interfaceSettings.quickLogAutoAdvance || "on";
+  d.interfaceSettings.displayDensity = normalizeDisplayDensity(localStorage.getItem(DISPLAY_DENSITY_KEY) || d.interfaceSettings.displayDensity || "comfortable");
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -456,6 +459,7 @@ function saveData(options = {}) {
   data.interfaceSettings.themeMode = getThemeModeSetting();
   data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
   data.interfaceSettings.quickLogAutoAdvance = getQuickLogAutoAdvanceSetting();
+  data.interfaceSettings.displayDensity = getDisplayDensitySetting();
   ensureTablesDatabase?.();
   const ok = saveCoreData("saveData core");
   if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
@@ -4509,7 +4513,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.14");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.15");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4888,16 +4892,16 @@ document.addEventListener("DOMContentLoaded", applyStoredStatsModeVisual);
 function interfaceReadSetting(storageKey, dataKey, fallback) {
   try {
     const local = localStorage.getItem(storageKey);
-    if (local !== null && local !== undefined && local !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(local) : normalizeOnOff(local, fallback);
+    if (local !== null && local !== undefined && local !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(local) : (dataKey === "displayDensity" ? normalizeDisplayDensity(local) : normalizeOnOff(local, fallback));
   } catch(e) {}
   try {
     const stored = data && data.interfaceSettings ? data.interfaceSettings[dataKey] : null;
-    if (stored !== null && stored !== undefined && stored !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(stored) : normalizeOnOff(stored, fallback);
+    if (stored !== null && stored !== undefined && stored !== "") return dataKey === "themeMode" ? normalizeInterfaceThemeMode(stored) : (dataKey === "displayDensity" ? normalizeDisplayDensity(stored) : normalizeOnOff(stored, fallback));
   } catch(e) {}
   return fallback;
 }
 function interfaceWriteSetting(storageKey, dataKey, value) {
-  const clean = dataKey === "themeMode" ? normalizeInterfaceThemeMode(value) : normalizeOnOff(value, "on");
+  const clean = dataKey === "themeMode" ? normalizeInterfaceThemeMode(value) : (dataKey === "displayDensity" ? normalizeDisplayDensity(value) : normalizeOnOff(value, "on"));
   try { localStorage.setItem(storageKey, clean); } catch(e) { if (typeof logAppError === "function") logAppError(e, "interfaceWriteSetting localStorage"); }
   try {
     data.interfaceSettings = data.interfaceSettings || {};
@@ -4911,18 +4915,31 @@ function interfaceWriteSetting(storageKey, dataKey, value) {
 function getThemeModeSetting(){ return interfaceReadSetting(THEME_MODE_KEY, "themeMode", "system"); }
 function getSessionFocusSetting(){ return interfaceReadSetting(SESSION_FOCUS_MODE_KEY, "sessionFocusMode", "on"); }
 function getQuickLogAutoAdvanceSetting(){ return interfaceReadSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", "on"); }
+function getDisplayDensitySetting(){ return interfaceReadSetting(DISPLAY_DENSITY_KEY, "displayDensity", "comfortable"); }
+function applyDisplayDensity(mode){
+  const clean = normalizeDisplayDensity(mode || getDisplayDensitySetting());
+  [document.documentElement, document.body].filter(Boolean).forEach(el => {
+    el.classList.remove("density-comfortable", "density-compact");
+    el.classList.add("density-" + clean);
+    el.setAttribute("data-density", clean);
+  });
+  return clean;
+}
 function applyThemeMode(mode){
   const storedMode = normalizeInterfaceThemeMode(mode || getThemeModeSetting());
   applyThemeToDocument(storedMode);
 }
 function renderInterfaceSettings(){
   applyThemeMode();
+  applyDisplayDensity();
   const theme = $("themeModeSelect");
   const focus = $("sessionFocusModeSelect");
   const quick = $("quickLogAutoAdvanceSelect");
+  const density = $("displayDensitySelect");
   if (theme) theme.value = getThemeModeSetting();
   if (focus) focus.value = getSessionFocusSetting();
   if (quick) quick.value = getQuickLogAutoAdvanceSetting();
+  if (density) density.value = getDisplayDensitySetting();
 }
 var currentSessionFocusActive = null;
 function isActiveSessionVisible(){
@@ -4960,6 +4977,7 @@ function bindInterfaceSettings(){
   if (interfaceSettingsBound) return;
   interfaceSettingsBound = true;
   applyThemeMode();
+  applyDisplayDensity();
   renderInterfaceSettings();
   document.addEventListener("change", e => {
     const el = e.target;
@@ -4977,6 +4995,11 @@ function bindInterfaceSettings(){
       const clean = interfaceWriteSetting(QUICK_LOG_AUTO_ADVANCE_KEY, "quickLogAutoAdvance", el.value);
       el.value = clean;
       if (activeSession) renderCurrentRoutine();
+    } else if (el.id === "displayDensitySelect") {
+      const clean = interfaceWriteSetting(DISPLAY_DENSITY_KEY, "displayDensity", el.value);
+      el.value = clean;
+      applyDisplayDensity(clean);
+      renderStats();
     }
   });
   const focusBtn = $("toggleFocusModeBtn");
@@ -5049,6 +5072,7 @@ window.SnookerInterface = {
   readTheme:getThemeModeSetting, setTheme:function(v){ const c=interfaceWriteSetting(THEME_MODE_KEY,"themeMode",v); applyThemeMode(c); renderInterfaceSettings(); return c; }, applyTheme:applyThemeMode,
   readFocusDefault:getSessionFocusSetting, setFocusDefault:function(v){ const c=interfaceWriteSetting(SESSION_FOCUS_MODE_KEY,"sessionFocusMode",v); renderInterfaceSettings(); updateSessionFocusState(); return c; },
   readQuick:getQuickLogAutoAdvanceSetting, setQuick:function(v){ const c=interfaceWriteSetting(QUICK_LOG_AUTO_ADVANCE_KEY,"quickLogAutoAdvance",v); renderInterfaceSettings(); if(activeSession) renderCurrentRoutine(); return c; },
+  readDensity:getDisplayDensitySetting, setDensity:function(v){ const c=interfaceWriteSetting(DISPLAY_DENSITY_KEY,"displayDensity",v); applyDisplayDensity(c); renderInterfaceSettings(); renderStats(); return c; },
   toggleFocus:toggleSessionFocusMode, updateFocusUI:updateSessionFocusState, syncControls:renderInterfaceSettings, bind:bindInterfaceSettings
 };
 function renderLivePerformanceCard(r){
