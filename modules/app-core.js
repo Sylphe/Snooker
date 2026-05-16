@@ -2002,6 +2002,58 @@ function adaptivePriorityScore(state, goal="auto") {
   return scoreAdaptivePriority(state, goal, undertrained);
 }
 
+function adaptiveRoutineExpectedMinutes(r) {
+  return Math.max(5, Number(r?.duration || r?.timeMinutes || r?.estimatedMinutes || 10));
+}
+function adaptiveBlockExpectedMinutes(block) {
+  return (block?.picks || []).reduce((sum, pick) => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    return sum + adaptiveRoutineExpectedMinutes(state.routine) * reps;
+  }, 0);
+}
+function adaptivePlanExpectedMinutes(blocks) {
+  return (blocks || []).reduce((sum, block) => sum + adaptiveBlockExpectedMinutes(block), 0);
+}
+function adaptivePickKey(pick) {
+  const state = pick.state || pick;
+  return state?.routine?.id || "";
+}
+function normalizeAdaptivePick(pick, reps = 1) {
+  if (pick && pick.state) return {...pick, reps:Math.max(1, Number(pick.reps || reps || 1))};
+  return {state:pick, reps:Math.max(1, Number(reps || 1))};
+}
+function flattenAdaptiveRoutineIds(blocks) {
+  const ids = [];
+  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    for (let i=0;i<reps;i++) if (state?.routine?.id) ids.push(state.routine.id);
+  }));
+  return ids;
+}
+function fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes) {
+  if (!ranked.length) return blocks;
+  let expected = adaptivePlanExpectedMinutes(blocks);
+  let guard = 0;
+  let completion = blocks.find(b => b.name === "Completion block");
+  if (!completion) {
+    completion = {name:"Completion block", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
+    blocks.push(completion);
+  }
+  while (expected < targetMinutes * 0.92 && guard < 40) {
+    const state = ranked[guard % ranked.length];
+    const id = state?.routine?.id;
+    if (!id) break;
+    const existing = completion.picks.find(p => adaptivePickKey(p) === id);
+    if (existing) existing.reps = Math.max(1, Number(existing.reps || 1)) + 1;
+    else completion.picks.push(normalizeAdaptivePick(state, 1));
+    expected += adaptiveRoutineExpectedMinutes(state.routine);
+    guard += 1;
+  }
+  return blocks;
+}
+
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -2095,9 +2147,12 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     blocks.push({name:"Completion block", minutes:Math.max(10, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with next best priorities", picks:remaining});
   }
 
-  blocks = blocks.filter(b => b.picks && b.picks.length);
-  const routineIds = blocks.flatMap(b => b.picks.map(p => p.routine.id));
-  return {effectiveGoal, targetMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked};
+  blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
+  blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
+  blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
+  const routineIds = flattenAdaptiveRoutineIds(blocks);
+  const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
+  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked};
 }
 
 function renderAdaptiveSession() {
@@ -2113,18 +2168,18 @@ function renderAdaptiveSession() {
   const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
     <h4>Recommended mode: ${escapeHtml(plan.effectiveGoal)}</h4>
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
-    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)}</div>
+    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded plan estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill block${plan.routineIds.length === 1 ? "" : "s"}</div>
   </div>` + plan.blocks.map(block => `<div class="adaptive-phase">
     <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
     <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
-    ${block.picks.map(p => `<div class="routine-row">
-      <div><strong>${escapeHtml(p.routine.name)}</strong>
-        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))}</div>
+    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); return `<div class="routine-row">
+      <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
+        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))} · Est. ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)}</div>
         <ul class="reason-list">${p.reasons.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
         ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
       </div>
       <span class="badge">Score ${p.adaptiveScore.toFixed(1)}</span>
-    </div>`).join("")}
+    </div>`; }).join("")}
   </div>`).join("");
 
   $("adaptiveEngineOutput").innerHTML = html || "No routines available.";
@@ -2132,7 +2187,7 @@ function renderAdaptiveSession() {
 
 function loadAdaptiveSessionIntoPlanBuilder() {
   if (!adaptivePlanDraft.length) return alert("Generate an adaptive session first.");
-  planDraft = [...anchorRoutines().map(r=>r.id), ...adaptivePlanDraft.filter(id => !anchorRoutines().some(a=>a.id===id))];
+  planDraft = [...adaptivePlanDraft];
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
 }
@@ -2714,6 +2769,10 @@ function renderStats() {
   renderBayesianAnalyticsValidation?.();
 }
 
+function kpiTitle(label, helpKey) {
+  return `${htmlText(label)} ${statHelpButton(helpKey)}`;
+}
+
 function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
   const r = routineById(rid);
   if (!r || !logs.length) return "";
@@ -2755,16 +2814,16 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
       <span class="badge">${htmlText(r.category || r.folder || "Exercise")}</span>
     </div>
     <div class="overview-kpi-dashboard exercise-focus-grid">
-      <div class="overview-kpi primary"><span>Current level</span><div class="value">${current === null ? "N/A" : current.toFixed(1)}</div><small>Most recent normalized score.</small></div>
-      <div class="overview-kpi primary"><span>Rolling score</span><div class="value">${rolling === null ? "N/A" : rolling.toFixed(1)}</div><small>Last ${recentVals.length || 0} logged result${recentVals.length === 1 ? "" : "s"}.</small></div>
-      <div class="overview-kpi"><span>Target hit rate</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>Target ${target || "not set"}.</small></div>
-      <div class="overview-kpi"><span>Estimated true skill</span><div class="value">${trueSkill}</div><small>${htmlText(confidenceLabel)} · ${htmlText(interval)}</small></div>
-      <div class="overview-kpi"><span>Evidence</span><div class="value">${htmlText(evidence)}</div><small>Uses effective attempts for per-side drills.</small></div>
-      <div class="overview-kpi"><span>Best score</span><div class="value">${best === null ? "N/A" : best.toFixed(1)}</div><small>Best normalized result in scope.</small></div>
-      <div class="overview-kpi"><span>Plateau state</span><div class="value">${htmlText(plateau.label)}</div><small>${htmlText(plateau.detail)}</small></div>
-      <div class="overview-kpi"><span>Last trained</span><div class="value">${days === null ? "N/A" : days+"d"}</div><small>${last ? htmlText(new Date(last.createdAt).toLocaleDateString()) : "No date"}</small></div>
-      <div class="overview-kpi"><span>Pressure</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs"}</small></div>
-      <div class="overview-kpi"><span>Side balance</span><div class="value">${side ? htmlText(side.label) : "N/A"}</div><small>${side ? htmlText(side.detail) : "No left/right logs"}</small></div>
+      <div class="overview-kpi primary"><span>${kpiTitle("Current level", "kpiCurrentLevel")}</span><div class="value">${current === null ? "N/A" : current.toFixed(1)}</div><small>Most recent normalized score.</small></div>
+      <div class="overview-kpi primary"><span>${kpiTitle("Rolling score", "kpiRollingScore")}</span><div class="value">${rolling === null ? "N/A" : rolling.toFixed(1)}</div><small>Last ${recentVals.length || 0} logged result${recentVals.length === 1 ? "" : "s"}.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>Target ${target || "not set"}.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Estimated true skill", "kpiTrueSkill")}</span><div class="value">${trueSkill}</div><small>${htmlText(confidenceLabel)} · ${htmlText(interval)}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Evidence", "kpiEvidence")}</span><div class="value">${htmlText(evidence)}</div><small>Uses effective attempts for per-side drills.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Best score", "bestScore")}</span><div class="value">${best === null ? "N/A" : best.toFixed(1)}</div><small>Best normalized result in scope.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Plateau state", "plateau")}</span><div class="value">${htmlText(plateau.label)}</div><small>${htmlText(plateau.detail)}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Last trained", "kpiLastTrained")}</span><div class="value">${days === null ? "N/A" : days+"d"}</div><small>${last ? htmlText(new Date(last.createdAt).toLocaleDateString()) : "No date"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Pressure", "kpiPressure")}</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Side balance", "kpiSideBalance")}</span><div class="value">${side ? htmlText(side.label) : "N/A"}</div><small>${side ? htmlText(side.detail) : "No left/right logs"}</small></div>
     </div>
     <div class="overview-exec-strip">
       <div class="overview-mini-card"><strong>Plateau action</strong><span>${htmlText(action.title)} — ${htmlText(action.instruction)}</span></div>
@@ -2804,16 +2863,16 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
 
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-kpi-dashboard">
-      <div class="overview-kpi primary"><span>Average score</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
-      <div class="overview-kpi primary"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
-      <div class="overview-kpi"><span>Total practice</span><div class="value">${formatDurationHuman(totalTime)}</div><small>${logs.length} logged exercise${logs.length === 1 ? "" : "s"}</small></div>
-      <div class="overview-kpi"><span>Current streak</span><div class="value">${st.current}d</div><small>Best streak ${st.best}d</small></div>
-      <div class="overview-kpi"><span>Momentum</span><div class="value">${escapeHtml(momentum)}</div><small>Rolling window: ${rollingWindow} logs.</small></div>
-      <div class="overview-kpi"><span>Consistency</span><div class="value">${stability ? stability.psi.toFixed(0)+"/100" : "N/A"}</div><small>${stability ? escapeHtml(stability.label) : "More data needed"}</small></div>
-      <div class="overview-kpi"><span>Skill gap</span><div class="value">${gap === null ? "N/A" : gap.toFixed(2)}</div><small>Best performance minus average.</small></div>
-      <div class="overview-kpi"><span>Pressure success</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs in scope"}</small></div>
-      <div class="overview-kpi"><span>Side balance</span><div class="value">${side ? side.label : "N/A"}</div><small>${side ? escapeHtml(side.detail) : "No left/right logs in scope"}</small></div>
-      <div class="overview-kpi"><span>Weakest area</span><div class="value">${weak ? escapeHtml(weak.category) : "N/A"}</div><small>${weak && weak.hitRate !== null ? `Hit rate ${weak.hitRate.toFixed(1)}%` : "More target data needed"}</small></div>
+      <div class="overview-kpi primary"><span>${kpiTitle("Average score", "averagePerformance")}</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
+      <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Total practice", "totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div><small>${logs.length} logged exercise${logs.length === 1 ? "" : "s"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Current streak", "kpiStreak")}</span><div class="value">${st.current}d</div><small>Best streak ${st.best}d</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Momentum", "progressVelocity")}</span><div class="value">${escapeHtml(momentum)}</div><small>Rolling window: ${rollingWindow} logs.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Consistency", "psi")}</span><div class="value">${stability ? stability.psi.toFixed(0)+"/100" : "N/A"}</div><small>${stability ? escapeHtml(stability.label) : "More data needed"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Skill gap", "kpiSkillGap")}</span><div class="value">${gap === null ? "N/A" : gap.toFixed(2)}</div><small>Best performance minus average.</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Pressure success", "kpiPressure")}</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs in scope"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Side balance", "kpiSideBalance")}</span><div class="value">${side ? side.label : "N/A"}</div><small>${side ? escapeHtml(side.detail) : "No left/right logs in scope"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Weakest area", "kpiWeakestArea")}</span><div class="value">${weak ? escapeHtml(weak.category) : "N/A"}</div><small>${weak && weak.hitRate !== null ? `Hit rate ${weak.hitRate.toFixed(1)}%` : "More target data needed"}</small></div>
     </div>
     <div class="overview-exec-strip">
       <div class="overview-mini-card"><strong>Best exercise</strong><span>${bestRoutine ? `${escapeHtml(bestRoutine.name)} · ${bestRoutine.metric}` : "More logs needed"}</span></div>
@@ -3266,9 +3325,9 @@ function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
 
   return `<h3>Advanced analytics</h3>
     <div class="stats-grid">
-      <div class="stat-card"><span>Momentum</span><div class="value">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
+      <div class="stat-card"><span>${kpiTitle("Momentum", "progressVelocity")}</span><div class="value">${escapeHtml(movingTrend(vals, rollingWindow))}</div></div>
       <div class="stat-card"><span>Hit rate at-time target ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div><div class="stat-card"><span>Hit rate current target</span><div class="value">${targetHitRateCurrentTarget(logs) === null ? "N/A" : targetHitRateCurrentTarget(logs).toFixed(1)+"%"}</div></div>
-      <div class="stat-card"><span>Current streak</span><div class="value">${st.current}d</div></div>
+      <div class="stat-card"><span>${kpiTitle("Current streak", "kpiStreak")}</span><div class="value">${st.current}d</div></div>
       <div class="stat-card"><span>Best streak</span><div class="value">${st.best}d</div></div>
       <div class="stat-card"><span>Duration correlation</span><div class="value">${escapeHtml(corrText(corrTime))}</div></div>
       <div class="stat-card"><span>Rating correlation</span><div class="value">${escapeHtml(corrText(corrRating))}</div></div>
@@ -3291,9 +3350,9 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
     <div class="stat-card"><span>Latest</span><div class="value">${latest.toFixed(2)}</div></div>
     <div class="stat-card"><span>Average ${statHelpButton("avgPerformance")}</span><div class="value">${avg(vals).toFixed(2)}</div></div>
     <div class="stat-card"><span>Best / ceiling</span><div class="value">${best.toFixed(2)}</div></div>
-    <div class="stat-card"><span>Consistency</span><div class="value">${stdDev(vals).toFixed(2)}</div></div>
+    <div class="stat-card"><span>${kpiTitle("Consistency", "psi")}</span><div class="value">${stdDev(vals).toFixed(2)}</div></div>
     <div class="stat-card"><span>Ceiling gap</span><div class="value">${ceilingGap.toFixed(2)}</div></div>
-    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div>
   <div class="trend">${escapeHtml(movingTrend(vals, rollingWindow))}</div>
   <div class="analytics-note"><strong>Benchmark:</strong> ${escapeHtml(benchmarkText(vals, benchmarkWindow))}<br><strong>Progression suggestion:</strong> ${escapeHtml(suggestion)}</div>
@@ -3466,7 +3525,7 @@ function renderDateView(logs) {
   return `<div class="stats-grid">
     <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
-    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(logs)}
@@ -3489,7 +3548,7 @@ function renderToday() {
   $("todaySummary").innerHTML = `<div class="stats-grid">
     <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
-    <div class="stat-card"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
+    <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
   <h3>Today’s exercise mix</h3>${renderCategoryChart(logs)}
   ${Object.values(bySession).map(s => {
@@ -4527,6 +4586,19 @@ Object.assign(FIELD_HELP, {
   }
 });
 
+Object.assign(FIELD_HELP, {
+  kpiCurrentLevel: {title:"Current level", body:analyticsHelp("Current level","Your most recent saved score for this selected exercise.","Reads the latest normalized score after the active filter is applied.","It tells you where the drill stands right now, not your long-term average.","Use it as the immediate benchmark to beat in the next attempt.")},
+  kpiRollingScore: {title:"Rolling score", body:analyticsHelp("Rolling score","Your short-term average for the selected exercise.","Averages the most recent logged results using the selected rolling window.","It smooths one lucky or bad score and shows current form more reliably.","Use it to judge whether performance is genuinely moving.")},
+  kpiTrueSkill: {title:"Estimated true skill", body:analyticsHelp("Estimated true skill","A conservative estimate of your real success rate.","Uses Bayesian success-rate evidence where attempts and makes are available.","It avoids overreacting to small samples.","Use it before raising a target or judging tournament readiness.")},
+  kpiEvidence: {title:"Evidence", body:analyticsHelp("Evidence","How much data supports the selected exercise reading.","Counts logs and, for success-rate drills, effective attempts including per-side attempt mode.","More evidence means the result is more trustworthy.","Use it to separate a real trend from noise.")},
+  kpiLastTrained: {title:"Last trained", body:analyticsHelp("Last trained","How recently this drill was practiced.","Measures days since the latest log in the selected exercise scope.","Old results may not represent current form.","Use it to identify stale drills before competition.")},
+  kpiPressure: {title:"Pressure", body:analyticsHelp("Pressure", "How much of this scope was performed under pressure mode.", "Counts pressure-enabled logs and summarizes pressure success where available.", "Pressure results are harder to compare with relaxed drills, but they are more match-relevant.", "Use it to check whether practice is realistic enough.")},
+  kpiSideBalance: {title:"Side balance", body:analyticsHelp("Side balance","Whether left/right drill performance is symmetrical.","Compares left-side and right-side scores when a drill uses side split.","Large imbalance indicates a technical or positional weakness hidden by total score.","Use it to decide whether one side needs isolated work.")},
+  kpiStreak: {title:"Current streak", body:analyticsHelp("Current streak","How many consecutive days currently contain logged practice.","Counts daily logging continuity and compares it with your best streak.","It measures training consistency, not skill level.","Use it to monitor habit strength.")},
+  kpiSkillGap: {title:"Skill gap", body:analyticsHelp("Skill gap","Distance between your best result and average result.","Compares peak performance with mean performance in the current scope.","A large gap means capability exists but reliability is weak.","Use it to decide between consistency work and target progression.")},
+  kpiWeakestArea: {title:"Weakest area", body:analyticsHelp("Weakest area","The category with the weakest target-hit performance.","Groups logs by exercise category and compares target hit rate.","It is a prioritization signal, not a complete diagnosis.","Use it to decide what to train next.")}
+});
+
 FIELD_HELP.tournamentPrep = {
   title: "Tournament preparation planner",
   body: analyticsHelp(
@@ -5156,12 +5228,16 @@ function renderLivePerformanceCard(r){
   const profile = getActiveTargetProfile(r);
   const target = Number(profile?.target || r.target || 0);
   const stretch = Number(profile?.stretchTarget || r.stretchTarget || 0);
-  const recent = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,3);
+  const allRoutineLogs = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const recent = allRoutineLogs.slice(0,3);
+  const pb = allRoutineLogs.map(l => Number(l.normalizedScore || 0)).filter(v => Number.isFinite(v));
+  const personalBest = pb.length ? Math.max(...pb) : null;
   const status = target && normalized >= stretch && stretch ? "green" : target && normalized >= target ? "green" : target && normalized >= target * 0.75 ? "yellow" : target ? "red" : "neutral";
   const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
   box.innerHTML = `<div class="live-perf ${safeClassToken(status, ["green","yellow","red","neutral"], "neutral")}">
     <div><strong>Live target check</strong><span>${htmlText(statusText)}</span></div>
     <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
+    <div><span>Personal best</span><strong>${personalBest === null ? "N/A" : personalBest.toFixed(r.scoring === "score_per_minute" ? 2 : 1)}</strong></div>
     <div><span>Target</span><strong>${target || "N/A"}</strong></div>
     <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
     <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>
@@ -5195,7 +5271,7 @@ function renderBayesianValidationForRoutine(routineId) {
     <div class="bayes-grid">
       <div><span>Posterior ability</span><strong>${formatPercent(posterior.mean)}</strong></div>
       <div><span>Credible interval</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
-      <div><span>Evidence</span><strong>${numText(agg.attempts, "0")} effective attempts / ${numText(agg.sessions, "0")} logs</strong></div>
+      <div><span>${kpiTitle("Evidence", "kpiEvidence")}</span><strong>${numText(agg.attempts, "0")} effective attempts / ${numText(agg.sessions, "0")} logs</strong></div>
       <div><span>Reliability</span><strong>${htmlText(reliability.label)}</strong></div>
     </div>
     <div class="bayes-action-box">
