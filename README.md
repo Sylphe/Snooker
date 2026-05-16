@@ -1,10 +1,5 @@
-# Snooker Practice PWA v4.22.4 — Bootstrap recovery fix
+# Snooker Practice PWA v4.22.5 — Data tab internal navigation
 
-This release fixes a top-level module import regression that could stop the app bootstrap, leaving navigation, saved routines, and saved exercises unavailable.
+This release restructures the Data tab into internal sections: Settings, Import / Export, and Developer options. It keeps existing controls and IDs intact while reducing the visual wall of tools.
 
-## Fixes
-- Added the missing `APP_BUILD_TIMESTAMP` export expected by `app-core.js`.
-- Added the missing `openSnookerDB` import used by storage diagnostics.
-- Restored a local `renderLogRow()` helper so history rendering cannot fail on an unexported helper.
-- Preserved prior Stats render recovery changes.
-- Normalized version/cache markers to v4.22.4.
+Checks: JS syntax passed across app shell and modules.

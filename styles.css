@@ -1224,3 +1224,17 @@ body[data-density="compact"] td{padding:6px 7px;}
 
 .overview-kpi>span,.stat-card span{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .overview-kpi .stat-help,.stat-card .stat-help{flex:0 0 auto}
+
+/* v4.22.5 Data tab internal navigation */
+.data-main-nav,.data-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.data-main-nav .data-nav-btn,.data-subnav .data-subnav-btn{padding:9px 12px;min-width:0;}
+.data-tab-panel.hidden{display:none!important;}
+.data-subnav{margin:0 0 12px;}
+.data-subnav .data-subnav-btn:disabled{opacity:1;cursor:default;}
+body[data-density="compact"] .data-hub-card{padding:10px;}
+body[data-density="compact"] .data-main-nav,body[data-density="compact"] .data-subnav{gap:5px;margin-top:8px;}
+body[data-density="compact"] .data-main-nav .data-nav-btn,body[data-density="compact"] .data-subnav .data-subnav-btn{padding:7px 8px;font-size:12px;border-radius:10px;}
+@media(max-width:760px){
+  .data-main-nav,.data-subnav{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .data-main-nav .data-nav-btn,.data-subnav .data-subnav-btn{flex:0 0 auto;white-space:nowrap;}
+}

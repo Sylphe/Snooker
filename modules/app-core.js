@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.5";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.4";
+} from "./utils.js?v=4.22.5";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -26,7 +26,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.4";
+} from "./settings.js?v=4.22.5";
 import {
   avg,
   stdDev,
@@ -48,7 +48,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.4";
+} from "./analytics.js?v=4.22.5";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -57,7 +57,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.4";
+} from "./bayesian.js?v=4.22.5";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -66,7 +66,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.4";
+} from "./session.js?v=4.22.5";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -74,7 +74,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.4";
+} from "./pressure.js?v=4.22.5";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -86,8 +86,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.4";
-import * as RenderHelpers from "./render.js?v=4.22.4";
+} from "./recommendations.js?v=4.22.5";
+import * as RenderHelpers from "./render.js?v=4.22.5";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -99,7 +99,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.4";
+} from "./store.js?v=4.22.5";
 
 
 
@@ -4694,7 +4694,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.4");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.5");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5201,6 +5201,31 @@ function refreshCurrentRoutineLivePerformance() {
   if (r) renderLivePerformanceCard(r);
 }
 
+
+function setDataMainTab(tab){
+  const allowed = new Set(["settings", "import-export", "developer"]);
+  const clean = allowed.has(tab) ? tab : "settings";
+  document.querySelectorAll("[data-data-panel]").forEach(panel => {
+    const active = panel.dataset.dataPanel === clean;
+    panel.classList.toggle("hidden", !active);
+    panel.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-action='data-main-tab']").forEach(btn => {
+    const active = btn.dataset.dataTab === clean;
+    btn.classList.toggle("active-subtab", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  try { localStorage.setItem("snookerDataMainTab", clean); } catch(e) {}
+  if (clean === "developer") {
+    try { renderStorageDashboard(); } catch(e) { logAppError(e, "setDataMainTab renderStorageDashboard"); }
+  }
+}
+function restoreDataMainTab(){
+  let saved = "settings";
+  try { saved = localStorage.getItem("snookerDataMainTab") || "settings"; } catch(e) {}
+  setDataMainTab(saved);
+}
+
 function handleDelegatedUIAction(event) {
   const targetElement = event.target instanceof Element ? event.target : event.target?.parentElement;
   const actionEl = targetElement?.closest?.("[data-action]");
@@ -5242,7 +5267,8 @@ function handleDelegatedUIAction(event) {
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
-    case "open-data-tab": return document.querySelector('[data-tab="data"]')?.click();
+    case "open-data-tab": document.querySelector('[data-tab="data"]')?.click(); return setDataMainTab("developer");
+    case "data-main-tab": return setDataMainTab(actionEl.dataset.dataTab || "settings");
     case "apply-target-upgrade": return applyTargetUpgrade(id);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }

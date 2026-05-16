@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.4</title>
+  <title>Snooker Practice Log v4.22.5</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.4" />
-  <link rel="stylesheet" href="styles.css?v=4.22.4" />
-  <link rel="icon" href="icon.svg?v=4.22.4" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.5" />
+  <link rel="stylesheet" href="styles.css?v=4.22.5" />
+  <link rel="icon" href="icon.svg?v=4.22.5" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.4 · Build 2026-05-16 20:10 CEST — Stats render recovery fix.</p>
+      <p>v4.22.5 · Build 2026-05-16 21:05 CEST — Data tab internal navigation.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -800,108 +800,135 @@
     </section>
 
     <section id="data" class="panel">
-      <div class="card">
-        <h2>Storage safety dashboard</h2>
-        <p class="muted">Track localStorage and IndexedDB health before larger refactors. Use the diagnostic tools below to verify storage integrity after upgrades, imports, and stress tests.</p>
-        <div id="storageDashboard" class="storage-dashboard analytics-note">Storage dashboard will appear here.</div>
-        <div class="row">
-          <button id="refreshStorageDashboardBtn" type="button" class="secondary">Refresh Storage Status</button>
-          <button id="preMigrationBackupBtn" type="button">Download Full Backup</button>
+      <div class="card data-hub-card">
+        <h2>Data & Settings</h2>
+        <p class="muted">Manage interface preferences, backups/imports, and developer safety tools from separate sections.</p>
+        <div class="data-main-nav" role="tablist" aria-label="Data tab sections">
+          <button type="button" class="data-nav-btn active-subtab" data-action="data-main-tab" data-data-tab="settings" role="tab" aria-selected="true">Settings</button>
+          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="import-export" role="tab" aria-selected="false">Import / Export</button>
+          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="developer" role="tab" aria-selected="false">Developer options</button>
         </div>
       </div>
 
-      <div class="card">
-        <h2>Storage diagnostics / test harness</h2>
-        <p class="muted">Use this before v4.0 refactors: generate synthetic logs, verify IndexedDB integrity, clear test data, and reset the error log.</p>
-        <div class="grid three">
-          <div>
-            <label>Number of test logs</label>
-            <input id="testLogCountInput" type="number" min="1" max="20000" step="1" value="1000" />
-          </div>
-          <div>
-            <label>Test batch label</label>
-            <input id="testBatchLabelInput" placeholder="optional, e.g. v3.33-test" />
-          </div>
-          <div>
-            <label>Loaded app version</label>
-            <input id="loadedVersionDisplay" readonly value="Loading..." />
+      <div class="data-tab-panel active" data-data-panel="settings">
+        <div class="data-subnav" aria-label="Settings subsections">
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Interface</button>
+        </div>
+        <div class="card">
+          <h2>Interface settings</h2>
+          <p class="muted">Use these settings to reduce friction during practice and adapt the app to low-light club conditions.</p>
+          <div class="grid three">
+            <div>
+              <label>Theme</label>
+              <select id="themeModeSelect">
+                <option value="system">System default</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="contrast">High contrast</option>
+              </select>
+            </div>
+            <div>
+              <label>Full-screen session mode</label>
+              <select id="sessionFocusModeSelect">
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+            <div>
+              <label>One-tap quick-log buttons</label>
+              <select id="quickLogAutoAdvanceSelect">
+                <option value="on">Show auto-save macros</option>
+                <option value="off">Manual save only</option>
+              </select>
+            </div>
+            <div>
+              <label>Display density</label>
+              <select id="displayDensitySelect">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select>
+            </div>
           </div>
         </div>
-        <div class="row">
-          <button id="generateTestLogsBtn" type="button" class="secondary">Generate Test Logs</button>
-          <button id="verifyStorageIntegrityBtn" type="button">Verify Storage Integrity</button>
-          <button id="clearTestLogsBtn" type="button" class="secondary">Clear Test Logs Only</button>
-          <button id="clearErrorLogBtn" type="button" class="secondary">Clear Error Log</button>
-        </div>
-        <div id="storageIntegrityOutput" class="analytics-note">Run verification to compare memory, IndexedDB, backup, and dashboard counts.</div>
       </div>
 
-      <div class="card">
-        <h2>Data export / import</h2>
-        <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
-        <div class="row">
-          <button id="exportCsvBtn">Export CSV</button>
-          <div class="card nested">
-          <h3>Export folder</h3>
-          <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
-          <div id="exportFolderStatus" class="analytics-note">Export folder not selected.</div>
+      <div class="data-tab-panel hidden" data-data-panel="import-export">
+        <div class="data-subnav" aria-label="Import/export subsections">
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Data import / export</button>
+        </div>
+        <div class="card">
+          <h2>Data export / import</h2>
+          <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
           <div class="row">
-            <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Export Folder</button>
-            <button id="clearExportFolderBtn" class="secondary" type="button">Clear Export Folder</button>
-          </div>
-        </div>
+            <button id="exportCsvBtn">Export CSV</button>
+            <div class="card nested">
+              <h3>Export folder</h3>
+              <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
+              <div id="exportFolderStatus" class="analytics-note">Export folder not selected.</div>
+              <div class="row">
+                <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Export Folder</button>
+                <button id="clearExportFolderBtn" class="secondary" type="button">Clear Export Folder</button>
+              </div>
+            </div>
 
-          <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
-          <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
-          <button id="exportRawStorageBtn" class="secondary">Export Raw Local Data</button>
-          <label class="file-btn secondary">
-            Import JSON Backup
-            <input id="importJsonInput" type="file" accept="application/json" />
-          </label>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Interface settings</h2>
-        <p class="muted">Use these settings to reduce friction during practice and adapt the app to low-light club conditions.</p>
-        <div class="grid three">
-          <div>
-            <label>Theme</label>
-            <select id="themeModeSelect">
-              <option value="system">System default</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="contrast">High contrast</option>
-            </select>
-          </div>
-          <div>
-            <label>Full-screen session mode</label>
-            <select id="sessionFocusModeSelect">
-              <option value="on">On</option>
-              <option value="off">Off</option>
-            </select>
-          </div>
-          <div>
-            <label>One-tap quick-log buttons</label>
-            <select id="quickLogAutoAdvanceSelect">
-              <option value="on">Show auto-save macros</option>
-              <option value="off">Manual save only</option>
-            </select>
-          </div>
-          <div>
-            <label>Display density</label>
-            <select id="displayDensitySelect">
-              <option value="comfortable">Comfortable</option>
-              <option value="compact">Compact</option>
-            </select>
+            <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
+            <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
+            <button id="exportRawStorageBtn" class="secondary">Export Raw Local Data</button>
+            <label class="file-btn secondary">
+              Import JSON Backup
+              <input id="importJsonInput" type="file" accept="application/json" />
+            </label>
           </div>
         </div>
       </div>
 
-      <div class="card danger-zone">
-        <h2>Reset app data</h2>
-        <p>This deletes saved exercises, plans, and logs from this browser.</p>
-        <button id="clearDataBtn" class="danger">Clear All Data</button>
+      <div class="data-tab-panel hidden" data-data-panel="developer">
+        <div class="data-subnav" aria-label="Developer option subsections">
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Storage safety dashboard</button>
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Storage diagnostic harness</button>
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Reset app data</button>
+        </div>
+        <div class="card">
+          <h2>Storage safety dashboard</h2>
+          <p class="muted">Track localStorage and IndexedDB health before larger refactors. Use the diagnostic tools below to verify storage integrity after upgrades, imports, and stress tests.</p>
+          <div id="storageDashboard" class="storage-dashboard analytics-note">Storage dashboard will appear here.</div>
+          <div class="row">
+            <button id="refreshStorageDashboardBtn" type="button" class="secondary">Refresh Storage Status</button>
+            <button id="preMigrationBackupBtn" type="button">Download Full Backup</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Storage diagnostics / test harness</h2>
+          <p class="muted">Use this before v4.0 refactors: generate synthetic logs, verify IndexedDB integrity, clear test data, and reset the error log.</p>
+          <div class="grid three">
+            <div>
+              <label>Number of test logs</label>
+              <input id="testLogCountInput" type="number" min="1" max="20000" step="1" value="1000" />
+            </div>
+            <div>
+              <label>Test batch label</label>
+              <input id="testBatchLabelInput" placeholder="optional, e.g. v3.33-test" />
+            </div>
+            <div>
+              <label>Loaded app version</label>
+              <input id="loadedVersionDisplay" readonly value="Loading..." />
+            </div>
+          </div>
+          <div class="row">
+            <button id="generateTestLogsBtn" type="button" class="secondary">Generate Test Logs</button>
+            <button id="verifyStorageIntegrityBtn" type="button">Verify Storage Integrity</button>
+            <button id="clearTestLogsBtn" type="button" class="secondary">Clear Test Logs Only</button>
+            <button id="clearErrorLogBtn" type="button" class="secondary">Clear Error Log</button>
+          </div>
+          <div id="storageIntegrityOutput" class="analytics-note">Run verification to compare memory, IndexedDB, backup, and dashboard counts.</div>
+        </div>
+
+        <div class="card danger-zone">
+          <h2>Reset app data</h2>
+          <p>This deletes saved exercises, plans, and logs from this browser.</p>
+          <button id="clearDataBtn" class="danger">Clear All Data</button>
+        </div>
       </div>
     </section>
   </main>
@@ -975,6 +1002,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.4"></script>
+  <script type="module" src="app.js?v=4.22.5"></script>
 </body>
 </html>
