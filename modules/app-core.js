@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.16";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.17";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.16";
+} from "./utils.js?v=4.22.17";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -30,7 +30,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.16";
+} from "./settings.js?v=4.22.17";
 import {
   avg,
   stdDev,
@@ -52,7 +52,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.16";
+} from "./analytics.js?v=4.22.17";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -61,7 +61,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.16";
+} from "./bayesian.js?v=4.22.17";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -70,7 +70,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.16";
+} from "./session.js?v=4.22.17";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -78,7 +78,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.16";
+} from "./pressure.js?v=4.22.17";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -90,8 +90,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.16";
-import * as RenderHelpers from "./render.js?v=4.22.16";
+} from "./recommendations.js?v=4.22.17";
+import * as RenderHelpers from "./render.js?v=4.22.17";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -103,7 +103,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.16";
+} from "./store.js?v=4.22.17";
 
 
 
@@ -1099,6 +1099,8 @@ function startRoutineScreen() {
   renderCurrentRoutine();
 }
 $("resetSessionBtn").addEventListener("click", () => {
+  const hasActiveProgress = !!activeSession || getElapsedMs() > 0 || !!timerStartMs;
+  if (hasActiveProgress && !window.confirm("Reset the active session? Unsaved exercise progress will be lost.")) return;
   activeSession = null;
   clearPersistedActiveSession();
   stopTimer();
@@ -1108,6 +1110,7 @@ $("resetSessionBtn").addEventListener("click", () => {
   updateSessionFocusState();
   $("sessionSummary").classList.add("hidden");
   updateSessionFocusState();
+  showTransientNotice("Active session reset.", "warn");
 });
 function renderCurrentRoutine() {
   if (!isResumingActiveSession) persistActiveSession();
@@ -1487,11 +1490,14 @@ function updateTimerDisplay() {
 }
 function updateTimerAutostartDelayDisplay() {
   if (!timerAutostartDelayEndsAt) return;
-  const remainingMs = Math.max(0, timerAutostartDelayEndsAt - Date.now());
-  const remainingSec = Math.ceil(remainingMs / 1000);
+  const rawRemainingMs = timerAutostartDelayEndsAt - Date.now();
+  if (rawRemainingMs <= 0) {
+    startPracticeTimer();
+    return;
+  }
+  const remainingSec = Math.ceil(rawRemainingMs / 1000);
   if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(remainingSec * 1000);
-  if ($("timerState")) $("timerState").textContent = remainingSec > 0 ? `auto-start in ${remainingSec}s` : "starting timer";
-  if (remainingMs <= 0) startPracticeTimer();
+  if ($("timerState")) $("timerState").textContent = `auto-start in ${remainingSec}s`;
 }
 function scheduleTimerAutostartForCurrentRoutine() {
   cancelTimerAutostartDelay();
@@ -2274,7 +2280,7 @@ function showTransientNotice(message, tone="info") {
 
 function createDefaultQuickStartPlan() {
   const pool = activeRoutines().slice(0, 4);
-  if (!pool.length) return alert("Create at least one exercise before creating a quick-start plan.");
+  if (!pool.length) { showTransientNotice("Create at least one exercise before creating a quick-start plan.", "warn"); return; }
   const existing = data.plans.find(p => p.name === "Quick start — default plan");
   const routineIds = pool.map(r => r.id);
   if (existing) {
@@ -2757,6 +2763,13 @@ function linearTrend(values) {
   return { slope, start: intercept, end: intercept + slope * (values.length - 1) };
 }
 
+function shortSessionDateLabel(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+}
+
 function buildSessionKpiSeries(logs) {
   const sessions = groupLogsByTrainingSession(logs);
   const rollingScores = [];
@@ -2781,7 +2794,7 @@ function buildSessionKpiSeries(logs) {
     const sideBalance = sideN && sideTotal ? Math.max(0, 100 - (Math.abs(left - right) / sideTotal * 100)) : null;
     return {
       index: idx + 1,
-      label: `S${idx + 1}`,
+      label: `S${idx + 1}${shortSessionDateLabel(session.createdAt) ? " · " + shortSessionDateLabel(session.createdAt) : ""}`,
       date: session.createdAt ? new Date(session.createdAt).toLocaleDateString() : `Session ${idx + 1}`,
       logCount: arr.length,
       avgScore,
@@ -4907,7 +4920,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.16");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.17");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6242,17 +6255,24 @@ async function finishPressureSession() {
   log.performance = classifyPerformance(log, routine);
   const syntheticSession = {
     id: pressureSessionId,
+    name: "Pressure simulation",
     type: "pressure",
+    planId: "",
     planName: "Pressure simulation",
     sessionName: "Pressure simulation",
     routineIds: [routine.id],
+    plannedRoutineIds: [],
     completedLogs: [log.id],
+    logIds: [log.id],
     startedAt: pressureSession.startedAt || now,
     endedAt: now,
     tableId: log.tableId || "",
     venueTable: log.venueTable || "",
+    venueTableSnapshot: log.venueTableSnapshot || log.venueTable || "",
     tableNote: log.tableNote || "",
-    pressureMode: pressureSession.mode
+    pressureMode: pressureSession.mode,
+    createdAt: now,
+    updatedAt: now
   };
   data.logs.push(log);
   data.sessions.push(syntheticSession);

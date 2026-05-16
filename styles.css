@@ -1673,7 +1673,7 @@ body.session-focus-active #activeSession .live-perf > div:first-child strong{fon
   body.session-focus-active #activeSession .live-perf > div{min-height:42px!important;border-radius:9px!important;}
 }
 
-/* v4.22.16 focus-mode tile rebalance from v4.22.16 baseline
+/* v4.22.17 focus-mode tile rebalance from v4.22.17 baseline
    - Larger timer action tiles for touch use
    - Smaller live target metric tiles to reduce vertical footprint */
 body.session-focus-active #activeSession .focus-timer-action-row,
