@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.6</title>
+  <title>Snooker Practice Log v4.22.7</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.6" />
-  <link rel="stylesheet" href="styles.css?v=4.22.6" />
-  <link rel="icon" href="icon.svg?v=4.22.6" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.7" />
+  <link rel="stylesheet" href="styles.css?v=4.22.7" />
+  <link rel="icon" href="icon.svg?v=4.22.7" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.6 · Build 2026-05-16 21:05 CEST — Data tab internal navigation.</p>
+      <p>v4.22.7 · Build 2026-05-16 21:40 CEST — Timer automation card and global compact mode.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -848,6 +848,13 @@
                 <option value="compact">Compact</option>
               </select>
             </div>
+
+          </div>
+        </div>
+        <div class="card settings-section-card timer-automation-card">
+          <h2>Timer automation</h2>
+          <p class="muted">Control whether the practice timer starts manually or automatically when a routine/exercise is loaded.</p>
+          <div class="grid two">
             <div class="setting-box timer-autostart-setting">
               <label>Timer start mode</label>
               <select id="timerAutostartSelect">
@@ -1026,6 +1033,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.6"></script>
+  <script type="module" src="app.js?v=4.22.7"></script>
 </body>
 </html>

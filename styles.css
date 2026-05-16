@@ -1239,10 +1239,57 @@ body[data-density="compact"] .data-main-nav .data-nav-btn,body[data-density="com
   .data-main-nav .data-nav-btn,.data-subnav .data-subnav-btn{flex:0 0 auto;white-space:nowrap;}
 }
 
-/* v4.22.6 Timer autostart controls */
+/* v4.22.7 Timer autostart controls */
 .setting-box{min-width:0;}
 .setting-box select{width:100%;max-width:100%;box-sizing:border-box;}
 .setting-box .tiny{font-size:12px;line-height:1.35;margin:6px 0 0;}
 .timer-autostart-setting{border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel-bg,var(--card));}
 body[data-density="compact"] .timer-autostart-setting{padding:8px;border-radius:11px;}
 @media(max-width:520px){.timer-autostart-setting{padding:9px;}}
+
+/* v4.22.7 Global compact display density */
+body[data-density="compact"] main{padding:10px;}
+body[data-density="compact"] .app-header{padding:16px 14px;gap:10px;}
+body[data-density="compact"] .app-header h1{font-size:21px;}
+body[data-density="compact"] .app-header p{font-size:12px;margin-top:4px;line-height:1.25;}
+body[data-density="compact"] .tabs{border-bottom-width:1px;}
+body[data-density="compact"] .tab{padding:8px 4px;font-size:12px;}
+body[data-density="compact"] h2{font-size:18px;margin-bottom:9px;}
+body[data-density="compact"] h3{font-size:15px;margin-bottom:6px;}
+body[data-density="compact"] label{font-size:12px;margin:8px 0 4px;}
+body[data-density="compact"] input,
+body[data-density="compact"] select,
+body[data-density="compact"] textarea{padding:8px 9px;border-radius:10px;font-size:13px;}
+body[data-density="compact"] button,
+body[data-density="compact"] .file-btn{padding:9px 11px;border-radius:10px;font-size:13px;}
+body[data-density="compact"] .row{gap:7px;margin-top:8px;}
+body[data-density="compact"] .grid.two,
+body[data-density="compact"] .grid.three{gap:8px;}
+body[data-density="compact"] .list{gap:7px;}
+body[data-density="compact"] .item{padding:9px 10px;border-radius:11px;}
+body[data-density="compact"] .item-title strong{font-size:13px;}
+body[data-density="compact"] .item p{font-size:12px;margin-top:4px;line-height:1.3;}
+body[data-density="compact"] .badge{padding:3px 6px;font-size:10.5px;margin:4px 4px 0 0;}
+body[data-density="compact"] .small-actions{gap:6px;margin-top:7px;}
+body[data-density="compact"] .small-actions button{padding:6px 8px;font-size:12px;}
+body[data-density="compact"] .session-top{gap:10px;}
+body[data-density="compact"] .timer{font-size:28px;}
+body[data-density="compact"] .timer-sub{font-size:11px;}
+body[data-density="compact"] .description-box{padding:9px;border-radius:11px;margin-bottom:9px;font-size:12px;line-height:1.3;}
+body[data-density="compact"] .score-grid{gap:8px;margin-top:6px;}
+body[data-density="compact"] .chart-wrap{padding:7px;border-radius:11px;margin-top:8px;}
+body[data-density="compact"] .history-table{font-size:11.5px;margin-top:8px;}
+body[data-density="compact"] .history-table th,
+body[data-density="compact"] .history-table td{padding:5px 6px;}
+body[data-density="compact"] .folder-header{padding:8px 10px;font-size:13px;}
+body[data-density="compact"] .subfolder-header{padding:7px 10px;font-size:12px;}
+body[data-density="compact"] .card.nested{margin-top:9px;}
+body[data-density="compact"] footer{padding:14px 12px 20px;font-size:12px;}
+body[data-density="compact"] .settings-section-card{margin-top:-6px;}
+body[data-density="compact"] .timer-automation-card h2{margin-bottom:6px;}
+body[data-density="compact"] .timer-automation-card .muted{line-height:1.25;}
+@media(max-width:760px){
+  body[data-density="compact"] main{padding:8px;}
+  body[data-density="compact"] .app-header{padding:14px 12px;}
+  body[data-density="compact"] .tab{font-size:10.5px;padding:8px 2px;}
+}
