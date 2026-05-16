@@ -39,7 +39,7 @@
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.11 · Build 2026-05-16 22:25 CEST — Chart refinements and session-load insights.</p>
+      <p>v4.22.11 · Build 2026-05-16 22:25 CEST — Plans tab internal navigation.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -614,31 +614,52 @@
     </section>
 
     <section id="plans" class="panel">
-      <div class="card">
-        <h2>Create daily training plan</h2>
-        <label>Plan name</label>
-        <input id="planName" placeholder="e.g. Tuesday 60 min — Break-building focus" />
+      <div class="card plans-hub-card">
+        <h2>Plans</h2>
+        <div class="plans-main-nav" role="tablist" aria-label="Plan sections">
+          <button type="button" class="plans-nav-btn active-subtab" data-action="plans-main-tab" data-plans-tab="daily" role="tab" aria-selected="true">Daily</button>
+          <button type="button" class="plans-nav-btn" data-action="plans-main-tab" data-plans-tab="randomizer" role="tab" aria-selected="false">Randomizer</button>
+          <button type="button" class="plans-nav-btn" data-action="plans-main-tab" data-plans-tab="constraint" role="tab" aria-selected="false">Constraint</button>
+        </div>
+      </div>
 
-        <div class="grid two">
-          <div>
-            <label>Filter routine picker by type</label>
-            <select id="planTypeFilter"></select>
+      <div class="plans-tab-panel active" data-plans-panel="daily">
+        <div class="card">
+          <h2>Create daily training plan</h2>
+          <label>Plan name</label>
+          <input id="planName" placeholder="e.g. Tuesday 60 min — Break-building focus" />
+
+          <div class="grid two">
+            <div>
+              <label>Filter routine picker by type</label>
+              <select id="planTypeFilter"></select>
+            </div>
+            <div>
+              <label>Filter routine picker by folder</label>
+              <select id="planFolderFilter"></select>
+            </div>
           </div>
-          <div>
-            <label>Filter routine picker by folder</label>
-            <select id="planFolderFilter"></select>
+
+          <label>Add routine</label>
+          <div class="row">
+            <select id="routineToAdd"></select>
+            <button id="addRoutineToPlanBtn" class="secondary">Add</button>
           </div>
+
+          <div id="planBuilderList" class="list compact"></div>
+          <button id="savePlanBtn">Save Plan</button>
         </div>
 
-        <label>Add routine</label>
-        <div class="row">
-          <select id="routineToAdd"></select>
-          <button id="addRoutineToPlanBtn" class="secondary">Add</button>
+        <div class="card">
+          <h2>Saved daily plans</h2>
+          <div id="planList" class="list"></div>
         </div>
+      </div>
 
-        <div class="card nested">
-          <h3>Randomizer</h3>
-          <p class="muted">Pick X exercises at random using the filters below.</p>
+      <div class="plans-tab-panel hidden" data-plans-panel="randomizer">
+        <div class="card">
+          <h2>Randomizer</h2>
+          <p class="muted">Pick exercises at random using the filters below, then send them to the daily plan draft.</p>
           <div class="grid three">
             <div>
               <label>Number of exercises</label>
@@ -654,14 +675,17 @@
             </div>
           </div>
           <div class="row">
-            <button id="randomizePlanBtn" class="secondary">Randomize Draft Plan</button>
+            <button id="randomizePlanBtn" class="secondary">Replace Draft Plan</button>
             <button id="appendRandomPlanBtn" class="secondary">Append Random Exercises</button>
           </div>
+          <p class="tiny muted">Generated exercises are added to the same draft plan shown in the Daily tab.</p>
         </div>
+      </div>
 
-        <div class="card nested">
-          <h3>Constraint-based session generator</h3>
-          <p class="muted">Build a session by time allocation rather than fixed exercises.</p>
+      <div class="plans-tab-panel hidden" data-plans-panel="constraint">
+        <div class="card">
+          <h2>Constraint-based session generator</h2>
+          <p class="muted">Build a session by time allocation rather than fixed exercises, then send it to the daily plan draft.</p>
           <div class="grid three">
             <div>
               <label>Total minutes</label>
@@ -693,15 +717,8 @@
           <div class="row">
             <button id="generateConstraintPlanBtn" class="secondary">Generate Session Draft</button>
           </div>
+          <p class="tiny muted">The generated session draft can be reviewed, edited, and saved in the Daily tab.</p>
         </div>
-
-        <div id="planBuilderList" class="list compact"></div>
-        <button id="savePlanBtn">Save Plan</button>
-      </div>
-
-      <div class="card">
-        <h2>Saved daily plans</h2>
-        <div id="planList" class="list"></div>
       </div>
     </section>
 

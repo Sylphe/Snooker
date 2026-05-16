@@ -1331,7 +1331,7 @@ body[data-density="compact"] .mini-metric span{font-size:10px;}
 body[data-density="compact"] .mini-metric strong{font-size:13px;}
 @media(max-width:520px){.mini-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.category-mix-chart .chart-label{font-size:8.5px!important;}}
 
-/* v4.22.11 practice tab internal navigation */
+/* v4.22.10 practice tab internal navigation */
 .practice-hub-card{margin-bottom:12px;}
 .practice-main-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .practice-main-nav .practice-nav-btn{padding:9px 12px;min-width:0;}
@@ -1348,4 +1348,18 @@ body[data-density="compact"] .practice-hub-card,body[data-density="compact"] .pr
   .practice-main-nav{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
   .practice-main-nav .practice-nav-btn{flex:0 0 auto;white-space:nowrap;}
   .practice-start-card .primary-action-row button{width:100%;}
+}
+
+/* v4.22.11 Plans tab internal navigation */
+.plans-hub-card{margin-bottom:12px;}
+.plans-main-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.plans-main-nav .plans-nav-btn{padding:9px 12px;min-width:0;}
+.plans-tab-panel.hidden{display:none!important;}
+.plans-tab-panel.active{display:block;}
+.plans-tab-panel .tiny{font-size:12px;line-height:1.35;margin-top:8px;}
+body[data-density="compact"] .plans-main-nav .plans-nav-btn{padding:7px 8px;font-size:12px;border-radius:10px;}
+body[data-density="compact"] .plans-hub-card,body[data-density="compact"] .plans-tab-panel .card{margin-bottom:10px;}
+@media(max-width:520px){
+  .plans-main-nav{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .plans-main-nav .plans-nav-btn{flex:0 0 auto;white-space:nowrap;}
 }

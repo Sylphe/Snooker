@@ -760,6 +760,8 @@ function renderAll() {
   toggleStatsStandalonePanels();
   renderInterfaceSettings();
   restorePracticeMainTab();
+  restorePlansMainTab();
+  restoreDataMainTab();
   updateSessionFocusState();
   if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
 }
@@ -5462,6 +5464,33 @@ function restorePracticeMainTab(){
   setPracticeMainTab(saved);
 }
 
+function setPlansMainTab(tab){
+  const allowed = new Set(["daily", "randomizer", "constraint"]);
+  const clean = allowed.has(tab) ? tab : "daily";
+  document.querySelectorAll("[data-plans-panel]").forEach(panel => {
+    const active = panel.dataset.plansPanel === clean;
+    panel.classList.toggle("hidden", !active);
+    panel.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-action='plans-main-tab']").forEach(btn => {
+    const active = btn.dataset.plansTab === clean;
+    btn.classList.toggle("active-subtab", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  try { localStorage.setItem("snookerPlansMainTab", clean); } catch(e) {}
+  if (clean === "daily") {
+    try { renderPlanBuilder(); renderPlanList(); } catch(e) { logAppError(e, "setPlansMainTab daily"); }
+  }
+  if (clean === "constraint") {
+    try { renderRoutineSelects(); } catch(e) { logAppError(e, "setPlansMainTab constraint"); }
+  }
+}
+function restorePlansMainTab(){
+  let saved = "daily";
+  try { saved = localStorage.getItem("snookerPlansMainTab") || "daily"; } catch(e) {}
+  setPlansMainTab(saved);
+}
+
 function setDataMainTab(tab){
   const allowed = new Set(["settings", "import-export", "developer"]);
   const clean = allowed.has(tab) ? tab : "settings";
@@ -5530,6 +5559,7 @@ function handleDelegatedUIAction(event) {
     case "open-data-tab": document.querySelector('[data-tab="data"]')?.click(); return setDataMainTab("developer");
     case "data-main-tab": return setDataMainTab(actionEl.dataset.dataTab || "settings");
     case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
+    case "plans-main-tab": return setPlansMainTab(actionEl.dataset.plansTab || "daily");
     case "apply-target-upgrade": return applyTargetUpgrade(id);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }
