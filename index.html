@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.7</title>
+  <title>Snooker Practice Log v4.22.11</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.7" />
-  <link rel="stylesheet" href="styles.css?v=4.22.7" />
-  <link rel="icon" href="icon.svg?v=4.22.7" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.11" />
+  <link rel="stylesheet" href="styles.css?v=4.22.11" />
+  <link rel="icon" href="icon.svg?v=4.22.11" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.7 · Build 2026-05-16 21:40 CEST — Timer automation card and global compact mode.</p>
+      <p>v4.22.11 · Build 2026-05-16 22:25 CEST — Chart refinements and session-load insights.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -57,231 +57,256 @@
 
   <main>
     <section id="practice" class="panel active">
-      <div class="card">
-        <h2>Start practice</h2>
-        <div class="grid two">
-          <div>
-            <label>Daily training plan</label>
-            <select id="planSelect"></select>
+      <div class="card practice-hub-card">
+        <h2>Practice</h2>
+        <p class="muted">Choose between regular plan/free training, smart session generation, and pressure drills.</p>
+        <div class="practice-main-nav" role="tablist" aria-label="Practice sections">
+          <button type="button" class="practice-nav-btn active-subtab" data-action="practice-main-tab" data-practice-tab="regular" role="tab" aria-selected="true">Regular training</button>
+          <button type="button" class="practice-nav-btn" data-action="practice-main-tab" data-practice-tab="smart" role="tab" aria-selected="false">Smart training</button>
+          <button type="button" class="practice-nav-btn" data-action="practice-main-tab" data-practice-tab="pressure" role="tab" aria-selected="false">Pressure</button>
+        </div>
+      </div>
+
+      <div class="practice-tab-panel active" data-practice-panel="regular">
+        <div class="card practice-start-card">
+          <h2>Regular training</h2>
+          <p class="muted">Start a saved daily plan, or run a single free-training exercise.</p>
+          <div class="grid one">
+            <div>
+              <label>Daily training plan</label>
+              <select id="planSelect"></select>
+            </div>
           </div>
+          <div class="row primary-action-row">
+            <button id="startSessionBtn" class="success primary-start-btn">Start Plan Session</button>
+          </div>
+        </div>
+
+        <div class="card practice-free-card">
+          <h2>Free training</h2>
+          <p class="muted">Select one exercise, open the mobile picker if needed, or repeat the previous exercise with the same table context.</p>
           <div>
             <label>Free training routine</label>
             <select id="freeRoutineSelect"></select>
           </div>
+          <div class="row">
+            <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
+            <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
+            <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
+          </div>
         </div>
-        <div class="row">
-          <button id="startSessionBtn">Start Plan Session</button>
-          <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
-          <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
-          <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
+
+        <div id="resumeSessionCard" class="card hidden">
+          <h2>Resume unfinished session</h2>
+          <div id="resumeSessionBox"></div>
+          <div class="row">
+            <button id="resumeSessionBtn">Resume Session</button>
+            <button id="discardSessionBtn" class="secondary">Discard</button>
+          </div>
         </div>
       </div>
 
-
-      <div id="pressureOverlayCard" class="card">
-        <h2>Pressure simulation</h2>
-        <p class="muted">One-tap pressure logging. Select an exercise, choose a pressure mode, then tap Made / Miss while you practice.</p>
-
-        <div class="grid three">
-          <div>
-            <label>Pressure routine</label>
-            <select id="pressureRoutineSelect"></select>
-          </div>
-          <div>
-            <label>Pressure mode</label>
-            <select id="pressureModeSelect">
-              <option value="streak">Streak ladder</option>
-              <option value="lives">Limited lives</option>
-              <option value="recovery">Recovery after miss</option>
-            </select>
-          </div>
-          <div>
-            <label>Target streak / lives</label>
-            <input id="pressureTargetInput" type="number" min="1" max="20" value="5">
-          </div>
+      <div class="practice-tab-panel hidden" data-practice-panel="smart">
+        <div class="card">
+          <h2>Smart training</h2>
+          <div id="smartRecommendationBox" class="analytics-note">Recommendation will appear after you log enough sessions.</div>
         </div>
 
-        <div class="grid three pressure-advanced-options">
-          <div>
-            <label>Sudden death</label>
-            <select id="pressureSuddenDeathSelect">
-              <option value="off">Off</option>
-              <option value="on">On in clutch zone</option>
-            </select>
-          </div>
-          <div>
-            <label>Final reps weighting</label>
-            <input id="pressureFinalRepsInput" type="number" min="1" max="6" value="3">
-          </div>
-          <div>
-            <label>Escalation step</label>
-            <input id="pressureEscalationStepInput" type="number" min="1" max="5" value="2">
-          </div>
-        </div>
-
-        <div class="row">
-          <button id="startPressureSessionBtn" type="button">Start Pressure Drill</button>
-        </div>
-
-        <div id="pressureSessionPanel" class="pressure-session hidden">
-          <div class="pressure-header">
+        <div class="card" id="adaptiveEnginePanel">
+          <h2>Adaptive Training Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveEngine">?</button></h2>
+          <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
+          <div class="grid three">
             <div>
-              <h3 id="pressureRoutineName">Pressure drill</h3>
-              <p id="pressureModeLabel" class="muted"></p>
+              <label>Session goal <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveSessionGoal">?</button></label>
+              <select id="adaptiveGoal">
+                <option value="auto">Auto</option>
+                <option value="stability">Stability</option>
+                <option value="progression">Progression</option>
+                <option value="recovery">Recovery / light</option>
+                <option value="variety">Robustness / variety</option>
+              </select>
             </div>
-            <div class="pressure-score">
-              <span>Pressure score</span>
-              <strong id="pressureScoreValue">0</strong>
+            <div>
+              <label>Duration target</label>
+              <select id="adaptiveDuration">
+                <option value="45">45 min</option>
+                <option value="60" selected>60 min</option>
+                <option value="75">75 min</option>
+                <option value="90">90 min</option>
+              </select>
+            </div>
+            <div>
+              <label>Strictness <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveStrictness">?</button></label>
+              <select id="adaptiveStrictness">
+                <option value="low">Flexible</option>
+                <option value="normal" selected>Normal</option>
+                <option value="high">Strict</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid three">
+            <div>
+              <label>Training phase <button type="button" class="stat-help" data-action="field-help" data-help-key="periodizationPhase">?</button></label>
+              <select id="periodizationPhase">
+                <option value="auto" selected>Auto</option>
+                <option value="acquisition">Skill acquisition</option>
+                <option value="stabilization">Stabilization</option>
+                <option value="performance">Performance / competition prep</option>
+                <option value="deload">Deload / recovery</option>
+              </select>
+            </div>
+            <div>
+              <label>Phase horizon</label>
+              <select id="periodizationHorizon">
+                <option value="1">1 week</option>
+                <option value="2">2 weeks</option>
+                <option value="4" selected>4 weeks</option>
+                <option value="8">8 weeks</option>
+              </select>
+            </div>
+            <div>
+              <label>Competition date</label>
+              <input id="competitionDate" type="date" />
+            </div>
+          </div>
+          <div id="periodizationOutput" class="analytics-note"></div>
+          <div class="row">
+            <button id="generateAdaptiveSessionBtn" type="button">Generate Adaptive Session</button>
+            <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
+          </div>
+          <div id="adaptiveEngineOutput" class="orchestrator-box">Generate an adaptive session to see the recommended training structure.</div>
+        </div>
+
+        <div class="card">
+          <h2>Training Orchestrator <button type="button" class="stat-help" data-action="field-help" data-help-key="trainingOrchestrator">?</button></h2>
+          <p class="muted">Generates a block-based session from weak areas, recent momentum, undertraining, fatigue, and difficulty level.</p>
+          <div class="grid three">
+            <div>
+              <label>Session length</label>
+              <select id="orchestratorLength">
+                <option value="45">45 min</option>
+                <option value="60" selected>60 min</option>
+                <option value="75">75 min</option>
+                <option value="90">90 min</option>
+              </select>
+            </div>
+            <div>
+              <label>Intensity <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorIntensity">?</button></label>
+              <select id="orchestratorIntensity">
+                <option value="technical">Technical</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="pressure">Pressure</option>
+              </select>
+            </div>
+            <div>
+              <label>Training strategy <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorStrategy">?</button></label>
+              <select id="orchestratorStrategy">
+                <option value="exploit">Exploit weaknesses</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="explore">Explore neglected drills</option>
+              </select>
+            </div>
+            <div>
+              <label>Focus override <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorFocusOverride">?</button></label>
+              <select id="orchestratorFocus"></select>
+            </div>
+          </div>
+          <div class="row">
+            <button id="generateSessionBtn">Generate Next Session</button>
+            <button id="loadGeneratedPlanBtn" class="secondary">Load as Draft Plan</button>
+          </div>
+          <div id="orchestratorBox" class="orchestrator-box">Generate next session based on your data.</div>
+          <div id="plannedCompletionBox"></div>
+        </div>
+      </div>
+
+      <div class="practice-tab-panel hidden" data-practice-panel="pressure">
+        <div id="pressureOverlayCard" class="card">
+          <h2>Pressure simulation</h2>
+          <p class="muted">One-tap pressure logging. Select an exercise, choose a pressure mode, then tap Made / Miss while you practice.</p>
+
+          <div class="grid three">
+            <div>
+              <label>Pressure routine</label>
+              <select id="pressureRoutineSelect"></select>
+            </div>
+            <div>
+              <label>Pressure mode</label>
+              <select id="pressureModeSelect">
+                <option value="streak">Streak ladder</option>
+                <option value="lives">Limited lives</option>
+                <option value="recovery">Recovery after miss</option>
+              </select>
+            </div>
+            <div>
+              <label>Target streak / lives</label>
+              <input id="pressureTargetInput" type="number" min="1" max="20" value="5">
             </div>
           </div>
 
-          <div class="pressure-metrics">
-            <div><span>Attempts</span><strong id="pressureAttempts">0</strong></div>
-            <div><span>Made</span><strong id="pressureMakes">0</strong></div>
-            <div><span>Misses</span><strong id="pressureMisses">0</strong></div>
-            <div><span>Streak</span><strong id="pressureStreak">0</strong></div>
-            <div><span>Best streak</span><strong id="pressureBestStreak">0</strong></div>
-            <div><span>Lives</span><strong id="pressureLives">—</strong></div>
-            <div><span>Recovery</span><strong id="pressureRecovery">—</strong></div>
-            <div><span>Level</span><strong id="pressureLevel">Low</strong></div>
-            <div><span>Clutch</span><strong id="pressureClutch">—</strong></div>
-            <div><span>Fatigue risk</span><strong id="pressureFatigue">0</strong></div>
-          </div>
-
-          <div class="pressure-actions">
-            <button id="pressureMadeBtn" type="button" class="pressure-made">MADE</button>
-            <button id="pressureMissBtn" type="button" class="pressure-miss">MISS</button>
-            <button id="pressureRecoveryOkBtn" type="button" class="pressure-recovery hidden">RECOVERY OK</button>
-            <button id="pressureRecoveryFailBtn" type="button" class="pressure-recovery hidden">RECOVERY FAIL</button>
+          <div class="grid three pressure-advanced-options">
+            <div>
+              <label>Sudden death</label>
+              <select id="pressureSuddenDeathSelect">
+                <option value="off">Off</option>
+                <option value="on">On in clutch zone</option>
+              </select>
+            </div>
+            <div>
+              <label>Final reps weighting</label>
+              <input id="pressureFinalRepsInput" type="number" min="1" max="6" value="3">
+            </div>
+            <div>
+              <label>Escalation step</label>
+              <input id="pressureEscalationStepInput" type="number" min="1" max="5" value="2">
+            </div>
           </div>
 
           <div class="row">
-            <button id="pressureUndoBtn" type="button" class="secondary">Undo</button>
-            <button id="pressureFinishBtn" type="button">Finish & Save</button>
-            <button id="pressureCancelBtn" type="button" class="secondary">Cancel</button>
+            <button id="startPressureSessionBtn" type="button">Start Pressure Drill</button>
           </div>
 
-          <div id="pressureCompletionNote" class="analytics-note hidden"></div>
-        </div>
-      </div>
+          <div id="pressureSessionPanel" class="pressure-session hidden">
+            <div class="pressure-header">
+              <div>
+                <h3 id="pressureRoutineName">Pressure drill</h3>
+                <p id="pressureModeLabel" class="muted"></p>
+              </div>
+              <div class="pressure-score">
+                <span>Pressure score</span>
+                <strong id="pressureScoreValue">0</strong>
+              </div>
+            </div>
 
-      <div id="resumeSessionCard" class="card hidden">
-        <h2>Resume unfinished session</h2>
-        <div id="resumeSessionBox"></div>
-        <div class="row">
-          <button id="resumeSessionBtn">Resume Session</button>
-          <button id="discardSessionBtn" class="secondary">Discard</button>
-        </div>
-      </div>
+            <div class="pressure-metrics">
+              <div><span>Attempts</span><strong id="pressureAttempts">0</strong></div>
+              <div><span>Made</span><strong id="pressureMakes">0</strong></div>
+              <div><span>Misses</span><strong id="pressureMisses">0</strong></div>
+              <div><span>Streak</span><strong id="pressureStreak">0</strong></div>
+              <div><span>Best streak</span><strong id="pressureBestStreak">0</strong></div>
+              <div><span>Lives</span><strong id="pressureLives">—</strong></div>
+              <div><span>Recovery</span><strong id="pressureRecovery">—</strong></div>
+              <div><span>Level</span><strong id="pressureLevel">Low</strong></div>
+              <div><span>Clutch</span><strong id="pressureClutch">—</strong></div>
+              <div><span>Fatigue risk</span><strong id="pressureFatigue">0</strong></div>
+            </div>
 
-      <div class="card">
-        <h2>Smart recommendation</h2>
-        <div class="card" id="adaptiveEnginePanel">
-        <h2>Adaptive Training Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveEngine">?</button></h2>
-        <p class="muted">Builds the next session from your current performance state: stability, hit rate, drift, fatigue, plateau and training load.</p>
-        <div class="grid three">
-          <div>
-            <label>Session goal <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveSessionGoal">?</button></label>
-            <select id="adaptiveGoal">
-              <option value="auto">Auto</option>
-              <option value="stability">Stability</option>
-              <option value="progression">Progression</option>
-              <option value="recovery">Recovery / light</option>
-              <option value="variety">Robustness / variety</option>
-            </select>
-          </div>
-          <div>
-            <label>Duration target</label>
-            <select id="adaptiveDuration">
-              <option value="45">45 min</option>
-              <option value="60" selected>60 min</option>
-              <option value="75">75 min</option>
-              <option value="90">90 min</option>
-            </select>
-          </div>
-          <div>
-            <label>Strictness <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveStrictness">?</button></label>
-            <select id="adaptiveStrictness">
-              <option value="low">Flexible</option>
-              <option value="normal" selected>Normal</option>
-              <option value="high">Strict</option>
-            </select>
-          </div>
-        </div>
-        <div class="grid three">
-          <div>
-            <label>Training phase <button type="button" class="stat-help" data-action="field-help" data-help-key="periodizationPhase">?</button></label>
-            <select id="periodizationPhase">
-              <option value="auto" selected>Auto</option>
-              <option value="acquisition">Skill acquisition</option>
-              <option value="stabilization">Stabilization</option>
-              <option value="performance">Performance / competition prep</option>
-              <option value="deload">Deload / recovery</option>
-            </select>
-          </div>
-          <div>
-            <label>Phase horizon</label>
-            <select id="periodizationHorizon">
-              <option value="1">1 week</option>
-              <option value="2">2 weeks</option>
-              <option value="4" selected>4 weeks</option>
-              <option value="8">8 weeks</option>
-            </select>
-          </div>
-          <div>
-            <label>Competition date</label>
-            <input id="competitionDate" type="date" />
-          </div>
-        </div>
-        <div id="periodizationOutput" class="analytics-note"></div>
-        <div class="row">
-          <button id="generateAdaptiveSessionBtn" type="button">Generate Adaptive Session</button>
-          <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
-        </div>
-        <div id="adaptiveEngineOutput" class="orchestrator-box">Generate an adaptive session to see the recommended training structure.</div>
-      </div>
+            <div class="pressure-actions">
+              <button id="pressureMadeBtn" type="button" class="pressure-made">MADE</button>
+              <button id="pressureMissBtn" type="button" class="pressure-miss">MISS</button>
+              <button id="pressureRecoveryOkBtn" type="button" class="pressure-recovery hidden">RECOVERY OK</button>
+              <button id="pressureRecoveryFailBtn" type="button" class="pressure-recovery hidden">RECOVERY FAIL</button>
+            </div>
 
-      <div class="card">
-        <h2>Training Orchestrator <button type="button" class="stat-help" data-action="field-help" data-help-key="trainingOrchestrator">?</button></h2>
-        <p class="muted">Generates a block-based session from weak areas, recent momentum, undertraining, fatigue, and difficulty level.</p>
-        <div class="grid three">
-          <div>
-            <label>Session length</label>
-            <select id="orchestratorLength">
-              <option value="45">45 min</option>
-              <option value="60" selected>60 min</option>
-              <option value="75">75 min</option>
-              <option value="90">90 min</option>
-            </select>
-          </div>
-          <div>
-            <label>Intensity <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorIntensity">?</button></label>
-            <select id="orchestratorIntensity">
-              <option value="technical">Technical</option>
-              <option value="balanced" selected>Balanced</option>
-              <option value="pressure">Pressure</option>
-            </select>
-          </div>
-          <div>
-            <label>Training strategy <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorStrategy">?</button></label>
-            <select id="orchestratorStrategy">
-              <option value="exploit">Exploit weaknesses</option>
-              <option value="balanced" selected>Balanced</option>
-              <option value="explore">Explore neglected drills</option>
-            </select>
-          </div>
-          <div>
-            <label>Focus override <button type="button" class="stat-help" data-action="field-help" data-help-key="orchestratorFocusOverride">?</button></label>
-            <select id="orchestratorFocus"></select>
+            <div class="row">
+              <button id="pressureUndoBtn" type="button" class="secondary">Undo</button>
+              <button id="pressureFinishBtn" type="button">Finish & Save</button>
+              <button id="pressureCancelBtn" type="button" class="secondary">Cancel</button>
+            </div>
+
+            <div id="pressureCompletionNote" class="analytics-note hidden"></div>
           </div>
         </div>
-        <div class="row">
-          <button id="generateSessionBtn">Generate Next Session</button>
-          <button id="loadGeneratedPlanBtn" class="secondary">Load as Draft Plan</button>
-        </div>
-        <div id="orchestratorBox" class="orchestrator-box">Generate next session based on your data.</div>
-        <div id="plannedCompletionBox"></div>
-      </div><div id="smartRecommendationBox" class="analytics-note">Recommendation will appear after you log enough sessions.</div>
       </div>
 
       <div id="activeSession" class="card hidden">
@@ -686,6 +711,7 @@
         <div class="stats-subtabs stats-internal-nav" role="tablist" aria-label="Stats sections">
           <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
           <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
+          <button id="statsGraphsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="graphs">Graphs</button>
           <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
           <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
           <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
@@ -1033,6 +1059,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.7"></script>
+  <script type="module" src="app.js?v=4.22.11"></script>
 </body>
 </html>

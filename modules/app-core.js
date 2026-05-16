@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.7";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.11";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.7";
+} from "./utils.js?v=4.22.11";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -30,7 +30,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.7";
+} from "./settings.js?v=4.22.11";
 import {
   avg,
   stdDev,
@@ -52,7 +52,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.7";
+} from "./analytics.js?v=4.22.11";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -61,7 +61,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.7";
+} from "./bayesian.js?v=4.22.11";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -70,7 +70,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.7";
+} from "./session.js?v=4.22.11";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -78,7 +78,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.7";
+} from "./pressure.js?v=4.22.11";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -90,8 +90,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.7";
-import * as RenderHelpers from "./render.js?v=4.22.7";
+} from "./recommendations.js?v=4.22.11";
+import * as RenderHelpers from "./render.js?v=4.22.11";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -103,7 +103,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.7";
+} from "./store.js?v=4.22.11";
 
 
 
@@ -332,7 +332,7 @@ let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
-const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
+const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
   if (v === "advanced") return "trends";
@@ -759,6 +759,7 @@ function renderAll() {
   renderBayesianAnalyticsValidation();
   toggleStatsStandalonePanels();
   renderInterfaceSettings();
+  restorePracticeMainTab();
   updateSessionFocusState();
   if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
 }
@@ -2642,7 +2643,7 @@ function renderStatsScopeChips(scope, logs) {
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = ({overview:"Overview", trends:"Trends", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"Bayesian", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
+  const modeLabel = ({overview:"Overview", trends:"Trends", graphs:"Graphs", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"Bayesian", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
   el.innerHTML = [
     `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
@@ -2667,7 +2668,7 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
 
   const alloc = computeAllocation(logs);
   const allocationHtml = `<div class="analytics-note"><strong>Allocation:</strong> ${alloc.map(a=>`<span class="badge">${escapeHtml(a.cat)}: ${a.pct.toFixed(1)}%</span>`).join("")}</div>`;
-  const volumeMixHtml = `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}<h3>Exercise mix</h3>${renderCategoryChart(logs)}${allocationHtml}`;
+  const volumeMixHtml = `<h3>Volume chart</h3>${renderTrainingTimeInsightChart(logs, period)}<h3>Exercise mix</h3>${renderCategoryChart(logs)}${allocationHtml}`;
 
   let exerciseHtml = "";
   if (rid) {
@@ -2698,7 +2699,7 @@ function renderStatsEmptySection(title, range) {
 function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow }) {
   if (!logs.length) return renderStatsEmptySection("Trends", range);
   const chartPeriod = period === "overall" || period === "exercise" ? "monthly" : period;
-  const volumeHtml = `<h3>Volume chart</h3>${renderVolumeChart(bucketLogs(logs, chartPeriod), "time", "Training time")}<h3>Exercise mix</h3>${renderCategoryChart(logs)}`;
+  const volumeHtml = `<h3>Volume chart</h3>${renderTrainingTimeInsightChart(logs, chartPeriod)}<h3>Exercise mix</h3>${renderCategoryChart(logs)}`;
   return `<h3>Trends — ${escapeHtml(range.label)}</h3>
     <div class="advanced-stats-modules">
       ${statsModule("Volume & mix", "Training time, category split, and exercise allocation", volumeHtml, true)}
@@ -2726,6 +2727,122 @@ function renderStatsRoutines(logs, { period, rid, range, rollingWindow, benchmar
       ${statsModule("Exercise mix", "Category distribution and allocation", `${renderCategoryChart(logs)}${allocationHtml}`, true)}
       ${statsModule("Difficulty ladder", "Difficulty distribution and progression", renderDifficultyLadder(logs), false)}
       ${rid ? statsModule("Selected exercise progression", "Longitudinal drill-specific history", exerciseHtml, true) : statsModule("Selected exercise progression", "Choose one exercise in the filter to see drill-specific history", `<p class="muted">Select a specific exercise above to show longitudinal routine progression.</p>`, false)}
+    </div>`;
+}
+
+
+function groupLogsByTrainingSession(logs) {
+  const groups = new Map();
+  logs.slice().sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)).forEach((log, index) => {
+    const key = log.sessionId || `log-${log.id || index}`;
+    if (!groups.has(key)) groups.set(key, { id:key, logs:[], createdAt: log.createdAt || "" });
+    const group = groups.get(key);
+    group.logs.push(log);
+    if (!group.createdAt || new Date(log.createdAt || 0) < new Date(group.createdAt || 0)) group.createdAt = log.createdAt || group.createdAt;
+  });
+  return Array.from(groups.values()).sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+}
+
+function linearTrend(values) {
+  const clean = values.map((v,i) => ({x:i, y:Number(v)})).filter(p => Number.isFinite(p.y));
+  if (clean.length < 2) return null;
+  const meanX = avg(clean.map(p => p.x));
+  const meanY = avg(clean.map(p => p.y));
+  let num = 0, den = 0;
+  clean.forEach(p => { num += (p.x - meanX) * (p.y - meanY); den += (p.x - meanX) ** 2; });
+  const slope = den ? num / den : 0;
+  const intercept = meanY - slope * meanX;
+  return { slope, start: intercept, end: intercept + slope * (values.length - 1) };
+}
+
+function buildSessionKpiSeries(logs) {
+  const sessions = groupLogsByTrainingSession(logs);
+  const rollingScores = [];
+  return sessions.map((session, idx) => {
+    const arr = session.logs || [];
+    const scoreVals = arr.map(l => Number(l.normalizedScore || 0)).filter(v => Number.isFinite(v));
+    const avgScore = scoreVals.length ? avg(scoreVals) : null;
+    if (avgScore !== null) rollingScores.push(avgScore);
+    const windowVals = rollingScores.slice(-5);
+    const consistency = windowVals.length >= 2 ? Math.max(0, 100 - stdDev(windowVals)) : null;
+    const pressureLogs = arr.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+    const pressureVals = pressureLogs.map(l => Number(l.pressureSuccessRate ?? l.normalizedScore ?? 0)).filter(v => Number.isFinite(v));
+    let left = 0, right = 0, sideN = 0;
+    arr.forEach(l => {
+      if (l.sideModeEnabled || l.sideMode || l.leftScore !== undefined || l.rightScore !== undefined) {
+        left += Number(l.leftScore || 0);
+        right += Number(l.rightScore || 0);
+        sideN++;
+      }
+    });
+    const sideTotal = left + right;
+    const sideBalance = sideN && sideTotal ? Math.max(0, 100 - (Math.abs(left - right) / sideTotal * 100)) : null;
+    return {
+      index: idx + 1,
+      label: `S${idx + 1}`,
+      date: session.createdAt ? new Date(session.createdAt).toLocaleDateString() : `Session ${idx + 1}`,
+      logCount: arr.length,
+      avgScore,
+      targetHitRate: targetHitRate(arr),
+      practiceMinutes: arr.reduce((sum,l) => sum + Number(l.timeMinutes || 0), 0),
+      pressureSuccess: pressureVals.length ? avg(pressureVals) : null,
+      consistency,
+      sideBalance
+    };
+  });
+}
+
+function renderSessionTrendChart(title, subtitle, rows, key, suffix = "", precision = 1) {
+  const values = rows.map(r => Number(r[key])).map(v => Number.isFinite(v) ? v : null);
+  const valid = values.filter(v => v !== null);
+  if (valid.length < 2) {
+    return `<div class="trend-chart-card"><h4>${htmlText(title)}</h4><p class="muted">Not enough session-level data yet.</p></div>`;
+  }
+  const width = 640, height = 220, padL = 42, padR = 14, padT = 18, padB = 34;
+  const minRaw = Math.min(...valid), maxRaw = Math.max(...valid);
+  const padY = Math.max(1, (maxRaw - minRaw) * 0.12);
+  const minY = Math.max(0, minRaw - padY);
+  const maxY = Math.min(key === "practiceMinutes" ? Math.max(maxRaw + padY, 10) : 100, maxRaw + padY);
+  const spanY = maxY - minY || 1;
+  const xFor = i => padL + (rows.length <= 1 ? 0 : (i / (rows.length - 1)) * (width - padL - padR));
+  const yFor = v => padT + ((maxY - v) / spanY) * (height - padT - padB);
+  const points = values.map((v,i) => v === null ? null : `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).filter(Boolean).join(" ");
+  const trend = linearTrend(values);
+  const trendLine = trend ? `<line class="trendline" x1="${xFor(0).toFixed(1)}" y1="${yFor(Math.max(minY, Math.min(maxY, trend.start))).toFixed(1)}" x2="${xFor(rows.length - 1).toFixed(1)}" y2="${yFor(Math.max(minY, Math.min(maxY, trend.end))).toFixed(1)}"></line>` : "";
+  const last = valid[valid.length - 1];
+  const delta = valid.length >= 2 ? last - valid[0] : 0;
+  const direction = delta > 0.05 ? "improving" : delta < -0.05 ? "declining" : "flat";
+  const yTicks = [minY, (minY + maxY) / 2, maxY].map(v => `<text x="6" y="${yFor(v).toFixed(1)}" class="axis-label">${v.toFixed(0)}</text>`).join("");
+  const firstLabel = rows[0]?.label || "S1";
+  const lastLabel = rows[rows.length - 1]?.label || `S${rows.length}`;
+  return `<div class="trend-chart-card">
+    <div class="trend-chart-head"><div><h4>${htmlText(title)}</h4><p class="muted">${htmlText(subtitle)}</p></div><div class="trend-chart-kpi"><strong>${last.toFixed(precision)}${suffix}</strong><span>${direction} · ${delta >= 0 ? "+" : ""}${delta.toFixed(precision)}${suffix}</span></div></div>
+    <svg class="session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attrText(title)} trend over sessions">
+      <line class="gridline" x1="${padL}" y1="${yFor(minY).toFixed(1)}" x2="${width-padR}" y2="${yFor(minY).toFixed(1)}"></line>
+      <line class="gridline" x1="${padL}" y1="${yFor((minY+maxY)/2).toFixed(1)}" x2="${width-padR}" y2="${yFor((minY+maxY)/2).toFixed(1)}"></line>
+      <line class="gridline" x1="${padL}" y1="${yFor(maxY).toFixed(1)}" x2="${width-padR}" y2="${yFor(maxY).toFixed(1)}"></line>
+      ${yTicks}
+      <text x="${padL}" y="${height-8}" class="axis-label">${htmlText(firstLabel)}</text>
+      <text x="${width-padR-26}" y="${height-8}" class="axis-label">${htmlText(lastLabel)}</text>
+      ${trendLine}
+      <polyline class="metric-line" points="${points}"></polyline>
+    </svg>
+  </div>`;
+}
+
+function renderStatsGraphs(logs, { range }) {
+  if (!logs.length) return renderStatsEmptySection("Graphs", range);
+  const rows = buildSessionKpiSeries(logs);
+  if (rows.length < 2) return `<h3>Graphs — ${escapeHtml(range.label)}</h3><p class="muted">Need at least two logged sessions to show session-adjusted trend graphs.</p>`;
+  return `<h3>Graphs — ${escapeHtml(range.label)}</h3>
+    <div class="analytics-note"><strong>Session-adjusted view.</strong> Each point represents one training session, so the x-axis is Session 1, Session 2, etc. This avoids over-weighting calendar gaps and shows how KPIs evolve as you accumulate practice volume.</div>
+    <div class="graphs-grid">
+      ${renderSessionTrendChart("Average score", "Mean normalized score per session", rows, "avgScore", "", 1)}
+      ${renderSessionTrendChart("Target hit rate", "Share of logs at or above target per session", rows, "targetHitRate", "%", 1)}
+      ${renderSessionTrendChart("Practice volume", "Logged minutes per session", rows, "practiceMinutes", "m", 0)}
+      ${renderSessionTrendChart("Consistency", "Rolling stability score based on recent session scores", rows, "consistency", "/100", 0)}
+      ${renderSessionTrendChart("Pressure success", "Pressure-mode success rate where available", rows, "pressureSuccess", "%", 1)}
+      ${renderSessionTrendChart("Side balance", "Left/right balance score where side-split data exists", rows, "sideBalance", "/100", 0)}
     </div>`;
 }
 
@@ -2815,6 +2932,8 @@ function renderStats() {
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
     } else if (statsMode === "trends") {
       html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+     } else if (statsMode === "graphs") {
+      html += renderStatsGraphs(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "routines") {
       html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "pressure") {
@@ -2916,7 +3035,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
 
   if (rid) {
     let html = renderSelectedExerciseDashboard(logs, rid, rollingWindow);
-    html += `<h3>Drill charts — ${escapeHtml(range.label)}</h3>${renderCategoryChart(logs)}${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
+    html += `<h3>Drill charts — ${escapeHtml(range.label)}</h3>${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}`;
     const exerciseLogs = logs.filter(l => l.routineId === rid).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
     if (exerciseLogs.length) html += renderExerciseProgression(exerciseLogs, rollingWindow, Number($("benchmarkWindowInput").value || 10));
     return html;
@@ -2970,7 +3089,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
     html += `<div class="analytics-note"><strong>Fatigue curve:</strong> first-third avg ${fatigue.first.toFixed(2)} vs final-third avg ${fatigue.last.toFixed(2)} (${fatigue.deltaPct >= 0 ? "+" : ""}${fatigue.deltaPct.toFixed(1)}%).</div>`;
   }
 
-  html += `<h3>Compact charts</h3>${renderCategoryChart(logs)}${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
+  html += `<h3>Compact charts</h3>${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}`;
   return html;
 }
 
@@ -3636,12 +3755,12 @@ function renderToday() {
 
 function renderVolumeChart(buckets, metric, title) {
   if (!buckets.length) return `<div class="chart-wrap"><p class="muted">No data for chart.</p></div>`;
-  const w=520,h=160,padL=34,padR=12,padT=12,padB=34;
+  const w=520,h=170,padL=38,padR=18,padT=16,padB=38;
   const values = buckets.map(b => metric === "count" ? b.count : b.time);
   const maxV = Math.max(...values, 1);
-  const barW = Math.max(8, (w-padL-padR) / buckets.length * 0.65);
+  const barW = Math.max(8, Math.min(42, (w-padL-padR) / buckets.length * 0.62));
   const step = (w-padL-padR) / buckets.length;
-  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
     <line class="chart-axis" x1="${padL}" x2="${padL}" y1="${padT}" y2="${h-padB}"></line>
     <line class="chart-axis" x1="${padL}" x2="${w-padR}" y1="${h-padB}" y2="${h-padB}"></line>
     ${buckets.map((b,i) => {
@@ -3649,15 +3768,67 @@ function renderVolumeChart(buckets, metric, title) {
       const bh = (v / maxV) * (h-padT-padB);
       const x = padL + i*step + (step-barW)/2;
       const y = h-padB-bh;
-      return `<rect class="chart-bar" x="${x}" y="${y}" width="${barW}" height="${bh}"><title>${htmlText(b.label)}: ${Number(v).toFixed(1)}</title></rect>`;
+      return `<rect class="chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"><title>${htmlText(b.label)}: ${Number(v).toFixed(1)}</title></rect>`;
     }).join("")}
     ${buckets.filter((_,i)=> i===0 || i===buckets.length-1 || i===Math.floor((buckets.length-1)/2)).map(b => {
-      const idx = buckets.indexOf(b); const x = padL + idx*step + step/2 - 22;
-      return `<text class="chart-label" x="${x}" y="${h-18}">${escapeHtml(b.label.slice(-10))}</text>`;
+      const idx = buckets.indexOf(b); const x = padL + idx*step + step/2;
+      return `<text class="chart-label" text-anchor="middle" x="${x.toFixed(1)}" y="${h-18}">${escapeHtml(b.label.slice(-10))}</text>`;
     }).join("")}
     <text class="chart-label" x="5" y="18">${escapeHtml(title)}</text>
   </svg></div>`;
 }
+
+function renderTrainingTimeInsightChart(logs, periodLabel="overall") {
+  if (!logs.length) return `<div class="chart-wrap"><p class="muted">No training-time data for chart.</p></div>`;
+  const rows = buildSessionKpiSeries(logs).filter(r => Number(r.practiceMinutes || 0) > 0);
+  if (!rows.length) return `<div class="chart-wrap"><p class="muted">No logged minutes yet.</p></div>`;
+  const vals = rows.map(r => Number(r.practiceMinutes || 0));
+  const total = vals.reduce((a,b)=>a+b,0);
+  const sessionCount = rows.length;
+  const avgMinutes = total / sessionCount;
+  const longest = Math.max(...vals);
+  const trend = linearTrend(vals);
+  const trendText = trend ? `${trend.slope >= 0 ? "+" : ""}${trend.slope.toFixed(1)} min/session` : "N/A";
+  const w=520,h=190,padL=38,padR=20,padT=18,padB=40;
+  const maxV = Math.max(longest, 1);
+  const step = (w-padL-padR) / Math.max(1, rows.length);
+  const barW = Math.max(4, Math.min(28, step * 0.58));
+  const yScale = v => h-padB - (v / maxV) * (h-padT-padB);
+  const xCenter = i => padL + i*step + step/2;
+  const rolling = rows.map((_,i) => avg(vals.slice(Math.max(0, i-2), i+1)));
+  const rollingPath = rolling.map((v,i) => `${i===0 ? "M" : "L"} ${xCenter(i).toFixed(1)} ${yScale(v).toFixed(1)}`).join(" ");
+  const maxLabel = maxV >= 60 ? `${(maxV/60).toFixed(1)}h` : `${maxV.toFixed(0)}m`;
+  return `<div class="training-time-insight">
+    <div class="mini-metric-grid training-time-metrics">
+      <div class="mini-metric"><span>Total</span><strong>${formatDurationHuman(total)}</strong></div>
+      <div class="mini-metric"><span>Sessions</span><strong>${sessionCount}</strong></div>
+      <div class="mini-metric"><span>Avg/session</span><strong>${avgMinutes.toFixed(0)}m</strong></div>
+      <div class="mini-metric"><span>Load trend</span><strong>${htmlText(trendText)}</strong></div>
+    </div>
+    <div class="chart-wrap"><svg class="chart training-time-chart" style="--chart-h:190px" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Training time by session">
+      <line class="chart-axis" x1="${padL}" x2="${padL}" y1="${padT}" y2="${h-padB}"></line>
+      <line class="chart-axis" x1="${padL}" x2="${w-padR}" y1="${h-padB}" y2="${h-padB}"></line>
+      <line class="chart-grid" x1="${padL}" x2="${w-padR}" y1="${yScale(maxV/2).toFixed(1)}" y2="${yScale(maxV/2).toFixed(1)}"></line>
+      <text class="chart-label" x="5" y="${yScale(maxV).toFixed(1)+4}">${htmlText(maxLabel)}</text>
+      <text class="chart-label" x="5" y="${yScale(maxV/2).toFixed(1)+4}">${(maxV/2).toFixed(0)}m</text>
+      ${rows.map((r,i) => {
+        const v = Number(r.practiceMinutes || 0);
+        const bh = Math.max(1, (v / maxV) * (h-padT-padB));
+        const x = xCenter(i) - barW/2;
+        const y = h-padB-bh;
+        return `<rect class="chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"><title>${htmlText(r.label)} · ${htmlText(r.date)}: ${v.toFixed(1)} min, ${r.logCount} log${r.logCount===1?"":"s"}</title></rect>`;
+      }).join("")}
+      ${rows.length >= 2 ? `<path class="chart-line training-time-rolling" d="${rollingPath}"><title>3-session rolling average</title></path>` : ""}
+      ${rows.filter((_,i)=> i===0 || i===rows.length-1 || i===Math.floor((rows.length-1)/2)).map((r) => {
+        const idx = rows.indexOf(r);
+        return `<text class="chart-label" text-anchor="middle" x="${xCenter(idx).toFixed(1)}" y="${h-18}">${htmlText(r.label)}</text>`;
+      }).join("")}
+      <text class="chart-label" x="${padL}" y="14">Training time by session · ${htmlText(periodLabel)}</text>
+    </svg></div>
+    <div class="analytics-note"><strong>Interpretation:</strong> bars show minutes per actual training session; the line shows a 3-session rolling load. This is more useful than a single monthly total because it shows whether volume is consistent, front-loaded, or tapering.</div>
+  </div>`;
+}
+
 function renderCategoryChart(logs) {
   if (!logs.length) return `<div class="chart-wrap"><p class="muted">No data for chart.</p></div>`;
   const grouped = {};
@@ -3668,14 +3839,17 @@ function renderCategoryChart(logs) {
     grouped[k].time += Number(l.timeMinutes || 0);
   });
   const buckets = Object.values(grouped).sort((a,b)=>b.time-a.time);
-  const w=520,h=160,padL=90,padR=12,padT=12,padB=20;
+  const totalTime = buckets.reduce((sum,b)=>sum + Number(b.time || 0), 0) || 1;
+  const w=520,padL=112,padR=104,padT=14,padB=18,rowH=28;
+  const h=Math.max(160, padT + padB + buckets.length * rowH);
   const maxV = Math.max(...buckets.map(b=>b.time), 1);
-  const rowH = Math.max(22, Math.min(38, (h-padT-padB)/Math.max(1,buckets.length)));
-  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+  const barMaxW = w-padL-padR;
+  return `<div class="chart-wrap"><svg class="chart category-mix-chart" style="--chart-h:${h}px" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Training category mix">
     ${buckets.map((b,i) => {
       const y = padT + i*rowH;
-      const bw = (b.time / maxV) * (w-padL-padR);
-      return `<text class="chart-label" x="5" y="${y+15}">${escapeHtml(b.label.slice(0,16))}</text><rect class="chart-bar-alt" x="${padL}" y="${y}" width="${bw}" height="${rowH*0.65}"><title>${htmlText(b.label)}: ${b.time.toFixed(1)} min, ${b.count} exercises</title></rect><text class="chart-label" x="${padL+bw+5}" y="${y+15}">${b.time.toFixed(1)}m</text>`;
+      const pct = b.time / totalTime * 100;
+      const bw = Math.max(1, (b.time / maxV) * barMaxW);
+      return `<text class="chart-label" x="6" y="${y+16}">${escapeHtml(b.label.slice(0,18))}</text><rect class="chart-bar-alt" x="${padL}" y="${y+3}" width="${bw.toFixed(1)}" height="${Math.max(12,rowH*0.58).toFixed(1)}"><title>${htmlText(b.label)}: ${b.time.toFixed(1)} min, ${pct.toFixed(1)}%, ${b.count} exercise${b.count===1?"":"s"}</title></rect><text class="chart-label category-pct-label" text-anchor="end" x="${w-8}" y="${y+16}">${pct.toFixed(1)}% · ${b.time.toFixed(0)}m</text>`;
     }).join("")}
   </svg></div>`;
 }
@@ -4731,7 +4905,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.7");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.11");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5260,6 +5434,34 @@ function refreshCurrentRoutineLivePerformance() {
 }
 
 
+
+function setPracticeMainTab(tab){
+  const allowed = new Set(["regular", "smart", "pressure"]);
+  const clean = allowed.has(tab) ? tab : "regular";
+  document.querySelectorAll("[data-practice-panel]").forEach(panel => {
+    const active = panel.dataset.practicePanel === clean;
+    panel.classList.toggle("hidden", !active);
+    panel.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-action='practice-main-tab']").forEach(btn => {
+    const active = btn.dataset.practiceTab === clean;
+    btn.classList.toggle("active-subtab", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  try { localStorage.setItem("snookerPracticeMainTab", clean); } catch(e) {}
+  if (clean === "smart") {
+    try { renderSmartRecommendation(); renderPeriodization(); } catch(e) { logAppError(e, "setPracticeMainTab smart"); }
+  }
+  if (clean === "pressure") {
+    try { if (typeof renderPressureRoutineOptions === "function") renderPressureRoutineOptions(); } catch(e) { logAppError(e, "setPracticeMainTab pressure"); }
+  }
+}
+function restorePracticeMainTab(){
+  let saved = "regular";
+  try { saved = localStorage.getItem("snookerPracticeMainTab") || "regular"; } catch(e) {}
+  setPracticeMainTab(saved);
+}
+
 function setDataMainTab(tab){
   const allowed = new Set(["settings", "import-export", "developer"]);
   const clean = allowed.has(tab) ? tab : "settings";
@@ -5327,6 +5529,7 @@ function handleDelegatedUIAction(event) {
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
     case "open-data-tab": document.querySelector('[data-tab="data"]')?.click(); return setDataMainTab("developer");
     case "data-main-tab": return setDataMainTab(actionEl.dataset.dataTab || "settings");
+    case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
     case "apply-target-upgrade": return applyTargetUpgrade(id);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }
