@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.18";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.4";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.18";
+} from "./utils.js?v=4.22.4";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -26,7 +26,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.18";
+} from "./settings.js?v=4.22.4";
 import {
   avg,
   stdDev,
@@ -48,7 +48,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.18";
+} from "./analytics.js?v=4.22.4";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -57,7 +57,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.18";
+} from "./bayesian.js?v=4.22.4";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -66,7 +66,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.18";
+} from "./session.js?v=4.22.4";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -74,7 +74,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.18";
+} from "./pressure.js?v=4.22.4";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -86,19 +86,20 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.18";
-import * as RenderHelpers from "./render.js?v=4.21.18";
+} from "./recommendations.js?v=4.22.4";
+import * as RenderHelpers from "./render.js?v=4.22.4";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
   INDEXEDDB_MIGRATION_KEY,
+  openSnookerDB,
   idbGetAll,
   idbGetStores,
   idbDeleteDatabase,
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.18";
+} from "./store.js?v=4.22.4";
 
 
 
@@ -1462,6 +1463,19 @@ function updateTimerDisplay() {
   $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
   if (!timerStartMs && getElapsedMs() === 0) $("timerState").textContent = "timer stopped";
 }
+
+function renderLogRow(l) {
+  return `<tr data-log-row-id="${attrText(l.id)}">
+    <td>${new Date(l.createdAt || Date.now()).toLocaleDateString()}</td>
+    <td>${displayScore(l)}</td>
+    <td>${Number(l.normalizedScore || normalizeScore(l) || 0).toFixed(2)}</td>
+    <td>${escapeHtml(l.performance || "N/A")}</td>
+    <td>${escapeHtml(getTargetProfileLabel(l))}</td>
+    <td>${formatDurationHuman(l.timeMinutes)}</td>
+    <td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td>
+  </tr>`;
+}
+
 function displayScore(l) {
   const rawScore = effectiveLogScore(l);
   const score = numText(rawScore, "0");
@@ -4680,7 +4694,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.18");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.4");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
