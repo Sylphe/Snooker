@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.11";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.12";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.11";
+} from "./utils.js?v=4.22.12";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -30,7 +30,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.11";
+} from "./settings.js?v=4.22.12";
 import {
   avg,
   stdDev,
@@ -52,7 +52,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.11";
+} from "./analytics.js?v=4.22.12";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -61,7 +61,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.11";
+} from "./bayesian.js?v=4.22.12";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -70,7 +70,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.11";
+} from "./session.js?v=4.22.12";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -78,7 +78,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.11";
+} from "./pressure.js?v=4.22.12";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -90,8 +90,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.11";
-import * as RenderHelpers from "./render.js?v=4.22.11";
+} from "./recommendations.js?v=4.22.12";
+import * as RenderHelpers from "./render.js?v=4.22.12";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -103,7 +103,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.11";
+} from "./store.js?v=4.22.12";
 
 
 
@@ -4907,7 +4907,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.11");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.12");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5366,7 +5366,12 @@ function updateSessionFocusState(){
   const active = isActiveSessionVisible();
   if (!active) currentSessionFocusActive = null;
   if (active && currentSessionFocusActive == null) currentSessionFocusActive = getSessionFocusSetting() !== "off";
-  document.body?.classList.toggle("session-focus-active", !!(active && currentSessionFocusActive));
+  const focusActive = !!(active && currentSessionFocusActive);
+  document.body?.classList.toggle("session-focus-active", focusActive);
+  const activeCard = $("activeSession");
+  if (activeCard) {
+    activeCard.classList.toggle("focus-first-exercise", !!(focusActive && activeSession && Number(activeSession.index || 0) === 0));
+  }
   if (active && currentSessionFocusActive) setTimeout(resetSessionFocusScrollTop, 0);
   const btn = $("toggleFocusModeBtn");
   if (btn) {

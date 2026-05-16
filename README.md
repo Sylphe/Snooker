@@ -1,4 +1,4 @@
-# Snooker Practice PWA v4.22.11
+# Snooker Practice PWA v4.22.12
 
 Chart refinement release. Adds percentage labels to training-category bars, constrains compact chart rendering, and replaces monthly-only training time views with session-load charts and rolling load insight metrics.
 
