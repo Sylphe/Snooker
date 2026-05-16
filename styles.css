@@ -1799,3 +1799,25 @@ body.session-focus-active #activeSession .live-perf > div:first-child strong{fon
   body.session-focus-active #activeSession .live-perf span{font-size:6.8px!important;}
   body.session-focus-active #activeSession .live-perf strong{font-size:9px!important;}
 }
+
+/* v4.22.20 final focus control enlargement */
+body.session-focus-active #activeSession .row.focus-timer-action-row,
+body.session-focus-active #activeSession .focus-timer-action-row{
+  grid-template-columns:repeat(4,80px)!important;
+  gap:12px!important;
+}
+body.session-focus-active #activeSession .row.focus-timer-action-row > button,
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  width:80px!important;
+  height:72px!important;
+  min-width:80px!important;
+  max-width:80px!important;
+  min-height:72px!important;
+  max-height:72px!important;
+  font-size:13px!important;
+  border-radius:16px!important;
+}
