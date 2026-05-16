@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.15";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.16";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.15";
+} from "./utils.js?v=4.22.16";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -30,7 +30,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.15";
+} from "./settings.js?v=4.22.16";
 import {
   avg,
   stdDev,
@@ -52,7 +52,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.15";
+} from "./analytics.js?v=4.22.16";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -61,7 +61,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.15";
+} from "./bayesian.js?v=4.22.16";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -70,7 +70,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.15";
+} from "./session.js?v=4.22.16";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -78,7 +78,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.15";
+} from "./pressure.js?v=4.22.16";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -90,8 +90,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.15";
-import * as RenderHelpers from "./render.js?v=4.22.15";
+} from "./recommendations.js?v=4.22.16";
+import * as RenderHelpers from "./render.js?v=4.22.16";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -103,7 +103,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.15";
+} from "./store.js?v=4.22.16";
 
 
 
@@ -4907,7 +4907,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.15");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.16");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

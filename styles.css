@@ -1672,3 +1672,61 @@ body.session-focus-active #activeSession .live-perf > div:first-child strong{fon
   body.session-focus-active #activeSession .live-perf{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;}
   body.session-focus-active #activeSession .live-perf > div{min-height:42px!important;border-radius:9px!important;}
 }
+
+/* v4.22.16 focus-mode tile rebalance from v4.22.16 baseline
+   - Larger timer action tiles for touch use
+   - Smaller live target metric tiles to reduce vertical footprint */
+body.session-focus-active #activeSession .focus-timer-action-row,
+body.session-focus-active #activeSession .row.focus-timer-action-row{
+  grid-template-columns:repeat(4,52px)!important;
+  gap:9px!important;
+  margin:5px 0 6px!important;
+}
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  width:52px!important;
+  height:52px!important;
+  min-width:52px!important;
+  max-width:52px!important;
+  min-height:52px!important;
+  max-height:52px!important;
+  border-radius:13px!important;
+  font-size:10.5px!important;
+  line-height:1.05!important;
+}
+body.session-focus-active #activeSession #livePerformanceCard{margin:3px 0 4px!important;}
+body.session-focus-active #activeSession .live-perf{
+  gap:4px!important;
+}
+body.session-focus-active #activeSession .live-perf > div,
+body.session-focus-active #activeSession .live-perf > div:first-child{
+  min-height:36px!important;
+  aspect-ratio:auto!important;
+  gap:1px!important;
+  padding:3px 3px!important;
+  border-radius:9px!important;
+}
+body.session-focus-active #activeSession .live-perf span{
+  font-size:7.8px!important;
+  line-height:1!important;
+}
+body.session-focus-active #activeSession .live-perf strong{
+  font-size:10.5px!important;
+  line-height:1!important;
+}
+body.session-focus-active #activeSession .live-perf > div:first-child strong{font-size:10px!important;}
+@media(max-width:360px){
+  body.session-focus-active #activeSession .focus-timer-action-row,
+  body.session-focus-active #activeSession .row.focus-timer-action-row{grid-template-columns:repeat(4,46px)!important;gap:7px!important;}
+  body.session-focus-active #activeSession .focus-timer-action-row > button,
+  body.session-focus-active #activeSession #timerStartBtn,
+  body.session-focus-active #activeSession #timerPauseBtn,
+  body.session-focus-active #activeSession #timerResetBtn,
+  body.session-focus-active #activeSession #toggleFocusModeBtn{width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;min-height:46px!important;max-height:46px!important;font-size:9.5px!important;}
+  body.session-focus-active #activeSession .live-perf > div{min-height:34px!important;border-radius:8px!important;}
+  body.session-focus-active #activeSession .live-perf span{font-size:7.4px!important;}
+  body.session-focus-active #activeSession .live-perf strong{font-size:10px!important;}
+}
