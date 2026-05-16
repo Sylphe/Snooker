@@ -1,6 +1,9 @@
-# Snooker Practice PWA v4.22.2 — Stats Overview navigation fix
+# Snooker Practice PWA v4.22.3 — Stats render recovery fix
 
-- Fixed Stats Overview internal tab/button reliability using delegated navigation binding.
-- Preserved v4.22.1 stabilization fixes and v4.22.0 KPI/PB/adaptive updates.
-- Normalized cache/version markers to v4.22.2.
-- JavaScript syntax checks passed.
+This release fixes a runtime regression in the Stats Overview renderer that could leave the Stats tab blank after switching internal stats tabs or refreshing.
+
+## Fixes
+- Fixed Overview rendering crash caused by drill-scope logic referencing an undefined `rid` inside the coaching engine.
+- Added defensive Stats render recovery so a broken stored Stats state cannot blank the page.
+- Re-applies active Stats tab visuals after rendering.
+- Normalized version/cache markers to v4.22.3.

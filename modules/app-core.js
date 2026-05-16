@@ -2746,40 +2746,53 @@ function toggleStatsStandalonePanels() {
 }
 
 function renderStats() {
-  const scope = getStatsScope();
-  const { period, rid, range } = scope;
-  const rollingWindow = Math.max(2, Number($("rollingWindowInput").value || 5));
-  const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
+  const output = $("statsOutput");
+  if (!output) return;
+  statsMode = normalizeStatsMode(statsMode);
+  try {
+    const scope = getStatsScope();
+    const { period, rid, range } = scope;
+    const rollingWindow = Math.max(2, Number($("rollingWindowInput")?.value || 5));
+    const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput")?.value || 10));
 
-  let scopedLogs = getScopedStatsLogs();
-  if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
-  renderTableStats(scopedLogs);
+    let scopedLogs = getScopedStatsLogs();
+    if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
+    renderTableStats(scopedLogs);
 
-  let html = renderStatsScopeBanner(scope, scopedLogs);
-  if (statsMode === "overview") {
-    html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
-  } else if (statsMode === "trends") {
-    html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "routines") {
-    html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "pressure") {
-    html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "insights") {
-    html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "bayesian") {
-    html += renderStatsBayesianSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "ab") {
-    html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "counterfactual") {
-    html += renderStatsCounterfactualSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else if (statsMode === "tournament") {
-    html += renderStatsTournamentSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-  } else {
-    html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    let html = renderStatsScopeBanner(scope, scopedLogs);
+    if (statsMode === "overview") {
+      html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    } else if (statsMode === "trends") {
+      html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "routines") {
+      html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "pressure") {
+      html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "insights") {
+      html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "bayesian") {
+      html += renderStatsBayesianSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "ab") {
+      html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "counterfactual") {
+      html += renderStatsCounterfactualSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "tournament") {
+      html += renderStatsTournamentSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else {
+      statsMode = "overview";
+      html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    }
+    output.innerHTML = html;
+    toggleStatsStandalonePanels();
+    try { renderBayesianAnalyticsValidation?.(); } catch(e) { logAppError(e, "renderStats bayesian side panels"); }
+    applyStoredStatsModeVisual();
+  } catch (err) {
+    logAppError(err, "renderStats hard failure");
+    statsMode = "overview";
+    try { localStorage.setItem(STATS_MODE_KEY, statsMode); } catch(e) {}
+    output.innerHTML = `<h3>Stats temporarily unavailable</h3><div class="analytics-note"><strong>Rendering issue recovered.</strong> The app reset the internal Stats section to Overview. Switch tabs again or refresh once if this message remains.</div>`;
+    applyStoredStatsModeVisual();
   }
-  $("statsOutput").innerHTML = html;
-  toggleStatsStandalonePanels();
-  renderBayesianAnalyticsValidation?.();
 }
 
 function kpiTitle(label, helpKey) {
@@ -2893,7 +2906,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
       <div class="overview-mini-card"><strong>Most improved</strong><span>${improved ? `${escapeHtml(improved.name)} · ${improved.metric}` : "More history needed"}</span></div>
     </div>`;
 
-  html += renderCoachingEngine(logs);
+  html += renderCoachingEngine(logs, rid);
   html += renderPerformanceStability(logs);
   html += renderFatigueSlope(logs);
   html += renderDifficultyLadder(logs);
@@ -3010,7 +3023,7 @@ function fatigueCurve(logs) {
   return {first,last,deltaPct};
 }
 
-function renderCoachingEngine(logs) {
+function renderCoachingEngine(logs, rid=null) {
   if (!logs.length) return "";
   const vals = logs.map(l=>Number(l.normalizedScore||0));
   const hit = targetHitRate(logs);
