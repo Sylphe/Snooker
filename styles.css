@@ -1217,3 +1217,7 @@ body[data-density="compact"] td{padding:6px 7px;}
   .tournament-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
   .tournament-plan-summary > div{padding:8px;}
 }
+
+/* v4.21.18 audit polish */
+.app-toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,24px);z-index:9999;max-width:calc(100vw - 24px);padding:10px 14px;border-radius:14px;background:var(--panel-bg);color:var(--text);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-size:13px;font-weight:650;text-align:center}.app-toast.show{opacity:1;transform:translate(-50%,0)}.app-toast.ok{border-color:rgba(43,138,87,.45)}.app-toast.warn{border-color:rgba(199,137,14,.45)}.compact-action-row{margin-top:8px}.hidden{display:none!important}
+@media(max-width:360px){.live-perf{grid-template-columns:1fr!important}.live-perf>div{border-right:0!important;border-bottom:1px solid var(--line);padding-right:0}.live-perf>div:last-child{border-bottom:0}.overview-kpi-dashboard,.exercise-focus-grid{grid-template-columns:1fr!important}.stats-subnav{gap:4px}.stats-subnav button{font-size:11px;padding:7px 8px}}

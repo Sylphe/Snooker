@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.16";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.18";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.16";
+} from "./utils.js?v=4.21.18";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -26,7 +26,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.16";
+} from "./settings.js?v=4.21.18";
 import {
   avg,
   stdDev,
@@ -35,7 +35,11 @@ import {
   rollingAverage,
   movingTrend,
   benchmarkText,
-  progressVelocity
+  progressVelocity,
+  performanceDrift,
+  plateauDetector,
+  overtrainingSignal,
+  fatigueSlope
   ,
   detectPlateauState,
   plateauActionRecommendation
@@ -44,7 +48,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.16";
+} from "./analytics.js?v=4.21.18";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -53,7 +57,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.16";
+} from "./bayesian.js?v=4.21.18";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -62,7 +66,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.16";
+} from "./session.js?v=4.21.18";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -70,7 +74,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.16";
+} from "./pressure.js?v=4.21.18";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -82,8 +86,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.16";
-import * as RenderHelpers from "./render.js?v=4.21.16";
+} from "./recommendations.js?v=4.21.18";
+import * as RenderHelpers from "./render.js?v=4.21.18";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -94,7 +98,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.16";
+} from "./store.js?v=4.21.18";
 
 
 
@@ -107,6 +111,9 @@ let indexedDBReady = false;
 let indexedDBUnavailable = false;
 let indexedDBSyncTimer = null;
 let indexedDBHydrating = true;
+let pendingPreHydrationLogs = [];
+let pendingPreHydrationSessions = [];
+let pendingPostHydrationSaveOptions = null;
 
 
 function serializeCoreData(d) {
@@ -140,13 +147,35 @@ function saveCoreData(context="saveCoreData") {
   }
 }
 
+function queuePreHydrationState(options = {}) {
+  pendingPreHydrationLogs = mergeById(data.logs || [], pendingPreHydrationLogs);
+  pendingPreHydrationSessions = mergeById(data.sessions || [], pendingPreHydrationSessions);
+  pendingPostHydrationSaveOptions = {...(pendingPostHydrationSaveOptions || {}), ...(options || {})};
+}
+
+function flushPostHydrationSaveQueue() {
+  if (!pendingPostHydrationSaveOptions && !pendingPreHydrationLogs.length && !pendingPreHydrationSessions.length) return;
+  const opts = pendingPostHydrationSaveOptions || {render:"none", immediateIDB:true};
+  pendingPostHydrationSaveOptions = null;
+  pendingPreHydrationLogs = [];
+  pendingPreHydrationSessions = [];
+  saveData({...opts, immediateIDB:true});
+}
 
 function persistLogDelta(log, context="persistLogDelta") {
   if (indexedDBUnavailable || !log || !log.id) return Promise.resolve(false);
+  if (!indexedDBReady) {
+    pendingPreHydrationLogs = mergeById([log], pendingPreHydrationLogs);
+    return Promise.resolve(true);
+  }
   return idbPut(INDEXEDDB_LOG_STORE, log).catch(e => { logAppError(e, context); return false; });
 }
 function persistSessionDelta(session, context="persistSessionDelta") {
   if (indexedDBUnavailable || !session || !session.id) return Promise.resolve(false);
+  if (!indexedDBReady) {
+    pendingPreHydrationSessions = mergeById([session], pendingPreHydrationSessions);
+    return Promise.resolve(true);
+  }
   return idbPut(INDEXEDDB_SESSION_STORE, session).catch(e => { logAppError(e, context); return false; });
 }
 function deleteLogDelta(id, context="deleteLogDelta") {
@@ -205,8 +234,8 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
     const idbStores = await idbGetStores([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE]);
     const idbLogs = idbStores[INDEXEDDB_LOG_STORE] || [];
     const idbSessions = idbStores[INDEXEDDB_SESSION_STORE] || [];
-    const logs = mergeById(idbLogs, localLogs).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
-    const sessions = mergeById(idbSessions, localSessions).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
+    const logs = mergeById(mergeById(idbLogs, localLogs), pendingPreHydrationLogs).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+    const sessions = mergeById(mergeById(idbSessions, localSessions), pendingPreHydrationSessions).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
     data.logs = logs;
     data.sessions = sessions;
     indexedDBReady = true;
@@ -216,6 +245,7 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
       localStorage.setItem(INDEXEDDB_MIGRATION_KEY, new Date().toISOString());
     }
     saveCoreData("hydrateIndexedDBData core save");
+    flushPostHydrationSaveQueue();
     return true;
   } catch(e) {
     logAppError(e, retryAfterReset ? "hydrateIndexedDBData retry failed" : "hydrateIndexedDBData");
@@ -448,12 +478,13 @@ function loadData() {
 }
 
 function saveData(options = {}) {
-  if (!indexedDBReady && !indexedDBUnavailable) {
-    console.warn("saveData blocked until IndexedDB hydration completes.");
-    logAppError?.(new Error("saveData blocked before IndexedDB hydration completed"), "saveData hydration guard");
-    return false;
-  }
   const opts = typeof options === "string" ? {render: options} : (options || {});
+  if (!indexedDBReady && !indexedDBUnavailable) {
+    console.warn("saveData queued until IndexedDB hydration completes.");
+    queuePreHydrationState(opts);
+    renderAfterSave(opts.render || "all");
+    return true;
+  }
   data.updatedAt = new Date().toISOString();
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings.themeMode = getThemeModeSetting();
@@ -1039,7 +1070,8 @@ $("repeatLastExerciseBtn").addEventListener("click", () => {
   if (!last) return alert("No previous exercise to repeat yet.");
   const routine = routineById(last.routineId);
   if (!routine) return alert("The last exercise template no longer exists.");
-  activeSession = { id: uuid(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  activeSession = { id: uuid(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [], tableId: last.tableId || "", venueTable: last.venueTable || last.venueTableSnapshot || "", tableNote: last.tableNote || "" };
+  rememberVenueTable(last.venueTable || last.venueTableSnapshot || "", last.tableNote || "");
   startRoutineScreen();
 });
 
@@ -1724,7 +1756,8 @@ function formatDurationHuman(minutes) {
 const EXPORT_FOLDER_DB = "snookerPracticePWA.exportFolderDB";
 const EXPORT_FOLDER_STORE = "handles";
 const EXPORT_FOLDER_KEY = "exportFolder";
-function supportsExportFolderPicker(){ return "showDirectoryPicker" in window && "indexedDB" in window; }
+function isIOSSafariLike(){ return /iPad|iPhone|iPod/.test(navigator.userAgent || "") || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+function supportsExportFolderPicker(){ return !isIOSSafariLike() && "showDirectoryPicker" in window && "indexedDB" in window; }
 function openExportFolderDB(){ return new Promise((resolve,reject)=>{ const req=indexedDB.open(EXPORT_FOLDER_DB,1); req.onupgradeneeded=()=>req.result.createObjectStore(EXPORT_FOLDER_STORE); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error); }); }
 async function saveExportFolderHandle(handle){ const db=await openExportFolderDB(); return new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).put(handle,EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }
 async function getExportFolderHandle(){ if(!supportsExportFolderPicker()) return null; try{ const db=await openExportFolderDB(); return await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readonly"); const req=tx.objectStore(EXPORT_FOLDER_STORE).get(EXPORT_FOLDER_KEY); req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error); }); }catch(e){ logAppError(e,"getExportFolderHandle"); return null; } }
@@ -1732,7 +1765,7 @@ async function clearExportFolderHandle(){ if(!("indexedDB" in window)) return; t
 async function ensureExportFolderPermission(handle){ if(!handle) return false; try{ const opts={mode:"readwrite"}; if((await handle.queryPermission(opts))==="granted") return true; return (await handle.requestPermission(opts))==="granted"; }catch(e){ logAppError(e,"ensureExportFolderPermission"); return false; } }
 async function chooseExportFolder(){ if(!supportsExportFolderPicker()){ alert("Folder selection is not supported in this browser. Exports will continue using normal downloads."); renderExportFolderStatus(); return; } try{ const handle=await window.showDirectoryPicker({mode:"readwrite"}); await saveExportFolderHandle(handle); localStorage.setItem("snookerPracticePWA.exportFolderName", handle.name || "Selected folder"); renderExportFolderStatus(); }catch(e){ if(e&&e.name!=="AbortError") logAppError(e,"chooseExportFolder"); } }
 async function clearExportFolder(){ await clearExportFolderHandle(); localStorage.removeItem("snookerPracticePWA.exportFolderName"); renderExportFolderStatus(); }
-async function renderExportFolderStatus(){ const el=$("exportFolderStatus"); if(!el) return; if(!supportsExportFolderPicker()){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Folder export is not supported by this browser. Files will use normal Downloads."; return; } const handle=await getExportFolderHandle(); if(!handle){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Export folder not selected. Files will use normal Downloads."; return; } const name=localStorage.getItem("snookerPracticePWA.exportFolderName") || handle.name || "Selected folder"; el.className="analytics-note export-folder-ok"; el.innerHTML=`Selected export folder: <strong>${escapeHtml(name)}</strong>.`; }
+async function renderExportFolderStatus(){ const el=$("exportFolderStatus"); if(!el) return; const chooseBtn=$("chooseExportFolderBtn"); const clearBtn=$("clearExportFolderBtn"); if(!supportsExportFolderPicker()){ if(chooseBtn) chooseBtn.classList.add("hidden"); if(clearBtn) clearBtn.classList.add("hidden"); el.className="analytics-note export-folder-fallback"; el.innerHTML=isIOSSafariLike()?"iOS Safari uses normal Downloads for exports; folder selection is hidden because the browser does not support it.":"Folder export is not supported by this browser. Files will use normal Downloads."; return; } if(chooseBtn) chooseBtn.classList.remove("hidden"); if(clearBtn) clearBtn.classList.remove("hidden"); const handle=await getExportFolderHandle(); if(!handle){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Export folder not selected. Files will use normal Downloads."; return; } const name=localStorage.getItem("snookerPracticePWA.exportFolderName") || handle.name || "Selected folder"; el.className="analytics-note export-folder-ok"; el.innerHTML=`Selected export folder: <strong>${escapeHtml(name)}</strong>.`; }
 async function saveTextFileToExportFolder(filename,text,mimeType="application/octet-stream"){ const handle=await getExportFolderHandle(); if(!handle) return false; const ok=await ensureExportFolderPermission(handle); if(!ok) return false; try{ const fileHandle=await handle.getFileHandle(filename,{create:true}); const writable=await fileHandle.createWritable(); await writable.write(new Blob([text],{type:mimeType})); await writable.close(); return true; }catch(e){ logAppError(e,"saveTextFileToExportFolder"); return false; } }
 async function exportFile(filename,text,mimeType="application/octet-stream"){ const saved=await saveTextFileToExportFolder(filename,text,mimeType); if(!saved) downloadFile(filename,text,mimeType); }
 
@@ -1969,8 +2002,12 @@ function adaptivePriorityScore(state, goal="auto") {
   return scoreAdaptivePriority(state, goal, undertrained);
 }
 
-function adaptiveSessionStructure(goal, duration, strictness) {
+function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
+  const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
+  const compDateRaw = periodization.competitionDate || $("competitionDate")?.value || "";
+  const compDate = compDateRaw ? new Date(compDateRaw) : null;
+  const daysToCompetition = compDate && !Number.isNaN(compDate.getTime()) ? Math.ceil((compDate.getTime() - Date.now()) / 86400000) : null;
   const states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
   const ranked = states.map(s => ({...s, adaptiveScore: adaptivePriorityScore(s, goal)})).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
@@ -1983,7 +2020,13 @@ function adaptiveSessionStructure(goal, duration, strictness) {
   let effectiveGoal = goal;
   const globalReasons = [];
 
-  if (goal === "auto") {
+  if (daysToCompetition !== null && daysToCompetition <= 7 && goal === "auto") {
+    effectiveGoal = "recovery";
+    globalReasons.push(`competition in ${daysToCompetition} day${daysToCompetition === 1 ? "" : "s"}; taper volume and protect confidence`);
+  } else if (daysToCompetition !== null && daysToCompetition <= 21 && goal === "auto") {
+    effectiveGoal = "stability";
+    globalReasons.push(`competition in ${daysToCompetition} days; prioritize stable match-relevant routines`);
+  } else if (goal === "auto") {
     if (fatigueAll && fatigueAll.slope < -0.25) {
       effectiveGoal = "recovery";
       globalReasons.push("global fatigue slope is negative");
@@ -2040,6 +2083,13 @@ function adaptiveSessionStructure(goal, duration, strictness) {
     blocks.push({name:"Main adaptive block", minutes:Math.round(targetMinutes*0.60), purpose:"Highest current adaptive priorities", picks:take(s => true, 4)});
   }
 
+  if (daysToCompetition !== null && daysToCompetition <= 21) {
+    const pressurePicks = take(s => s.routine.category === "mental" || s.routine.category === "safety" || s.phase === "maintain" || s.phase === "stabilize", 2);
+    if (pressurePicks.length) {
+      blocks.push({name:"Competition pressure block", minutes:Math.max(10, Math.round(targetMinutes * (daysToCompetition <= 7 ? 0.20 : 0.25))), purpose:"Tapered match realism based on the competition date", picks:pressurePicks});
+    }
+  }
+
   const remaining = take(s => true, 3);
   if (remaining.length) {
     blocks.push({name:"Completion block", minutes:Math.max(10, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with next best priorities", picks:remaining});
@@ -2047,7 +2097,7 @@ function adaptiveSessionStructure(goal, duration, strictness) {
 
   blocks = blocks.filter(b => b.picks && b.picks.length);
   const routineIds = blocks.flatMap(b => b.picks.map(p => p.routine.id));
-  return {effectiveGoal, targetMinutes, globalReasons, blocks, routineIds, ranked};
+  return {effectiveGoal, targetMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked};
 }
 
 function renderAdaptiveSession() {
@@ -2057,7 +2107,7 @@ function renderAdaptiveSession() {
   const baseDuration = Number($("adaptiveDuration")?.value || "60");
   const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
   const strictness = $("adaptiveStrictness")?.value || "normal";
-  const plan = adaptiveSessionStructure(goal, duration, strictness);
+  const plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
   adaptivePlanDraft = [...plan.routineIds];
 
   const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
@@ -2098,11 +2148,42 @@ function clearPersistedActiveSession() {
   return clearActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
 }
 
+function showTransientNotice(message, tone="info") {
+  let el = $("appToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "appToast";
+    el.className = "app-toast";
+    document.body.appendChild(el);
+  }
+  el.className = `app-toast ${tone === "ok" ? "ok" : tone === "warn" ? "warn" : ""}`;
+  el.textContent = message;
+  el.classList.add("show");
+  window.clearTimeout(showTransientNotice._timer);
+  showTransientNotice._timer = window.setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+function createDefaultQuickStartPlan() {
+  const pool = activeRoutines().slice(0, 4);
+  if (!pool.length) return alert("Create at least one exercise before creating a quick-start plan.");
+  const existing = data.plans.find(p => p.name === "Quick start — default plan");
+  const routineIds = pool.map(r => r.id);
+  if (existing) {
+    existing.routineIds = routineIds;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    data.plans.push({id: uuid(), name: "Quick start — default plan", routineIds, createdAt: new Date().toISOString()});
+  }
+  saveData();
+  renderPlanList();
+  showTransientNotice("Quick-start plan created from the first available exercises.", "ok");
+}
+
 function renderSmartRecommendation() {
   const box = $("smartRecommendationBox");
   if (!box) return;
   if (!data.logs.length) {
-    box.innerHTML = "Start logging exercises. Recommendation will use target hit rate, recent trend, and training allocation.";
+    box.innerHTML = `<strong>Start logging exercises.</strong><br>Recommendation will use target hit rate, recent trend, and training allocation once you have history.<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
     return;
   }
   const byRoutine = {};
@@ -2428,6 +2509,10 @@ function getScopedStatsLogs() {
   if (scope.rid) logs = logs.filter(l => String(l.routineId) === String(scope.rid));
   return logs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
+function getTournamentPlannerLogs(scope = getStatsScope()) {
+  const base = (scope.period === "overall" || scope.period === "exercise") ? (data.logs || []).slice() : logsInRange(data.logs || [], scope.range.start, scope.range.end);
+  return base.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+}
 function renderStatsScopeBanner(scope, logs) {
   const filterLabel = scope.rid ? htmlText(scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : htmlText(scope.range.label);
@@ -2502,6 +2587,7 @@ function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow
       ${statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, "", rollingWindow), false)}
       ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
       ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+      ${statsModule("Planned vs completed", "Whether planned drills are actually completed", plannedVsCompletedSummary() || `<div class="analytics-note">No planned-session completion data yet.</div>`, false)}
     </div>`;
 }
 
@@ -2568,9 +2654,11 @@ function renderStatsCounterfactualSection(logs, { range }) {
   return `<h3>Counterfactual engine — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
 }
 
-function renderStatsTournamentSection(logs, { range }) {
+function renderStatsTournamentSection(logs, { range, rid }) {
+  const filterWarning = rid ? `<div class="analytics-note"><strong>Exercise filter ignored for tournament readiness.</strong> Tournament preparation uses all logged exercises in the selected date period so potting, safety, pressure, break-building, and balance signals are assessed together.</div>` : "";
   return `<h3>Tournament preparation — ${escapeHtml(range.label)} ${statHelpButton("tournamentPrep")}</h3>
-    <p class="muted">Dedicated preparation planner. Uses the active stats scope, so the exercise/date filter above directly changes the readiness assessment.</p>
+    <p class="muted">Dedicated preparation planner. It uses all exercises in the selected period and deliberately bypasses the single-exercise routine filter.</p>
+    ${filterWarning}
     ${tournamentPrepPlannerHtml(logs)}`;
 }
 
@@ -2596,6 +2684,7 @@ function renderStats() {
   const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput").value || 10));
 
   let scopedLogs = getScopedStatsLogs();
+  if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
   renderTableStats(scopedLogs);
 
   let html = renderStatsScopeBanner(scope, scopedLogs);
@@ -2689,6 +2778,14 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
 
+  if (rid) {
+    let html = renderSelectedExerciseDashboard(logs, rid, rollingWindow);
+    html += `<h3>Drill charts — ${escapeHtml(range.label)}</h3>${renderCategoryChart(logs)}${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
+    const exerciseLogs = logs.filter(l => l.routineId === rid).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    if (exerciseLogs.length) html += renderExerciseProgression(exerciseLogs, rollingWindow, Number($("benchmarkWindowInput").value || 10));
+    return html;
+  }
+
   const totalTime = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
   const vals = logs.map(l=>Number(l.normalizedScore||0));
   const avgScore = avg(vals);
@@ -2705,8 +2802,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   const weakestRoutine = routinePerformanceLeader(logs, "weakest");
   const improved = mostImprovedRoutine(logs);
 
-  let html = rid ? renderSelectedExerciseDashboard(logs, rid, rollingWindow) : "";
-  html += `<h3>Overview — ${escapeHtml(range.label)}</h3>
+  let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
     <div class="overview-kpi-dashboard">
       <div class="overview-kpi primary"><span>Average score</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
       <div class="overview-kpi primary"><span>Target hit rate ${statHelpButton("targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
@@ -2725,7 +2821,6 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
       <div class="overview-mini-card"><strong>Most improved</strong><span>${improved ? `${escapeHtml(improved.name)} · ${improved.metric}` : "More history needed"}</span></div>
     </div>`;
 
-  renderTableStats(logs);
   html += renderCoachingEngine(logs);
   html += renderPerformanceStability(logs);
   html += renderFatigueSlope(logs);
@@ -2740,12 +2835,6 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   }
 
   html += `<h3>Compact charts</h3>${renderCategoryChart(logs)}${renderVolumeChart(bucketLogs(logs, period === "overall" ? "monthly" : period), "time", "Training time")}`;
-
-  if (rid) {
-    const exerciseLogs = logs.filter(l => l.routineId === rid).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-    if (exerciseLogs.length) html += renderExerciseProgression(exerciseLogs, rollingWindow, Number($("benchmarkWindowInput").value || 10));
-  }
-
   return html;
 }
 
@@ -2854,7 +2943,7 @@ function renderCoachingEngine(logs) {
   const vals = logs.map(l=>Number(l.normalizedScore||0));
   const hit = targetHitRate(logs);
   const gap = skillGapIndex(logs);
-  const weak = weaknessConcentration(logs)[0];
+  const weak = rid ? null : weaknessConcentration(logs)[0];
   const fatigue = fatigueCurve(logs);
   const insights = [];
 
@@ -2910,16 +2999,6 @@ function renderCoachingEngine(logs) {
   return `<div class="coaching-box"><h3>Coaching insights</h3>${insights.slice(0,4).map(i=>`<div class="insight"><strong>${escapeHtml(i.title)}</strong>${escapeHtml(i.text)}</div>`).join("")}</div>`;
 }
 
-
-function performanceDrift(logs, windowSize=10) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  if (vals.length < windowSize * 2) return null;
-  const recent = avg(vals.slice(-windowSize));
-  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
-  if (!prior) return null;
-  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
-  return {recent, prior, deltaPct};
-}
 
 function sessionQualityImpact(logs) {
   const high = logs.filter(l=>Number(l.sessionRating||0) >= 4).map(l=>Number(l.normalizedScore||0));
@@ -2995,31 +3074,6 @@ function exerciseTransferEffect(allLogs, targetRid) {
   return results[0] || null;
 }
 
-function plateauDetector(logs, windowSize=8, thresholdPct=3) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  if (vals.length < windowSize*2) return null;
-  const recent = avg(vals.slice(-windowSize));
-  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
-  if (!prior) return null;
-  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
-  return {isPlateau: Math.abs(deltaPct) < thresholdPct, deltaPct, recent, prior};
-}
-
-function overtrainingSignal(logs, windowSize=8) {
-  if (logs.length < windowSize*2) return null;
-  const recent = logs.slice(-windowSize);
-  const prior = logs.slice(-(windowSize*2), -windowSize);
-  const recentTime = recent.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
-  const priorTime = prior.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
-  const recentPerf = avg(recent.map(l=>Number(l.normalizedScore||0)));
-  const priorPerf = avg(prior.map(l=>Number(l.normalizedScore||0)));
-  if (!priorTime || !priorPerf) return null;
-  const volumeDelta = ((recentTime-priorTime)/Math.abs(priorTime))*100;
-  const perfDelta = ((recentPerf-priorPerf)/Math.abs(priorPerf))*100;
-  return {volumeDelta, perfDelta, signal: volumeDelta > 20 && perfDelta < 3 ? "Risk" : "Normal"};
-}
-
-
 function performanceStabilityIndex(logs, windowSize=10) {
   const vals = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
   if (vals.length < 3) return null;
@@ -3046,24 +3100,6 @@ function renderPerformanceStability(logs) {
     <strong>Performance Stability Index ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
     <span class="muted">CV ${(psi.cv*100).toFixed(1)}% · hit-rate volatility ${(psi.hitVol*100).toFixed(1)}% · ${psi.n} recent logs.</span>
   </div>`;
-}
-
-function fatigueSlope(logs) {
-  if (!logs.length) return null;
-  let cumulative = 0;
-  const xs = [], ys = [];
-  logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(l => {
-    cumulative += Number(l.timeMinutes || 0);
-    xs.push(cumulative);
-    ys.push(Number(l.normalizedScore || 0));
-  });
-  if (xs.length < 3) return null;
-  const mx = avg(xs), my = avg(ys);
-  const num = xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0);
-  const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
-  const slope = den ? num/den : 0;
-  const corr = correlation(xs, ys);
-  return {slope, corr, n: xs.length};
 }
 
 function renderFatigueSlope(logs) {
@@ -3553,15 +3589,37 @@ $("exportDebugBtn").addEventListener("click", exportDebugInfo);
 $("exportRawStorageBtn").addEventListener("click", exportRawLocalData);
 $("refreshStorageDashboardBtn")?.addEventListener("click", renderStorageDashboard);
 $("preMigrationBackupBtn")?.addEventListener("click", async () => exportFullBackup("pre-indexeddb-migration"));
+function validateBackupShape(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return {ok:false, message:"Backup is not a JSON object."};
+  const requiredArrays = ["routines", "plans", "logs", "sessions"];
+  const missing = requiredArrays.filter(k => !Array.isArray(candidate[k]));
+  if (missing.length) return {ok:false, message:`Backup is missing required array(s): ${missing.join(", ")}.`};
+  const badRoutine = candidate.routines.find(r => !r || typeof r !== "object" || !r.id || !r.name);
+  if (badRoutine) return {ok:false, message:"At least one routine is missing an id or name."};
+  const badLog = candidate.logs.find(l => !l || typeof l !== "object" || !l.id || !l.createdAt);
+  if (badLog) return {ok:false, message:"At least one log is missing an id or createdAt timestamp."};
+  return {ok:true};
+}
 $("importJsonInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const imported = migrateData(JSON.parse(await file.text()));
-  if (!imported.routines || !imported.plans || !imported.logs) return alert("Invalid backup file.");
-  data = imported;
-  await persistIndexedDBCollections("backup import indexedDB replace");
-  saveData({idbSync:"skip"});
-  alert("Backup imported.");
+  try {
+    const raw = JSON.parse(await file.text());
+    const precheck = validateBackupShape(raw);
+    if (!precheck.ok) return alert(`Invalid backup file. ${precheck.message}`);
+    const imported = migrateData(raw);
+    const postcheck = validateBackupShape(imported);
+    if (!postcheck.ok) return alert(`Invalid backup after migration. ${postcheck.message}`);
+    data = imported;
+    await persistIndexedDBCollections("backup import indexedDB replace");
+    saveData({idbSync:"skip"});
+    alert("Backup imported.");
+  } catch (err) {
+    logAppError(err, "importJsonInput validation/import");
+    alert("Import failed. The selected file is not a valid Snooker Practice JSON backup.");
+  } finally {
+    e.target.value = "";
+  }
 });
 $("clearDataBtn").addEventListener("click", async () => {
   if (!confirm("Clear all data? This cannot be undone unless you have exported a backup.")) return;
@@ -4524,7 +4582,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.16");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.18");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5074,6 +5132,7 @@ function handleDelegatedUIAction(event) {
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
     case "open-data-tab": return document.querySelector('[data-tab="data"]')?.click();
     case "apply-target-upgrade": return applyTargetUpgrade(id);
+    case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }
 }
 
@@ -5447,7 +5506,7 @@ function tournamentPrepPlannerHtml(logs = []) {
 function renderTournamentPrepPlanner() {
   const host = $("bayesianValidationOutput");
   if (!host) return;
-  host.innerHTML += tournamentPrepPlannerHtml(getScopedStatsLogs ? getScopedStatsLogs() : (data.logs || []));
+  host.innerHTML += tournamentPrepPlannerHtml(getTournamentPlannerLogs ? getTournamentPlannerLogs() : (data.logs || []));
 }
 
 function renderAllocationOptimization() {
@@ -5651,6 +5710,7 @@ function undoPressure() {
   if (!pressureSession) return;
   pressureSession = undoPressureEvent(pressureSession);
   updatePressurePanel();
+  showTransientNotice("Last pressure input undone.", "ok");
 }
 
 async function finishPressureSession() {
@@ -5663,9 +5723,10 @@ async function finishPressureSession() {
   if (!attempts) return alert("No pressure attempts recorded.");
 
   const now = new Date().toISOString();
+  const pressureSessionId = `pressure-${Date.now()}`;
   const log = {
     id:uuid(),
-    sessionId:`pressure-${Date.now()}`,
+    sessionId:pressureSessionId,
     sessionName:"Pressure simulation",
     sessionType:"pressure",
     planId:"",
@@ -5682,6 +5743,7 @@ async function finishPressureSession() {
     attempts,
     timeMinutes:Number(routine.duration || 0) || 0,
     normalizedScore:attempts ? pressureSession.makes / attempts * 100 : 0,
+    pressureAdjustedScore:attempts ? Math.min(100, (pressureSession.makes / attempts * 100) * 1.2) : 0,
     bestAttempt:"",
     completionCount:"",
     highestBreak:"",
@@ -5735,8 +5797,24 @@ async function finishPressureSession() {
   };
 
   log.performance = classifyPerformance(log, routine);
+  const syntheticSession = {
+    id: pressureSessionId,
+    type: "pressure",
+    planName: "Pressure simulation",
+    sessionName: "Pressure simulation",
+    routineIds: [routine.id],
+    completedLogs: [log.id],
+    startedAt: pressureSession.startedAt || now,
+    endedAt: now,
+    tableId: log.tableId || "",
+    venueTable: log.venueTable || "",
+    tableNote: log.tableNote || "",
+    pressureMode: pressureSession.mode
+  };
   data.logs.push(log);
+  data.sessions.push(syntheticSession);
   await persistLogDelta(log, "finishPressureSession log put");
+  await persistSessionDelta(syntheticSession, "finishPressureSession synthetic session put");
   saveData({render:"sessionLog", idbSync:"skip"});
 
   pressureSession = null;

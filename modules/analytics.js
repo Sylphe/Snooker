@@ -319,3 +319,58 @@ export function predictorRecommendationLabel(total) {
   if (t <= 0) return {label:"Low corrective pressure", detail:"Current signals do not require extra priority."};
   return {label:"Light priority", detail:"Routine can be included opportunistically."};
 }
+
+
+export function performanceDrift(logs, windowSize=10) {
+  const vals = (logs || []).map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite);
+  if (vals.length < windowSize * 2) return null;
+  const recent = avg(vals.slice(-windowSize));
+  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
+  if (!prior) return null;
+  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  return {recent, prior, deltaPct};
+}
+
+export function plateauDetector(logs, windowSize=8, thresholdPct=3) {
+  const vals = (logs || []).map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite);
+  if (vals.length < windowSize*2) return null;
+  const recent = avg(vals.slice(-windowSize));
+  const prior = avg(vals.slice(-(windowSize*2), -windowSize));
+  if (!prior) return null;
+  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  return {isPlateau: Math.abs(deltaPct) < thresholdPct, deltaPct, recent, prior};
+}
+
+export function overtrainingSignal(logs, windowSize=8) {
+  const ordered = (logs || []).slice().sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+  if (ordered.length < windowSize*2) return null;
+  const recent = ordered.slice(-windowSize);
+  const prior = ordered.slice(-(windowSize*2), -windowSize);
+  const recentTime = recent.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const priorTime = prior.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const recentPerf = avg(recent.map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite));
+  const priorPerf = avg(prior.map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite));
+  if (!priorTime || !priorPerf) return null;
+  const volumeDelta = ((recentTime-priorTime)/Math.abs(priorTime))*100;
+  const perfDelta = ((recentPerf-priorPerf)/Math.abs(priorPerf))*100;
+  return {volumeDelta, perfDelta, signal: volumeDelta > 20 && perfDelta < 3 ? "Risk" : "Normal"};
+}
+
+export function fatigueSlope(logs) {
+  const ordered = (logs || []).slice().sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+  if (!ordered.length) return null;
+  let cumulative = 0;
+  const xs = [], ys = [];
+  ordered.forEach(l => {
+    cumulative += Number(l.timeMinutes || 0);
+    xs.push(cumulative);
+    ys.push(Number(l.normalizedScore || 0));
+  });
+  if (xs.length < 3) return null;
+  const mx = avg(xs), my = avg(ys);
+  const num = xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0);
+  const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
+  const slope = den ? num/den : 0;
+  const corr = correlation(xs, ys);
+  return {slope, corr, n: xs.length};
+}
