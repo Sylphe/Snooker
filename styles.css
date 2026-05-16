@@ -1059,7 +1059,7 @@ body[data-theme] .advanced-stats-module>summary{background:var(--panel-bg-2);col
   .stats-internal-nav .stats-nav-btn{flex:0 0 auto;}
 }
 
-/* v4.21.15 Bayesian tab + exercise-specific overview */
+/* v4.21.16 Bayesian tab + exercise-specific overview */
 .exercise-focus-dashboard{
   border:1px solid var(--line);
   background:var(--card);
@@ -1092,7 +1092,7 @@ body[data-theme] .advanced-stats-module>summary{background:var(--panel-bg-2);col
 }
 
 
-/* v4.21.15 compact display density */
+/* v4.21.16 compact display density */
 :root[data-density="compact"],body[data-density="compact"]{
   --density-scale:.86;
 }
@@ -1146,4 +1146,74 @@ body[data-density="compact"] td{padding:6px 7px;}
   body[data-density="compact"] .overview-kpi.primary .value{font-size:19px;}
   body[data-density="compact"] .advanced-module-body{padding:7px 8px 9px;}
   body[data-density="compact"] .stats-internal-nav .stats-nav-btn{padding:6px 7px;}
+}
+
+/* v4.21.16 Tournament planner connection + mobile overflow fixes */
+.tournament-controls,
+.tournament-plan-summary{
+  min-width:0;
+}
+.tournament-controls label,
+.tournament-plan-summary > div,
+.tournament-readiness-card{
+  min-width:0;
+  overflow:hidden;
+}
+.tournament-controls input,
+.tournament-controls select{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  min-width:0;
+}
+.tournament-plan-summary{
+  grid-template-columns:repeat(auto-fit,minmax(118px,1fr));
+}
+.tournament-plan-summary > div{
+  background:var(--panel-bg, var(--card));
+  color:var(--text);
+  overflow-wrap:anywhere;
+}
+.tournament-plan-summary > div span,
+.tournament-plan-summary > div small{
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.tournament-plan-summary > div strong{
+  display:block;
+  max-width:100%;
+  font-size:clamp(0.95rem, 3.4vw, 1.15rem);
+  line-height:1.15;
+  overflow-wrap:anywhere;
+}
+.tournament-readiness-card{
+  margin-top:14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  background:var(--panel-bg, var(--card));
+  color:var(--text);
+}
+.tournament-readiness-card > div{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.tournament-readiness-card span,
+.tournament-readiness-card small{
+  color:var(--muted);
+}
+.tournament-readiness-card strong{
+  font-size:1.35rem;
+}
+.tournament-readiness-card p{
+  margin:8px 0 0;
+}
+@media (max-width:520px){
+  .tournament-controls{grid-template-columns:1fr;}
+  .tournament-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+  .tournament-plan-summary > div{padding:8px;}
 }

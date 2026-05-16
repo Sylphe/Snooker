@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.15";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.21.16";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.21.15";
+} from "./utils.js?v=4.21.16";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -26,7 +26,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.21.15";
+} from "./settings.js?v=4.21.16";
 import {
   avg,
   stdDev,
@@ -44,7 +44,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.21.15";
+} from "./analytics.js?v=4.21.16";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -53,7 +53,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.21.15";
+} from "./bayesian.js?v=4.21.16";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -62,7 +62,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.21.15";
+} from "./session.js?v=4.21.16";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -70,7 +70,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.21.15";
+} from "./pressure.js?v=4.21.16";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -82,8 +82,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.21.15";
-import * as RenderHelpers from "./render.js?v=4.21.15";
+} from "./recommendations.js?v=4.21.16";
+import * as RenderHelpers from "./render.js?v=4.21.16";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -94,7 +94,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.21.15";
+} from "./store.js?v=4.21.16";
 
 
 
@@ -2569,9 +2569,9 @@ function renderStatsCounterfactualSection(logs, { range }) {
 }
 
 function renderStatsTournamentSection(logs, { range }) {
-  return `<h3>Tournament preparation — ${escapeHtml(range.label)}</h3>
-    <p class="muted">Dedicated preparation planner. It is separated from Insights so the stats tab does not become a continuous wall of analytics.</p>
-    ${tournamentPrepPlannerHtml()}`;
+  return `<h3>Tournament preparation — ${escapeHtml(range.label)} ${statHelpButton("tournamentPrep")}</h3>
+    <p class="muted">Dedicated preparation planner. Uses the active stats scope, so the exercise/date filter above directly changes the readiness assessment.</p>
+    ${tournamentPrepPlannerHtml(logs)}`;
 }
 
 function toggleStatsStandalonePanels() {
@@ -4469,6 +4469,17 @@ Object.assign(FIELD_HELP, {
   }
 });
 
+FIELD_HELP.tournamentPrep = {
+  title: "Tournament preparation planner",
+  body: analyticsHelp(
+    "Tournament preparation planner",
+    "A readiness and session-planning layer for preparing a match or tournament block.",
+    "It uses the active stats scope: logged scores, target hit rate, normalized score, practice time, pressure-mode exposure, consistency/PSI, recency, and left/right imbalance where available. It does not require tournament logs; regular practice logs are enough, but pressure logs and stable time entries make it more accurate.",
+    "It estimates whether current form is ready, unstable, or under-evidenced, then adjusts the recommended intensity, taper warning, and session blocks based on days remaining, format, focus, risk profile, and daily minutes.",
+    "Use it before competition to decide whether to maintain form, increase match realism, reduce volume, or rebuild confidence instead of blindly adding more practice."
+  )
+};
+
 
 FIELD_HELP.forecast = {
  title:"Predictive confidence interval",
@@ -4513,7 +4524,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.15");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.21.16");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5139,7 +5150,8 @@ function renderBayesianValidationForRoutine(routineId) {
 
 
 
-function computeTournamentPrepPlan() {
+function computeTournamentPrepPlan(logs = []) {
+  const scopedLogs = Array.isArray(logs) ? logs.slice() : [];
   const daysInput = Number($("tournamentPrepDays")?.value || 14);
   const format = $("tournamentPrepFormat")?.value || "best_of_7";
   const focus = $("tournamentPrepFocus")?.value || "balanced";
@@ -5147,17 +5159,76 @@ function computeTournamentPrepPlan() {
   const minutes = Number($("tournamentPrepMinutes")?.value || 90);
 
   const daysRemaining = Math.max(1, daysInput);
+  const ordered = scopedLogs
+    .filter(l => l && l.createdAt)
+    .sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  const recent = ordered.slice(-20);
+  const values = recent.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const avgScore = values.length ? avg(values) : null;
+  const hit = recent.length ? targetHitRate(recent) : null;
+  const psi = recent.length >= 3 ? performanceStabilityIndex(recent, Math.min(10, recent.length)) : null;
+  const pressureLogs = recent.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+  const pressureShare = recent.length ? pressureLogs.length / recent.length * 100 : 0;
+  const timeTotal = recent.reduce((sum, l) => sum + Number(l.timeMinutes || 0), 0);
+  const lastLog = ordered.length ? ordered[ordered.length - 1] : null;
+  const daysSinceLastLog = lastLog ? daysSince(lastLog.createdAt) : null;
+
+  const sideLogs = recent.filter(logUsesSideSplit);
+  let sideImbalance = null;
+  if (sideLogs.length) {
+    let left = 0, right = 0, count = 0;
+    sideLogs.forEach(l => {
+      const ls = getLogLeftSideScore(l);
+      const rs = getLogRightSideScore(l);
+      if (Number.isFinite(ls) && Number.isFinite(rs)) { left += ls; right += rs; count += 1; }
+    });
+    if (count) sideImbalance = Math.abs(left - right) / Math.max(1, left + right) * 100;
+  }
+
+  const evidenceScore = Math.min(100, ordered.length * 3);
+  const recencyScore = daysSinceLastLog === null ? 0 : Math.max(0, 100 - daysSinceLastLog * 12);
+  const performanceScore = avgScore === null ? 0 : Math.max(0, Math.min(100, avgScore));
+  const hitScore = hit === null ? performanceScore : hit;
+  const stabilityScore = psi === null ? Math.min(60, evidenceScore) : psi;
+  const pressureScore = Math.min(100, pressureShare * 3);
+  const balancePenalty = sideImbalance === null ? 0 : Math.min(20, sideImbalance / 2);
+  const readiness = Math.max(0, Math.min(100,
+    performanceScore * 0.30 +
+    hitScore * 0.20 +
+    stabilityScore * 0.20 +
+    evidenceScore * 0.15 +
+    recencyScore * 0.10 +
+    pressureScore * 0.05 -
+    balancePenalty
+  ));
+
+  let readinessLabel = "Needs data";
+  let readinessDetail = "Log regular practice sessions first; the planner will become more useful after 8–12 logs.";
+  if (ordered.length >= 3) {
+    if (readiness >= 75) {
+      readinessLabel = "Ready / maintain";
+      readinessDetail = "Current form looks usable. Prioritize match realism, confidence, and avoiding unnecessary technical changes.";
+    } else if (readiness >= 55) {
+      readinessLabel = "Build / stabilize";
+      readinessDetail = "Current form is workable but not fully robust. Keep volume controlled and address the weakest signal.";
+    } else {
+      readinessLabel = "Rebuild / simplify";
+      readinessDetail = "Readiness is weak or unstable. Reduce complexity, rebuild confidence, and avoid adding new technical changes close to the event.";
+    }
+  }
 
   let intensity = "moderate";
   let taper = "No taper required yet.";
 
   if (daysRemaining <= 3) {
     intensity = "low";
-    taper = "Avoid major technical changes; prioritize confidence and rhythm.";
+    taper = "Avoid major technical changes; prioritize confidence, rhythm, and short pressure blocks.";
   } else if (daysRemaining <= 7) {
     intensity = "controlled";
     taper = "Reduce total volume slightly while maintaining match realism.";
   }
+  if (readiness < 50 && ordered.length >= 3) intensity = "controlled";
+  if (minutes >= 150 && daysRemaining <= 7) taper = "Daily duration is high for the final week; reduce volume if focus or scoring quality deteriorates.";
 
   const blocks = [];
 
@@ -5175,6 +5246,8 @@ function computeTournamentPrepPlan() {
     blocks.push("Pressure scoring routines");
   }
 
+  if (pressureShare < 20 && ordered.length >= 6) blocks.push("Short match-pressure blocks");
+  if (sideImbalance !== null && sideImbalance >= 15) blocks.push("Left/right balancing block");
   if (risk === "aggressive") {
     blocks.push("High-pressure scoring finishes");
   } else if (risk === "conservative") {
@@ -5189,7 +5262,19 @@ function computeTournamentPrepPlan() {
     minutes,
     intensity,
     taper,
-    blocks
+    blocks,
+    evidenceLogs: ordered.length,
+    recentLogs: recent.length,
+    recentAvg: avgScore,
+    hitRate: hit,
+    stability: psi,
+    pressureShare,
+    sideImbalance,
+    timeTotal,
+    daysSinceLastLog,
+    readiness,
+    readinessLabel,
+    readinessDetail
   };
 }
 
@@ -5276,11 +5361,13 @@ function renderPredictorContributionModel() {
 }
 
 
-function tournamentPrepPlannerHtml() {
-  const plan = computeTournamentPrepPlan();
+function tournamentPrepPlannerHtml(logs = []) {
+  const plan = computeTournamentPrepPlan(logs);
+  const metric = (label, value, detail = "") => `<div><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong>${detail ? `<small>${htmlText(detail)}</small>` : ""}</div>`;
+  const pct = value => value === null || value === undefined || !Number.isFinite(Number(value)) ? "N/A" : `${Number(value).toFixed(1)}%`;
   return `
     <div class="tournament-prep-card">
-      <h3>Tournament preparation planner</h3>
+      <h3>Tournament preparation planner ${statHelpButton("tournamentPrep")}</h3>
 
       <div class="tournament-controls">
         <label>
@@ -5322,9 +5409,24 @@ function tournamentPrepPlannerHtml() {
         </label>
       </div>
 
+      <div class="tournament-readiness-card">
+        <div>
+          <span>Readiness</span>
+          <strong>${Math.round(plan.readiness)} / 100</strong>
+          <small>${htmlText(plan.readinessLabel)}</small>
+        </div>
+        <p>${htmlText(plan.readinessDetail)}</p>
+      </div>
+
       <div class="tournament-plan-summary">
-        <div><span>Intensity</span><strong>${htmlText(plan.intensity)}</strong></div>
-        <div><span>Daily duration</span><strong>${plan.minutes} min</strong></div>
+        ${metric("Intensity", plan.intensity)}
+        ${metric("Daily duration", `${plan.minutes} min`)}
+        ${metric("Logs in scope", String(plan.evidenceLogs), `${plan.recentLogs} recent`)}
+        ${metric("Recent average", pct(plan.recentAvg))}
+        ${metric("Target hit rate", pct(plan.hitRate))}
+        ${metric("Stability", pct(plan.stability))}
+        ${metric("Pressure exposure", pct(plan.pressureShare))}
+        ${metric("Last trained", plan.daysSinceLastLog === null ? "N/A" : `${plan.daysSinceLastLog}d ago`)}
       </div>
 
       <div class="tournament-plan-blocks">
@@ -5345,7 +5447,7 @@ function tournamentPrepPlannerHtml() {
 function renderTournamentPrepPlanner() {
   const host = $("bayesianValidationOutput");
   if (!host) return;
-  host.innerHTML += tournamentPrepPlannerHtml();
+  host.innerHTML += tournamentPrepPlannerHtml(getScopedStatsLogs ? getScopedStatsLogs() : (data.logs || []));
 }
 
 function renderAllocationOptimization() {
