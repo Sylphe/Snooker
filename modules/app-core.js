@@ -1251,6 +1251,7 @@ function renderScoreInputs(r) {
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else {
     html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || r.attemptsPerSession || "")}" placeholder="optional" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   }
   if (routineUsesSideSplit(r)) {
@@ -5945,6 +5946,7 @@ function handleDelegatedUIAction(event) {
     case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; document.querySelectorAll(".quality-tile").forEach(b => b.classList.toggle("active", b.dataset.rating === v)); } hapticFeedback("tap"); return; }
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));

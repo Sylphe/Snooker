@@ -2473,3 +2473,59 @@ body.session-focus-active #activeSession.focus-no-side-split .primary-action-row
 @media(max-width:420px){
   body.session-focus-active #activeSession.focus-no-side-split{grid-template-columns:minmax(0,1fr) 118px!important;}
 }
+
+
+/* v4.22.31 focus-mode attempts + compact context tiles */
+body.session-focus-active #activeSession #scoreInputs > div:has(#manualTimeValue),
+body.session-focus-active #activeSession #sessionExtraFields #focusVenueBlock{
+  min-height:64px!important;
+  padding:5px!important;
+}
+body.session-focus-active #activeSession.focus-no-side-split #scoreInputs > div:has(#manualTimeValue),
+body.session-focus-active #activeSession.focus-no-side-split #sessionExtraFields #focusVenueBlock{
+  max-width:100%!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div:has(#manualTimeValue) input,
+body.session-focus-active #activeSession #sessionExtraFields #focusVenueBlock select{
+  min-height:32px!important;
+  height:32px!important;
+  font-size:13px!important;
+}
+body.session-focus-active #activeSession .focus-quality-block select{
+  position:absolute!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  width:1px!important;
+  height:1px!important;
+}
+body.session-focus-active #activeSession .quality-tile-row{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:4px!important;
+  margin-top:4px!important;
+}
+body.session-focus-active #activeSession .quality-tile{
+  min-width:0!important;
+  width:100%!important;
+  min-height:30px!important;
+  height:30px!important;
+  padding:0!important;
+  border-radius:8px!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+body.session-focus-active #activeSession .quality-tile.active{
+  background:rgba(34,128,88,.92)!important;
+  border-color:rgba(84,185,132,.65)!important;
+  color:#f4fff8!important;
+}
+body.session-focus-active #activeSession.focus-no-side-split #scoreInputs > div:has(#attemptsValue){
+  grid-column:1!important;
+  order:3!important;
+}
+body.session-focus-active #activeSession.focus-has-side-split #scoreInputs > div:has(#attemptsValue){
+  grid-column:1 / -1!important;
+}
+@media(max-width:420px){
+  body.session-focus-active #activeSession .quality-tile{min-height:28px!important;height:28px!important;font-size:12px!important;}
+}

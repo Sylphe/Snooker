@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.30</title>
+  <title>Snooker Practice Log v4.22.31</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.30" />
-  <link rel="stylesheet" href="styles.css?v=4.22.30" />
-  <link rel="icon" href="icon.svg?v=4.22.30" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.31" />
+  <link rel="stylesheet" href="styles.css?v=4.22.31" />
+  <link rel="icon" href="icon.svg?v=4.22.31" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.30 · Build 2026-05-17 17:45 CEST — Reflection fields and collapsible quick resume.</p>
+      <p>v4.22.31 · Build 2026-05-17 17:45 CEST — Focus compact context and quality tiles.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -378,6 +378,13 @@
             <option value="4">4 - Good</option>
             <option value="5">5 - Excellent</option>
           </select>
+          <div class="quality-tile-row" aria-label="Session quality quick rating">
+            <button type="button" class="secondary quality-tile" data-action="set-session-rating" data-rating="1">1</button>
+            <button type="button" class="secondary quality-tile" data-action="set-session-rating" data-rating="2">2</button>
+            <button type="button" class="secondary quality-tile" data-action="set-session-rating" data-rating="3">3</button>
+            <button type="button" class="secondary quality-tile" data-action="set-session-rating" data-rating="4">4</button>
+            <button type="button" class="secondary quality-tile" data-action="set-session-rating" data-rating="5">5</button>
+          </div>
         </div>
 
         <div class="session-focus-optional">
@@ -1115,6 +1122,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.30"></script>
+  <script type="module" src="app.js?v=4.22.31"></script>
 </body>
 </html>
