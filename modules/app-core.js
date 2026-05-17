@@ -1,7 +1,7 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.23.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.24.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -15,7 +15,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.23.0";
+} from "./utils.js?v=4.24.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -33,7 +33,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.23.0";
+} from "./settings.js?v=4.24.0";
 import {
   avg,
   stdDev,
@@ -55,7 +55,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.23.0";
+} from "./analytics.js?v=4.24.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -64,7 +64,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.23.0";
+} from "./bayesian.js?v=4.24.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -73,7 +73,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.23.0";
+} from "./session.js?v=4.24.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -81,7 +81,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.23.0";
+} from "./pressure.js?v=4.24.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -93,7 +93,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.23.0";
+} from "./recommendations.js?v=4.24.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.23.0";
+} from "./store.js?v=4.24.0";
 
 
 
@@ -2399,8 +2399,21 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const compDateRaw = periodization.competitionDate || $("competitionDate")?.value || "";
   const compDate = compDateRaw ? new Date(compDateRaw) : null;
   const daysToCompetition = compDate && !Number.isNaN(compDate.getTime()) ? Math.ceil((compDate.getTime() - Date.now()) / 86400000) : null;
-  const states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
-  const ranked = states.map(s => ({...s, adaptiveScore: adaptivePriorityScore(s, goal)})).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
+  const focusOverride = $("orchestratorFocus")?.value || "all";
+  const strategy = $("orchestratorStrategy")?.value || "balanced";
+  const intensity = $("orchestratorIntensity")?.value || "balanced";
+  const routinePool = recommendationEligibleRoutines().filter(r => focusOverride === "all" || r.category === focusOverride);
+  let states = routinePool.map(r => adaptiveRoutineState(r.id));
+  if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
+  const ranked = states.map(s => {
+    let boost = 0;
+    if (strategy === "explore") boost += Math.min(20, Math.max(0, 30 - Number(s.n || 0)));
+    if (strategy === "exploit" && s.phase === "stabilize") boost += 12;
+    if (strategy === "exploit" && s.targetGap > 0) boost += Math.min(12, s.targetGap / 2);
+    if (intensity === "pressure" && ["safety","mental","break-building"].includes(s.routine.category)) boost += 8;
+    if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
+    return {...s, adaptiveScore: adaptivePriorityScore(s, goal) + boost};
+  }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
 
@@ -2505,7 +2518,7 @@ function renderAdaptiveSession() {
   adaptivePlanDraft = [...plan.routineIds];
 
   const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
-    <h4>Recommended mode: ${escapeHtml(plan.effectiveGoal)}</h4>
+    <h4>Smart session mode: ${escapeHtml(plan.effectiveGoal)}</h4>
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
     <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded plan estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill block${plan.routineIds.length === 1 ? "" : "s"}</div>
   </div>` + plan.blocks.map(block => `<div class="adaptive-phase">
@@ -2521,11 +2534,11 @@ function renderAdaptiveSession() {
     </div>`; }).join("")}
   </div>`).join("");
 
-  $("adaptiveEngineOutput").innerHTML = html || "No routines available.";
+  $("adaptiveEngineOutput").innerHTML = html || "No routines available for the Smart Session Builder.";
 }
 
 function loadAdaptiveSessionIntoPlanBuilder() {
-  if (!adaptivePlanDraft.length) return alert("Generate an adaptive session first.");
+  if (!adaptivePlanDraft.length) return showTransientNotice("Build a smart session first.", "warn");
   planDraft = [...adaptivePlanDraft];
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
@@ -4928,6 +4941,14 @@ const FIELD_HELP = {
 
 };
 
+FIELD_HELP.smartSessionBuilder = {
+  title:"Smart Session Builder",
+  body:`
+  <p><strong>What it does:</strong> builds one coherent training session from your available time, current performance data, training phase, and target competition timing.</p>
+  <p><strong>Internal logic:</strong> the priority layer selects suitable drills; the adaptive layer turns them into blocks with minutes, purpose, and difficulty guidance.</p>
+  <div class="example"><strong>Use it when:</strong> you want the app to decide the next useful session rather than manually selecting drills.</div>`
+};
+
 
 FIELD_HELP.targetScoreMode = {
   title:"Target score",
@@ -5266,7 +5287,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.23.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.24.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

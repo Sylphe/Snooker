@@ -1,3 +1,3 @@
-# Snooker Practice PWA v4.23.0
+# Snooker Practice PWA v4.24.0 — Smart Session Builder
 
-Stabilization release: normalized cache/version references, stronger score validation, reduced blocking alerts, IndexedDB delta retry warnings, and one authoritative log-row renderer.
+Unified Smart Training UI: one Smart Session Builder combines drill-priority controls with adaptive session structure, while preserving the modular recommendation/adaptive logic underneath.
