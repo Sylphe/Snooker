@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.25</title>
+  <title>Snooker Practice Log v4.22.26</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.25" />
-  <link rel="stylesheet" href="styles.css?v=4.22.25" />
-  <link rel="icon" href="icon.svg?v=4.22.25" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.26" />
+  <link rel="stylesheet" href="styles.css?v=4.22.26" />
+  <link rel="icon" href="icon.svg?v=4.22.26" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.25 · Build 2026-05-17 13:55 CEST — Picker favorites, graph context, separate wake lock settings.</p>
+      <p>v4.22.26 · Build 2026-05-17 15:05 CEST — Focus mode metric/control/input layout refinement.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -325,16 +325,16 @@
 
         <div id="routineDescriptionBox" class="description-box hidden"></div>
 
+        <div id="livePerformanceCard" class="live-performance-card"></div>
+
         <div class="row focus-timer-action-row">
-          <button id="timerStartBtn" class="secondary" title="Start timer">Start</button>
-          <button id="timerPauseBtn" class="secondary">Pause</button>
-          <button id="timerResetBtn" class="secondary" title="Reset timer">Reset</button>
-          <button id="toggleFocusModeBtn" class="secondary" type="button" title="Exit focus mode">Exit</button>
+          <button id="timerStartBtn" class="secondary focus-control-start" title="Start timer">Start</button>
+          <button id="timerPauseBtn" class="secondary focus-control-pause">Pause</button>
+          <button id="timerResetBtn" class="secondary focus-control-reset" title="Reset timer">Reset</button>
+          <button id="toggleFocusModeBtn" class="secondary focus-control-exit" type="button" title="Exit focus mode">Exit</button>
         </div>
 
         <div id="scoreInputs" class="score-grid"></div>
-
-        <div id="livePerformanceCard" class="live-performance-card"></div>
 
         <div id="quickScoreControls" class="quick-score hidden"></div>
 
@@ -368,15 +368,17 @@
         <input id="sessionInterventionNote" placeholder="Optional: what changed?" />
         </div>
 
-        <label>Session quality rating (1–5)</label>
-        <select id="sessionRating">
-          <option value="">Select rating</option>
-          <option value="1">1 - Very low quality</option>
-          <option value="2">2 - Low quality</option>
-          <option value="3">3 - Average</option>
-          <option value="4">4 - Good</option>
-          <option value="5">5 - Excellent</option>
-        </select>
+        <div class="focus-quality-block">
+          <label>Session quality rating (1–5)</label>
+          <select id="sessionRating">
+            <option value="">Select rating</option>
+            <option value="1">1 - Very low quality</option>
+            <option value="2">2 - Low quality</option>
+            <option value="3">3 - Average</option>
+            <option value="4">4 - Good</option>
+            <option value="5">5 - Excellent</option>
+          </select>
+        </div>
 
         <div class="session-focus-optional">
         <label>Session tags</label>
@@ -1109,6 +1111,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.25"></script>
+  <script type="module" src="app.js?v=4.22.26"></script>
 </body>
 </html>

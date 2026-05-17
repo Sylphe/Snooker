@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.25";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.26";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.25";
+} from "./utils.js?v=4.22.26";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -32,7 +32,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.25";
+} from "./settings.js?v=4.22.26";
 import {
   avg,
   stdDev,
@@ -54,7 +54,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.25";
+} from "./analytics.js?v=4.22.26";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -63,7 +63,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.25";
+} from "./bayesian.js?v=4.22.26";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -72,7 +72,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.25";
+} from "./session.js?v=4.22.26";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -80,7 +80,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.25";
+} from "./pressure.js?v=4.22.26";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -92,8 +92,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.25";
-import * as RenderHelpers from "./render.js?v=4.22.25";
+} from "./recommendations.js?v=4.22.26";
+import * as RenderHelpers from "./render.js?v=4.22.26";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.25";
+} from "./store.js?v=4.22.26";
 
 
 
@@ -1272,28 +1272,31 @@ function renderScoreInputs(r) {
 function renderFocusScoreSteppers(r) {
   const box = $("scoreInputs");
   if (!box) return;
+  box.querySelectorAll(".focus-inline-stepper").forEach(el => el.remove());
   box.querySelector(".focus-score-stepper-panel")?.remove();
+  box.querySelectorAll(".focus-score-inline-row").forEach(el => el.classList.remove("focus-score-inline-row", "focus-inline-stepper-ready"));
   const fieldDefs = [
     {id:"scoreValue", label:r?.scoring === "success_rate" ? "Made" : "Score", deltas:[-1,1]},
     {id:"leftSideScoreValue", label:"Left", deltas:[-1,1]},
     {id:"rightSideScoreValue", label:"Right", deltas:[-1,1]},
     {id:"attemptsValue", label:"Attempts", deltas:[-1,1]},
+    {id:"manualTimeValue", label:"Time", deltas:[-1,1]},
     {id:"bestAttemptValue", label:"Best", deltas:[-1,1]},
     {id:"completionCountValue", label:"Completions", deltas:[-1,1]},
     {id:"highestBreakValue", label:"Break", deltas:[-1,1]},
     {id:"sessionTotalUnitsValue", label:"Size", deltas:[-1,1]}
   ].filter(f => $(f.id));
-  if (!fieldDefs.length) return;
-  const html = `<div class="focus-score-stepper-panel" aria-label="Focus mode score controls">
-    ${fieldDefs.map(f => `<div class="focus-stepper-tile">
-      <span>${htmlText(f.label)}</span>
-      <div class="focus-stepper-actions">
-        <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[0]}">−</button>
-        <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[1]}">+</button>
-      </div>
-    </div>`).join("")}
-  </div>`;
-  box.insertAdjacentHTML("beforeend", html);
+  fieldDefs.forEach(f => {
+    const input = $(f.id);
+    if (!input) return;
+    const row = input.closest("div");
+    if (!row || row.classList.contains("focus-inline-stepper-ready")) return;
+    row.classList.add("focus-score-inline-row", "focus-inline-stepper-ready");
+    row.insertAdjacentHTML("beforeend", `<div class="focus-inline-stepper" aria-label="${attrText(f.label)} controls">
+      <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[0]}">−</button>
+      <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[1]}">+</button>
+    </div>`);
+  });
 }
 
 function adjustNumericInputValue(inputId, delta) {
@@ -5138,7 +5141,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.25");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.26");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

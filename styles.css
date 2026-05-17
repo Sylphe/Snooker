@@ -1907,7 +1907,7 @@ body.session-focus-active #activeSession #toggleFocusModeBtn{
 .basic-stats-dashboard{grid-template-columns:repeat(4,minmax(0,1fr));}
 @media(max-width:720px){.quick-resume-content{align-items:stretch;flex-direction:column}.quick-resume-btn{width:100%;min-height:60px}.basic-stats-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));}}
 
-/* v4.22.25 picker favorites, graph context, wake-lock settings */
+/* v4.22.26 picker favorites, graph context, wake-lock settings */
 .routine-picker-row-wrap {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1950,4 +1950,205 @@ body.session-focus-active #activeSession #toggleFocusModeBtn{
 @media (max-width: 520px) {
   .chart-mobile-context { font-size: .72rem; }
   .routine-picker-star { min-width: 48px; width: 48px; min-height: 48px; }
+}
+
+/* v4.22.26 focus-mode layout: metrics first, colored controls, compact input tiles */
+body.session-focus-active #activeSession #livePerformanceCard{
+  order:1;
+  margin:3px 0 5px!important;
+}
+body.session-focus-active #activeSession .focus-timer-action-row{
+  order:2;
+}
+body.session-focus-active #activeSession #scoreInputs{
+  order:3;
+}
+body.session-focus-active #activeSession .focus-timer-action-row,
+body.session-focus-active #activeSession .row.focus-timer-action-row{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(66px,1fr))!important;
+  gap:8px!important;
+  width:100%!important;
+  justify-content:stretch!important;
+  margin:5px 0 7px!important;
+}
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:58px!important;
+  min-height:58px!important;
+  max-height:58px!important;
+  border-radius:14px!important;
+  padding:0 4px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  box-shadow:none!important;
+}
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession .focus-control-start{
+  background:linear-gradient(180deg,rgba(34,197,94,.94),rgba(22,101,52,.94))!important;
+  border-color:rgba(74,222,128,.55)!important;
+  color:#fff!important;
+}
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession .focus-control-pause{
+  background:linear-gradient(180deg,rgba(245,158,11,.96),rgba(146,64,14,.96))!important;
+  border-color:rgba(251,191,36,.58)!important;
+  color:#fff!important;
+}
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession .focus-control-reset{
+  background:linear-gradient(180deg,rgba(107,114,128,.96),rgba(55,65,81,.96))!important;
+  border-color:rgba(156,163,175,.55)!important;
+  color:#fff!important;
+}
+body.session-focus-active #activeSession #toggleFocusModeBtn,
+body.session-focus-active #activeSession .focus-control-exit{
+  background:linear-gradient(180deg,rgba(239,68,68,.96),rgba(127,29,29,.96))!important;
+  border-color:rgba(248,113,113,.58)!important;
+  color:#fff!important;
+}
+body.session-focus-active #activeSession #scoreInputs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;
+  margin:5px 0!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div:not(.side-split-panel),
+body.session-focus-active #activeSession .side-split-panel .grid > div,
+body.session-focus-active #activeSession .progressive-total-units-runtime{
+  border:1px solid var(--line)!important;
+  background:var(--panel-bg-2)!important;
+  border-radius:11px!important;
+  padding:5px!important;
+  min-width:0!important;
+}
+body.session-focus-active #activeSession .focus-score-inline-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 70px!important;
+  grid-template-areas:"label step" "input step"!important;
+  column-gap:5px!important;
+  align-items:center!important;
+}
+body.session-focus-active #activeSession .focus-score-inline-row label{
+  grid-area:label!important;
+  font-size:9.5px!important;
+  line-height:1.05!important;
+  margin:0 0 2px!important;
+  color:var(--muted)!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+body.session-focus-active #activeSession .focus-score-inline-row input{
+  grid-area:input!important;
+  width:100%!important;
+  min-height:30px!important;
+  height:30px!important;
+  padding:3px 5px!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  border-radius:8px!important;
+}
+body.session-focus-active #activeSession .focus-inline-stepper{
+  grid-area:step!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:4px!important;
+  align-self:stretch!important;
+}
+body.session-focus-active #activeSession .focus-inline-stepper button{
+  min-width:0!important;
+  width:100%!important;
+  min-height:44px!important;
+  height:44px!important;
+  padding:0!important;
+  border-radius:9px!important;
+  font-size:20px!important;
+  font-weight:900!important;
+  line-height:1!important;
+}
+body.session-focus-active #activeSession .side-split-panel{
+  grid-column:1 / -1!important;
+  padding:6px!important;
+  border-radius:12px!important;
+  background:var(--panel-bg)!important;
+}
+body.session-focus-active #activeSession .side-split-panel .grid.two{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;
+}
+body.session-focus-active #activeSession .side-split-title,
+body.session-focus-active #activeSession .side-split-note{
+  font-size:10px!important;
+  line-height:1.15!important;
+}
+body.session-focus-active #activeSession #sessionExtraFields{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;
+  margin:5px 0!important;
+}
+body.session-focus-active #activeSession #sessionExtraFields > div,
+body.session-focus-active #activeSession #sessionExtraFields > label{
+  min-width:0!important;
+}
+body.session-focus-active #activeSession .focus-venue-block,
+body.session-focus-active #activeSession #sessionExtraFields .session-focus-optional,
+body.session-focus-active #activeSession .focus-quality-block{
+  border:1px solid var(--line)!important;
+  background:var(--panel-bg-2)!important;
+  border-radius:11px!important;
+  padding:5px!important;
+}
+body.session-focus-active #activeSession #sessionExtraFields label{
+  font-size:9.5px!important;
+  line-height:1.05!important;
+  margin:0 0 2px!important;
+  color:var(--muted)!important;
+}
+body.session-focus-active #activeSession #sessionExtraFields select,
+body.session-focus-active #activeSession #sessionExtraFields input{
+  min-height:30px!important;
+  height:30px!important;
+  padding:3px 6px!important;
+  font-size:11px!important;
+  border-radius:8px!important;
+}
+body.session-focus-active #activeSession #sessionExtraFields textarea{
+  min-height:42px!important;
+  padding:4px 6px!important;
+  font-size:11px!important;
+  border-radius:8px!important;
+}
+body.session-focus-active #activeSession .live-perf{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:4px!important;
+}
+body.session-focus-active #activeSession .live-perf > div,
+body.session-focus-active #activeSession .live-perf > div:first-child{
+  min-height:32px!important;
+  padding:2px 2px!important;
+  border-radius:8px!important;
+}
+@media(max-width:420px){
+  body.session-focus-active #activeSession .focus-timer-action-row,
+  body.session-focus-active #activeSession .row.focus-timer-action-row{grid-template-columns:repeat(4,minmax(58px,1fr))!important;gap:6px!important;}
+  body.session-focus-active #activeSession .focus-timer-action-row > button,
+  body.session-focus-active #activeSession #timerStartBtn,
+  body.session-focus-active #activeSession #timerPauseBtn,
+  body.session-focus-active #activeSession #timerResetBtn,
+  body.session-focus-active #activeSession #toggleFocusModeBtn{height:54px!important;min-height:54px!important;max-height:54px!important;font-size:11px!important;}
+  body.session-focus-active #activeSession #scoreInputs{grid-template-columns:1fr!important;}
+  body.session-focus-active #activeSession .side-split-panel .grid.two{grid-template-columns:1fr!important;}
+  body.session-focus-active #activeSession #sessionExtraFields{grid-template-columns:1fr!important;}
+  body.session-focus-active #activeSession .live-perf{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
 }
