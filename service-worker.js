@@ -209,3 +209,49 @@ function renderDataQualityAudit(){
 }
 
 /* ===== end v4.25 foundation ===== */
+
+
+/* ===== v4.25.1 Data Quality UI Fix ===== */
+function mountDataQualityAuditPanel(){
+  try{
+    if(document.getElementById("dataQualityAuditPanel")) return;
+    var host =
+      document.getElementById("developerOptions") ||
+      document.getElementById("developerOptionsPanel") ||
+      document.getElementById("storageSafetyDashboard") ||
+      document.getElementById("storageDiagnosticHarness") ||
+      document.querySelector('[data-panel="developer"]') ||
+      document.querySelector('[data-tab="developer"]') ||
+      document.querySelector(".developer-options");
+    if(!host) return;
+
+    var panel = document.createElement("div");
+    panel.id = "dataQualityAuditPanel";
+    panel.className = "card data-quality-panel";
+    panel.innerHTML =
+      '<div class="row between gap">' +
+        '<div><strong>Data Quality Audit</strong>' +
+        '<div class="small muted">Checks logs, routines and plans for integrity issues before advanced analytics.</div></div>' +
+        '<button type="button" id="runDataQualityAuditBtn" class="btn small">Run audit</button>' +
+      '</div>' +
+      '<div id="dataQualityAuditBox" class="small muted" style="margin-top:8px;">Audit not run yet.</div>';
+    host.appendChild(panel);
+
+    var btn = document.getElementById("runDataQualityAuditBtn");
+    if(btn){
+      btn.addEventListener("click", function(){
+        if(typeof renderDataQualityAudit === "function") renderDataQualityAudit();
+      });
+    }
+  }catch(err){
+    console.warn("Data quality panel mount failed", err);
+  }
+}
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", mountDataQualityAuditPanel);
+}else{
+  mountDataQualityAuditPanel();
+}
+setTimeout(mountDataQualityAuditPanel, 500);
+setTimeout(mountDataQualityAuditPanel, 1500);
+/* ===== end v4.25.1 Data Quality UI Fix ===== */
