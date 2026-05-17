@@ -2561,7 +2561,7 @@ body[data-theme="dark"] #startFreeSessionBtn.success.primary-start-btn,
 body[data-theme-mode="dark"] #startFreeSessionBtn.success.primary-start-btn{background:#16a34a;border-color:#22c55e;color:#06130a;}
 #tableDatabasePanel{border-left:4px solid rgba(34,197,94,.35);}
 
-/* v4.22.34 minor fixes */
+/* v4.22.33 minor fixes */
 .templates-main-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .templates-nav-btn{border-radius:999px;}
 .templates-tab-panel.hidden{display:none!important;}
@@ -2598,47 +2598,4 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
   border-color:rgba(34,197,94,.50)!important;
   color:#eafff1!important;
   font-weight:900!important;
-}
-
-
-/* v4.22.34 UI polish: default green buttons, contained score highlight, GMT+1 release */
-#startSessionBtn.success.primary-start-btn,
-#startFreeSessionBtn.success.primary-start-btn {
-  background:#15803d !important;
-  border-color:#15803d !important;
-  color:#fff !important;
-  box-shadow:0 6px 18px rgba(21,128,61,.18) !important;
-}
-body[data-theme="dark"] #startSessionBtn.success.primary-start-btn,
-body[data-theme-mode="dark"] #startSessionBtn.success.primary-start-btn,
-body[data-theme="dark"] #startFreeSessionBtn.success.primary-start-btn,
-body[data-theme-mode="dark"] #startFreeSessionBtn.success.primary-start-btn {
-  background:#15803d !important;
-  border-color:#22c55e !important;
-  color:#ffffff !important;
-  box-shadow:0 6px 18px rgba(21,128,61,.24) !important;
-}
-body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
-body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row {
-  background:rgba(21,128,61,.14) !important;
-  border:1px solid rgba(34,197,94,.42) !important;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03) !important;
-  overflow:hidden !important;
-}
-body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row label,
-body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row label {
-  color:#9ee6b2 !important;
-}
-body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
-body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input {
-  background:var(--input-bg) !important;
-  border-color:var(--line) !important;
-  color:var(--text) !important;
-  box-shadow:none !important;
-}
-[data-templates-panel="tables"] #routineList,
-[data-templates-panel="tables"] #exerciseTypeFilter,
-[data-templates-panel="tables"] #exerciseFolderFilter,
-[data-templates-panel="tables"] #exerciseSearch {
-  display:none !important;
 }

@@ -1,7 +1,7 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.34";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.33";
 import {
   uuid,
   structuredCloneSafe,
@@ -15,7 +15,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.34";
+} from "./utils.js?v=4.22.33";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -33,7 +33,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.34";
+} from "./settings.js?v=4.22.33";
 import {
   avg,
   stdDev,
@@ -55,7 +55,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.34";
+} from "./analytics.js?v=4.22.33";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -64,7 +64,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.34";
+} from "./bayesian.js?v=4.22.33";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -73,7 +73,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.34";
+} from "./session.js?v=4.22.33";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -81,7 +81,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.34";
+} from "./pressure.js?v=4.22.33";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -93,8 +93,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.34";
-import * as RenderHelpers from "./render.js?v=4.22.34";
+} from "./recommendations.js?v=4.22.33";
+import * as RenderHelpers from "./render.js?v=4.22.33";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.34";
+} from "./store.js?v=4.22.33";
 
 
 
@@ -5203,7 +5203,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.34");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.33");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
