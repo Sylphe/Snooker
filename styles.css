@@ -2560,3 +2560,42 @@ body.session-focus-active #activeSession .quality-tile[aria-pressed="true"]{
 body[data-theme="dark"] #startFreeSessionBtn.success.primary-start-btn,
 body[data-theme-mode="dark"] #startFreeSessionBtn.success.primary-start-btn{background:#16a34a;border-color:#22c55e;color:#06130a;}
 #tableDatabasePanel{border-left:4px solid rgba(34,197,94,.35);}
+
+/* v4.22.33 minor fixes */
+.templates-main-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.templates-nav-btn{border-radius:999px;}
+.templates-tab-panel.hidden{display:none!important;}
+.templates-tab-panel.active{display:block;}
+#startSessionBtn.success.primary-start-btn,
+#startFreeSessionBtn.success.primary-start-btn{
+  background:#15803d!important;
+  border-color:#15803d!important;
+  color:#fff!important;
+  box-shadow:0 6px 18px rgba(21,128,61,.18)!important;
+}
+body[data-theme="dark"] #startSessionBtn.success.primary-start-btn,
+body[data-theme-mode="dark"] #startSessionBtn.success.primary-start-btn,
+body[data-theme="dark"] #startFreeSessionBtn.success.primary-start-btn,
+body[data-theme-mode="dark"] #startFreeSessionBtn.success.primary-start-btn{
+  background:#16a34a!important;
+  border-color:#22c55e!important;
+  color:#06130a!important;
+  box-shadow:0 6px 18px rgba(34,197,94,.16)!important;
+}
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row{
+  background:linear-gradient(180deg, rgba(34,197,94,.22), rgba(34,197,94,.08))!important;
+  border:1px solid rgba(34,197,94,.66)!important;
+  box-shadow:inset 0 0 0 1px rgba(34,197,94,.20), 0 10px 24px rgba(34,197,94,.10)!important;
+}
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row label,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row label{
+  color:#baf7ce!important;
+}
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input{
+  background:rgba(34,197,94,.10)!important;
+  border-color:rgba(34,197,94,.50)!important;
+  color:#eafff1!important;
+  font-weight:900!important;
+}

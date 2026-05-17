@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.32</title>
+  <title>Snooker Practice Log v4.22.33</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.32" />
-  <link rel="stylesheet" href="styles.css?v=4.22.32" />
-  <link rel="icon" href="icon.svg?v=4.22.32" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.33" />
+  <link rel="stylesheet" href="styles.css?v=4.22.33" />
+  <link rel="icon" href="icon.svg?v=4.22.33" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.32 · Build 2026-05-17 17:45 CEST — Focus polish, left-right stats, and database sectioning.</p>
+      <p>v4.22.33 · Build 2026-05-17 17:45 CEST — Focus polish, left-right stats, and database sectioning.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -437,6 +437,15 @@
     </section>
 
     <section id="templates" class="panel">
+      <div class="card templates-hub-card">
+        <h2>Exercises</h2>
+        <div class="templates-main-nav" role="tablist" aria-label="Exercise sections">
+          <button type="button" class="templates-nav-btn active-subtab" data-action="templates-main-tab" data-templates-tab="exercises" role="tab" aria-selected="true">Exercise Database</button>
+          <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="tables" role="tab" aria-selected="false">Table/Venue Database</button>
+        </div>
+      </div>
+
+      <div class="templates-tab-panel active" data-templates-panel="exercises">
       <div class="card">
         <h2 id="routineFormTitle">Create exercise</h2>
         <input id="routineEditId" type="hidden" />
@@ -595,8 +604,11 @@
         </div>
       </div>
 
+      </div>
+
+      <div class="templates-tab-panel hidden" data-templates-panel="tables">
       <div class="card" id="tableDatabasePanel">
-        <h2>Tables / venues database</h2>
+        <h2>Table/Venue Database</h2>
         <p class="muted">Create and edit table names. Historical logs use a stable table ID, so renaming a table keeps stats linked to the same actual table.</p>
         <div class="grid two">
           <div><label>Table name</label><input id="tableNameInput" placeholder="e.g. Riley – Home table" /></div>
@@ -610,6 +622,7 @@
           <button id="clearTableFormBtn" type="button" class="secondary">Clear</button>
         </div>
         <div id="tableList"></div>
+      </div>
       </div>
 
       <div class="card">
@@ -629,6 +642,7 @@
           </div>
         </div>
         <div id="routineList" class="list grouped"></div>
+      </div>
       </div>
     </section>
 
@@ -1120,6 +1134,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.32"></script>
+  <script type="module" src="app.js?v=4.22.33"></script>
 </body>
 </html>
