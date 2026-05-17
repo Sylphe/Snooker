@@ -1180,7 +1180,13 @@ function renderQuickResumeBanner() {
   const when = last.createdAt ? new Date(last.createdAt).toLocaleDateString() : "last time";
   box.classList.remove("hidden");
   box.classList.toggle("collapsed", collapsed);
-  box.innerHTML = `<div class="quick-resume-header"><div><h2>Quick resume</h2><p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p></div><button type="button" class="quick-resume-toggle" data-action="toggle-quick-resume" aria-label="${collapsed ? "Expand quick resume" : "Collapse quick resume"}">${collapsed ? "+" : "−"}</button></div>${collapsed ? "" : `<div class="quick-resume-content"><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`}`;
+  const detailHtml = collapsed ? "" : `<p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p>`;
+  box.innerHTML = `<div class="quick-resume-header"><div><h2>Quick resume</h2>${detailHtml}</div><button type="button" class="quick-resume-toggle" data-action="toggle-quick-resume" aria-label="${collapsed ? "Expand quick resume" : "Collapse quick resume"}">${collapsed ? "+" : "−"}</button></div>${collapsed ? "" : `<div class="quick-resume-content"><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`}`;
+}
+
+function syncSessionQualityTiles() {
+  const value = String($("sessionRating")?.value || "");
+  document.querySelectorAll(".quality-tile").forEach(b => b.classList.toggle("active", String(b.dataset.rating || "") === value));
 }
 
 function startRoutineScreen() {
@@ -1221,12 +1227,13 @@ function renderCurrentRoutine() {
   
   $("sessionIntervention").value = "";
   $("sessionInterventionNote").value = "";
-  $("sessionRating").value = "";
+  $("sessionRating").value = activeSession?.sessionRatingDraft || "";
   $("sessionTags").value = "";
   if (r.description) { $("routineDescriptionBox").textContent = r.description; $("routineDescriptionBox").classList.remove("hidden"); }
   else $("routineDescriptionBox").classList.add("hidden");
   resetTimerState();
   renderScoreInputs(r);
+  syncSessionQualityTiles();
   prefillSmartDefaults(r);
   $("saveNextBtn").textContent = activeSession.type === "free" ? "Save Routine" : "Save & Next";
   $("skipBtn").classList.toggle("hidden", activeSession.type === "free");
@@ -1317,6 +1324,7 @@ function renderFocusScoreSteppers(r) {
     const row = input.closest("div");
     if (!row || row.classList.contains("focus-inline-stepper-ready")) return;
     row.classList.add("focus-score-inline-row", "focus-inline-stepper-ready");
+    if (f.id === "scoreValue") row.classList.add("focus-primary-score-row");
     row.insertAdjacentHTML("beforeend", `<div class="focus-inline-stepper" aria-label="${attrText(f.label)} controls">
       <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[0]}">−</button>
       <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[1]}">+</button>
@@ -3002,10 +3010,14 @@ function buildSessionKpiSeries(logs) {
     const pressureVals = pressureLogs.map(l => Number(l.pressureSuccessRate ?? l.normalizedScore ?? 0)).filter(v => Number.isFinite(v));
     let left = 0, right = 0, sideN = 0;
     arr.forEach(l => {
-      if (l.sideModeEnabled || l.sideMode || l.leftScore !== undefined || l.rightScore !== undefined) {
-        left += Number(l.leftScore || 0);
-        right += Number(l.rightScore || 0);
-        sideN++;
+      if (logUsesSideSplit(l)) {
+        const ls = getLogLeftSideScore(l);
+        const rs = getLogRightSideScore(l);
+        if (Number.isFinite(ls) || Number.isFinite(rs)) {
+          left += Number.isFinite(ls) ? ls : 0;
+          right += Number.isFinite(rs) ? rs : 0;
+          sideN++;
+        }
       }
     });
     const sideTotal = left + right;
@@ -3421,12 +3433,14 @@ function pressureOverviewMetric(logs) {
 }
 
 function sideImbalanceMetric(logs) {
-  const arr = logs.filter(l => l.sideModeEnabled || l.sideMode || l.leftScore !== undefined || l.rightScore !== undefined);
+  const arr = logs.filter(l => logUsesSideSplit(l));
   if (!arr.length) return null;
   let left=0, right=0;
   arr.forEach(l => {
-    left += Number(l.leftScore || 0);
-    right += Number(l.rightScore || 0);
+    const ls = getLogLeftSideScore(l);
+    const rs = getLogRightSideScore(l);
+    left += Number.isFinite(ls) ? ls : 0;
+    right += Number.isFinite(rs) ? rs : 0;
   });
   const total = left + right;
   if (!total) return {label:"0", detail:`L ${left} · R ${right}`};
@@ -5946,7 +5960,7 @@ function handleDelegatedUIAction(event) {
     case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
-    case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; document.querySelectorAll(".quality-tile").forEach(b => b.classList.toggle("active", b.dataset.rating === v)); } hapticFeedback("tap"); return; }
+    case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -5960,6 +5974,12 @@ function handleDelegatedUIAction(event) {
 }
 
 document.addEventListener("click", handleDelegatedUIAction);
+document.addEventListener("change", event => {
+  if (event.target && event.target.id === "sessionRating") {
+    if (activeSession) { activeSession.sessionRatingDraft = event.target.value || ""; persistActiveSession(); }
+    syncSessionQualityTiles();
+  }
+});
 
 window.SnookerInterface = {
   readTheme:getThemeModeSetting, setTheme:function(v){ const c=interfaceWriteSetting(THEME_MODE_KEY,"themeMode",v); applyThemeMode(c); renderInterfaceSettings(); return c; }, applyTheme:applyThemeMode,
@@ -5991,7 +6011,7 @@ function renderLivePerformanceCard(r){
   box.innerHTML = `<div class="live-perf ${safeClassToken(status, ["green","yellow","red","neutral"], "neutral")}">
     <div><strong>Live target check</strong><span>${htmlText(statusText)}</span></div>
     <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
-    <div><span>Personal best</span><strong>${personalBest === null ? "N/A" : personalBest.toFixed(r.scoring === "score_per_minute" ? 2 : 1)}</strong></div>
+    <div class="live-perf-pb"><span>Personal best</span><strong>${personalBest === null ? "N/A" : personalBest.toFixed(r.scoring === "score_per_minute" ? 2 : 1)}</strong></div>
     <div><span>Target</span><strong>${target || "N/A"}</strong></div>
     <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
     <div><span>Last 3</span><strong>${recent.length ? recent.map(l => Number(l.normalizedScore || 0).toFixed(0)).join(" / ") : "N/A"}</strong></div>

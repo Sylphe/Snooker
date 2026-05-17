@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.31</title>
+  <title>Snooker Practice Log v4.22.32</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.31" />
-  <link rel="stylesheet" href="styles.css?v=4.22.31" />
-  <link rel="icon" href="icon.svg?v=4.22.31" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.32" />
+  <link rel="stylesheet" href="styles.css?v=4.22.32" />
+  <link rel="icon" href="icon.svg?v=4.22.32" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.31 · Build 2026-05-17 17:45 CEST — Focus compact context and quality tiles.</p>
+      <p>v4.22.32 · Build 2026-05-17 17:45 CEST — Focus polish, left-right stats, and database sectioning.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -92,7 +92,7 @@
             <select id="freeRoutineSelect"></select>
           </div>
           <div class="row">
-            <button id="startFreeSessionBtn" class="secondary">Start Free Training</button>
+            <button id="startFreeSessionBtn" class="success primary-start-btn">Start Free Training</button>
             <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
             <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
           </div>
@@ -595,27 +595,25 @@
         </div>
       </div>
 
+      <div class="card" id="tableDatabasePanel">
+        <h2>Tables / venues database</h2>
+        <p class="muted">Create and edit table names. Historical logs use a stable table ID, so renaming a table keeps stats linked to the same actual table.</p>
+        <div class="grid two">
+          <div><label>Table name</label><input id="tableNameInput" placeholder="e.g. Riley – Home table" /></div>
+          <div><label>Table type / venue</label><input id="tableTypeInput" placeholder="e.g. Home, Club, Match table" /></div>
+        </div>
+        <label>Table info</label>
+        <textarea id="tableInfoInput" rows="3" placeholder="Optional: cloth, pockets, speed, lighting, notes"></textarea>
+        <input id="tableEditId" type="hidden" />
+        <div class="row">
+          <button id="saveTableBtn" type="button">Save Table</button>
+          <button id="clearTableFormBtn" type="button" class="secondary">Clear</button>
+        </div>
+        <div id="tableList"></div>
+      </div>
+
       <div class="card">
         <h2>Exercise database</h2>
-        <div class="card nested" id="tableDatabasePanel">
-          <details>
-            <summary><strong>Tables / venues database</strong></summary>
-            <p class="muted">Create and edit table names. Historical logs use a stable table ID, so renaming a table keeps stats linked to the same actual table.</p>
-            <div class="grid two">
-              <div><label>Table name</label><input id="tableNameInput" placeholder="e.g. Riley – Home table" /></div>
-              <div><label>Table type / venue</label><input id="tableTypeInput" placeholder="e.g. Home, Club, Match table" /></div>
-            </div>
-            <label>Table info</label>
-            <textarea id="tableInfoInput" rows="3" placeholder="Optional: cloth, pockets, speed, lighting, notes"></textarea>
-            <input id="tableEditId" type="hidden" />
-            <div class="row">
-              <button id="saveTableBtn" type="button">Save Table</button>
-              <button id="clearTableFormBtn" type="button" class="secondary">Clear</button>
-            </div>
-            <div id="tableList"></div>
-          </details>
-        </div>
-        
         <div class="grid three">
           <div>
             <label>Filter by type</label>
@@ -1122,6 +1120,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.31"></script>
+  <script type="module" src="app.js?v=4.22.32"></script>
 </body>
 </html>

@@ -2475,7 +2475,7 @@ body.session-focus-active #activeSession.focus-no-side-split .primary-action-row
 }
 
 
-/* v4.22.31 focus-mode attempts + compact context tiles */
+/* v4.22.32 focus-mode attempts + compact context tiles */
 body.session-focus-active #activeSession #scoreInputs > div:has(#manualTimeValue),
 body.session-focus-active #activeSession #sessionExtraFields #focusVenueBlock{
   min-height:64px!important;
@@ -2529,3 +2529,34 @@ body.session-focus-active #activeSession.focus-has-side-split #scoreInputs > div
 @media(max-width:420px){
   body.session-focus-active #activeSession .quality-tile{min-height:28px!important;height:28px!important;font-size:12px!important;}
 }
+
+
+/* v4.22.32 focus polish and beta fixes */
+body.session-focus-active #activeSession .live-perf .live-perf-pb{
+  border-color:rgba(34,197,94,.42)!important;
+  background:linear-gradient(180deg, rgba(34,197,94,.16), rgba(34,197,94,.07))!important;
+  box-shadow:inset 0 0 0 1px rgba(34,197,94,.12)!important;
+}
+body.session-focus-active #activeSession .live-perf .live-perf-pb strong{color:#b9f7cd!important;}
+body.session-focus-active #activeSession .focus-primary-score-row{
+  border-color:rgba(34,197,94,.42)!important;
+  background:linear-gradient(180deg, rgba(34,197,94,.14), rgba(34,197,94,.05))!important;
+}
+body.session-focus-active #activeSession .focus-primary-score-row input{
+  color:#d7ffe4!important;
+  font-weight:900!important;
+}
+body.session-focus-active #activeSession .quality-tile.active,
+body.session-focus-active #activeSession .quality-tile[aria-pressed="true"]{
+  background:rgba(34,197,94,.20)!important;
+  border-color:rgba(34,197,94,.58)!important;
+  color:#d7ffe4!important;
+  box-shadow:inset 0 0 0 1px rgba(34,197,94,.18)!important;
+}
+.quick-resume-banner.collapsed .quick-resume-header h2{margin:0!important;font-size:16px!important;}
+.quick-resume-banner.collapsed{padding:10px 12px!important;}
+.quick-resume-banner.collapsed .quick-resume-toggle{width:32px;height:32px;min-height:32px;border-radius:10px;font-size:20px;}
+#startFreeSessionBtn.success.primary-start-btn{background:#15803d;border-color:#15803d;color:#fff;box-shadow:0 6px 18px rgba(21,128,61,.18);}
+body[data-theme="dark"] #startFreeSessionBtn.success.primary-start-btn,
+body[data-theme-mode="dark"] #startFreeSessionBtn.success.primary-start-btn{background:#16a34a;border-color:#22c55e;color:#06130a;}
+#tableDatabasePanel{border-left:4px solid rgba(34,197,94,.35);}
