@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.27";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.28";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.27";
+} from "./utils.js?v=4.22.28";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -32,7 +32,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.27";
+} from "./settings.js?v=4.22.28";
 import {
   avg,
   stdDev,
@@ -54,7 +54,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.27";
+} from "./analytics.js?v=4.22.28";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -63,7 +63,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.27";
+} from "./bayesian.js?v=4.22.28";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -72,7 +72,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.27";
+} from "./session.js?v=4.22.28";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -80,7 +80,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.27";
+} from "./pressure.js?v=4.22.28";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -92,8 +92,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.27";
-import * as RenderHelpers from "./render.js?v=4.22.27";
+} from "./recommendations.js?v=4.22.28";
+import * as RenderHelpers from "./render.js?v=4.22.28";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.27";
+} from "./store.js?v=4.22.28";
 
 
 
@@ -1239,19 +1239,27 @@ function renderScoreInputs(r) {
   }
   if (routineUsesSideSplit(r)) {
     const attemptsDefault = Number(r.attempts || r.attemptsPerSession || 0) || "";
-    html += `<div class="side-split-panel">
-      <div class="side-split-title"><strong>Left / Right split</strong><span>Combined score is calculated automatically as Left + Right.</span></div>
+    const modeText = getRoutineAttemptMode(r) === "per_side"
+      ? "Attempts are counted per side. Combined score = Left + Right."
+      : "Attempts are one shared total. Combined score = Left + Right.";
+    html += `<div class="side-split-panel focus-side-tile">
+      <div class="side-split-compact-note">Left / Right split · ${htmlText(attemptModeLabel(getRoutineAttemptMode(r)))} · ${htmlText(modeText)}</div>
       <div class="grid two">
-        <div><label>Left side score</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
-        <div><label>Right side score</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
+        <div><label>Left side</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
+        <div><label>Right side</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
       </div>
-      <div class="side-split-note">Attempt mode: ${attemptModeLabel(getRoutineAttemptMode(r))}. ${getRoutineAttemptMode(r) === "per_side" ? "The Attempts field is counted once for Left and once for Right." : "The Attempts field is counted as one shared total."}</div>
     </div>`;
     if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
   }
   $("scoreInputs").innerHTML = html;
   renderFocusScoreSteppers(r);
   renderQuickScoreControls(r);
+  const activeCard = $("activeSession");
+  if (activeCard) {
+    activeCard.classList.toggle("focus-has-side-split", routineUsesSideSplit(r));
+    activeCard.classList.toggle("focus-no-side-split", !routineUsesSideSplit(r));
+    activeCard.classList.toggle("focus-has-quick-controls", !!($("quickScoreControls") && !$("quickScoreControls").classList.contains("hidden")));
+  }
   setTimeout(() => {
     if (document.body?.classList.contains("session-focus-active")) {
       if (document.activeElement && ["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName)) document.activeElement.blur();
@@ -1338,7 +1346,20 @@ function renderQuickScoreControls(r) {
   box.classList.remove("hidden");
   const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
   if (routineUsesSideSplit(r)) {
-    box.innerHTML = `<div class="analytics-note">Left / Right split is active. Enter both side scores; the app saves one combined log.</div>`;
+    box.innerHTML = `
+      <div class="quick-score-block side-quick-score-block">
+        <div class="quick-score-row side-quick-score-row">
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="-1">L −1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="1">L +1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="5">L +5</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="-1">R −1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="1">R +1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="5">R +5</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="0">Clear</button>
+          <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
+        </div>
+      </div>`;
     return;
   }
   if (r.scoring === "success_rate") {
@@ -5141,7 +5162,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.27");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.28");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5706,7 +5727,7 @@ function updateSessionFocusState(){
   if (active && currentSessionFocusActive) setTimeout(resetSessionFocusScrollTop, 0);
   const btn = $("toggleFocusModeBtn");
   if (btn) {
-    btn.textContent = active && currentSessionFocusActive ? "Exit" : "Focus Mode";
+    btn.textContent = active && currentSessionFocusActive ? "Exit focus mode" : "Focus Mode";
     btn.setAttribute("aria-pressed", active && currentSessionFocusActive ? "true" : "false");
     btn.setAttribute("title", active && currentSessionFocusActive ? "Exit focus mode" : "Enter focus mode");
   }
