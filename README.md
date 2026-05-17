@@ -1,3 +1,3 @@
-# Snooker Practice PWA v4.22.29
+# Snooker Practice PWA v4.23.0
 
-Graph labels/context, starred exercise picker rows with last-used summaries, and separate Wake Lock settings card.
+Stabilization release: normalized cache/version references, stronger score validation, reduced blocking alerts, IndexedDB delta retry warnings, and one authoritative log-row renderer.

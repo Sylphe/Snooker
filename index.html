@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.33</title>
+  <title>Snooker Practice Log v4.23.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.33" />
-  <link rel="stylesheet" href="styles.css?v=4.22.33" />
-  <link rel="icon" href="icon.svg?v=4.22.33" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.23.0" />
+  <link rel="stylesheet" href="styles.css?v=4.23.0" />
+  <link rel="icon" href="icon.svg?v=4.23.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.33 · Build 2026-05-17 17:45 CEST — Focus polish, left-right stats, and database sectioning.</p>
+      <p>v4.23.0 · Build 2026-05-17 18:55 GMT+1 — stabilization: version hygiene, validation, persistence retry, and log renderer cleanup.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -604,6 +604,24 @@
         </div>
       </div>
 
+      <div class="card">
+        <h2>Exercise database</h2>
+        <div class="grid three">
+          <div>
+            <label>Filter by type</label>
+            <select id="exerciseTypeFilter"></select>
+          </div>
+          <div>
+            <label>Filter by folder</label>
+            <select id="exerciseFolderFilter"></select>
+          </div>
+          <div>
+            <label>Search</label>
+            <input id="exerciseSearch" placeholder="Search exercise name..." />
+          </div>
+        </div>
+        <div id="routineList" class="list grouped"></div>
+      </div>
       </div>
 
       <div class="templates-tab-panel hidden" data-templates-panel="tables">
@@ -625,25 +643,6 @@
       </div>
       </div>
 
-      <div class="card">
-        <h2>Exercise database</h2>
-        <div class="grid three">
-          <div>
-            <label>Filter by type</label>
-            <select id="exerciseTypeFilter"></select>
-          </div>
-          <div>
-            <label>Filter by folder</label>
-            <select id="exerciseFolderFilter"></select>
-          </div>
-          <div>
-            <label>Search</label>
-            <input id="exerciseSearch" placeholder="Search exercise name..." />
-          </div>
-        </div>
-        <div id="routineList" class="list grouped"></div>
-      </div>
-      </div>
     </section>
 
     <section id="plans" class="panel">
@@ -1134,6 +1133,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.33"></script>
+  <script type="module" src="app.js?v=4.23.0"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.33";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.23.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -15,7 +15,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.33";
+} from "./utils.js?v=4.23.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -33,7 +33,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.33";
+} from "./settings.js?v=4.23.0";
 import {
   avg,
   stdDev,
@@ -55,7 +55,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.33";
+} from "./analytics.js?v=4.23.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -64,7 +64,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.33";
+} from "./bayesian.js?v=4.23.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -73,7 +73,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.33";
+} from "./session.js?v=4.23.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -81,7 +81,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.33";
+} from "./pressure.js?v=4.23.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -93,8 +93,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.33";
-import * as RenderHelpers from "./render.js?v=4.22.33";
+} from "./recommendations.js?v=4.23.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.33";
+} from "./store.js?v=4.23.0";
 
 
 
@@ -122,6 +121,9 @@ let indexedDBHydrating = true;
 let pendingPreHydrationLogs = [];
 let pendingPreHydrationSessions = [];
 let pendingPostHydrationSaveOptions = null;
+let pendingFailedIndexedDBLogs = [];
+let pendingFailedIndexedDBSessions = [];
+let indexedDBRetryNoticeShown = false;
 
 
 function serializeCoreData(d) {
@@ -170,13 +172,54 @@ function flushPostHydrationSaveQueue() {
   saveData({...opts, immediateIDB:true});
 }
 
+function notifyUser(message, tone="info") {
+  if (typeof showTransientNotice === "function") showTransientNotice(message, tone);
+  else console.warn(message);
+}
+function validationNotice(message) { notifyUser(message, "warn"); return false; }
+function queueFailedLogDelta(log) {
+  if (!log || !log.id) return;
+  pendingFailedIndexedDBLogs = mergeById([log], pendingFailedIndexedDBLogs);
+  if (!indexedDBRetryNoticeShown) {
+    indexedDBRetryNoticeShown = true;
+    notifyUser("Save warning: local copy kept; IndexedDB sync will retry. Export backup if this repeats.", "warn");
+  }
+}
+function queueFailedSessionDelta(session) {
+  if (!session || !session.id) return;
+  pendingFailedIndexedDBSessions = mergeById([session], pendingFailedIndexedDBSessions);
+  if (!indexedDBRetryNoticeShown) {
+    indexedDBRetryNoticeShown = true;
+    notifyUser("Save warning: session kept locally; IndexedDB sync will retry. Export backup if this repeats.", "warn");
+  }
+}
+async function flushFailedIndexedDBDeltas(context="flushFailedIndexedDBDeltas") {
+  if (indexedDBUnavailable || !indexedDBReady) return false;
+  const logs = pendingFailedIndexedDBLogs.slice();
+  const sessions = pendingFailedIndexedDBSessions.slice();
+  if (!logs.length && !sessions.length) return true;
+  try {
+    for (const log of logs) await idbPut(INDEXEDDB_LOG_STORE, log);
+    for (const session of sessions) await idbPut(INDEXEDDB_SESSION_STORE, session);
+    pendingFailedIndexedDBLogs = [];
+    pendingFailedIndexedDBSessions = [];
+    indexedDBRetryNoticeShown = false;
+    notifyUser("Pending data sync completed.", "ok");
+    return true;
+  } catch(e) {
+    logAppError(e, context);
+    return false;
+  }
+}
 function persistLogDelta(log, context="persistLogDelta") {
   if (indexedDBUnavailable || !log || !log.id) return Promise.resolve(false);
   if (!indexedDBReady) {
     pendingPreHydrationLogs = mergeById([log], pendingPreHydrationLogs);
     return Promise.resolve(true);
   }
-  return idbPut(INDEXEDDB_LOG_STORE, log).catch(e => { logAppError(e, context); return false; });
+  return idbPut(INDEXEDDB_LOG_STORE, log)
+    .then(() => { flushFailedIndexedDBDeltas("persistLogDelta retry"); return true; })
+    .catch(e => { logAppError(e, context); queueFailedLogDelta(log); return false; });
 }
 function persistSessionDelta(session, context="persistSessionDelta") {
   if (indexedDBUnavailable || !session || !session.id) return Promise.resolve(false);
@@ -184,7 +227,9 @@ function persistSessionDelta(session, context="persistSessionDelta") {
     pendingPreHydrationSessions = mergeById([session], pendingPreHydrationSessions);
     return Promise.resolve(true);
   }
-  return idbPut(INDEXEDDB_SESSION_STORE, session).catch(e => { logAppError(e, context); return false; });
+  return idbPut(INDEXEDDB_SESSION_STORE, session)
+    .then(() => { flushFailedIndexedDBDeltas("persistSessionDelta retry"); return true; })
+    .catch(e => { logAppError(e, context); queueFailedSessionDelta(session); return false; });
 }
 function deleteLogDelta(id, context="deleteLogDelta") {
   if (indexedDBUnavailable || !id) return Promise.resolve(false);
@@ -197,6 +242,9 @@ async function persistIndexedDBCollections(context="persistIndexedDBCollections"
     await idbReplaceAll(INDEXEDDB_SESSION_STORE, data.sessions || []);
     indexedDBReady = true;
     indexedDBHydrating = false;
+    pendingFailedIndexedDBLogs = [];
+    pendingFailedIndexedDBSessions = [];
+    indexedDBRetryNoticeShown = false;
     return true;
   } catch(e) {
     indexedDBHydrating = false;
@@ -270,7 +318,7 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
     }
     indexedDBUnavailable = true;
     indexedDBHydrating = false;
-    alert("IndexedDB storage could not initialize. The app will use localStorage fallback for this session. Export a full backup before adding new logs.");
+    notifyUser("IndexedDB could not initialize. Using localStorage fallback for this session; export a backup before adding many logs.", "warn");
     return false;
   }
 }
@@ -488,7 +536,7 @@ function loadData() {
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
-    alert("Startup/migration error detected. Your stored data was NOT overwritten. Export Debug Info and Raw Local Data from the Data tab before making changes.");
+    notifyUser("Startup/migration issue detected. Stored data was not overwritten. Export Debug Info and Raw Local Data before making changes.", "warn");
     const fallback = raw ? safeParseData(raw) : null;
     return fallback || structuredCloneSafe(defaultData);
   }
@@ -516,6 +564,7 @@ function saveData(options = {}) {
   if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
   if (ok) renderStorageWarning();
   const renderMode = opts.render || "all";
+  flushFailedIndexedDBDeltas("saveData retry pending deltas");
   renderAfterSave(renderMode);
   return ok;
 }
@@ -685,7 +734,8 @@ function validateSideSuccessRateInputs({left, right, attempts, attemptMode}) {
   const l = Number(left || 0);
   const r = Number(right || 0);
   const a = Number(attempts || 0);
-  if (!a) return "Enter attempts.";
+  if (!a || a < 0) return "Enter attempts.";
+  if (l < 0 || r < 0) return "Left and right side scores cannot be negative.";
   if (normalizeAttemptMode(attemptMode) === "per_side") {
     if (l > a || r > a) return "For per-side mode, each side score must be less than or equal to the Attempts value.";
   } else if (l + r > a) {
@@ -1475,15 +1525,20 @@ async function saveCurrentRoutine() {
   const manualTime = Number($("manualTimeValue")?.value || 0);
   const timerMinutes = getElapsedMinutes();
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
-  if (r.scoring === "success_rate" && attempts <= 0) return alert("Enter attempts.");
-  if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return alert("Enter valid left and right side scores.");
+  if (Number.isNaN(attempts) || attempts < 0) return validationNotice("Attempts must be zero or greater.");
+  if (r.scoring === "success_rate" && attempts <= 0) return validationNotice("Enter attempts.");
+  if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return validationNotice("Enter valid left and right side scores.");
+  if (sideSplitEnabled && (leftSideScore < 0 || rightSideScore < 0)) return validationNotice("Left and right side scores cannot be negative.");
   if (sideSplitEnabled && r.scoring === "success_rate") {
     const sideError = validateSideSuccessRateInputs({left:leftSideScore, right:rightSideScore, attempts, attemptMode});
-    if (sideError) return alert(sideError);
+    if (sideError) return validationNotice(sideError);
   }
-  if (Number.isNaN(score)) return alert("Enter a valid score.");
+  if (Number.isNaN(score)) return validationNotice("Enter a valid score.");
+  if (score < 0) return validationNotice("Score cannot be negative.");
+  if (!sideSplitEnabled && r.scoring === "success_rate" && score > attempts) return validationNotice("Score cannot exceed attempts.");
+  if (manualTime < 0) return validationNotice("Time cannot be negative.");
   const sessionTotalUnits = r.scoring === "progressive_completion" ? (Number($("sessionTotalUnitsValue")?.value || 0) || Number(r.totalUnits || 0) || 0) : Number(r.totalUnits || 0);
-  if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return alert("Enter the completion size / total units for this progressive completion drill.");
+  if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return validationNotice("Enter the completion size / total units for this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
 
   activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
@@ -1548,7 +1603,8 @@ async function saveCurrentRoutine() {
   updateTagHistoryFromInput(log.sessionTags);
   data.logs.push(log);
   activeSession.completedLogs.push(log);
-  await persistLogDelta(log, "saveCurrentRoutine log put");
+  const persisted = await persistLogDelta(log, "saveCurrentRoutine log put");
+  if (!persisted && !indexedDBUnavailable) notifyUser("Saved locally, but IndexedDB sync is pending. Export a backup if this warning repeats.", "warn");
   showTransientNotice(activeSession.index >= activeSession.routineIds.length - 1 ? "Saved." : "Saved — next exercise.", "ok");
   stopTimer();
 
@@ -3914,7 +3970,7 @@ async function saveEditedLogFromModal() {
   const modal = $("logEditModal");
   const id = modal?.dataset?.logId || "";
   const form = modal?.querySelector?.(".log-edit");
-  if (!id || !form) return alert("Edit form not found.");
+  if (!id || !form) return validationNotice("Edit form not found.");
   await saveEditedLog(id, form);
   closeLogEditModal();
 }
@@ -3935,15 +3991,16 @@ async function saveEditedLog(id, formEl) {
   const l = data.logs[idx];
   const routine = routineById(l.routineId) || makeRoutineSnapshotFromLog(l);
   const form = formEl || document.querySelector(`.log-edit[data-log-edit-id="${cssEscapeSafe(id)}"]`);
-  if (!form) return alert("Edit form not found.");
+  if (!form) return validationNotice("Edit form not found.");
   const field = cls => form.querySelector(`.${cls}`);
   const editedDate = new Date(field("edit-createdAt")?.value || l.createdAt);
-  if (Number.isNaN(editedDate.getTime())) return alert("Invalid date/time.");
+  if (Number.isNaN(editedDate.getTime())) return validationNotice("Invalid date/time.");
   l.createdAt = editedDate.toISOString();
   if (logUsesSideSplit(l) || field("edit-left-side-score") || field("edit-right-side-score")) {
     const left = Number(field("edit-left-side-score")?.value || 0);
     const right = Number(field("edit-right-side-score")?.value || 0);
-    if (Number.isNaN(left) || Number.isNaN(right)) return alert("Enter valid left and right side scores.");
+    if (Number.isNaN(left) || Number.isNaN(right)) return validationNotice("Enter valid left and right side scores.");
+    if (left < 0 || right < 0) return validationNotice("Left and right side scores cannot be negative.");
     l.leftSideScore = left;
     l.rightSideScore = right;
     l.sideMode = normalizeSideMode(l.sideMode || "left_right");
@@ -3953,14 +4010,19 @@ async function saveEditedLog(id, formEl) {
     l.score = computeSideCombinedScore(left, right);
   } else {
     l.score = Number(field("edit-score")?.value || 0);
+    if (Number.isNaN(l.score)) return validationNotice("Enter a valid score.");
+    if (l.score < 0) return validationNotice("Score cannot be negative.");
   }
   l.attempts = Number(field("edit-attempts")?.value || 0) || "";
+  if (Number(l.attempts || 0) < 0) return validationNotice("Attempts cannot be negative.");
+  if (!logUsesSideSplit(l) && l.scoring === "success_rate" && Number(l.score || 0) > Number(l.attempts || 0)) return validationNotice("Score cannot exceed attempts.");
   l.effectiveAttempts = effectiveLogAttempts(l);
   if (logUsesSideSplit(l) && l.scoring === "success_rate") {
     const sideError = validateSideSuccessRateInputs({left:l.leftSideScore, right:l.rightSideScore, attempts:l.attempts, attemptMode:l.attemptMode});
-    if (sideError) return alert(sideError);
+    if (sideError) return validationNotice(sideError);
   }
   l.timeMinutes = Number(field("edit-time")?.value || 0);
+  if (Number.isNaN(l.timeMinutes) || l.timeMinutes < 0) return validationNotice("Time cannot be negative.");
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
@@ -3978,7 +4040,8 @@ async function saveEditedLog(id, formEl) {
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
   data.logs[idx] = l;
-  await persistLogDelta(l, "saveEditedLog log put");
+  const persisted = await persistLogDelta(l, "saveEditedLog log put");
+  if (!persisted && !indexedDBUnavailable) notifyUser("Edited log saved locally, but IndexedDB sync is pending.", "warn");
   saveData({render:"logEdit", idbSync:"skip"});
 }
 function makeRoutineSnapshotFromLog(l) {
@@ -4430,9 +4493,9 @@ function safeStorageSet(key, value, context="safeStorageSet") {
   } catch(e) {
     logAppError(e, context);
     if (e && (e.name === "QuotaExceededError" || String(e.message || "").toLowerCase().includes("quota"))) {
-      alert("Storage appears full. Export JSON Backup and Raw Local Data before continuing.");
+      notifyUser("Storage appears full. Export JSON Backup and Raw Local Data before continuing.", "warn");
     } else {
-      alert("Could not save local data. Export a backup/debug file before continuing.");
+      notifyUser("Could not save local data. Export a backup/debug file before continuing.", "warn");
     }
     return false;
   }
@@ -5203,7 +5266,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.33");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.23.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
