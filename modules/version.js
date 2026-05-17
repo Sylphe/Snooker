@@ -1,3 +1,24 @@
 export const APP_VERSION = "4.24.1-thompson-recommendations";
-export const APP_BUILD = "v4.24.1";
+export const APP_BUILD = "v4.24.2";
 export const APP_BUILD_TIMESTAMP = "2026-05-17 19:35 GMT+1";
+
+
+function renderRecommendationDiagnostics(candidates){
+  try{
+    const host=document.getElementById("recommendationDiagnosticsBox");
+    if(!host)return;
+    if(!Array.isArray(candidates)||!candidates.length){
+      host.innerHTML='<div class="muted small">No recommendation diagnostics available yet.</div>';
+      return;
+    }
+    host.innerHTML=candidates.slice(0,5).map((c,i)=>`
+      <div class="diag-row">
+        <div><strong>#${i+1} ${c.name||"Routine"}</strong></div>
+        <div class="small muted">${c.reason||"Balanced recommendation"}</div>
+        <div class="small">Priority: ${Math.round(c.score||0)}</div>
+      </div>
+    `).join('');
+  }catch(err){
+    console.warn(err);
+  }
+}

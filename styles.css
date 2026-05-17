@@ -2656,9 +2656,18 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.24.1 Thompson recommendation logic */
+/* v4.24.2 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
 .recommendation-candidate-row{align-items:start;gap:.55rem;}
 .recommendation-candidate-row > span:last-child{font-size:.82rem;color:var(--muted);}
+
+
+.diag-row{
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px;
+  padding:8px;
+  margin-top:6px;
+  background:rgba(255,255,255,0.03);
+}

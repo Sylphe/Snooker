@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.24.1</title>
+  <title>Snooker Practice Log v4.24.2</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -39,7 +39,7 @@
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.24.1 · Build 2026-05-17 19:35 GMT+1 — Thompson Sampling recommendation mode for Smart Session Builder.</p>
+      <p>v4.24.2 · Build 2026-05-17 19:35 GMT+1 — Thompson Sampling recommendation mode for Smart Session Builder.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1128,5 +1128,13 @@
   </footer>
 
   <script type="module" src="app.js?v=4.24.1"></script>
+
+<div class="card" id="recommendationDiagnosticsCard" style="margin:12px;">
+  <div><strong>Recommendation Diagnostics</strong></div>
+  <div id="recommendationDiagnosticsBox">
+    <div class="muted small">Top recommendation candidates and reasons will appear here.</div>
+  </div>
+</div>
 </body>
+
 </html>
