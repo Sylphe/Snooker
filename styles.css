@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.24.2 Thompson recommendation logic */
+/* v4.25.0 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2670,4 +2670,21 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
   padding:8px;
   margin-top:6px;
   background:rgba(255,255,255,0.03);
+}
+
+
+.dq-item{
+  padding:10px;
+  margin-top:8px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.03);
+}
+
+.dq-high{
+  border-left:4px solid #d96b6b;
+}
+
+.dq-medium{
+  border-left:4px solid #d9b36b;
 }
