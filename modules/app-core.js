@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.24";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.25";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.24";
+} from "./utils.js?v=4.22.25";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -32,7 +32,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.24";
+} from "./settings.js?v=4.22.25";
 import {
   avg,
   stdDev,
@@ -54,7 +54,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.24";
+} from "./analytics.js?v=4.22.25";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -63,7 +63,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.24";
+} from "./bayesian.js?v=4.22.25";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -72,7 +72,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.24";
+} from "./session.js?v=4.22.25";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -80,7 +80,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.24";
+} from "./pressure.js?v=4.22.25";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -92,8 +92,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.24";
-import * as RenderHelpers from "./render.js?v=4.22.24";
+} from "./recommendations.js?v=4.22.25";
+import * as RenderHelpers from "./render.js?v=4.22.25";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.24";
+} from "./store.js?v=4.22.25";
 
 
 
@@ -2509,7 +2509,7 @@ function renderSmartRecommendation() {
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and True Skill estimate for success-rate drills.</p>
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, True Skill estimate, pressure weakness, table context, and repeated reflection themes.</p>
     ${policyHtml}
     <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
@@ -4909,6 +4909,11 @@ FIELD_HELP.regretEngine = {
     <div class="example"><strong>Important:</strong> this is not causal proof. It is a decision-quality signal for drill selection.</div>
   </div>`
 };
+
+FIELD_HELP.reflectionPatterns = {
+  title: "Reflection patterns",
+  body: "Shows repeated post-session focus or limiter themes. These signals now add small recommendation weight when a drill is repeatedly linked to the same limiter or focus area."
+};
 FIELD_HELP.orchestratorIntensity = {
   title:"Training Orchestrator — Intensity",
   body:`<div class="help-rich">
@@ -5133,7 +5138,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.24");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.25");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5177,6 +5182,95 @@ function renderTodayResumeCard() {
 
 
 function statHelpButton(key){return `<button type="button" class="stat-help" data-action="field-help" data-help-key="${attrText(key)}">?</button>`;}
+
+function pressureRoutineSignal(routineId) {
+  const logs = (data.logs || []).filter(l => String(l.routineId) === String(routineId));
+  const pressureLogs = logs.filter(l => l.sessionType === "pressure" || l.pressureEnabled || l.pressureMode || l.pressureScore !== undefined || l.clutchRate !== undefined);
+  if (pressureLogs.length < 2) return {bonus:0, reasons:[], n:pressureLogs.length, avg:null, clutch:null};
+  const vals = pressureLogs.map(l => Number(l.pressureAdjustedScore ?? l.pressureScore ?? l.normalizedScore ?? 0)).filter(Number.isFinite);
+  const clutchVals = pressureLogs.map(l => Number(l.clutchRate)).filter(Number.isFinite);
+  const avgPressure = vals.length ? avg(vals) : null;
+  const avgClutch = clutchVals.length ? avg(clutchVals) : null;
+  let bonus = 0;
+  const reasons = [];
+  if (avgPressure !== null && avgPressure < 60) { bonus += 14; reasons.push(`pressure weakness (${avgPressure.toFixed(0)} avg)`); }
+  else if (avgPressure !== null && avgPressure >= 80) { bonus -= 4; reasons.push("pressure strength"); }
+  if (avgClutch !== null && avgClutch < 55) { bonus += 8; reasons.push(`clutch rate ${avgClutch.toFixed(0)}%`); }
+  if (pressureLogs.length && daysSince(pressureLogs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).at(-1).createdAt) >= 10) {
+    bonus += 6;
+    reasons.push("pressure reps overdue");
+  }
+  return {bonus, reasons, n:pressureLogs.length, avg:avgPressure, clutch:avgClutch};
+}
+
+function currentRecommendationTableName() {
+  const activeTable = activeSession?.tableId ? getTableName(activeSession.tableId) : "";
+  return activeTable && activeTable !== "Not specified" ? activeTable : (getLastTableId() ? getTableName(getLastTableId()) : (getLastVenueTable() || ""));
+}
+
+function tableVenueRoutineSignal(routineId) {
+  const tableName = currentRecommendationTableName();
+  if (!tableName || tableName === "Not specified") return {bonus:0, reasons:[], tableName:"", delta:null, n:0};
+  const logs = (data.logs || []).filter(l => String(l.routineId) === String(routineId));
+  const vals = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const tableLogs = logs.filter(l => getTableName(l) === tableName || l.venueTable === tableName || l.venueTableSnapshot === tableName);
+  const tableVals = tableLogs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  if (vals.length < 5 || tableVals.length < 2) return {bonus:0, reasons:[], tableName, delta:null, n:tableVals.length};
+  const delta = avg(tableVals) - avg(vals);
+  const reasons = [];
+  let bonus = 0;
+  if (delta < -6) { bonus += 8; reasons.push(`table-context drag: ${tableName} (${delta.toFixed(1)})`); }
+  else if (delta > 6) { bonus -= 3; reasons.push(`table-context lift: ${tableName} (+${delta.toFixed(1)})`); }
+  return {bonus, reasons, tableName, delta, n:tableVals.length};
+}
+
+function reflectionRoutineSignal(routineId) {
+  const sessions = data.sessions || [];
+  const logs = (data.logs || []).filter(l => String(l.routineId) === String(routineId));
+  if (!logs.length || !sessions.length) return {bonus:0, reasons:[], patterns:[]};
+  const sessionById = Object.fromEntries(sessions.map(s => [s.id, s]));
+  const patterns = {};
+  logs.forEach(l => {
+    const ref = sessionById[l.sessionId]?.reflection;
+    if (!ref) return;
+    [ref.focus, ref.limiter].filter(Boolean).forEach(x => {
+      const key = String(x).trim();
+      if (!key) return;
+      patterns[key] = (patterns[key] || 0) + 1;
+    });
+  });
+  const sorted = Object.entries(patterns).sort((a,b)=>b[1]-a[1]);
+  const top = sorted[0];
+  if (!top || top[1] < 2) return {bonus:0, reasons:[], patterns:sorted};
+  return {bonus:Math.min(10, top[1]*3), reasons:[`recurring reflection: ${top[0]}`], patterns:sorted};
+}
+
+function recommendationContextSignal(routineId) {
+  const pressure = pressureRoutineSignal(routineId);
+  const table = tableVenueRoutineSignal(routineId);
+  const reflection = reflectionRoutineSignal(routineId);
+  return {
+    bonus: Number(pressure.bonus || 0) + Number(table.bonus || 0) + Number(reflection.bonus || 0),
+    pressure, table, reflection,
+    reasons: [...(pressure.reasons || []), ...(table.reasons || []), ...(reflection.reasons || [])]
+  };
+}
+
+function reflectionPatternInsight(logs) {
+  const scopedSessionIds = new Set(logs.map(l => l.sessionId).filter(Boolean));
+  const sessions = (data.sessions || []).filter(s => scopedSessionIds.has(s.id) && s.reflection);
+  if (!sessions.length) return `<div class="insight-card watch"><strong>Reflection patterns</strong><div class="muted">No post-session reflection data in the current scope yet.</div></div>`;
+  const counts = {};
+  sessions.forEach(s => {
+    const ref = s.reflection || {};
+    if (ref.focus) counts[`Focus: ${ref.focus}`] = (counts[`Focus: ${ref.focus}`] || 0) + 1;
+    if (ref.limiter) counts[`Limiter: ${ref.limiter}`] = (counts[`Limiter: ${ref.limiter}`] || 0) + 1;
+  });
+  const rows = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if (!rows.length) return `<div class="insight-card watch"><strong>Reflection patterns</strong><div class="muted">Reflections exist, but no structured focus/limiter fields are populated yet.</div></div>`;
+  return `<div class="insight-card watch"><strong>Reflection patterns ${statHelpButton("reflectionPatterns")}</strong>${rows.map(([k,n])=>`<div class="context-row"><span>${escapeHtml(k)}</span><strong>${n}</strong><span>session${n===1?"":"s"}</span></div>`).join("")}<div class="adaptive-rationale">Recurring focus/limiter themes now influence drill recommendations when linked to session logs.</div></div>`;
+}
+
 function getRoutinePriorityReasons(item){
   const r=item.routine,s=item.stats,reasons=[];
   if(s.hit!==null&&s.hit<55) reasons.push("low target hit rate");
@@ -5184,6 +5278,8 @@ function getRoutinePriorityReasons(item){
   if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
   if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
   if(s.bayesian?.policy?.title) reasons.push(`True Skill action: ${s.bayesian.policy.title}`); else if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
+  const ctx = s.contextSignal || recommendationContextSignal(r.id);
+  (ctx.reasons || []).forEach(reason => reasons.push(reason));
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -5341,9 +5437,10 @@ function routineStats(routineId) {
   const modePenalty = recommendationMode(routine) === "occasional" ? 8 : 0;
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
   const bayesian = bayesianStatsForRoutine(routineId);
+  const contextSignal = recommendationContextSignal(routineId);
   return {
-    logs, vals, hit, recent, prior, bayesian,
-    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0)
+    logs, vals, hit, recent, prior, bayesian, contextSignal,
+    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0) + Number(contextSignal.bonus || 0)
   };
 }
 
