@@ -4,6 +4,7 @@ export const QUICK_LOG_AUTO_ADVANCE_KEY = "snookerPracticePWA.quickLogAutoAdvanc
 export const DISPLAY_DENSITY_KEY = "snookerPracticePWA.displayDensity";
 export const TIMER_AUTOSTART_KEY = "snookerPracticePWA.timerAutostart";
 export const TIMER_AUTOSTART_DELAY_KEY = "snookerPracticePWA.timerAutostartDelaySeconds";
+export const WAKE_LOCK_KEY = "snookerPracticePWA.wakeLock";
 
 export function normalizeInterfaceThemeMode(value) {
   return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
@@ -19,6 +20,10 @@ export function normalizeDisplayDensity(value) {
 
 export function normalizeTimerAutostart(value) {
   return value === "auto" ? "auto" : "manual";
+}
+
+export function normalizeWakeLock(value) {
+  return value === "on" ? "on" : "off";
 }
 
 export function normalizeTimerAutostartDelay(value) {

@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.17";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.23";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.17";
+} from "./utils.js?v=4.22.23";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -22,15 +22,17 @@ import {
   DISPLAY_DENSITY_KEY,
   TIMER_AUTOSTART_KEY,
   TIMER_AUTOSTART_DELAY_KEY,
+  WAKE_LOCK_KEY,
   normalizeInterfaceThemeMode,
   normalizeOnOff,
   normalizeDisplayDensity,
   normalizeTimerAutostart,
   normalizeTimerAutostartDelay,
+  normalizeWakeLock,
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.17";
+} from "./settings.js?v=4.22.23";
 import {
   avg,
   stdDev,
@@ -52,7 +54,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.17";
+} from "./analytics.js?v=4.22.23";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -61,7 +63,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.17";
+} from "./bayesian.js?v=4.22.23";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -70,7 +72,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.17";
+} from "./session.js?v=4.22.23";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -78,7 +80,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.17";
+} from "./pressure.js?v=4.22.23";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -90,8 +92,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.17";
-import * as RenderHelpers from "./render.js?v=4.22.17";
+} from "./recommendations.js?v=4.22.23";
+import * as RenderHelpers from "./render.js?v=4.22.23";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -103,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.17";
+} from "./store.js?v=4.22.23";
 
 
 
@@ -330,8 +332,12 @@ let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
+let wakeLockSentinel = null;
+let wakeLockRequestInFlight = false;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
+const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
+const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
 const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
@@ -394,6 +400,7 @@ function migrateData(d) {
   d.interfaceSettings.displayDensity = normalizeDisplayDensity(localStorage.getItem(DISPLAY_DENSITY_KEY) || d.interfaceSettings.displayDensity || "comfortable");
   d.interfaceSettings.timerAutostart = normalizeTimerAutostart(localStorage.getItem(TIMER_AUTOSTART_KEY) || d.interfaceSettings.timerAutostart || "manual");
   d.interfaceSettings.timerAutostartDelaySeconds = normalizeTimerAutostartDelay(localStorage.getItem(TIMER_AUTOSTART_DELAY_KEY) || d.interfaceSettings.timerAutostartDelaySeconds || 0);
+  d.interfaceSettings.wakeLock = normalizeWakeLock(localStorage.getItem(WAKE_LOCK_KEY) || d.interfaceSettings.wakeLock || "off");
   d.sessions = d.sessions || [];
   d.logs = (d.logs || []).map(l => {
     const migrated = {
@@ -502,6 +509,7 @@ function saveData(options = {}) {
   data.interfaceSettings.displayDensity = getDisplayDensitySetting();
   data.interfaceSettings.timerAutostart = getTimerAutostartSetting();
   data.interfaceSettings.timerAutostartDelaySeconds = getTimerAutostartDelaySetting();
+  data.interfaceSettings.wakeLock = getWakeLockSetting();
   ensureTablesDatabase?.();
   const ok = saveCoreData("saveData core");
   if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
@@ -754,6 +762,7 @@ function renderAll() {
   renderABComparison();
   renderResumeCard();
   renderTodayResumeCard();
+  renderQuickResumeBanner();
   renderTableStats();
   renderPhaseOneInsights();
   renderBayesianAnalyticsValidation();
@@ -844,9 +853,31 @@ function renderRoutineItem(r) {
     </div>
   </div>`;
 }
+function getExerciseFormMode() {
+  const raw = localStorage.getItem(EXERCISE_FORM_MODE_KEY) || $("exerciseFormMode")?.value || "basic";
+  return raw === "advanced" ? "advanced" : "basic";
+}
+function applyExerciseFormMode(mode) {
+  const clean = mode === "advanced" ? "advanced" : "basic";
+  const select = $("exerciseFormMode");
+  if (select) select.value = clean;
+  localStorage.setItem(EXERCISE_FORM_MODE_KEY, clean);
+  const formGrid = $("routineFormGrid");
+  if (formGrid) formGrid.dataset.formMode = clean;
+  document.body.dataset.exerciseFormMode = clean;
+  const basicIds = new Set(["routineName","routineScoring","routineAttempts","routineDuration","routineTarget","routineDescription"]);
+  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak"].forEach(id => {
+    const el = $(id);
+    const wrap = el?.closest?.("div");
+    if (wrap) wrap.classList.add("routine-advanced-field");
+  });
+  document.querySelectorAll(".routine-advanced-field").forEach(el => el.classList.toggle("hidden", clean !== "advanced"));
+}
+
 function editRoutine(id) {
   const r = routineById(id);
   if (!r) return;
+  applyExerciseFormMode("advanced");
   $("routineFormTitle").textContent = "Edit exercise";
   $("routineEditId").value = r.id;
   $("routineName").value = r.name;
@@ -878,6 +909,7 @@ function editRoutine(id) {
 }
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
+  applyExerciseFormMode(getExerciseFormMode());
   $("routineEditId").value = "";
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
   $("routineScoring").value = "raw";
@@ -890,6 +922,10 @@ function clearRoutineForm() {
   $("routineSubfolderSelect").value = "all";
 }
 $("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
+if ($("exerciseFormMode")) {
+  $("exerciseFormMode").addEventListener("change", e => applyExerciseFormMode(e.target.value));
+  applyExerciseFormMode(getExerciseFormMode());
+}
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
@@ -1079,15 +1115,33 @@ $("startFreeSessionBtn").addEventListener("click", () => {
   startRoutineScreen();
   persistActiveSession();
 });
-$("repeatLastExerciseBtn").addEventListener("click", () => {
+function startRepeatLastExercise() {
   const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
-  if (!last) return alert("No previous exercise to repeat yet.");
+  if (!last) { showTransientNotice("No previous exercise to repeat yet.", "warn"); return; }
   const routine = routineById(last.routineId);
-  if (!routine) return alert("The last exercise template no longer exists.");
+  if (!routine) { showTransientNotice("The last exercise template no longer exists.", "warn"); return; }
   activeSession = { id: uuid(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [], tableId: last.tableId || "", venueTable: last.venueTable || last.venueTableSnapshot || "", tableNote: last.tableNote || "" };
   rememberVenueTable(last.venueTable || last.venueTableSnapshot || "", last.tableNote || "");
   startRoutineScreen();
+}
+$("repeatLastExerciseBtn").addEventListener("click", startRepeatLastExercise);
+document.addEventListener("click", (event) => {
+  const btn = event.target.closest?.('[data-action="quick-resume-last"]');
+  if (!btn) return;
+  event.preventDefault();
+  startRepeatLastExercise();
 });
+
+function renderQuickResumeBanner() {
+  const box = $("quickResumeBanner");
+  if (!box) return;
+  const last = (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
+  const routine = last ? routineById(last.routineId) : null;
+  if (!last || !routine) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const when = last.createdAt ? new Date(last.createdAt).toLocaleDateString() : "last time";
+  box.classList.remove("hidden");
+  box.innerHTML = `<div class="quick-resume-content"><div><h2>Quick resume</h2><p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p></div><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`;
+}
 
 function startRoutineScreen() {
   persistActiveSession();
@@ -1148,6 +1202,7 @@ function renderScoreInputs(r) {
     html += `<div><label>Best attempt (${progressiveUnitLabel(r)})</label><input id="bestAttemptValue" type="number" min="0" step="0.01" placeholder="e.g. 12" inputmode="decimal"></div>`;
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attemptsPerSession || r.attempts || "")}" inputmode="numeric"></div>`;
     html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
+    if (Number(r.totalUnits || 0) <= 0) html += `<div class="progressive-total-units-runtime"><label>Completion size / total units</label><input id="sessionTotalUnitsValue" type="number" min="1" step="1" placeholder="Required to save this drill" inputmode="numeric"><p class="muted tiny">This exercise template has no completion size. Enter it here so the log can be saved.</p></div>`;
     if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else if (r.scoring === "success_rate") {
@@ -1171,6 +1226,7 @@ function renderScoreInputs(r) {
     if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
   }
   $("scoreInputs").innerHTML = html;
+  renderFocusScoreSteppers(r);
   renderQuickScoreControls(r);
   setTimeout(() => {
     if (document.body?.classList.contains("session-focus-active")) {
@@ -1180,7 +1236,7 @@ function renderScoreInputs(r) {
     }
     $("scoreValue")?.focus();
   }, 120);
-  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue"].forEach(id => {
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
     const el = $(id);
     if (el) {
       el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
@@ -1188,6 +1244,48 @@ function renderScoreInputs(r) {
     }
   });
 }
+
+function renderFocusScoreSteppers(r) {
+  const box = $("scoreInputs");
+  if (!box) return;
+  box.querySelector(".focus-score-stepper-panel")?.remove();
+  const fieldDefs = [
+    {id:"scoreValue", label:r?.scoring === "success_rate" ? "Made" : "Score", deltas:[-1,1]},
+    {id:"leftSideScoreValue", label:"Left", deltas:[-1,1]},
+    {id:"rightSideScoreValue", label:"Right", deltas:[-1,1]},
+    {id:"attemptsValue", label:"Attempts", deltas:[-1,1]},
+    {id:"bestAttemptValue", label:"Best", deltas:[-1,1]},
+    {id:"completionCountValue", label:"Completions", deltas:[-1,1]},
+    {id:"highestBreakValue", label:"Break", deltas:[-1,1]},
+    {id:"sessionTotalUnitsValue", label:"Size", deltas:[-1,1]}
+  ].filter(f => $(f.id));
+  if (!fieldDefs.length) return;
+  const html = `<div class="focus-score-stepper-panel" aria-label="Focus mode score controls">
+    ${fieldDefs.map(f => `<div class="focus-stepper-tile">
+      <span>${htmlText(f.label)}</span>
+      <div class="focus-stepper-actions">
+        <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[0]}">−</button>
+        <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[1]}">+</button>
+      </div>
+    </div>`).join("")}
+  </div>`;
+  box.insertAdjacentHTML("beforeend", html);
+}
+
+function adjustNumericInputValue(inputId, delta) {
+  const el = $(inputId);
+  if (!el) return;
+  const current = Number(el.value || 0);
+  const step = Number(el.getAttribute("step") || 1);
+  const minRaw = el.getAttribute("min");
+  const min = minRaw === null || minRaw === "" ? -Infinity : Number(minRaw);
+  const nextRaw = current + Number(delta || 0);
+  const next = Number.isFinite(min) ? Math.max(min, nextRaw) : nextRaw;
+  const decimals = step && !Number.isInteger(step) ? 2 : 0;
+  el.value = decimals ? String(Math.round(next * 100) / 100) : String(Math.round(next));
+  el.dispatchEvent(new Event("input", {bubbles:true}));
+}
+
 
 function fillSameAsLastTime() {
   if (!activeSession) return;
@@ -1255,6 +1353,7 @@ function renderQuickScoreControls(r) {
   }
 }
 function quickLogScore(score) {
+  hapticFeedback("save");
   setScoreValue(score);
   saveCurrentRoutine();
 }
@@ -1309,7 +1408,8 @@ async function saveCurrentRoutine() {
     if (sideError) return alert(sideError);
   }
   if (Number.isNaN(score)) return alert("Enter a valid score.");
-  if (r.scoring === "progressive_completion" && Number(r.totalUnits || 0) <= 0) return alert("Enter Total units / completion size in the exercise setup before logging this progressive completion drill.");
+  const sessionTotalUnits = r.scoring === "progressive_completion" ? (Number($("sessionTotalUnitsValue")?.value || 0) || Number(r.totalUnits || 0) || 0) : Number(r.totalUnits || 0);
+  if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return alert("Enter the completion size / total units for this progressive completion drill.");
   const activeProfile = getActiveTargetProfile(r);
 
   activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
@@ -1347,13 +1447,13 @@ async function saveCurrentRoutine() {
     bestAttempt: Number($("bestAttemptValue")?.value || 0) || "",
     completionCount: Number($("completionCountValue")?.value || 0) || "",
     highestBreak: Number($("highestBreakValue")?.value || 0) || "",
-    totalUnits: r.totalUnits || "",
+    totalUnits: r.scoring === "progressive_completion" ? sessionTotalUnits : (r.totalUnits || ""),
     unitType: r.unitType || "",
     targetMode: r.targetMode || "",
     targetProfileId: activeProfile?.id || "",
     targetAtLog: activeProfile?.target || r.target || "",
     stretchTargetAtLog: activeProfile?.stretchTarget || r.stretchTarget || "",
-    totalUnitsAtLog: activeProfile?.totalUnits || r.totalUnits || "",
+    totalUnitsAtLog: r.scoring === "progressive_completion" ? sessionTotalUnits : (activeProfile?.totalUnits || r.totalUnits || ""),
     attemptsPerSessionAtLog: activeProfile?.attemptsPerSession || r.attemptsPerSession || r.attempts || "",
     difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
     targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
@@ -1375,6 +1475,7 @@ async function saveCurrentRoutine() {
   data.logs.push(log);
   activeSession.completedLogs.push(log);
   await persistLogDelta(log, "saveCurrentRoutine log put");
+  showTransientNotice(activeSession.index >= activeSession.routineIds.length - 1 ? "Saved." : "Saved — next exercise.", "ok");
   stopTimer();
 
   if (activeSession.type === "free") {
@@ -1454,7 +1555,44 @@ function restoreTimerStateFromActiveSession() {
     $("timerState").textContent = "timer paused";
   }
   updateTimerDisplay();
+  syncFocusWakeLock();
   return true;
+}
+
+function getWakeLockSetting(){ return interfaceReadSetting(WAKE_LOCK_KEY, "wakeLock", "off"); }
+function hapticFeedback(kind="tap") {
+  try {
+    if (!navigator.vibrate) return;
+    const pattern = kind === "miss" ? [100, 50, 100] : kind === "save" ? [40, 30, 40] : [50];
+    navigator.vibrate(pattern);
+  } catch(e) {}
+}
+async function requestFocusWakeLock() {
+  if (wakeLockRequestInFlight || wakeLockSentinel || getWakeLockSetting() !== "on") return;
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  if (!timerStartMs && !timerAutostartDelayInterval) return;
+  if (!("wakeLock" in navigator)) return;
+  try {
+    wakeLockRequestInFlight = true;
+    wakeLockSentinel = await navigator.wakeLock.request("screen");
+    wakeLockSentinel.addEventListener?.("release", () => { wakeLockSentinel = null; });
+    if ($("timerState") && timerStartMs) $("timerState").textContent = "timer running · screen awake";
+  } catch(e) {
+    wakeLockSentinel = null;
+    if (typeof logAppError === "function") logAppError(e, "requestFocusWakeLock");
+  } finally {
+    wakeLockRequestInFlight = false;
+  }
+}
+async function releaseFocusWakeLock() {
+  const sentinel = wakeLockSentinel;
+  wakeLockSentinel = null;
+  try { await sentinel?.release?.(); } catch(e) {}
+}
+function syncFocusWakeLock() {
+  const shouldHold = getWakeLockSetting() === "on" && document.body?.classList.contains("session-focus-active") && !!(timerStartMs || timerAutostartDelayInterval);
+  if (shouldHold) requestFocusWakeLock();
+  else releaseFocusWakeLock();
 }
 function cancelTimerAutostartDelay() {
   if (timerAutostartDelayInterval) clearInterval(timerAutostartDelayInterval);
@@ -1469,8 +1607,9 @@ function startPracticeTimer() {
   if ($("timerState")) $("timerState").textContent = "timer running";
   updateTimerDisplay();
   syncTimerStateToActiveSession();
+  syncFocusWakeLock();
 }
-function resetTimerState() { cancelTimerAutostartDelay(); stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); }
+function resetTimerState() { cancelTimerAutostartDelay(); stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); syncFocusWakeLock(); }
 $("timerStartBtn").addEventListener("click", startPracticeTimer);
 $("timerPauseBtn").addEventListener("click", () => {
   cancelTimerAutostartDelay();
@@ -1481,9 +1620,10 @@ $("timerPauseBtn").addEventListener("click", () => {
   $("timerState").textContent = "timer paused";
   updateTimerDisplay();
   syncTimerStateToActiveSession();
+  syncFocusWakeLock();
 });
 $("timerResetBtn").addEventListener("click", resetTimerState);
-function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
+function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; syncFocusWakeLock(); }
 function updateTimerDisplay() {
   if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
   if (!timerStartMs && getElapsedMs() === 0 && !timerAutostartDelayInterval && $("timerState")) $("timerState").textContent = "timer stopped";
@@ -1908,7 +2048,7 @@ function phaseSettings(phase) {
       targetAggression:"medium",
       durationMultiplier:0.95,
       mix:"More anchor drills and repeated setups; fewer new constraints.",
-      rationale:"Best when execution is inconsistent and PSI is low."
+      rationale:"Best when execution is inconsistent and Consistency is low."
     },
     performance: {
       label:"Performance / competition prep",
@@ -2004,9 +2144,9 @@ function runRegretComparison() {
       ? "The chosen routine looks better than the alternative."
       : "No strong counterfactual difference.";
   out.innerHTML = `<div class="phase-card ${safeClassToken(cls, ["regret-positive","regret-neutral","regret-good"], "regret-neutral")}">
-    <strong>Counterfactual comparison ${statHelpButton("regretEngine")}</strong>
-    <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · PSI ${c.psi.toFixed(0)}`:""}</div>
-    <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · PSI ${a.psi.toFixed(0)}`:""}</div>
+    <strong>Drill comparison ${statHelpButton("regretEngine")}</strong>
+    <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · Consistency ${c.psi.toFixed(0)}`:""}</div>
+    <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · Consistency ${a.psi.toFixed(0)}`:""}</div>
     <div class="adaptive-rationale"><strong>Regret estimate:</strong> ${regret>=0?"+":""}${regret.toFixed(1)} points vs chosen.</div>
     <div class="adaptive-rationale">${escapeHtml(msg)}</div>
     <div class="adaptive-rationale">Interpretation: this is a heuristic selection-quality signal, not proof that the alternative would have caused better performance.</div>
@@ -2141,7 +2281,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   } else if (goal === "auto") {
     if (fatigueAll && fatigueAll.slope < -0.25) {
       effectiveGoal = "recovery";
-      globalReasons.push("global fatigue slope is negative");
+      globalReasons.push("global stamina drop-off is negative");
     } else if (prev7 && last7 > prev7 * 1.35) {
       effectiveGoal = "recovery";
       globalReasons.push("training load rose sharply");
@@ -2344,8 +2484,8 @@ function renderSmartRecommendation() {
     <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    ${policy ? `<span class="badge">Bayesian action: ${htmlText(policy.badge)}</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and Bayesian confidence for success-rate drills.</p>
+    ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
+    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, and True Skill estimate for success-rate drills.</p>
     ${policyHtml}
     <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
@@ -2391,6 +2531,10 @@ $("statsDateSelect").addEventListener("change", renderStats);
 $("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
 $("rollingWindowInput").addEventListener("input", renderStats);
 $("benchmarkWindowInput").addEventListener("input", renderStats);
+if ($("statsDetailMode")) {
+  $("statsDetailMode").value = getStatsDetailMode();
+  $("statsDetailMode").addEventListener("change", e => setStatsDetailMode(e.target.value));
+}
 
 
 function emaExpectedSeries(logs, alpha=0.35) {
@@ -2651,7 +2795,7 @@ function renderStatsScopeChips(scope, logs) {
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = ({overview:"Overview", trends:"Trends", graphs:"Graphs", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"Bayesian", ab:"A/B", counterfactual:"Counterfactual", tournament:"Tournament"}[statsMode] || "Overview");
+  const modeLabel = ({overview:"Overview", trends:"Trends", graphs:"Graphs", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"True Skill", ab:"A/B", counterfactual:"Drill Compare", tournament:"Tournament"}[statsMode] || "Overview");
   el.innerHTML = [
     `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
@@ -2692,7 +2836,7 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
       ${statsModule("Core analytics", "Momentum, hit-rate, streaks, correlations", renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow), false)}
       ${statsModule("Second-order analytics", "Variance, skill gap, weakness concentration", renderSecondOrderAnalytics(logs, rid, rollingWindow), false)}
       ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
-      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+      ${statsModule("Stamina drop-off", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
       ${statsModule("Difficulty ladder", "Difficulty distribution and progression", renderDifficultyLadder(logs), false)}
       ${statsModule("Coaching engine", "Decision-oriented recommendations", renderCoachingEngine(logs), true)}
       ${rid ? statsModule("Selected exercise progression", "Longitudinal drill-specific history", exerciseHtml, true) : ""}
@@ -2714,7 +2858,7 @@ function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow
       ${statsModule("Core analytics", "Momentum, target hit-rate, streaks, and correlations", renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow), true)}
       ${statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, "", rollingWindow), false)}
       ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
-      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+      ${statsModule("Stamina drop-off", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
       ${statsModule("Planned vs completed", "Whether planned drills are actually completed", plannedVsCompletedSummary() || `<div class="analytics-note">No planned-session completion data yet.</div>`, false)}
     </div>`;
 }
@@ -2880,15 +3024,15 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
       ${statsModule("Coaching engine", "Decision-oriented recommendations", renderCoachingEngine(logs), true)}
       ${statsModule("Weakness concentration", "Where underperformance is concentrated", renderSecondOrderAnalytics(logs, rid, rollingWindow), true)}
       ${statsModule("Performance stability", "Consistency and volatility signals", renderPerformanceStability(logs), false)}
-      ${statsModule("Fatigue slope", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
+      ${statsModule("Stamina drop-off", "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
     </div>`;
 }
 
 function renderStatsBayesianSection(logs, { range }) {
   const note = logs.length
-    ? `Bayesian/Lasso models use the active stats scope where applicable. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
-    : "Bayesian and Lasso-style analytics will appear once success-rate logs exist.";
-  return `<h3>Bayesian & Lasso — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
+    ? `True Skill models use the active stats scope where applicable. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
+    : "True Skill analytics will appear once success-rate logs exist.";
+  return `<h3>True Skill — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
 }
 
 function renderStatsABSection(logs, { range }) {
@@ -2902,7 +3046,7 @@ function renderStatsCounterfactualSection(logs, { range }) {
   const note = logs.length
     ? `Select a chosen routine and an alternative routine above, then run the comparison. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
     : "Select routines above once you have enough logged sessions.";
-  return `<h3>Counterfactual engine — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
+  return `<h3>Drill comparison — ${escapeHtml(range.label)}</h3><p class="muted">${escapeHtml(note)}</p>`;
 }
 
 function renderStatsTournamentSection(logs, { range, rid }) {
@@ -2980,6 +3124,17 @@ function renderStats() {
   }
 }
 
+function getStatsDetailMode() {
+  const raw = localStorage.getItem(STATS_DETAIL_MODE_KEY) || $("statsDetailMode")?.value || "basic";
+  return raw === "advanced" ? "advanced" : "basic";
+}
+function setStatsDetailMode(mode) {
+  const clean = mode === "advanced" ? "advanced" : "basic";
+  localStorage.setItem(STATS_DETAIL_MODE_KEY, clean);
+  if ($("statsDetailMode")) $("statsDetailMode").value = clean;
+  renderStats();
+}
+
 function kpiTitle(label, helpKey) {
   return `${htmlText(label)} ${statHelpButton(helpKey)}`;
 }
@@ -3047,6 +3202,25 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+
+  if (!rid && getStatsDetailMode() === "basic") {
+    const totalTimeBasic = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+    const valsBasic = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+    const avgBasic = avg(valsBasic);
+    const hitBasic = targetHitRate(logs);
+    const recentBasic = valsBasic.slice(-Math.max(2, Number(rollingWindow || 5)));
+    const rollingBasic = recentBasic.length ? avg(recentBasic) : null;
+    return `<h3>Basic overview — ${escapeHtml(range.label)}</h3>
+      <div class="analytics-note"><strong>Basic stats mode.</strong> Showing only the core practice dashboard. Switch Stats detail to Advanced for full diagnostics.</div>
+      <div class="overview-kpi-dashboard basic-stats-dashboard">
+        <div class="overview-kpi primary"><span>${kpiTitle("Average score", "avgScore")}</span><div class="value">${avgBasic.toFixed(1)}</div><small>Average normalized performance in this view.</small></div>
+        <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hitBasic === null ? "N/A" : hitBasic.toFixed(1)+"%"}</div><small>How often logged scores met the target.</small></div>
+        <div class="overview-kpi"><span>${kpiTitle("Training time", "totalPractice")}</span><div class="value">${totalTimeBasic.toFixed(1)}m</div><small>Total logged practice time.</small></div>
+        <div class="overview-kpi"><span>${kpiTitle("Recent form", "momentum")}</span><div class="value">${rollingBasic === null ? "N/A" : rollingBasic.toFixed(1)}</div><small>Rolling average over the latest ${recentBasic.length} logs.</small></div>
+      </div>
+      <h3>Core trend</h3>${renderTrainingTimeInsightChart(logs, period)}
+      <h3>Training mix</h3>${renderCategoryChart(logs)}`;
+  }
 
   if (rid) {
     let html = renderSelectedExerciseDashboard(logs, rid, rollingWindow);
@@ -3364,21 +3538,21 @@ function performanceStabilityIndex(logs, windowSize=10) {
 
 function renderPerformanceStability(logs) {
   const psi = performanceStabilityIndex(logs, 10);
-  if (!psi) return `<div class="psi-card psi-watch"><strong>Performance Stability Index ${statHelpButton("psi")}</strong><br>Not enough data/variation yet.</div>`;
+  if (!psi) return `<div class="psi-card psi-watch"><strong>Consistency Rating ${statHelpButton("psi")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = psi.psi >= 70 ? "psi-good" : psi.psi >= 45 ? "psi-watch" : "psi-risk";
   return `<div class="psi-card ${cls}">
-    <strong>Performance Stability Index ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
+    <strong>Consistency Rating ${statHelpButton("psi")}: ${psi.psi.toFixed(0)}/100 — ${escapeHtml(psi.label)}</strong><br>
     <span class="muted">CV ${(psi.cv*100).toFixed(1)}% · hit-rate volatility ${(psi.hitVol*100).toFixed(1)}% · ${psi.n} recent logs.</span>
   </div>`;
 }
 
 function renderFatigueSlope(logs) {
   const f = fatigueSlope(logs);
-  if (!f) return `<div class="psi-card psi-watch"><strong>Fatigue slope ${statHelpButton("fatigueSlope")}</strong><br>Not enough data/variation yet.</div>`;
+  if (!f) return `<div class="psi-card psi-watch"><strong>Stamina drop-off ${statHelpButton("fatigueSlope")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
   return `<div class="psi-card ${cls}">
-    <strong>Fatigue slope ${statHelpButton("fatigueSlope")}: ${f.slope.toFixed(2)} pts/min — ${direction}</strong><br>
+    <strong>Stamina drop-off ${statHelpButton("fatigueSlope")}: ${f.slope.toFixed(2)} pts/min — ${direction}</strong><br>
     <span class="muted">Correlation ${corrText(f.corr)} over ${f.n} logs.</span>
   </div>`;
 }
@@ -3398,7 +3572,7 @@ function difficultyLadderRecommendation(logs) {
     return {type:"reduce", text:"Reduce difficulty: hit rate is low. Simplify the drill or lower the target until you reach the learning zone."};
   }
   if (psi && psi.psi < 45) {
-    return {type:"stabilize", text:"Stabilize before raising target: performance is volatile. Repeat the same setup until PSI improves."};
+    return {type:"stabilize", text:"Stabilize before raising target: performance is volatile. Repeat the same setup until Consistency improves."};
   }
   if (drift && drift.deltaPct < -10) {
     return {type:"recover", text:"Do not increase difficulty: recent performance drift is negative. Consider a lighter session or technique block."};
@@ -3470,7 +3644,7 @@ function renderABComparison() {
       <tr><td>Training time ${statHelpButton("trainingTime")}</td><td>${formatDurationHuman(A.time)}</td><td>${formatDurationHuman(B.time)}</td><td>${deltaFmt(A.time,B.time,"m")}</td></tr>
       <tr><td>Average performance ${statHelpButton("averagePerformance")}</td><td>${A.avg===null?"N/A":A.avg.toFixed(1)}</td><td>${B.avg===null?"N/A":B.avg.toFixed(1)}</td><td>${deltaFmt(A.avg,B.avg)}</td></tr>
       <tr><td>Target hit rate ${statHelpButton("targetHitRate")}</td><td>${A.hit===null?"N/A":A.hit.toFixed(1)+"%"}</td><td>${B.hit===null?"N/A":B.hit.toFixed(1)+"%"}</td><td>${deltaFmt(A.hit,B.hit," pts")}</td></tr>
-      <tr><td>PSI ${statHelpButton("psi")}</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
+      <tr><td>Consistency ${statHelpButton("psi")}</td><td>${A.psi===null?"N/A":A.psi.toFixed(0)}</td><td>${B.psi===null?"N/A":B.psi.toFixed(0)}</td><td>${deltaFmt(A.psi,B.psi)}</td></tr>
       <tr><td>Best score ${statHelpButton("bestScore")}</td><td>${A.best===null?"N/A":A.best.toFixed(1)}</td><td>${B.best===null?"N/A":B.best.toFixed(1)}</td><td>${deltaFmt(A.best,B.best)}</td></tr>
     </tbody>
   </table>`;
@@ -4605,8 +4779,8 @@ FIELD_HELP.stretchScoreMode = {
 };
 
 
-FIELD_HELP.psi = {title:"Performance Stability Index (PSI)",body:`<p><strong>What it means:</strong> a 0-100 stability score combining score variability and hit-rate volatility.</p>`};
-FIELD_HELP.fatigueSlope = {title:"Fatigue slope",body:`<p><strong>What it means:</strong> the relationship between accumulated session time and performance.</p>`};
+FIELD_HELP.psi = {title:"Consistency Rating",body:`<p><strong>What it means:</strong> a 0-100 stability score combining score variability and hit-rate volatility.</p>`};
+FIELD_HELP.fatigueSlope = {title:"Stamina drop-off",body:`<p><strong>What it means:</strong> the relationship between accumulated session time and performance.</p>`};
 FIELD_HELP.difficultyLadder = {title:"Difficulty ladder",body:`<p><strong>What it means:</strong> recommendation to increase, reduce, stabilize, or maintain difficulty.</p>`};
 FIELD_HELP.abComparison = {title:"A/B period comparison",body:`<p><strong>What it means:</strong> compares two periods to show whether training volume and performance improved or declined.</p>`};
 FIELD_HELP.drift = {title:"Performance drift",body:`<p><strong>What it means:</strong> compares recent performance against a prior window.</p>`};
@@ -4622,15 +4796,15 @@ Object.assign(FIELD_HELP, {
   targetHitRate: {title:"Target hit rate", body: analyticsHelp("Target hit rate","How often you met or exceeded the target active at the time of logging.","Logs classified as On Target or Above Target divided by evaluated logs.","High hit rate may mean target is too easy; low hit rate may mean target is too hard.","Use it before changing target versions.")},
   trainingTime: {title:"Training time", body: analyticsHelp("Training time","Total time logged in the selected period.","Sum of log durations, displayed in minutes or hours/minutes.","Rising time with flat performance may indicate low-yield volume or fatigue.","Use it to manage training load.")},
   progressVelocity: {title:"Progress velocity", body: analyticsHelp("Progress velocity","Recent direction and speed of improvement.","Simple slope of recent normalized scores over the latest logs.","Positive means improving; negative means declining; flat means stabilization or plateau.","Use it to decide whether to continue, vary, or rest a drill.")},
-  psi: {title:"Performance Stability Index (PSI)", body: analyticsHelp("PSI","Consistency of performance.","Combines score variability and hit-rate volatility into a 0–100 stability index.","High PSI = reliable execution; low PSI = unstable performance.","Use it before increasing difficulty or assessing competition readiness.")},
-  fatigueSlope: {title:"Fatigue slope", body: analyticsHelp("Fatigue slope","Whether performance changes as session time accumulates.","Slope of normalized performance versus accumulated session minutes.","Negative suggests fatigue; positive suggests slow warm-up.","Use it to adjust warm-up, breaks, and session length.")},
+  psi: {title:"Consistency Rating", body: analyticsHelp("Consistency","Consistency of performance.","Combines score variability and hit-rate volatility into a 0–100 stability index.","High Consistency = reliable execution; low Consistency = unstable performance.","Use it before increasing difficulty or assessing competition readiness.")},
+  fatigueSlope: {title:"Stamina drop-off", body: analyticsHelp("Stamina drop-off","Whether performance changes as session time accumulates.","Slope of normalized performance versus accumulated session minutes.","Negative suggests fatigue; positive suggests slow warm-up.","Use it to adjust warm-up, breaks, and session length.")},
   drift: {title:"Performance drift", body: analyticsHelp("Performance drift","Short-term trend versus the previous baseline.","Recent average compared with the prior average window.","Positive drift suggests progress; negative drift suggests regression or changed conditions.","Use it to detect recent changes before they appear in long-term averages.")},
   qualityImpact: {title:"Session quality impact", body: analyticsHelp("Session quality impact","Whether high-rated sessions actually perform better.","Compares average performance in high quality ratings versus low quality ratings.","If quality and score diverge, your rating may capture effort rather than execution.","Use it to calibrate reflection.")},
   optimalLength: {title:"Optimal session length", body: analyticsHelp("Optimal session length","Which session-duration band has produced the best performance.","Groups sessions by duration and compares average score.","Best band suggests your highest-yield session length, not maximum volume.","Use it to plan efficient sessions.")},
   plateau: {title:"Plateau detector", body: analyticsHelp("Plateau detector","Whether recent performance has flattened.","Compares recent window versus previous window and flags very small change.","A plateau means repetition alone may no longer be enough.","Use it to vary constraints or change target difficulty.")},
   overtraining: {title:"Overtraining signal", body: analyticsHelp("Overtraining signal","Whether rising volume is failing to produce better performance.","Compares recent volume change with performance change.","Volume up with performance flat/down can indicate fatigue or low-quality practice.","Use it to schedule lighter sessions or deload.")},
-  difficultyLadder: {title:"Difficulty ladder", body: analyticsHelp("Difficulty ladder","Whether the current target is too easy, too hard, or appropriate.","Combines hit rate, PSI, drift, and sample size.","Increase if stable and high hit rate; reduce if consistently failing; maintain if in learning zone.","Use it to create target versions.")},
-  abComparison: {title:"A/B period comparison", body: analyticsHelp("A/B comparison","Whether one period performed better than another.","Compares logs, time, average score, hit rate, PSI, and best score across two periods.","Useful for before/after blocks, recent months, or training changes.","Use it to judge whether a training phase worked.")}
+  difficultyLadder: {title:"Difficulty ladder", body: analyticsHelp("Difficulty ladder","Whether the current target is too easy, too hard, or appropriate.","Combines hit rate, Consistency, drift, and sample size.","Increase if stable and high hit rate; reduce if consistently failing; maintain if in learning zone.","Use it to create target versions.")},
+  abComparison: {title:"A/B period comparison", body: analyticsHelp("A/B comparison","Whether one period performed better than another.","Compares logs, time, average score, hit rate, Consistency, and best score across two periods.","Useful for before/after blocks, recent months, or training changes.","Use it to judge whether a training phase worked.")}
 });
 
 
@@ -4638,7 +4812,7 @@ FIELD_HELP.adaptiveEngine = {
   title:"Adaptive Training Engine",
   body:`<div class="help-rich">
     <p><strong>What it does:</strong> builds a full training session structure, not just a drill list.</p>
-    <p><strong>How it works:</strong> diagnoses your current state using hit rate, PSI, drift, fatigue slope, plateau detection, training load, anchor drills, and days since last practice.</p>
+    <p><strong>How it works:</strong> diagnoses your current state using hit rate, Consistency, drift, stamina drop-off, plateau detection, training load, anchor drills, and days since last practice.</p>
     <p><strong>Output:</strong> a session mode and blocks such as Anchor Baseline, Stability, Progression, Recovery, Robustness, and Completion.</p>
     <p><strong>How to interpret:</strong> this is the closest thing in the app to a coach. It decides whether today should be about improving, stabilizing, recovering, or varying the drill constraints.</p>
     <div class="example"><strong>Difference vs Training Orchestrator:</strong> the Orchestrator selects routines; the Adaptive Engine decides the training logic, session structure, and action for each routine.</div>
@@ -4688,10 +4862,10 @@ FIELD_HELP.periodizationPhase = {
   </div>`
 };
 FIELD_HELP.regretEngine = {
-  title:"Regret / Counterfactual Engine",
+  title:"Drill Comparison Engine",
   body:`<div class="help-rich">
     <p><strong>What it measures:</strong> whether an alternative routine might have been a better choice than the one selected.</p>
-    <p><strong>How calculated:</strong> compares expected recent performance using average score, PSI adjustment, and drift adjustment.</p>
+    <p><strong>How calculated:</strong> compares expected recent performance using average score, Consistency adjustment, and drift adjustment.</p>
     <p><strong>How to interpret:</strong> positive regret means the alternative currently looks better; negative regret means the chosen routine looks better.</p>
     <div class="example"><strong>Important:</strong> this is not causal proof. It is a decision-quality signal for drill selection.</div>
   </div>`
@@ -4764,11 +4938,11 @@ Object.assign(FIELD_HELP, {
   },
   averagePerformance: {
     title:"Average performance",
-    body: analyticsHelp("Average performance","The mean performance level in the selected scope.","Averages normalized scores from the filtered logs.","Good for broad trend reading, but it can hide volatility and table/context effects.","Use it with PSI, hit rate, and residuals.")
+    body: analyticsHelp("Average performance","The mean performance level in the selected scope.","Averages normalized scores from the filtered logs.","Good for broad trend reading, but it can hide volatility and table/context effects.","Use it with Consistency, hit rate, and residuals.")
   },
   targetHitRate: {
     title:"Target hit rate",
-    body: analyticsHelp("Target hit rate","How often you achieved the active target at the time of logging.","Counts On Target and Above Target logs divided by logs with a usable target classification.","High hit rate plus high PSI suggests readiness for harder targets; low hit rate suggests target difficulty may be too high.","Use it before changing target versions.")
+    body: analyticsHelp("Target hit rate","How often you achieved the active target at the time of logging.","Counts On Target and Above Target logs divided by logs with a usable target classification.","High hit rate plus high Consistency suggests readiness for harder targets; low hit rate suggests target difficulty may be too high.","Use it before changing target versions.")
   },
   trainingLoad: {
     title:"Training load",
@@ -4832,30 +5006,30 @@ Object.assign(FIELD_HELP, {
   },
   difficultyLadder: {
     title:"Difficulty ladder",
-    body: analyticsHelp("Difficulty ladder","Whether current drill difficulty should increase, decrease, stabilize, or remain unchanged.","Combines target hit rate, PSI, drift, skill gap, and sample size.","Increase if high hit rate and stable; stabilize if volatile; reduce if consistently failing.","Use it to manage target versions.")
+    body: analyticsHelp("Difficulty ladder","Whether current drill difficulty should increase, decrease, stabilize, or remain unchanged.","Combines target hit rate, Consistency, drift, skill gap, and sample size.","Increase if high hit rate and stable; stabilize if volatile; reduce if consistently failing.","Use it to manage target versions.")
   },
   abComparison: {
     title:"A/B period comparison",
-    body: analyticsHelp("A/B period comparison","Whether one period performed better than another.","Compares logs, time, average performance, hit rate, PSI, and best score between two selected periods.","Useful for recent vs prior blocks, before/after periods, and training phase reviews.","Use it to judge whether a training approach worked.")
+    body: analyticsHelp("A/B period comparison","Whether one period performed better than another.","Compares logs, time, average performance, hit rate, Consistency, and best score between two selected periods.","Useful for recent vs prior blocks, before/after periods, and training phase reviews.","Use it to judge whether a training approach worked.")
   },
   fatigueSlope: {
-    title:"Fatigue slope",
-    body: analyticsHelp("Fatigue slope","Whether performance changes as session time accumulates.","Estimates the slope of normalized score against accumulated session minutes.","Negative slope suggests fatigue or focus decline; positive slope suggests slow warm-up; flat suggests endurance stability.","Use it to adjust warm-up, break timing, and drill order.")
+    title:"Stamina drop-off",
+    body: analyticsHelp("Stamina drop-off","Whether performance changes as session time accumulates.","Estimates the slope of normalized score against accumulated session minutes.","Negative slope suggests fatigue or focus decline; positive slope suggests slow warm-up; flat suggests endurance stability.","Use it to adjust warm-up, break timing, and drill order.")
   },
   psi: {
-    title:"Performance Stability Index (PSI)",
-    body: analyticsHelp("PSI","How consistent your performance is over recent logs.","Combines score variability and hit-rate volatility into a 0–100 stability score.","High PSI means reliable execution; low PSI means unstable performance even if average score is acceptable.","Use it before raising targets or assessing competition readiness.")
+    title:"Consistency Rating",
+    body: analyticsHelp("Consistency","How consistent your performance is over recent logs.","Combines score variability and hit-rate volatility into a 0–100 stability score.","High Consistency means reliable execution; low Consistency means unstable performance even if average score is acceptable.","Use it before raising targets or assessing competition readiness.")
   },
   regretEngine: {
-    title:"Regret / counterfactual engine",
-    body: analyticsHelp("Regret / counterfactual engine","Whether another routine currently looks like a better selection than the one chosen.","Compares expected scores using recent average, PSI adjustment, and drift adjustment.","Positive regret means the alternative looks better; negative regret means the chosen routine looks better.","Use it as a drill-selection quality signal, not causal proof.")
+    title:"Drill comparison engine",
+    body: analyticsHelp("Drill comparison engine","Whether another routine currently looks like a better selection than the one chosen.","Compares expected scores using recent average, Consistency adjustment, and drift adjustment.","Positive regret means the alternative looks better; negative regret means the chosen routine looks better.","Use it as a drill-selection quality signal, not causal proof.")
   }
 });
 
 Object.assign(FIELD_HELP, {
   kpiCurrentLevel: {title:"Current level", body:analyticsHelp("Current level","Your most recent saved score for this selected exercise.","Reads the latest normalized score after the active filter is applied.","It tells you where the drill stands right now, not your long-term average.","Use it as the immediate benchmark to beat in the next attempt.")},
   kpiRollingScore: {title:"Rolling score", body:analyticsHelp("Rolling score","Your short-term average for the selected exercise.","Averages the most recent logged results using the selected rolling window.","It smooths one lucky or bad score and shows current form more reliably.","Use it to judge whether performance is genuinely moving.")},
-  kpiTrueSkill: {title:"Estimated true skill", body:analyticsHelp("Estimated true skill","A conservative estimate of your real success rate.","Uses Bayesian success-rate evidence where attempts and makes are available.","It avoids overreacting to small samples.","Use it before raising a target or judging tournament readiness.")},
+  kpiTrueSkill: {title:"Estimated true skill", body:analyticsHelp("Estimated true skill","A conservative estimate of your real success rate.","Uses success-rate evidence where attempts and makes are available.","It avoids overreacting to small samples.","Use it before raising a target or judging tournament readiness.")},
   kpiEvidence: {title:"Evidence", body:analyticsHelp("Evidence","How much data supports the selected exercise reading.","Counts logs and, for success-rate drills, effective attempts including per-side attempt mode.","More evidence means the result is more trustworthy.","Use it to separate a real trend from noise.")},
   kpiLastTrained: {title:"Last trained", body:analyticsHelp("Last trained","How recently this drill was practiced.","Measures days since the latest log in the selected exercise scope.","Old results may not represent current form.","Use it to identify stale drills before competition.")},
   kpiPressure: {title:"Pressure", body:analyticsHelp("Pressure", "How much of this scope was performed under pressure mode.", "Counts pressure-enabled logs and summarizes pressure success where available.", "Pressure results are harder to compare with relaxed drills, but they are more match-relevant.", "Use it to check whether practice is realistic enough.")},
@@ -4870,7 +5044,7 @@ FIELD_HELP.tournamentPrep = {
   body: analyticsHelp(
     "Tournament preparation planner",
     "A readiness and session-planning layer for preparing a match or tournament block.",
-    "It uses the active stats scope: logged scores, target hit rate, normalized score, practice time, pressure-mode exposure, consistency/PSI, recency, and left/right imbalance where available. It does not require tournament logs; regular practice logs are enough, but pressure logs and stable time entries make it more accurate.",
+    "It uses the active stats scope: logged scores, target hit rate, normalized score, practice time, pressure-mode exposure, consistency/Consistency, recency, and left/right imbalance where available. It does not require tournament logs; regular practice logs are enough, but pressure logs and stable time entries make it more accurate.",
     "It estimates whether current form is ready, unstable, or under-evidenced, then adjusts the recommended intensity, taper warning, and session blocks based on days remaining, format, focus, risk profile, and daily minutes.",
     "Use it before competition to decide whether to maintain form, increase match realism, reduce volume, or rebuild confidence instead of blindly adding more practice."
   )
@@ -4920,7 +5094,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.17");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.23");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -4970,7 +5144,7 @@ function getRoutinePriorityReasons(item){
   if(s.prior&&s.recent!==null&&s.recent<s.prior) reasons.push("recent underperformance");
   if(undertrainedCategoryBonus(r.id)*recommendationUndertrainingMultiplier(r)>=7) reasons.push("undertrained category");
   if(recommendationMode(r)==="active"&&(!s.logs.length||daysSince(s.logs[s.logs.length-1].createdAt)>=7)) reasons.push("not practiced recently");
-  if(s.bayesian?.policy?.title) reasons.push(`Bayesian action: ${s.bayesian.policy.title}`); else if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
+  if(s.bayesian?.policy?.title) reasons.push(`True Skill action: ${s.bayesian.policy.title}`); else if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -4994,7 +5168,7 @@ function targetUpgradeSuggestionForRoutine(routineId){
   const hit=targetHitRate(logs.slice(-8)), psi=performanceStabilityIndex(logs.slice(-10),10), drift=performanceDrift(logs,Math.min(8,Math.max(5,Math.floor(logs.length/2))));
   if(hit!==null&&hit>=80&&psi&&psi.psi>=70&&(!drift||drift.deltaPct>=-2)){
     const ct=Number(r.target||0), cs=Number(r.stretchTarget||0), bump=5;
-    return {routine:r,suggestedTarget:ct?ct+bump:bump,suggestedStretch:cs?cs+bump:(ct?ct+bump*2:bump*2),reason:`Hit rate ${hit.toFixed(1)}%, PSI ${psi.psi.toFixed(0)}, performance stable/improving.`};
+    return {routine:r,suggestedTarget:ct?ct+bump:bump,suggestedStretch:cs?cs+bump:(ct?ct+bump*2:bump*2),reason:`Hit rate ${hit.toFixed(1)}%, Consistency ${psi.psi.toFixed(0)}, performance stable/improving.`};
   }
   return null;
 }
@@ -5256,7 +5430,9 @@ function generateNextSession(){
 function loadGeneratedPlan(){
   if(!generatedPlanDraft.length) generateNextSession();
   if(!generatedPlanDraft.length) return;
-  planDraft = [...anchorRoutines().map(r=>r.id), ...generatedPlanDraft.filter(id => !anchorRoutines().some(r=>r.id===id))];
+  // Do not silently inject anchor drills into orchestrated drafts.
+  // Anchor routines should only appear when explicitly selected or when a future adaptive block asks for an anchor baseline.
+  planDraft = [...generatedPlanDraft.filter(id => activeRoutines().some(r => r.id === id))];
   if ($("planName") && !$("planName").value.trim()) $("planName").value = `Orchestrated session — ${new Date().toLocaleDateString()}`;
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
@@ -5301,6 +5477,7 @@ function normalizeInterfaceSettingValue(dataKey, value, fallback) {
   if (dataKey === "displayDensity") return normalizeDisplayDensity(value);
   if (dataKey === "timerAutostart") return normalizeTimerAutostart(value);
   if (dataKey === "timerAutostartDelaySeconds") return normalizeTimerAutostartDelay(value);
+  if (dataKey === "wakeLock") return normalizeWakeLock(value);
   return normalizeOnOff(value, fallback);
 }
 function interfaceReadSetting(storageKey, dataKey, fallback) {
@@ -5354,12 +5531,14 @@ function renderInterfaceSettings(){
   const density = $("displayDensitySelect");
   const timerAuto = $("timerAutostartSelect");
   const timerDelay = $("timerAutostartDelaySelect");
+  const wake = $("wakeLockSelect");
   if (theme) theme.value = getThemeModeSetting();
   if (focus) focus.value = getSessionFocusSetting();
   if (quick) quick.value = getQuickLogAutoAdvanceSetting();
   if (density) density.value = getDisplayDensitySetting();
   if (timerAuto) timerAuto.value = getTimerAutostartSetting();
   if (timerDelay) timerDelay.value = String(getTimerAutostartDelaySetting());
+  if (wake) wake.value = getWakeLockSetting();
 }
 var currentSessionFocusActive = null;
 function isActiveSessionVisible(){
@@ -5394,6 +5573,7 @@ function updateSessionFocusState(){
   }
   const timerLabels = [["timerStartBtn","Start"],["timerPauseBtn","Pause"],["timerResetBtn","Reset"]];
   timerLabels.forEach(([id,label]) => { const el = $(id); if (el) el.setAttribute("data-focus-label", label); });
+  syncFocusWakeLock();
 }
 function toggleSessionFocusMode(){
   if (!isActiveSessionVisible()) return;
@@ -5436,6 +5616,11 @@ function bindInterfaceSettings(){
       const clean = interfaceWriteSetting(TIMER_AUTOSTART_DELAY_KEY, "timerAutostartDelaySeconds", el.value);
       el.value = String(clean);
       if (activeSession && getTimerAutostartSetting() === "auto" && !timerStartMs && getElapsedMs() === 0) scheduleTimerAutostartForCurrentRoutine();
+    } else if (el.id === "wakeLockSelect") {
+      const clean = interfaceWriteSetting(WAKE_LOCK_KEY, "wakeLock", el.value);
+      el.value = clean;
+      syncFocusWakeLock();
+      showTransientNotice(clean === "on" ? "Wake lock enabled for Focus Mode." : "Wake lock disabled.", "ok");
     }
   });
   const focusBtn = $("toggleFocusModeBtn");
@@ -5572,8 +5757,9 @@ function handleDelegatedUIAction(event) {
     case "delete-table": return deleteTableDefinition(id);
     case "open-log-edit": return openLogEditModal(id);
     case "delete-log": return deleteLog(id);
-    case "score-set": setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
-    case "score-adjust": adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
+    case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -5595,6 +5781,7 @@ window.SnookerInterface = {
   readDensity:getDisplayDensitySetting, setDensity:function(v){ const c=interfaceWriteSetting(DISPLAY_DENSITY_KEY,"displayDensity",v); applyDisplayDensity(c); renderInterfaceSettings(); renderStats(); return c; },
   readTimerAutostart:getTimerAutostartSetting, setTimerAutostart:function(v){ const c=interfaceWriteSetting(TIMER_AUTOSTART_KEY,"timerAutostart",v); renderInterfaceSettings(); if(activeSession) scheduleTimerAutostartForCurrentRoutine(); return c; },
   readTimerAutostartDelay:getTimerAutostartDelaySetting, setTimerAutostartDelay:function(v){ const c=interfaceWriteSetting(TIMER_AUTOSTART_DELAY_KEY,"timerAutostartDelaySeconds",v); renderInterfaceSettings(); if(activeSession) scheduleTimerAutostartForCurrentRoutine(); return c; },
+  readWakeLock:getWakeLockSetting, setWakeLock:function(v){ const c=interfaceWriteSetting(WAKE_LOCK_KEY,"wakeLock",v); renderInterfaceSettings(); syncFocusWakeLock(); return c; },
   toggleFocus:toggleSessionFocusMode, updateFocusUI:updateSessionFocusState, syncControls:renderInterfaceSettings, bind:bindInterfaceSettings
 };
 function renderLivePerformanceCard(r){
@@ -5647,10 +5834,10 @@ function renderBayesianValidationForRoutine(routineId) {
   const signal = bayesianRecommendationSignal({posterior, targetPct:target});
   const policy = bayesianActionPolicy(signal, posterior, target);
   return `<div class="bayes-card bayes-${safeClassToken(reliability.level, ["low","medium","high"], "low")} bayes-action-${safeClassToken(policy.action, ["repeat","progress","hold","rebuild"], "hold")}">
-    <div class="bayes-card-title"><strong>Bayesian confidence — ${htmlText(r.name)}</strong><span class="bayes-action-badge">${htmlText(policy.badge)}</span></div>
+    <div class="bayes-card-title"><strong>True Skill estimate — ${htmlText(r.name)}</strong><span class="bayes-action-badge">${htmlText(policy.badge)}</span></div>
     <div class="bayes-grid">
-      <div><span>Posterior ability</span><strong>${formatPercent(posterior.mean)}</strong></div>
-      <div><span>Credible interval</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
+      <div><span>Estimated skill</span><strong>${formatPercent(posterior.mean)}</strong></div>
+      <div><span>Estimated range</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
       <div><span>${kpiTitle("Evidence", "kpiEvidence")}</span><strong>${numText(agg.attempts, "0")} effective attempts / ${numText(agg.sessions, "0")} logs</strong></div>
       <div><span>Reliability</span><strong>${htmlText(reliability.label)}</strong></div>
     </div>
@@ -5870,7 +6057,7 @@ function renderPredictorContributionModel() {
 
   box.innerHTML += `<div class="predictor-section">
     <h3>Predictor contribution model</h3>
-    <p class="muted">Transparent Lasso-style scoring proxy. It explains which signals are pushing a routine up or down without using a black-box model.</p>
+    <p class="muted">Transparent transparent routine-priority scoring proxy. It explains which signals are pushing a routine up or down without using a black-box model.</p>
     ${cards}
   </div>`;
 }
@@ -6048,7 +6235,7 @@ function renderPlateauDiagnostics() {
 
   box.innerHTML += `<div class="plateau-section">
     <h3>Plateau diagnostics</h3>
-    <p class="muted">Combines trend slope, volatility, and Bayesian uncertainty to distinguish plateaus from fatigue or noisy samples.</p>
+    <p class="muted">Combines trend slope, volatility, and True Skill uncertainty to distinguish plateaus from fatigue or noisy samples.</p>
     ${html}
   </div>`;
 }
@@ -6068,9 +6255,9 @@ function renderBayesianAnalyticsValidation() {
   const successRoutines = activeRoutines().filter(r => r.scoring === "success_rate");
   const chosen = selected && selected !== "all" ? successRoutines.filter(r => String(r.id) === String(selected)) : successRoutines.slice(0, 8);
   if (!chosen.length) {
-    box.innerHTML = `<h3>Bayesian & Lasso analytics</h3><div class="analytics-note">Bayesian validation currently applies to success-rate drills. Create or select a success-rate drill to see confidence estimates.</div>`;
+    box.innerHTML = `<h3>True Skill analytics</h3><div class="analytics-note">True Skill currently works best with success-rate drills. Create or select a success-rate drill to see estimated skill range. Raw-score and progressive drills still count in the rest of the stats dashboard.</div>`;
   } else {
-    box.innerHTML = `<h3>Bayesian analytics validation</h3>
+    box.innerHTML = `<h3>True Skill validation</h3>
       <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
       ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
   }
@@ -6158,6 +6345,7 @@ function updatePressurePanel() {
 
 function recordPressure(type) {
   if (!pressureSession) return;
+  hapticFeedback(type === "miss" || type === "recovery_fail" ? "miss" : "tap");
   pressureSession = recordPressureEvent(pressureSession, type);
   updatePressurePanel();
 }
@@ -6511,3 +6699,6 @@ document.addEventListener("change", (event) => {
     else renderBayesianAnalyticsValidation?.();
   }
 });
+
+
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncFocusWakeLock(); else releaseFocusWakeLock(); });

@@ -1,5 +1,3 @@
-# Snooker Practice PWA v4.22.19 — Focus controls verified
+# Snooker Practice PWA v4.22.23
 
-- Fixes malformed version module that could prevent app bootstrap after refresh.
-- Preserves v4.22.14 focus-mode density work.
-- Rebalances focus mode timer and live target tiles.
+Beta simplification release. Adds Basic/Advanced exercise creation, Basic/Advanced stats detail, a Quick Resume banner, and save confirmation toast.

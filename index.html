@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.19</title>
+  <title>Snooker Practice Log v4.22.23</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.19" />
-  <link rel="stylesheet" href="styles.css?v=4.22.19" />
-  <link rel="icon" href="icon.svg?v=4.22.19" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.23" />
+  <link rel="stylesheet" href="styles.css?v=4.22.23" />
+  <link rel="icon" href="icon.svg?v=4.22.23" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.19 · Build 2026-05-16 23:59 CEST — Focus controls verified.</p>
+      <p>v4.22.23 · Build 2026-05-17 12:23 CEST — Beta simplification: basic forms, basic stats, quick resume, save toast.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -66,6 +66,8 @@
           <button type="button" class="practice-nav-btn" data-action="practice-main-tab" data-practice-tab="pressure" role="tab" aria-selected="false">Pressure</button>
         </div>
       </div>
+
+      <div id="quickResumeBanner" class="card quick-resume-banner hidden"></div>
 
       <div class="practice-tab-panel active" data-practice-panel="regular">
         <div class="card practice-start-card">
@@ -429,7 +431,15 @@
       <div class="card">
         <h2 id="routineFormTitle">Create exercise</h2>
         <input id="routineEditId" type="hidden" />
-        <div class="grid two">
+        <div class="routine-form-mode-row">
+          <label>Form mode</label>
+          <select id="exerciseFormMode">
+            <option value="basic">Basic — fast setup</option>
+            <option value="advanced">Advanced — all fields</option>
+          </select>
+          <p class="helper-text">Basic shows only the fields needed to create a usable exercise. Advanced exposes folders, side split, anchor status, progressive settings, and recommendation controls.</p>
+        </div>
+        <div class="grid two" id="routineFormGrid">
           <div>
             <label>Exercise name</label>
             <input id="routineName" placeholder="e.g. Long Potting — 10 reds from baulk" />
@@ -734,9 +744,9 @@
           <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
           <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
           <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
-          <button id="statsBayesianBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="bayesian">Bayesian</button>
+          <button id="statsBayesianBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="bayesian">True Skill</button>
           <button id="statsABBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="ab">A/B</button>
-          <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Counterfactual</button>
+          <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Drill Compare</button>
           <button id="statsTournamentBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="tournament">Tournament</button>
         </div>
         <div class="grid three">
@@ -758,6 +768,13 @@
           <div>
             <label>Exercise filter</label>
             <select id="statsRoutineSelect"></select>
+          </div>
+          <div>
+            <label>Stats detail</label>
+            <select id="statsDetailMode">
+              <option value="basic">Basic — core dashboard</option>
+              <option value="advanced">Advanced — full analytics</option>
+            </select>
           </div>
         </div>
         <div class="grid two">
@@ -807,8 +824,8 @@
 
         <div id="weeklyReviewBox"></div>
         <div class="card nested stats-standalone-panel hidden" id="regretEnginePanel">
-          <h3>Regret / Counterfactual Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="regretEngine">?</button></h3>
-          <p class="muted">Estimates whether another routine may have been a better choice in similar conditions. This is heuristic, not causal proof.</p>
+          <h3>Drill Comparison Engine <button type="button" class="stat-help" data-action="field-help" data-help-key="regretEngine">?</button></h3>
+          <p class="muted">Compares the chosen drill with an alternative using recent performance signals. This is a drill-selection guide, not causal proof.</p>
           <div class="grid three">
             <div>
               <label>Chosen routine</label>
@@ -923,6 +940,14 @@
                 <option value="120">120 seconds</option>
               </select>
               <p class="muted tiny">During the delay, the timer counts down to 0, then starts counting up normally.</p>
+            </div>
+            <div class="setting-box timer-autostart-setting wake-lock-setting">
+              <label>Screen wake lock</label>
+              <select id="wakeLockSelect">
+                <option value="off">Disabled</option>
+                <option value="on">Enabled in Focus Mode</option>
+              </select>
+              <p class="muted tiny">Keeps the screen awake while Focus Mode is active and the timer is running. Browser support varies, especially on iOS.</p>
             </div>
           </div>
         </div>
@@ -1078,6 +1103,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.19"></script>
+  <script type="module" src="app.js?v=4.22.23"></script>
 </body>
 </html>

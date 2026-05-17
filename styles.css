@@ -1821,3 +1821,88 @@ body.session-focus-active #activeSession #toggleFocusModeBtn{
   font-size:13px!important;
   border-radius:16px!important;
 }
+
+
+/* v4.22.23 beta UX: focus-mode numeric steppers and final control sizing */
+.focus-score-stepper-panel{display:none;}
+body.session-focus-active #activeSession .focus-score-stepper-panel{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(82px,1fr));
+  gap:7px;
+  margin:6px 0 4px;
+}
+body.session-focus-active #activeSession .focus-stepper-tile{
+  border:1px solid var(--line);
+  background:var(--panel-bg-2);
+  border-radius:12px;
+  padding:6px;
+  min-height:56px;
+}
+body.session-focus-active #activeSession .focus-stepper-tile>span{
+  display:block;
+  font-size:10px;
+  color:var(--muted);
+  font-weight:800;
+  margin-bottom:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.session-focus-active #activeSession .focus-stepper-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px;
+}
+body.session-focus-active #activeSession .focus-stepper-actions button{
+  min-height:38px!important;
+  height:38px!important;
+  border-radius:10px!important;
+  padding:0!important;
+  font-size:18px!important;
+  font-weight:900!important;
+}
+body.session-focus-active #activeSession .row.focus-timer-action-row,
+body.session-focus-active #activeSession .focus-timer-action-row{
+  grid-template-columns:repeat(4,70px)!important;
+  gap:9px!important;
+  justify-content:center!important;
+}
+body.session-focus-active #activeSession .row.focus-timer-action-row > button,
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  width:70px!important;
+  min-width:70px!important;
+  max-width:70px!important;
+  height:64px!important;
+  min-height:64px!important;
+  max-height:64px!important;
+  font-size:12px!important;
+  line-height:1.05!important;
+  border-radius:14px!important;
+  padding:0!important;
+}
+@media(max-width:360px){
+  body.session-focus-active #activeSession .row.focus-timer-action-row,
+  body.session-focus-active #activeSession .focus-timer-action-row{grid-template-columns:repeat(4,62px)!important;gap:7px!important;}
+  body.session-focus-active #activeSession .row.focus-timer-action-row > button,
+  body.session-focus-active #activeSession .focus-timer-action-row > button,
+  body.session-focus-active #activeSession #timerStartBtn,
+  body.session-focus-active #activeSession #timerPauseBtn,
+  body.session-focus-active #activeSession #timerResetBtn,
+  body.session-focus-active #activeSession #toggleFocusModeBtn{width:62px!important;min-width:62px!important;max-width:62px!important;height:58px!important;min-height:58px!important;max-height:58px!important;font-size:11px!important;}
+}
+
+/* v4.22.23 beta simplification */
+.quick-resume-banner{border:1px solid var(--line);background:linear-gradient(180deg,var(--panel-bg),var(--panel-bg-2));}
+.quick-resume-content{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.quick-resume-content h2{margin:0 0 4px;}
+.quick-resume-content p{margin:0;color:var(--muted);font-weight:700;}
+.quick-resume-btn{min-height:54px;padding:0 18px;font-size:16px;font-weight:900;border-radius:16px;white-space:nowrap;}
+.routine-form-mode-row{margin:8px 0 12px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-bg-2);}
+.routine-form-mode-row select{max-width:320px;}
+.routine-advanced-field.hidden{display:none!important;}
+.basic-stats-dashboard{grid-template-columns:repeat(4,minmax(0,1fr));}
+@media(max-width:720px){.quick-resume-content{align-items:stretch;flex-direction:column}.quick-resume-btn{width:100%;min-height:60px}.basic-stats-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));}}
