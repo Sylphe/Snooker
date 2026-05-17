@@ -1,7 +1,8 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.24.0";
+const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.24.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -15,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.24.0";
+} from "./utils.js?v=4.24.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -33,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.24.0";
+} from "./settings.js?v=4.24.1";
 import {
   avg,
   stdDev,
@@ -55,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.24.0";
+} from "./analytics.js?v=4.24.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -64,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.24.0";
+} from "./bayesian.js?v=4.24.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -73,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.24.0";
+} from "./session.js?v=4.24.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -81,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.24.0";
+} from "./pressure.js?v=4.24.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -93,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.24.0";
+} from "./recommendations.js?v=4.24.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.24.0";
+} from "./store.js?v=4.24.1";
 
 
 
@@ -2405,14 +2406,19 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const routinePool = recommendationEligibleRoutines().filter(r => focusOverride === "all" || r.category === focusOverride);
   let states = routinePool.map(r => adaptiveRoutineState(r.id));
   if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
+  const recommendationModeForBuilder = getSmartRecommendationMode();
+  const recommendationProfiles = new Map(rankRoutinesByMode(focusOverride, strategy, recommendationModeForBuilder).map(x => [x.routine.id, x]));
   const ranked = states.map(s => {
     let boost = 0;
+    const profile = recommendationProfiles.get(s.routine.id);
+    const recommendationScore = profile ? (recommendationModeForBuilder === "thompson" ? profile.sampledValue : recommendationModeForBuilder === "hybrid" ? profile.hybridScore : profile.score) : 0;
     if (strategy === "explore") boost += Math.min(20, Math.max(0, 30 - Number(s.n || 0)));
     if (strategy === "exploit" && s.phase === "stabilize") boost += 12;
     if (strategy === "exploit" && s.targetGap > 0) boost += Math.min(12, s.targetGap / 2);
     if (intensity === "pressure" && ["safety","mental","break-building"].includes(s.routine.category)) boost += 8;
     if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
-    return {...s, adaptiveScore: adaptivePriorityScore(s, goal) + boost};
+    if (profile?.selectionType === "exploration") boost += 4;
+    return {...s, adaptiveScore: adaptivePriorityScore(s, goal) + boost + recommendationScore * 0.28, recommendationProfile:profile, reasons:[...(s.reasons || []), ...(profile?.reasons || []).slice(0,3)]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -2517,11 +2523,12 @@ function renderAdaptiveSession() {
   const plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
   adaptivePlanDraft = [...plan.routineIds];
 
+  const mode = getSmartRecommendationMode();
   const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
     <h4>Smart session mode: ${escapeHtml(plan.effectiveGoal)}</h4>
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
-    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded plan estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill block${plan.routineIds.length === 1 ? "" : "s"}</div>
-  </div>` + plan.blocks.map(block => `<div class="adaptive-phase">
+    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded plan estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill block${plan.routineIds.length === 1 ? "" : "s"} · Recommendation mode: ${escapeHtml(mode === "thompson" ? "Thompson Sampling" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</div>
+  </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase">
     <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
     <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
     ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); return `<div class="routine-row">
@@ -2586,38 +2593,106 @@ function createDefaultQuickStartPlan() {
   showTransientNotice("Quick-start plan created from the first available exercises.", "ok");
 }
 
+function normalizeSmartRecommendationMode(value) {
+  return ["heuristic", "thompson", "hybrid"].includes(value) ? value : "hybrid";
+}
+function getSmartRecommendationMode() {
+  const selectValue = $("smartRecommendationMode")?.value;
+  return normalizeSmartRecommendationMode(selectValue || localStorage.getItem(SMART_RECOMMENDATION_MODE_KEY) || "hybrid");
+}
+function setSmartRecommendationMode(value) {
+  const mode = normalizeSmartRecommendationMode(value);
+  localStorage.setItem(SMART_RECOMMENDATION_MODE_KEY, mode);
+  if ($("smartRecommendationMode")) $("smartRecommendationMode").value = mode;
+  renderSmartRecommendation();
+  if ($("adaptiveEngineOutput")) renderAdaptiveSession();
+}
+function gaussianRandom() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+function routineEvidenceLabel(n) {
+  if (n >= 20) return "high evidence";
+  if (n >= 8) return "moderate evidence";
+  if (n >= 3) return "early evidence";
+  return "low evidence";
+}
+function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
+  const baseScore = routineMixedStrategyScore(routine, stats, strategy) + (focusOverride !== "all" && routine.category === focusOverride ? 25 : 0);
+  const n = Number(stats.logs?.length || 0);
+  const vals = (stats.vals || []).filter(Number.isFinite);
+  const volatility = vals.length >= 3 ? Math.min(20, stdDev(vals) || 0) : 12;
+  const days = stats.logs?.length ? daysSince(stats.logs[stats.logs.length-1].createdAt) : recommendationRecencyCap(routine);
+  const uncertainty = Math.max(4, Math.min(30, 22 / Math.sqrt(n + 1) + volatility * 0.18 + Math.min(8, days * 0.25)));
+  const weakness = stats.hit === null ? 10 : Math.max(0, 75 - Number(stats.hit || 0)) * 0.28;
+  const undertraining = undertrainedCategoryBonus(routine.id) * recommendationUndertrainingMultiplier(routine);
+  const context = stats.contextSignal || recommendationContextSignal(routine.id);
+  const bayes = stats.bayesian?.signal?.scoreDelta || 0;
+  const trainingValueMean = baseScore + weakness * 0.6 + undertraining * 0.7 + Number(context.bonus || 0) * 0.4 + bayes * 0.5;
+  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty;
+  const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
+  if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
+  if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
+  if (undertraining >= 7) reasons.unshift("undertrained category");
+  return {
+    routine,
+    stats,
+    score: baseScore,
+    trainingValueMean,
+    uncertainty,
+    sampledValue,
+    n,
+    evidenceLabel: routineEvidenceLabel(n),
+    selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
+    reasons:[...new Set(reasons)]
+  };
+}
+function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
+  const base = activeRoutines().map(r => {
+    const stats = routineStats(r.id);
+    return routineRecommendationProfile(r, stats, strategy, focusOverride);
+  }).filter(x => recommendationMode(x.routine) !== "excluded");
+  if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
+  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.55) + (x.sampledValue * 0.45)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  return base.sort((a,b)=>b.score-a.score);
+}
+function recommendationModeSummary(mode) {
+  if (mode === "thompson") return "Thompson Sampling: samples each drill's upside and naturally balances confirmed weaknesses with useful exploration.";
+  if (mode === "hybrid") return "Hybrid: blends stable heuristic scoring with Thompson-style exploration so recommendations do not become too repetitive.";
+  return "Heuristic: stable ranking based on weakness, recency, undertraining, context, and True Skill signals.";
+}
+function renderRecommendationLogicPanel(candidates, mode) {
+  const rows = (candidates || []).slice(0,5);
+  if (!rows.length) return "";
+  return `<div class="recommendation-logic-panel">
+    <h4>Recommendation logic</h4>
+    <div class="adaptive-rationale">${escapeHtml(recommendationModeSummary(mode))}</div>
+    <div class="recommendation-candidate-list">
+      ${rows.map((x, idx)=>`<div class="context-row recommendation-candidate-row">
+        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
+        <strong>${(mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score).toFixed(1)}</strong>
+        <span>${escapeHtml((x.reasons || []).slice(0,2).join(" · ") || "balanced rotation")}</span>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
 function renderSmartRecommendation() {
   const box = $("smartRecommendationBox");
   if (!box) return;
+  const mode = getSmartRecommendationMode();
+  if ($("smartRecommendationMode")) $("smartRecommendationMode").value = mode;
   if (!data.logs.length) {
-    box.innerHTML = `<strong>Start logging exercises.</strong><br>Recommendation will use target hit rate, recent trend, and training allocation once you have history.<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
+    box.innerHTML = `<strong>Start logging exercises.</strong><br>Recommendation will use target hit rate, recent trend, training allocation, and recommendation mode once you have history.<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
     return;
   }
-  const byRoutine = {};
-  data.logs.forEach(l => {
-    byRoutine[l.routineId] ||= [];
-    byRoutine[l.routineId].push(l);
-  });
-  const eligibleIds = new Set(recommendationEligibleRoutines().map(r => r.id));
-  const candidates = Object.entries(byRoutine)
-    .filter(([rid]) => eligibleIds.has(rid))
-    .map(([rid, logs]) => {
-      const routine = routineById(rid);
-      logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-      const vals = logs.map(l=>Number(l.normalizedScore||0));
-      const hit = targetHitRate(logs);
-      const recent = avg(vals.slice(-3));
-      const prior = avg(vals.slice(0,-3));
-      const days = logs.length ? daysSince(logs[logs.length-1].createdAt) : 30;
-      const recencyBonus = Math.min(10, Math.min(days, recommendationRecencyCap(routine)));
-      const modePenalty = recommendationMode(routine) === "occasional" ? 10 : 0;
-      const bayesian = bayesianStatsForRoutine(rid);
-      const bayesDelta = bayesian?.signal?.scoreDelta || 0;
-      const score = (hit === null ? 35 : 100-hit) + (prior && recent < prior ? 20 : 0) + Math.min(20, logs.length) + recencyBonus - modePenalty + bayesDelta;
-      return {rid, logs, score, hit, recent, prior, bayesian};
-    }).sort((a,b)=>b.score-a.score);
+  const focus = $("orchestratorFocus")?.value || "all";
+  const strategy = $("orchestratorStrategy")?.value || "balanced";
+  const candidates = rankRoutinesByMode(focus, strategy, mode);
   const top = candidates[0];
-  const routine = top ? routineById(top.rid) : null;
+  const routine = top?.routine;
   const recentLogs = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,20);
   const alloc = computeAllocation(recentLogs);
   const undertrained = alloc.sort((a,b)=>a.pct-b.pct)[0];
@@ -2625,7 +2700,7 @@ function renderSmartRecommendation() {
     box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
     return;
   }
-  const bayesian = top.bayesian;
+  const bayesian = top.stats?.bayesian;
   const policy = bayesian?.policy;
   const policyHtml = policy ? `<div class="bayes-action-box smart-bayes-action">
       <strong>${htmlText(policy.title)}</strong>
@@ -2633,12 +2708,16 @@ function renderSmartRecommendation() {
       <p class="muted">${htmlText(policy.detail)} ${htmlText(policy.coaching)}</p>
     </div>` : "";
   box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
-    <span class="badge">Hit rate: ${top.hit === null ? "N/A" : top.hit.toFixed(1)+"%"}</span>
+    <span class="badge">Mode: ${escapeHtml(mode === "thompson" ? "Thompson" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</span>
+    <span class="badge">Type: ${escapeHtml(top.selectionType)}</span>
+    <span class="badge">Evidence: ${escapeHtml(top.evidenceLabel)}</span>
+    <span class="badge">Hit rate: ${top.stats.hit === null ? "N/A" : top.stats.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
-    <p class="muted">Logic: prioritizes low target hit rate, recent underperformance, undertrained categories, True Skill estimate, pressure weakness, table context, and repeated reflection themes.</p>
+    <p class="muted">Reason: ${(top.reasons || []).slice(0,4).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
     ${policyHtml}
+    ${renderRecommendationLogicPanel(candidates, mode)}
     <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
@@ -4949,6 +5028,14 @@ FIELD_HELP.smartSessionBuilder = {
   <div class="example"><strong>Use it when:</strong> you want the app to decide the next useful session rather than manually selecting drills.</div>`
 };
 
+FIELD_HELP.smartRecommendationMode = {
+  title:"Recommendation mode",
+  body:`
+  <p><strong>Stable heuristic:</strong> ranks drills using weakness, recency, undertraining, context and True Skill signals.</p>
+  <p><strong>Hybrid:</strong> combines stable scoring with a small exploration effect. This is the safest default.</p>
+  <p><strong>Thompson sampling:</strong> samples each drill's likely upside, so uncertain or neglected drills can occasionally beat familiar drills when the expected training value is high.</p>`
+};
+
 
 FIELD_HELP.targetScoreMode = {
   title:"Target score",
@@ -5287,7 +5374,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.24.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.24.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5612,12 +5699,18 @@ function undertrainedCategoryBonus(routineId) {
 }
 
 function rankRoutines(focusOverride="all", strategy="balanced") {
-  return activeRoutines().map(r => {
-    const s = routineStats(r.id);
-    let score = routineMixedStrategyScore(r, s, strategy);
-    if (focusOverride !== "all" && r.category === focusOverride) score += 25;
-    return {routine:r, stats:s, score, reasons:getRoutinePriorityReasons({routine:r, stats:s})};
-  }).sort((a,b)=>b.score-a.score);
+  const mode = getSmartRecommendationMode();
+  return rankRoutinesByMode(focusOverride, strategy, mode).map(x => ({
+    routine:x.routine,
+    stats:x.stats,
+    score: mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score,
+    sampledValue:x.sampledValue,
+    trainingValueMean:x.trainingValueMean,
+    uncertainty:x.uncertainty,
+    selectionType:x.selectionType,
+    evidenceLabel:x.evidenceLabel,
+    reasons:x.reasons
+  }));
 }
 
 function pickByCategory(ranked, category, usedIds, fallback=true) {
@@ -5728,6 +5821,11 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(btn) btn.addEventListener("click", generateNextSession);
   const loadBtn = document.getElementById("loadGeneratedPlanBtn");
   if(loadBtn) loadBtn.addEventListener("click", loadGeneratedPlan);
+  const modeSelect = document.getElementById("smartRecommendationMode");
+  if (modeSelect) {
+    modeSelect.value = getSmartRecommendationMode();
+    modeSelect.addEventListener("change", e => setSmartRecommendationMode(e.target.value));
+  }
 });
 
 
