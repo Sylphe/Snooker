@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.29</title>
+  <title>Snooker Practice Log v4.22.30</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.29" />
-  <link rel="stylesheet" href="styles.css?v=4.22.29" />
-  <link rel="icon" href="icon.svg?v=4.22.29" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.30" />
+  <link rel="stylesheet" href="styles.css?v=4.22.30" />
+  <link rel="icon" href="icon.svg?v=4.22.30" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.29 · Build 2026-05-17 16:30 CEST — Focus mode no-side-split gap fix.</p>
+      <p>v4.22.30 · Build 2026-05-17 17:45 CEST — Reflection fields and collapsible quick resume.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1082,6 +1082,10 @@
           <option value="confidence">Confidence</option>
           <option value="shot_selection">Shot selection</option>
         </select>
+        <label>Session tags</label>
+        <input id="reflectionTags" placeholder="e.g. long pots, tired, club match, new cue action" />
+        <label>Intervention note</label>
+        <input id="reflectionInterventionNote" placeholder="Optional: what changed during or before this session?" />
         <label>Reflection note</label>
         <textarea id="reflectionNote" rows="3" placeholder="Short note: what would improve the next session?"></textarea>
       </div>
@@ -1111,6 +1115,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.29"></script>
+  <script type="module" src="app.js?v=4.22.30"></script>
 </body>
 </html>

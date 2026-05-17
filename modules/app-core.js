@@ -1,6 +1,7 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.29";
+const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.30";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +15,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.29";
+} from "./utils.js?v=4.22.30";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -32,7 +33,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.29";
+} from "./settings.js?v=4.22.30";
 import {
   avg,
   stdDev,
@@ -54,7 +55,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.29";
+} from "./analytics.js?v=4.22.30";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -63,7 +64,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.29";
+} from "./bayesian.js?v=4.22.30";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -72,7 +73,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.29";
+} from "./session.js?v=4.22.30";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -80,7 +81,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.29";
+} from "./pressure.js?v=4.22.30";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -92,8 +93,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.29";
-import * as RenderHelpers from "./render.js?v=4.22.29";
+} from "./recommendations.js?v=4.22.30";
+import * as RenderHelpers from "./render.js?v=4.22.30";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.29";
+} from "./store.js?v=4.22.30";
 
 
 
@@ -1150,21 +1151,36 @@ function startRepeatLastExercise() {
 }
 $("repeatLastExerciseBtn").addEventListener("click", startRepeatLastExercise);
 document.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.('[data-action="toggle-quick-resume"]');
+  if (toggle) {
+    event.preventDefault();
+    setQuickResumeCollapsed(!isQuickResumeCollapsed());
+    renderQuickResumeBanner();
+    return;
+  }
   const btn = event.target.closest?.('[data-action="quick-resume-last"]');
   if (!btn) return;
   event.preventDefault();
   startRepeatLastExercise();
 });
 
+function isQuickResumeCollapsed() {
+  try { return localStorage.getItem(QUICK_RESUME_COLLAPSED_KEY) === "1"; } catch(e) { return false; }
+}
+function setQuickResumeCollapsed(collapsed) {
+  try { localStorage.setItem(QUICK_RESUME_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch(e) {}
+}
 function renderQuickResumeBanner() {
   const box = $("quickResumeBanner");
   if (!box) return;
   const last = (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
   const routine = last ? routineById(last.routineId) : null;
   if (!last || !routine) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const collapsed = isQuickResumeCollapsed();
   const when = last.createdAt ? new Date(last.createdAt).toLocaleDateString() : "last time";
   box.classList.remove("hidden");
-  box.innerHTML = `<div class="quick-resume-content"><div><h2>Quick resume</h2><p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p></div><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`;
+  box.classList.toggle("collapsed", collapsed);
+  box.innerHTML = `<div class="quick-resume-header"><div><h2>Quick resume</h2><p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p></div><button type="button" class="quick-resume-toggle" data-action="toggle-quick-resume" aria-label="${collapsed ? "Expand quick resume" : "Collapse quick resume"}">${collapsed ? "+" : "−"}</button></div>${collapsed ? "" : `<div class="quick-resume-content"><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`}`;
 }
 
 function startRoutineScreen() {
@@ -1962,6 +1978,8 @@ function openReflectionModal(sessionId) {
   if (!$("reflectionModal")) return;
   $("reflectionFocus").value = "";
   $("reflectionLimiter").value = "";
+  if ($("reflectionTags")) $("reflectionTags").value = "";
+  if ($("reflectionInterventionNote")) $("reflectionInterventionNote").value = "";
   $("reflectionNote").value = "";
   $("reflectionModal").classList.remove("hidden");
 }
@@ -1972,12 +1990,19 @@ function saveReflection() {
   if (!pendingReflectionSessionId) return skipReflection();
   const idx = (data.sessions || []).findIndex(s => s.id === pendingReflectionSessionId);
   if (idx >= 0) {
+    const reflectionTags = $("reflectionTags")?.value || "";
+    const reflectionInterventionNote = $("reflectionInterventionNote")?.value || "";
     data.sessions[idx].reflection = {
       focus: $("reflectionFocus").value || "",
       limiter: $("reflectionLimiter").value || "",
+      tags: reflectionTags,
+      interventionNote: reflectionInterventionNote,
       note: $("reflectionNote").value || "",
       createdAt: new Date().toISOString()
     };
+    data.sessions[idx].sessionTags = reflectionTags || data.sessions[idx].sessionTags || "";
+    data.sessions[idx].interventionNote = reflectionInterventionNote || data.sessions[idx].interventionNote || "";
+    updateTagHistoryFromInput(reflectionTags);
     saveCoreData("reflection core save");
     persistSessionDelta(data.sessions[idx], "reflection session put");
   }
@@ -5162,7 +5187,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.29");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.30");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
