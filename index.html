@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.25.1</title>
+  <title>Snooker Practice Log v4.25.2</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.24.1" />
-  <link rel="stylesheet" href="styles.css?v=4.24.1" />
-  <link rel="icon" href="icon.svg?v=4.24.1" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.25.2" />
+  <link rel="stylesheet" href="styles.css?v=4.25.2" />
+  <link rel="icon" href="icon.svg?v=4.25.2" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.25.1 · Build 2026-05-17 19:35 GMT+1 — Thompson Sampling recommendation mode for Smart Session Builder.</p>
+      <p>v4.25.2 · Build 2026-05-17 19:35 GMT+1 — Thompson Sampling recommendation mode for Smart Session Builder.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1045,6 +1045,15 @@
           <div id="storageIntegrityOutput" class="analytics-note">Run verification to compare memory, IndexedDB, backup, and dashboard counts.</div>
         </div>
 
+        <div class="card" id="dataQualityAuditPanel">
+          <h2>Data quality audit</h2>
+          <p class="muted">Checks logs, routines and plans for issues before advanced analytics such as change-point detection.</p>
+          <div class="row">
+            <button id="runDataQualityAuditBtn" type="button" class="secondary">Run Data Quality Audit</button>
+          </div>
+          <div id="dataQualityAuditBox" class="analytics-note">Audit not run yet.</div>
+        </div>
+
         <div class="card danger-zone">
           <h2>Reset app data</h2>
           <p>This deletes saved exercises, plans, and logs from this browser.</p>
@@ -1127,7 +1136,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.24.1"></script>
+  <script type="module" src="app.js?v=4.25.2"></script>
 </body>
 
 

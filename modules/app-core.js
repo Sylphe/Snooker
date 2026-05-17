@@ -7160,189 +7160,142 @@ function renderRecommendationDiagnostics(candidates){
 }
 
 
-/* ===== v4.25 Unified Recommendation Foundation ===== */
 
+
+
+
+/* ===== v4.25.2 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
-  const attempts = Number(log.attempts || log.totalAttempts || 0);
-  const made = Number(log.made || log.score || 0);
+  const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
+  const score = Number(log?.score || 0);
+  const normalizedScore = Number.isFinite(Number(log?.normalizedScore))
+    ? Number(log.normalizedScore)
+    : (attempts > 0 ? Math.max(0, Math.min(100, (score / attempts) * 100)) : Math.max(0, score));
 
-  let normalizedScore = 0;
-  if(attempts > 0){
-    normalizedScore = Math.max(0, Math.min(100, (made / attempts) * 100));
-  }else{
-    normalizedScore = Number(log.normalizedScore || made || 0);
-  }
+  const left = Number(log?.leftSideScore || 0);
+  const right = Number(log?.rightSideScore || 0);
+  const hasSide = Boolean(log?.sideSplitEnabled || log?.sideMode === "left_right" || log?.sideSplit === "left_right");
 
-  const left = Number(log.leftSideScore || 0);
-  const right = Number(log.rightSideScore || 0);
-
-  const lrBalance = (left || right)
-    ? 100 - Math.abs(left - right)
-    : null;
-
-  const issues = [];
-
-  if(attempts < 0 || made < 0){
-    issues.push("negative_values");
-  }
-
-  if(attempts > 0 && made > attempts){
-    issues.push("score_exceeds_attempts");
-  }
+  const flags = [];
+  if(score < 0 || attempts < 0 || left < 0 || right < 0) flags.push("negative_values");
+  if(log?.scoring === "success_rate" && attempts > 0 && score > attempts) flags.push("score_exceeds_attempts");
+  if(hasSide && attempts > 0 && left + right > attempts) flags.push("left_right_exceeds_attempts");
+  if(log?.scoring === "progressive_completion" && Number(log?.totalUnits || log?.totalUnitsAtLog || 0) <= 0) flags.push("missing_total_units");
+  if(Number(log?.timeMinutes || 0) === 0) flags.push("zero_minutes");
 
   return {
     normalizedScore,
-    targetHit: normalizedScore >= Number(routine?.target || 70),
+    targetHit: Number.isFinite(Number(log?.targetAtLog)) ? normalizedScore >= Number(log.targetAtLog) : false,
     effectiveAttempts: attempts,
-    confidenceWeight: Math.min(1, attempts / 20),
-    scoringFamily: routine?.scoringType || "generic",
+    confidenceWeight: attempts > 0 ? Math.min(1, attempts / 20) : 0.35,
+    scoringFamily: log?.scoring || routine?.scoring || "unknown",
     difficultyAdjustedScore: normalizedScore,
-    leftRightBalance: lrBalance,
-    dataQualityFlags: issues
+    leftRightBalance: hasSide ? {left, right, gap: Math.abs(left-right)} : null,
+    dataQualityFlags: flags
   };
 }
 
 function evaluateRoutinePriority(routine, logs, context={}){
-  const recent = (logs || []).slice(-10);
+  const routineLogs = (logs || []).filter(l => l && l.routineId === routine?.id);
+  const recent = routineLogs.slice(-8);
+  const avg = recent.length
+    ? recent.reduce((a,l)=>a + Number(derivePerformanceSignal(l, routine).normalizedScore || 0), 0) / recent.length
+    : 50;
 
-  let avg = 50;
-  if(recent.length){
-    avg = recent.reduce((a,l)=>a + (Number(l.normalizedScore || l.score || 0)),0)/recent.length;
-  }
-
-  const weaknessScore = 100 - avg;
-  const undertrainingScore = Math.min(100, Number(context.daysSinceLast || 0) * 4);
-  const uncertaintyScore = Math.max(0, 100 - recent.length * 10);
+  const weaknessScore = Math.max(0, 100 - avg);
+  const lastDate = routineLogs.length ? new Date(routineLogs[routineLogs.length-1].createdAt || 0).getTime() : 0;
+  const daysSinceLast = lastDate ? Math.max(0, (Date.now() - lastDate) / 86400000) : 30;
+  const undertrainingScore = Math.min(100, daysSinceLast * 4);
+  const uncertaintyScore = Math.max(0, 100 - recent.length * 12);
   const fatiguePenalty = Number(context.fatigueRisk || 0) * 10;
-
-  const totalScore =
-    weaknessScore * 0.45 +
-    undertrainingScore * 0.30 +
-    uncertaintyScore * 0.20 -
-    fatiguePenalty * 0.05;
+  const pressureNeed = Number(context.pressureNeed || 0) * 10;
+  const totalScore = weaknessScore * 0.45 + undertrainingScore * 0.25 + uncertaintyScore * 0.20 + pressureNeed * 0.10 - fatiguePenalty * 0.05;
 
   const reasons = [];
-
-  if(weaknessScore > 60) reasons.push("Weakness detected");
-  if(undertrainingScore > 50) reasons.push("Undertrained recently");
+  if(weaknessScore > 45) reasons.push("Weakness detected");
+  if(undertrainingScore > 40) reasons.push("Undertrained recently");
   if(uncertaintyScore > 50) reasons.push("Low sample confidence");
-  if(context.pressureNeed) reasons.push("Pressure adaptation needed");
+  if(pressureNeed > 0) reasons.push("Pressure adaptation needed");
+  if(!reasons.length) reasons.push("Balanced maintenance");
 
-  return {
-    totalScore,
-    weaknessScore,
-    undertrainingScore,
-    uncertaintyScore,
-    fatiguePenalty,
-    reasons
-  };
+  return {totalScore, weaknessScore, undertrainingScore, uncertaintyScore, fatiguePenalty, pressureNeed, reasons};
 }
 
 function runDataQualityAudit(){
   const results = [];
-
   try{
-    const logs = (window.data && data.logs) || [];
-    const routines = (window.data && data.routines) || [];
+    const logs = Array.isArray(data?.logs) ? data.logs : [];
+    const routines = Array.isArray(data?.routines) ? data.routines : [];
+    const plans = Array.isArray(data?.plans) ? data.plans : [];
     const routineIds = new Set(routines.map(r=>r.id));
+    const activeRoutineIds = new Set(routines.filter(r=>!r.isDeleted).map(r=>r.id));
 
-    logs.forEach((log,idx)=>{
+    logs.forEach((log, idx)=>{
+      const row = idx + 1;
       if(log.routineId && !routineIds.has(log.routineId)){
-        results.push({
-          severity:"medium",
-          type:"orphan_log",
-          message:`Log ${idx+1} references deleted routine`
-        });
+        results.push({severity:"high", type:"orphan_log", message:`Log ${row} references a routine ID that no longer exists.`});
       }
-
-      if(Number(log.score || 0) < 0){
-        results.push({
-          severity:"high",
-          type:"negative_score",
-          message:`Negative score detected`
-        });
+      if(log.routineId && routineIds.has(log.routineId) && !activeRoutineIds.has(log.routineId)){
+        results.push({severity:"medium", type:"deleted_routine_log", message:`Log ${row} references a soft-deleted routine. This is usually acceptable historical data.`});
       }
-
-      if(Number(log.attempts || 0) > 0 &&
-         Number(log.score || 0) > Number(log.attempts || 0)){
-        results.push({
-          severity:"high",
-          type:"score_exceeds_attempts",
-          message:`Score exceeds attempts`
-        });
+      const signal = derivePerformanceSignal(log, routines.find(r=>r.id===log.routineId));
+      signal.dataQualityFlags.forEach(flag=>{
+        results.push({severity: flag.includes("exceeds") || flag === "negative_values" ? "high" : "medium", type:flag, message:`Log ${row}: ${flag.replaceAll("_"," ")}.`});
+      });
+      if(!log.tableId && !log.venueTable){
+        results.push({severity:"low", type:"missing_table", message:`Log ${row} has no table/venue context.`});
       }
     });
 
-  }catch(err){
-    console.warn(err);
-  }
+    plans.forEach((plan)=>{
+      (plan.routineIds || []).forEach(rid=>{
+        if(!routineIds.has(rid)){
+          results.push({severity:"high", type:"orphan_plan_reference", message:`Plan "${plan.name || "Unnamed"}" references a missing routine.`});
+        }
+      });
+    });
 
+    const nameMap = new Map();
+    routines.filter(r=>!r.isDeleted).forEach(r=>{
+      const key = String(r.name || "").trim().toLowerCase();
+      if(!key) return;
+      nameMap.set(key, (nameMap.get(key)||0)+1);
+    });
+    nameMap.forEach((count,name)=>{
+      if(count > 1) results.push({severity:"low", type:"duplicate_routine_name", message:`Duplicate active routine name: "${name}".`});
+    });
+
+  }catch(err){
+    results.push({severity:"high", type:"audit_error", message:`Audit failed: ${err.message || err}`});
+  }
   return results;
 }
 
 function renderDataQualityAudit(){
   const host = document.getElementById("dataQualityAuditBox");
   if(!host) return;
-
   const issues = runDataQualityAudit();
-
+  const counts = issues.reduce((a,i)=>{ a[i.severity]=(a[i.severity]||0)+1; return a; }, {});
   if(!issues.length){
-    host.innerHTML = '<div class="small muted">No integrity issues detected.</div>';
+    host.innerHTML = '<div class="analytics-note">No integrity issues detected.</div>';
     return;
   }
-
-  host.innerHTML = issues.map(i=>`
-    <div class="dq-item dq-${i.severity}">
-      <strong>${i.type}</strong><br/>
-      <span class="small">${i.message}</span>
-    </div>
-  `).join('');
+  host.innerHTML =
+    `<div class="analytics-note"><strong>${issues.length} issue(s) found</strong> · High: ${counts.high||0} · Medium: ${counts.medium||0} · Low: ${counts.low||0}</div>` +
+    issues.map(i=>`
+      <div class="dq-item dq-${i.severity}">
+        <strong>${i.type.replaceAll("_"," ")}</strong><br/>
+        <span class="small">${i.message}</span>
+      </div>
+    `).join('');
 }
+/* ===== end v4.25.2 Unified Recommendation Foundation ===== */
 
-/* ===== end v4.25 foundation ===== */
 
-
-/* ===== v4.25.1 Data Quality UI Fix ===== */
-function mountDataQualityAuditPanel(){
-  try{
-    if(document.getElementById("dataQualityAuditPanel")) return;
-    var host =
-      document.getElementById("developerOptions") ||
-      document.getElementById("developerOptionsPanel") ||
-      document.getElementById("storageSafetyDashboard") ||
-      document.getElementById("storageDiagnosticHarness") ||
-      document.querySelector('[data-panel="developer"]') ||
-      document.querySelector('[data-tab="developer"]') ||
-      document.querySelector(".developer-options");
-    if(!host) return;
-
-    var panel = document.createElement("div");
-    panel.id = "dataQualityAuditPanel";
-    panel.className = "card data-quality-panel";
-    panel.innerHTML =
-      '<div class="row between gap">' +
-        '<div><strong>Data Quality Audit</strong>' +
-        '<div class="small muted">Checks logs, routines and plans for integrity issues before advanced analytics.</div></div>' +
-        '<button type="button" id="runDataQualityAuditBtn" class="btn small">Run audit</button>' +
-      '</div>' +
-      '<div id="dataQualityAuditBox" class="small muted" style="margin-top:8px;">Audit not run yet.</div>';
-    host.appendChild(panel);
-
-    var btn = document.getElementById("runDataQualityAuditBtn");
-    if(btn){
-      btn.addEventListener("click", function(){
-        if(typeof renderDataQualityAudit === "function") renderDataQualityAudit();
-      });
-    }
-  }catch(err){
-    console.warn("Data quality panel mount failed", err);
+document.addEventListener("click", function(e){
+  const btn = e.target && e.target.closest ? e.target.closest("#runDataQualityAuditBtn") : null;
+  if(btn){
+    e.preventDefault();
+    renderDataQualityAudit();
   }
-}
-if(document.readyState === "loading"){
-  document.addEventListener("DOMContentLoaded", mountDataQualityAuditPanel);
-}else{
-  mountDataQualityAuditPanel();
-}
-setTimeout(mountDataQualityAuditPanel, 500);
-setTimeout(mountDataQualityAuditPanel, 1500);
-/* ===== end v4.25.1 Data Quality UI Fix ===== */
+});
