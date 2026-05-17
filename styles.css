@@ -1906,3 +1906,48 @@ body.session-focus-active #activeSession #toggleFocusModeBtn{
 .routine-advanced-field.hidden{display:none!important;}
 .basic-stats-dashboard{grid-template-columns:repeat(4,minmax(0,1fr));}
 @media(max-width:720px){.quick-resume-content{align-items:stretch;flex-direction:column}.quick-resume-btn{width:100%;min-height:60px}.basic-stats-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* v4.22.24 picker favorites, graph context, wake-lock settings */
+.routine-picker-row-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 8px;
+}
+.routine-picker-row-wrap .routine-picker-row { margin: 0; min-width: 0; }
+.routine-picker-star {
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.routine-picker-last {
+  display: block;
+  margin-top: 3px;
+  font-size: .76rem;
+  line-height: 1.25;
+  opacity: .84;
+}
+.chart-mobile-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 4px 0 6px;
+  font-size: .76rem;
+  color: var(--muted);
+}
+.metric-point { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
+.axis-label-mid { text-anchor: middle; }
+.axis-label-end { text-anchor: end; }
+.wake-lock-card { border-left: 3px solid var(--accent); }
+@media (max-width: 520px) {
+  .chart-mobile-context { font-size: .72rem; }
+  .routine-picker-star { min-width: 48px; width: 48px; min-height: 48px; }
+}

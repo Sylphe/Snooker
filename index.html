@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.22.23</title>
+  <title>Snooker Practice Log v4.22.24</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.22.23" />
-  <link rel="stylesheet" href="styles.css?v=4.22.23" />
-  <link rel="icon" href="icon.svg?v=4.22.23" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.22.24" />
+  <link rel="stylesheet" href="styles.css?v=4.22.24" />
+  <link rel="icon" href="icon.svg?v=4.22.24" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.22.23 · Build 2026-05-17 12:23 CEST — Beta simplification: basic forms, basic stats, quick resume, save toast.</p>
+      <p>v4.22.24 · Build 2026-05-17 13:55 CEST — Picker favorites, graph context, separate wake lock settings.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -941,13 +941,19 @@
               </select>
               <p class="muted tiny">During the delay, the timer counts down to 0, then starts counting up normally.</p>
             </div>
-            <div class="setting-box timer-autostart-setting wake-lock-setting">
-              <label>Screen wake lock</label>
+          </div>
+        </div>
+        <div class="card settings-section-card wake-lock-card">
+          <h2>Screen wake lock</h2>
+          <p class="muted">Optional Focus Mode setting that keeps the screen awake while the timer is running.</p>
+          <div class="grid two">
+            <div class="setting-box wake-lock-setting">
+              <label>Wake lock mode</label>
               <select id="wakeLockSelect">
                 <option value="off">Disabled</option>
                 <option value="on">Enabled in Focus Mode</option>
               </select>
-              <p class="muted tiny">Keeps the screen awake while Focus Mode is active and the timer is running. Browser support varies, especially on iOS.</p>
+              <p class="muted tiny">Useful during 10–20 minute drills so the phone does not sleep between scoring entries. Browser support varies, especially on iOS.</p>
             </div>
           </div>
         </div>
@@ -1103,6 +1109,6 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.22.23"></script>
+  <script type="module" src="app.js?v=4.22.24"></script>
 </body>
 </html>

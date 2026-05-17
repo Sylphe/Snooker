@@ -1,6 +1,6 @@
 const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.23";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.22.24";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,7 +14,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.22.23";
+} from "./utils.js?v=4.22.24";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -32,7 +32,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.22.23";
+} from "./settings.js?v=4.22.24";
 import {
   avg,
   stdDev,
@@ -54,7 +54,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.22.23";
+} from "./analytics.js?v=4.22.24";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -63,7 +63,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.22.23";
+} from "./bayesian.js?v=4.22.24";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -72,7 +72,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.22.23";
+} from "./session.js?v=4.22.24";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -80,7 +80,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.22.23";
+} from "./pressure.js?v=4.22.24";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -92,8 +92,8 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.22.23";
-import * as RenderHelpers from "./render.js?v=4.22.23";
+} from "./recommendations.js?v=4.22.24";
+import * as RenderHelpers from "./render.js?v=4.22.24";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -105,7 +105,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.22.23";
+} from "./store.js?v=4.22.24";
 
 
 
@@ -604,6 +604,30 @@ function recentRoutineIds(limit=8) {
     if (l.routineId && !ids.includes(l.routineId) && routineById(l.routineId) && !routineById(l.routineId).isDeleted) ids.push(l.routineId);
   });
   return ids.slice(0, limit);
+}
+
+function lastRoutineSetupSummary(routineId) {
+  const logs = (data.logs || [])
+    .filter(l => String(l.routineId || "") === String(routineId || ""))
+    .sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const last = logs[0];
+  if (!last) {
+    const r = routineById(routineId);
+    if (!r) return "No previous log";
+    const bits = [];
+    if (r.attempts) bits.push(`${numText(r.attempts)} attempts`);
+    if (r.duration) bits.push(`${numText(r.duration)} min`);
+    if (r.target) bits.push(`target ${numText(r.target)}`);
+    return bits.length ? `Setup: ${bits.join(" · ")}` : "No previous log";
+  }
+  const d = shortSessionDateLabel(last.createdAt) || "last session";
+  const bits = [`Last ${d}`];
+  try { bits.push(displayScore(last)); } catch(e) { if (last.score !== undefined) bits.push(`score ${numText(last.score)}`); }
+  if (last.attempts) bits.push(`${numText(last.attempts)} attempts`);
+  if (last.timeMinutes) bits.push(`${numText(last.timeMinutes)} min`);
+  const table = last.venueTable || last.tableName || last.tableId || "";
+  if (table) bits.push(`table ${table}`);
+  return bits.join(" · ");
 }
 function getLastLogForRoutine(routineId) {
   return (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0] || null;
@@ -2957,7 +2981,7 @@ function renderSessionTrendChart(title, subtitle, rows, key, suffix = "", precis
   if (valid.length < 2) {
     return `<div class="trend-chart-card"><h4>${htmlText(title)}</h4><p class="muted">Not enough session-level data yet.</p></div>`;
   }
-  const width = 640, height = 220, padL = 42, padR = 14, padT = 18, padB = 34;
+  const width = 640, height = 230, padL = 42, padR = 18, padT = 18, padB = 44;
   const minRaw = Math.min(...valid), maxRaw = Math.max(...valid);
   const padY = Math.max(1, (maxRaw - minRaw) * 0.12);
   const minY = Math.max(0, minRaw - padY);
@@ -2966,25 +2990,40 @@ function renderSessionTrendChart(title, subtitle, rows, key, suffix = "", precis
   const xFor = i => padL + (rows.length <= 1 ? 0 : (i / (rows.length - 1)) * (width - padL - padR));
   const yFor = v => padT + ((maxY - v) / spanY) * (height - padT - padB);
   const points = values.map((v,i) => v === null ? null : `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).filter(Boolean).join(" ");
+  const pointMarkers = values.map((v,i) => {
+    if (v === null) return "";
+    const row = rows[i];
+    const valueText = `${v.toFixed(precision)}${suffix}`;
+    const ctx = `${row.label || `S${i+1}`} · ${row.logCount || 0} log${row.logCount === 1 ? "" : "s"}`;
+    return `<circle class="metric-point" cx="${xFor(i).toFixed(1)}" cy="${yFor(v).toFixed(1)}" r="3"><title>${attrText(`${title}: ${valueText} — ${ctx}`)}</title></circle>`;
+  }).join("");
   const trend = linearTrend(values);
   const trendLine = trend ? `<line class="trendline" x1="${xFor(0).toFixed(1)}" y1="${yFor(Math.max(minY, Math.min(maxY, trend.start))).toFixed(1)}" x2="${xFor(rows.length - 1).toFixed(1)}" y2="${yFor(Math.max(minY, Math.min(maxY, trend.end))).toFixed(1)}"></line>` : "";
   const last = valid[valid.length - 1];
-  const delta = valid.length >= 2 ? last - valid[0] : 0;
+  const firstValid = valid[0];
+  const delta = valid.length >= 2 ? last - firstValid : 0;
   const direction = delta > 0.05 ? "improving" : delta < -0.05 ? "declining" : "flat";
   const yTicks = [minY, (minY + maxY) / 2, maxY].map(v => `<text x="6" y="${yFor(v).toFixed(1)}" class="axis-label">${v.toFixed(0)}</text>`).join("");
   const firstLabel = rows[0]?.label || "S1";
+  const midRow = rows.length > 2 ? rows[Math.floor((rows.length - 1) / 2)] : null;
   const lastLabel = rows[rows.length - 1]?.label || `S${rows.length}`;
+  const midTick = midRow ? `<text x="${xFor(Math.floor((rows.length - 1) / 2)).toFixed(1)}" y="${height-8}" class="axis-label axis-label-mid">${htmlText(midRow.label || "")}</text>` : "";
+  const latestRow = rows.slice().reverse().find((r, i) => values[rows.length - 1 - i] !== null) || rows[rows.length - 1];
+  const latestContext = `${latestRow?.label || lastLabel} · ${latestRow?.logCount || 0} log${latestRow?.logCount === 1 ? "" : "s"}`;
   return `<div class="trend-chart-card">
     <div class="trend-chart-head"><div><h4>${htmlText(title)}</h4><p class="muted">${htmlText(subtitle)}</p></div><div class="trend-chart-kpi"><strong>${last.toFixed(precision)}${suffix}</strong><span>${direction} · ${delta >= 0 ? "+" : ""}${delta.toFixed(precision)}${suffix}</span></div></div>
-    <svg class="session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attrText(title)} trend over sessions">
+    <div class="chart-mobile-context"><span>Latest: ${htmlText(latestContext)}</span><span>From ${htmlText(firstLabel)} to ${htmlText(lastLabel)}</span></div>
+    <svg class="session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attrText(title)} trend over sessions and dates">
       <line class="gridline" x1="${padL}" y1="${yFor(minY).toFixed(1)}" x2="${width-padR}" y2="${yFor(minY).toFixed(1)}"></line>
       <line class="gridline" x1="${padL}" y1="${yFor((minY+maxY)/2).toFixed(1)}" x2="${width-padR}" y2="${yFor((minY+maxY)/2).toFixed(1)}"></line>
       <line class="gridline" x1="${padL}" y1="${yFor(maxY).toFixed(1)}" x2="${width-padR}" y2="${yFor(maxY).toFixed(1)}"></line>
       ${yTicks}
       <text x="${padL}" y="${height-8}" class="axis-label">${htmlText(firstLabel)}</text>
-      <text x="${width-padR-26}" y="${height-8}" class="axis-label">${htmlText(lastLabel)}</text>
+      ${midTick}
+      <text x="${width-padR-88}" y="${height-8}" class="axis-label axis-label-end">${htmlText(lastLabel)}</text>
       ${trendLine}
       <polyline class="metric-line" points="${points}"></polyline>
+      ${pointMarkers}
     </svg>
   </div>`;
 }
@@ -2994,7 +3033,7 @@ function renderStatsGraphs(logs, { range }) {
   const rows = buildSessionKpiSeries(logs);
   if (rows.length < 2) return `<h3>Graphs — ${escapeHtml(range.label)}</h3><p class="muted">Need at least two logged sessions to show session-adjusted trend graphs.</p>`;
   return `<h3>Graphs — ${escapeHtml(range.label)}</h3>
-    <div class="analytics-note"><strong>Session-adjusted view.</strong> Each point represents one training session, so the x-axis is Session 1, Session 2, etc. This avoids over-weighting calendar gaps and shows how KPIs evolve as you accumulate practice volume.</div>
+    <div class="analytics-note"><strong>Session-adjusted view.</strong> Each point represents one training session and the labels include both session number and date where available. This avoids over-weighting calendar gaps while still giving mobile users date context.</div>
     <div class="graphs-grid">
       ${renderSessionTrendChart("Average score", "Mean normalized score per session", rows, "avgScore", "", 1)}
       ${renderSessionTrendChart("Target hit rate", "Share of logs at or above target per session", rows, "targetHitRate", "%", 1)}
@@ -5094,7 +5133,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.23");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.22.24");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6584,13 +6623,18 @@ function renderRoutinePickerList() {
     const r = routineById(o.id);
     const isAllStatsOption = routinePickerTargetSelectId === "statsRoutineSelect" && o.id === "all";
     const meta = isAllStatsOption ? "No exercise filter" : (r ? `${htmlText(r.folder || "Unfiled")} · ${htmlText(r.subfolder || "General")} · ${htmlText(r.scoring || "")}` : "");
+    const lastSetup = (!isAllStatsOption && r) ? lastRoutineSetupSummary(o.id) : "";
     const group = isAllStatsOption ? "Stats scope" : (o.group || "All exercises");
     const header = group !== lastGroup ? `<div class="routine-picker-group">${htmlText(group)}</div>` : "";
     lastGroup = group;
-    return `${header}<button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
-      <span><strong>${isFavoriteRoutine(o.id) ? "★ " : ""}${htmlText(o.label)}</strong>${meta ? `<small>${meta}</small>` : ""}</span>
-      <span class="routine-picker-chevron">›</span>
-    </button>`;
+    const starBtn = isAllStatsOption ? "" : `<button type="button" class="routine-picker-star" data-routine-picker-star-id="${attrText(o.id)}" aria-label="${isFavoriteRoutine(o.id) ? "Remove favorite" : "Add favorite"}">${isFavoriteRoutine(o.id) ? "★" : "☆"}</button>`;
+    return `${header}<div class="routine-picker-row-wrap">
+      <button type="button" class="routine-picker-row" data-routine-picker-id="${attrText(o.id)}">
+        <span><strong>${isFavoriteRoutine(o.id) ? "★ " : ""}${htmlText(o.label)}</strong>${meta ? `<small>${meta}</small>` : ""}${lastSetup ? `<small class="routine-picker-last">${htmlText(lastSetup)}</small>` : ""}</span>
+        <span class="routine-picker-chevron">›</span>
+      </button>
+      ${starBtn}
+    </div>`;
   }).join("");
   list.querySelectorAll("[data-routine-picker-id]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -6604,6 +6648,17 @@ function renderRoutinePickerList() {
         select.dispatchEvent(new Event("change", {bubbles:true}));
       }
       closeRoutinePickerSheet();
+    });
+  });
+  list.querySelectorAll("[data-routine-picker-star-id]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.getAttribute("data-routine-picker-star-id") || "";
+      if (!id) return;
+      toggleFavoriteRoutine(id);
+      renderRoutinePickerList();
+      showTransientNotice(isFavoriteRoutine(id) ? "Exercise added to favorites." : "Exercise removed from favorites.", "ok");
     });
   });
 }
