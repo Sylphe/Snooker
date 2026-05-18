@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.1.5";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.1.5";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.43.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.43.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.1.5";
+} from "./utils.js?v=4.43.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.1.5";
+} from "./settings.js?v=4.43.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.1.5";
+} from "./analytics.js?v=4.43.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.1.5";
+} from "./bayesian.js?v=4.43.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.1.5";
+} from "./session.js?v=4.43.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.1.5";
+} from "./pressure.js?v=4.43.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.1.5";
+} from "./recommendations.js?v=4.43.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.1.5";
+} from "./store.js?v=4.43.0";
 
 
 
@@ -371,32 +371,6 @@ const DEFAULT_SKILLS = [
   {id:"stamina", label:"Stamina", group:"Physical", aliases:["endurance","fatigue resistance","fatigue"]}
 ];
 let activeSkillTaxonomyForNormalization = null;
-let skillLibraryCacheSource = null;
-let skillLibraryCacheAll = null;
-let skillLibraryCacheActive = null;
-function invalidateSkillLibraryCache(){
-  skillLibraryCacheSource = null;
-  skillLibraryCacheAll = null;
-  skillLibraryCacheActive = null;
-}
-function ensureSkillTaxonomyReady(){
-  if(!data || typeof data !== "object") return;
-  const tax = data.skillTaxonomy;
-  if(!tax || !Array.isArray(tax.skills) || tax.version !== SKILL_TAXONOMY_VERSION){
-    data.skillTaxonomy = normalizeSkillTaxonomy(tax || defaultSkillTaxonomy());
-    activeSkillTaxonomyForNormalization = data.skillTaxonomy; invalidateSkillLibraryCache();
-    invalidateSkillLibraryCache();
-    return;
-  }
-  if(activeSkillTaxonomyForNormalization !== tax){
-    activeSkillTaxonomyForNormalization = tax;
-    invalidateSkillLibraryCache();
-  }
-}
-function activeTemplatesPanelName(){
-  const active = document.querySelector('[data-templates-panel].active:not(.hidden)');
-  return active?.dataset?.templatesPanel || null;
-}
 function canonicalSkillKey(value){
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 }
@@ -427,13 +401,8 @@ function normalizeSkillTaxonomy(taxonomy){
 }
 function defaultSkillTaxonomy(){ return normalizeSkillTaxonomy({skills:DEFAULT_SKILLS}); }
 function currentSkillLibrary(options={}){
-  const source = activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS;
-  if(skillLibraryCacheSource !== source || !skillLibraryCacheAll){
-    skillLibraryCacheSource = source;
-    skillLibraryCacheAll = (Array.isArray(source) ? source : DEFAULT_SKILLS).slice().sort((a,b)=>String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));
-    skillLibraryCacheActive = skillLibraryCacheAll.filter(s => s.active !== false);
-  }
-  return options.includeArchived === false ? skillLibraryCacheActive : skillLibraryCacheAll;
+  const lib = mergeSkillLibraries(activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS);
+  return options.includeArchived === false ? lib.filter(s => s.active !== false) : lib;
 }
 function skillAliasMap(){
   const map = {};
@@ -730,7 +699,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v5.1.4 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -826,10 +795,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.4 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
 
-/* ===== v5.1.4 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -935,9 +904,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.4 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
-/* ===== v5.1.4 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -1024,7 +993,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v5.1.4 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -2166,24 +2135,18 @@ function editCategoryOptions(current) {
 }
 
 function activateTab(tabId) {
+  const btn = Array.from(document.querySelectorAll(".tab")).find(b => b.dataset.tab === tabId);
   const panel = $(tabId);
-  if (!panel) return;
-  document.querySelectorAll(".tab, .mobile-nav-btn").forEach(b => b.classList.remove("active"));
+  if (!btn || !panel) return;
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(`[data-tab="${CSS.escape(tabId)}"]`).forEach(b => {
-    if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
-  });
-  if (tabId === "plans") {
-    // v5.1.4: Plans is now treated as a Library sub-area in the mobile IA.
-    document.querySelectorAll('.mobile-nav-btn[data-tab="templates"]').forEach(b => b.classList.add("active"));
-  }
+  btn.classList.add("active");
   panel.classList.add("active");
-  if (tabId === "practice") renderPracticeTodayCommand();
   if (tabId === "today") renderToday();
   if (tabId === "stats") renderStats();
 }
 
-document.querySelectorAll(".tab, .mobile-nav-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
 function renderAll() {
   const renderSteps = [
@@ -2194,7 +2157,6 @@ function renderAll() {
     ["renderPlanList", renderPlanList],
     ["renderStats", renderStats],
     ["renderToday", renderToday],
-    ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
     ["renderTagSuggestions", renderTagSuggestions],
     ["renderBackupReminder", renderBackupReminder],
@@ -2203,7 +2165,7 @@ function renderAll() {
     ["renderPeriodization", renderPeriodization],
     ["renderRegretRoutineOptions", renderRegretRoutineOptions],
     ["renderTableDatabase", renderTableDatabase],
-    ["renderSkillManager", () => { if (activeTemplatesPanelName() === "skills") renderSkillManager(); }],
+    ["renderSkillManager", renderSkillManager],
     ["renderTableSelects", renderTableSelects],
     ["renderTrainingLoad", renderTrainingLoad],
     ["renderWeeklyReview", renderWeeklyReview],
@@ -2227,7 +2189,8 @@ function renderAll() {
 }
 
 function renderRoutineSelects() {
-  ensureSkillTaxonomyReady();
+  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
   renderPrimarySkillOptions();
   const cats = categories(), flds = folders(), subs = subfolders();
 
@@ -2600,20 +2563,6 @@ safeOn("startFreeSessionBtn", "click", () => {
   startRoutineScreen();
   persistActiveSession();
 });
-
-function startFreeRoutineById(routineId){
-  const rid = String(routineId || "");
-  if (!rid || !routineById(rid)) {
-    showTransientNotice?.("Exercise unavailable.", "warn");
-    return;
-  }
-  const select = $("freeRoutineSelect");
-  if (select) select.value = rid;
-  activeSession = { id: uuid(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
-  startRoutineScreen();
-  persistActiveSession();
-}
-
 function startRepeatLastExercise() {
   const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
   if (!last) { showTransientNotice("No previous exercise to repeat yet.", "warn"); return; }
@@ -3628,7 +3577,8 @@ function clearSkillTagForm(){
 }
 function currentSkillById(id){ return currentSkillLibrary({includeArchived:true}).find(s => s.id === id) || null; }
 function renderSkillManager(){
-  ensureSkillTaxonomyReady();
+  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
   const list=$("skillManagerList");
   if(!list) return;
   const q=($("skillManagerSearch")?.value||"").trim().toLowerCase();
@@ -3670,7 +3620,7 @@ function saveSkillTagFromForm(){
   });
   skills.push(rec);
   data.skillTaxonomy=normalizeSkillTaxonomy({skills});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
   if(editId && editId !== id){
     remapSkillIdAcrossData(editId,id);
   }
@@ -3690,7 +3640,7 @@ function editSkillTag(id){
 function archiveSkillTag(id){
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   const skills=taxonomy.skills.map(s => s.id===id ? {...s, active:s.active===false?true:false} : s);
-  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy;
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tag status updated.", "ok");
 }
@@ -3731,7 +3681,7 @@ function mergeSkillTag(id){
   remapSkillIdAcrossData(id,to);
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   data.skillTaxonomy=normalizeSkillTaxonomy({skills:taxonomy.skills.map(s=>s.id===id?{...s, active:false}:s)});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tags merged.", "ok");
 }
@@ -6490,139 +6440,6 @@ function renderDateView(logs) {
   ${renderTargetProfileSummary(logs)}
   <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
 }
-function renderPracticeTodayDetailsHTML(logs) {
-  try {
-    if (!Array.isArray(logs) || !logs.length) {
-      return `<div class="practice-today-details empty"><p class="muted small">No exercises logged today yet. Complete a regular, smart, or pressure session to populate today’s details.</p></div>`;
-    }
-    const rows = logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(l => {
-      const r = routineById(l.routineId);
-      const score = Number(l.normalizedScore ?? safeNormalizeScore(l));
-      const when = new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
-      return `<div class="practice-today-log-row"><span><strong>${htmlText(r?.name || l.routineName || "Exercise")}</strong><small>${htmlText(when)} · ${htmlText(l.sessionType || "training")}</small></span><b>${Number.isFinite(score) ? score.toFixed(0) : "—"}</b></div>`;
-    }).join("");
-    return `<div class="practice-today-details"><div class="item-title"><strong>Today’s session detail</strong><span class="muted">${logs.length} log${logs.length===1?"":"s"}</span></div><div class="practice-today-log-list">${rows}</div></div>`;
-  } catch(e) {
-    logAppError?.(e, "renderPracticeTodayDetailsHTML");
-    return `<div class="practice-today-details"><p class="muted small">Today details unavailable, but training controls remain available.</p></div>`;
-  }
-}
-
-function computePracticeStreakDays(logs) {
-  const days = new Set((logs || []).map(l => localDateKey(l.createdAt)).filter(Boolean));
-  let streak = 0;
-  const cursor = new Date();
-  for (let i = 0; i < 365; i++) {
-    const key = localDateKey(cursor);
-    if (!days.has(key)) break;
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
-
-function practiceDashboardFocusLabel(value) {
-  const raw = String(value || "Calibration");
-  const known = {
-    acquisition: "Acquisition",
-    consolidation: "Consolidation",
-    pressure: "Pressure",
-    recovery: "Recovery",
-    maintenance: "Maintenance",
-    performance: "Performance",
-    calibration: "Calibration",
-    stability: "Stability",
-    variety: "Variety"
-  };
-  return known[raw.toLowerCase()] || raw.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-function practiceDashboardPercent(value) {
-  return Number.isFinite(value) ? `${Math.round(value)}%` : "—";
-}
-
-function renderPracticeTodayCommand() {
-  const box = $("practiceTodayCommand");
-  if (!box) return;
-  try {
-    const today = localDateKey();
-    const logs = (data.logs || []).filter(l => sameDate(l, today));
-    const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-    const hit = targetHitRate(logs);
-    const resume = normalizePersistedSessionDraft(getPersistedActiveSession());
-    const nextRoutine = resume ? routineById(resume.routineIds?.[resume.index]) : null;
-    const completed = resume ? Math.max(0, Number(resume.index || 0)) : 0;
-    const total = resume ? Math.max(0, Number(resume.routineIds?.length || 0)) : 0;
-    const recentPeriodization = safeCall("practice periodization summary", () => adaptiveSessionPeriodizationSummary?.(data.logs || []), null) || {};
-    const currentFocus = practiceDashboardFocusLabel(recentPeriodization.nextSessionBias || recentPeriodization.weeklyTheme || "Maintenance");
-    const maintenance = safeCall("practice maintenance summary", () => skillDecayAndMaintenanceSummary?.(data.logs || []), null) || {};
-    const maintenanceRows = Array.isArray(maintenance.rows) ? maintenance.rows.slice().sort((a,b)=>Number(b.score||0)-Number(a.score||0)) : [];
-    const maintenanceRow = maintenanceRows[0] || null;
-    const recentLogs = (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,4);
-    const recentDrills = recentLogs.map(l => {
-      const r = routineById(l.routineId);
-      const score = Number(l.normalizedScore ?? safeNormalizeScore(l));
-      const d = new Date(l.createdAt);
-      const when = Number.isFinite(d.getTime()) ? d.toLocaleDateString([], {month:"short", day:"numeric"}) : "Recent";
-      return `<button type="button" class="practice-recent-drill" data-action="start-free-routine" data-routine-id="${attrText(l.routineId)}"><i class="drill-icon">▣</i><span><strong>${htmlText(r?.name || l.routineName || "Exercise")}</strong><small>${htmlText(r?.primarySkill ? skillLabel(r.primarySkill) : (l.category || "Training"))}</small></span><em>${htmlText(when)}</em><b>›</b></button>`;
-    }).join("");
-    const todaySubtitle = logs.length
-      ? `${formatDurationHuman(totalTime)} logged${hit===null ? "" : ` · ${hit.toFixed(0)}% target hit rate`}`
-      : "Start a session to build today’s trend.";
-    const lastLog = (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
-    const lastSessionText = lastLog ? `${htmlText(routineById(lastLog.routineId)?.name || lastLog.routineName || "Last drill")}` : "N/A";
-    const streakDays = computePracticeStreakDays?.(data.logs || []) || 0;
-    const resumeCard = resume
-      ? `<button type="button" class="practice-resume-card active v4" data-action="resume-session">
-          <div class="practice-resume-icon" aria-hidden="true">▷</div>
-          <div class="practice-resume-copy">
-            <p class="eyebrow">Active session</p>
-            <h3>Resume ${htmlText(resume.planName || "session")}</h3>
-            <p class="muted">${completed + 1}/${total || "?"} drills · Next: ${htmlText(nextRoutine?.name || "Missing exercise")}</p>
-          </div>
-          <b class="practice-resume-chevron" aria-hidden="true">›</b>
-        </button>`
-      : `<button type="button" class="practice-resume-card empty v4" data-action="toggle-practice-today-details">
-          <div class="practice-resume-icon" aria-hidden="true">▷</div>
-          <div class="practice-resume-copy">
-            <p class="eyebrow">No active session</p>
-            <h3>View recent sessions</h3>
-            <p class="muted">No active session. Open today’s activity and recent logs.</p>
-          </div>
-          <b class="practice-resume-chevron" aria-hidden="true">›</b>
-        </button>`;
-    const maintenanceItems = maintenanceRows.slice(0,3).map((row, idx) => {
-      const priority = idx === 0 ? "High" : idx === 1 ? "Medium" : "Low";
-      return `<button type="button" class="practice-maintenance-row priority-${priority.toLowerCase()}" data-action="open-library-exercises"><i class="drill-icon">▣</i><span><strong>${htmlText(skillLabel(row.skill))}</strong><small>${htmlText(row.reasons?.[0] || row.label || "Maintenance exposure")}</small></span><em>${priority}</em><b>›</b></button>`;
-    }).join("");
-    box.innerHTML = `<div class="practice-command-v4">
-      <div class="practice-hero-row v4">
-        <div class="practice-hero-card today"><div class="practice-card-icon">▦</div><div><p class="eyebrow">Today summary</p><h2>${logs.length}<span> logs</span></h2><p class="muted">Total time <strong>${formatDurationHuman(totalTime)}</strong></p></div></div>
-        <div class="practice-hero-card focus"><div class="practice-card-icon">↗</div><div><p class="eyebrow">Current focus</p><h2>${htmlText(currentFocus)}</h2><p class="muted">${maintenanceRow ? `${htmlText(skillLabel(maintenanceRow.skill))}: ${htmlText(maintenanceRow.label || "maintenance")}` : "Keep skills sharp and consistent."}</p></div></div>
-        <div class="practice-hero-card last"><div class="practice-card-icon">◷</div><div><p class="eyebrow">Last session</p><h2>${lastLog ? "Logged" : "N/A"}</h2><p class="muted">${lastSessionText}</p></div></div>
-        <div class="practice-hero-card streak"><div class="practice-card-icon">▲</div><div><p class="eyebrow">Streak</p><h2>${Number(streakDays) || 0} days</h2><p class="muted">Best: ${Number(streakDays) || 0} days</p></div></div>
-      </div>
-      ${resumeCard}
-      <div class="practice-action-panel v4">
-        <p class="eyebrow">Quick actions</p>
-        <div class="practice-action-strip v4">
-          <button type="button" class="success primary-action" data-action="practice-main-tab" data-practice-tab="smart"><span class="action-icon">⚡</span><strong>Start Smart Session</strong><small>AI-guided training</small></button>
-          <button type="button" class="secondary" data-action="practice-main-tab" data-practice-tab="regular"><span class="action-icon">◎</span><strong>Regular Training</strong><small>Free training session</small></button>
-          <button type="button" class="secondary" data-action="practice-main-tab" data-practice-tab="pressure"><span class="action-icon">●</span><strong>Pressure Training</strong><small>Pressure drill session</small></button>
-          <button type="button" class="secondary" data-action="toggle-practice-today-details"><span class="action-icon">▦</span><strong>Today Details</strong><small>View today’s activity</small></button>
-        </div>
-      </div>
-      <div id="practiceTodayInlineDetails" class="practice-today-inline hidden">${renderPracticeTodayDetailsHTML(logs)}</div>
-      <div class="practice-secondary-grid v4">
-        <div class="practice-mini-panel recent"><div class="item-title"><span class="panel-icon">◷</span><div><strong>Recent drills</strong><span class="muted">Your most recently trained routines.</span></div></div><div class="practice-recent-list">${recentDrills || `<p class="muted small">No recent drills yet.</p>`}</div><button type="button" class="secondary full-width" data-action="open-library-exercises">View All Drills <span>›</span></button></div>
-        <div class="practice-mini-panel maintenance"><div class="item-title"><span class="panel-icon">◇</span><div><strong>Suggested maintenance</strong><span class="muted">Recommended drills to maintain your performance.</span></div></div><div class="practice-maintenance-list">${maintenanceItems || `<p class="muted small">No urgent maintenance signal. Rotate core skills normally.</p>`}</div><button type="button" class="secondary full-width" data-action="open-library-exercises">View All Maintenance <span>›</span></button></div>
-      </div>
-    </div>`;
-  } catch(e) {
-    logAppError?.(e, "renderPracticeTodayCommand");
-    box.innerHTML = `<div class="practice-command-v3"><div class="practice-title-row"><div><p class="eyebrow">Practice</p><h2>Practice</h2><p class="muted">Use the regular, smart, or pressure training controls below.</p></div></div></div>`;
-  }
-}
-
 function renderToday() {
   const today = localDateKey();
   const logs = data.logs.filter(l => sameDate(l, today)).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -7823,7 +7640,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.1.5");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.43.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8488,20 +8305,7 @@ function refreshCurrentRoutineLivePerformance() {
 
 
 
-function scrollToPracticeSection(tab){
-  try {
-    const map = {
-      regular: '[data-practice-panel="regular"]',
-      smart: '[data-practice-panel="smart"]',
-      pressure: '[data-practice-panel="pressure"]',
-      today: '#practiceTodayInlineDetails'
-    };
-    const selector = map[tab] || map.regular;
-    const el = document.querySelector(selector);
-    if (el) setTimeout(() => el.scrollIntoView({behavior:"smooth", block:"start"}), 40);
-  } catch(e) { logAppError?.(e, "scrollToPracticeSection"); }
-}
-function setPracticeMainTab(tab, options = {}){
+function setPracticeMainTab(tab){
   const allowed = new Set(["regular", "smart", "pressure"]);
   const clean = allowed.has(tab) ? tab : "regular";
   document.querySelectorAll("[data-practice-panel]").forEach(panel => {
@@ -8521,7 +8325,6 @@ function setPracticeMainTab(tab, options = {}){
   if (clean === "pressure") {
     try { if (typeof renderPressureRoutineOptions === "function") renderPressureRoutineOptions(); } catch(e) { logAppError(e, "setPracticeMainTab pressure"); }
   }
-  if (options.scroll) scrollToPracticeSection(clean);
 }
 function restorePracticeMainTab(){
   let saved = "regular";
@@ -8611,20 +8414,6 @@ function restoreDataMainTab(){
   setDataMainTab(saved);
 }
 
-function resetActiveSessionFromPracticeCard(){
-  const hasActiveProgress = !!activeSession || getElapsedMs() > 0 || !!timerStartMs || !!getPersistedActiveSession();
-  if (hasActiveProgress && !window.confirm("End the active session? Unsaved exercise progress will be lost.")) return;
-  activeSession = null;
-  clearPersistedActiveSession();
-  try { stopTimer(); resetTimerState(); } catch(e) { logAppError?.(e, "resetActiveSessionFromPracticeCard timer"); }
-  $("activeSession")?.classList.add("hidden");
-  $("freeNextCard")?.classList.add("hidden");
-  $("sessionSummary")?.classList.add("hidden");
-  updateSessionFocusState?.();
-  renderPracticeTodayCommand?.();
-  renderTodayResumeCard?.();
-}
-
 function handleDelegatedUIAction(event) {
   const targetElement = event.target instanceof Element ? event.target : event.target?.parentElement;
   const actionEl = targetElement?.closest?.("[data-action]");
@@ -8637,21 +8426,6 @@ function handleDelegatedUIAction(event) {
   switch (action) {
     case "field-help": return showFieldHelp(actionEl.dataset.helpKey || "");
     case "switch-tab": return activateTab(actionEl.dataset.tab || "practice");
-    case "open-today-panel": { activateTab("practice"); const details=$("practiceTodayInlineDetails"); if(details){details.classList.remove("hidden"); scrollToPracticeSection("today");} return; }
-    case "toggle-practice-today-details": {
-      const details = $("practiceTodayInlineDetails");
-      if (details) {
-        const wasHidden = details.classList.contains("hidden");
-        details.classList.toggle("hidden");
-        if (wasHidden) scrollToPracticeSection("today");
-      }
-      return;
-    }
-    case "start-free-routine": return startFreeRoutineById(actionEl.dataset.routineId);
-    case "reset-session": return resetActiveSessionFromPracticeCard();
-    case "open-library-exercises": activateTab("templates"); return setTemplatesMainTab("exercises");
-    case "open-library-plans": activateTab("plans"); return restorePlansMainTab();
-    case "open-library-skills": activateTab("templates"); return setTemplatesMainTab("skills");
     case "hide-field-help": return hideFieldHelp();
     case "skip-reflection": return skipReflection();
     case "save-reflection": return saveReflection();
@@ -8690,7 +8464,7 @@ function handleDelegatedUIAction(event) {
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
     case "open-data-tab": document.querySelector('[data-tab="data"]')?.click(); return setDataMainTab("developer");
     case "data-main-tab": return setDataMainTab(actionEl.dataset.dataTab || "settings");
-    case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular", {scroll:true});
+    case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
     case "plans-main-tab": return setPlansMainTab(actionEl.dataset.plansTab || "daily");
     case "templates-main-tab": return setTemplatesMainTab(actionEl.dataset.templatesTab || "exercises");
     case "edit-skill-tag": return editSkillTag(id);

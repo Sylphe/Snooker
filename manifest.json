@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#f4f6f2",
   "theme_color": "#102b22",
-  "description": "Snooker practice log with adaptive coaching analytics and optimized mobile practice flow.",
+  "description": "Snooker practice log with dark/high-contrast mode, focus session mode, and faster one-tap score entry.",
   "icons": [
     {
       "src": "icon.svg",
@@ -17,22 +17,22 @@
   ],
   "shortcuts": [
     {
-      "name": "Practice",
-      "short_name": "Practice",
+      "name": "Free training",
+      "short_name": "Free",
       "url": "./index.html#practice",
-      "description": "Open the practice command center"
+      "description": "Open practice screen"
     },
     {
-      "name": "Library",
-      "short_name": "Library",
-      "url": "./index.html#templates",
-      "description": "Open exercise and skill library"
-    },
-    {
-      "name": "Stats",
+      "name": "Stats overview",
       "short_name": "Stats",
       "url": "./index.html#stats",
       "description": "Open stats overview"
+    },
+    {
+      "name": "Data backup",
+      "short_name": "Backup",
+      "url": "./index.html#data",
+      "description": "Open data backup tools"
     }
   ]
 }
