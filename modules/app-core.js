@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.35.2";
+} from "./utils.js?v=4.36.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.35.2";
+} from "./settings.js?v=4.36.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.35.2";
+} from "./analytics.js?v=4.36.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.35.2";
+} from "./bayesian.js?v=4.36.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.35.2";
+} from "./session.js?v=4.36.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.35.2";
+} from "./pressure.js?v=4.36.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.35.2";
+} from "./recommendations.js?v=4.36.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.35.2";
+} from "./store.js?v=4.36.1";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1187,7 +1187,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.35.2 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.36.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -4000,6 +4000,64 @@ function routineEvidenceLabel(n) {
   if (n >= 3) return "early evidence";
   return "low evidence";
 }
+
+/* ===== v4.36.1 Bayesian Practice Optimization v1 ===== */
+
+function bayesianOptimizationForProfile(profile){
+  try {
+    const n = Number(profile?.n || profile?.stats?.logs?.length || 0);
+    const uncertainty = clampNumber(profile?.uncertainty ?? (24 / Math.sqrt(n + 1)), 0, 40);
+    const posterior = profile?.stats?.bayesian?.posterior || null;
+    const posteriorWidth = posterior ? Math.max(0, Number(posterior.upper || 0) - Number(posterior.lower || 0)) : null;
+    const evidence = evidenceStrength(n);
+    const mean = Number(profile?.trainingValueMean ?? profile?.score ?? 0);
+    const explorationAllowance = evidence.factor < 0.25 ? 0.45 : evidence.factor < 0.55 ? 0.75 : 1;
+    const volatilityLevel = profile?.volatilityProfile?.level || profile?.contextualFit?.volatility?.level || "medium";
+    const recoveryMode = profile?.stateMode?.mode === "recovery";
+    let explorationBonus = uncertainty * 0.22 * explorationAllowance;
+    if (posteriorWidth !== null) explorationBonus += posteriorWidth * 18 * explorationAllowance;
+    if (volatilityLevel === "high") explorationBonus *= recoveryMode ? 0.25 : 0.65;
+    if (profile?.learningSignal?.skipRate >= 0.55 && profile?.learningSignal?.skipped >= 3) explorationBonus *= 0.55;
+    const confidenceAdjustment = profile?.stateMode?.mode === "performance" ? 3 : recoveryMode ? -2 : 0;
+    const optimizedScore = mean + explorationBonus + confidenceAdjustment;
+    let label = "Balanced optimization";
+    if (explorationBonus >= 8) label = "Explore with guardrails";
+    else if (n >= 12 && uncertainty <= 10) label = "Exploit proven drill";
+    else if (recoveryMode) label = "Conservative selection";
+    return {
+      score: optimizedScore,
+      explorationBonus,
+      uncertainty,
+      posteriorWidth,
+      confidenceAdjustment,
+      label,
+      evidence:evidence.label,
+      mode: explorationBonus >= 8 ? "explore" : (n >= 12 && uncertainty <= 10 ? "exploit" : "balance")
+    };
+  } catch(e) {
+    logAppError?.(e, "bayesianOptimizationForProfile");
+    return {score:Number(profile?.trainingValueMean ?? profile?.score ?? 0) || 0, explorationBonus:0, uncertainty:0, posteriorWidth:null, confidenceAdjustment:0, label:"Optimization unavailable", evidence:"low evidence", mode:"balance"};
+  }
+}
+function bayesianOptimizationReason(profile){
+  const opt = profile?.bayesianOptimization;
+  if (!opt) return "Bayesian optimizer: unavailable";
+  if (opt.mode === "explore") return `Bayesian optimizer: useful exploration candidate (${opt.evidence})`;
+  if (opt.mode === "exploit") return `Bayesian optimizer: proven drill with lower uncertainty (${opt.evidence})`;
+  return `Bayesian optimizer: balanced score with uncertainty ${Number(opt.uncertainty || 0).toFixed(1)}`;
+}
+function bayesianOptimizationInsight(logs){
+  try {
+    const rows = rankRoutinesByMode("all", "balanced", getSmartRecommendationMode()).slice(0,3);
+    if (!rows.length) return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">No eligible routines yet. Add or log routines to activate uncertainty-aware ranking.</div></div>`;
+    return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Balances proven routines with controlled exploration. Exploration is reduced in recovery mode or when volatility is high.</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}</span><strong>${htmlText(x.bayesianOptimization?.label || "Balanced")}</strong><span>${htmlText((x.bayesianOptimization?.mode || "balance") + " · " + (x.bayesianOptimization?.evidence || "low evidence"))}</span></div>`).join("")}</div>`;
+  } catch(e) {
+    logAppError?.(e, "bayesianOptimizationInsight");
+    return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
+  }
+}
+/* ===== end v4.36.1 Bayesian Practice Optimization v1 ===== */
+
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
   const baseScore = routineMixedStrategyScore(routine, stats, strategy) + (focusOverride !== "all" && routine.category === focusOverride ? 25 : 0);
@@ -4024,13 +4082,16 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
   const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
-  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
+  const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
+  const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
+  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus + Number(bayesianOptimization.explorationBonus || 0) * 0.35;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
   reasons.push(skillReasonText(routine));
   reasons.push(transferAwareReasonText(routine, transferNeed));
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
+  reasons.push(bayesianOptimizationReason({bayesianOptimization}));
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
@@ -4041,8 +4102,9 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
+    bayesianOptimization,
     uncertainty,
     sampledValue,
     n,
@@ -4065,12 +4127,12 @@ function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSm
     return routineRecommendationProfile(r, stats, strategy, focusOverride);
   }).filter(x => recommendationMode(x.routine) !== "excluded");
   if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
-  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.55) + (x.sampledValue * 0.45)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.45) + (x.sampledValue * 0.35) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
   return base.sort((a,b)=>b.score-a.score);
 }
 function recommendationModeSummary(mode) {
   if (mode === "thompson") return "Thompson Sampling: samples each drill's upside and naturally balances confirmed weaknesses with useful exploration.";
-  if (mode === "hybrid") return "Hybrid: blends stable heuristic scoring with Thompson-style exploration so recommendations do not become too repetitive.";
+  if (mode === "hybrid") return "Hybrid: blends stable heuristic scoring, Thompson-style exploration, and Bayesian optimization guardrails so recommendations do not become too repetitive.";
   return "Heuristic: stable ranking based on weakness, recency, undertraining, context, and True Skill signals.";
 }
 function renderRecommendationLogicPanel(candidates, mode) {
@@ -4304,7 +4366,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.35.2 Venue / Context Normalization v1 ===== */
+/* ===== v4.36.1 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4437,7 +4499,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.2 Venue / Context Normalization v1 ===== */
+/* ===== end v4.36.1 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -4505,6 +4567,7 @@ function renderPhaseOneInsights() {
     ${targetCredibleIntervalInsight(logs)}
     ${dynamicDifficultyInsight(logs)}
     ${recommendationLearningInsight()}
+    ${bayesianOptimizationInsight(logs)}
   </div>`;
 }
 
@@ -6987,7 +7050,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
