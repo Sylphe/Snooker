@@ -28,6 +28,15 @@ export function corrText(r) {
   return `${strength} ${direction} (${r.toFixed(2)})`;
 }
 
+
+function safePercentChange(recent, prior) {
+  const r = Number(recent);
+  const p = Number(prior);
+  if (!Number.isFinite(r) || !Number.isFinite(p)) return 0;
+  if (p === 0) return r > 0 ? 100 : r < 0 ? -100 : 0;
+  return ((r - p) / Math.abs(p)) * 100;
+}
+
 export function rollingAverage(values, windowSize) {
   return values.map((_, i) => {
     const slice = values.slice(Math.max(0, i-windowSize+1), i+1);
@@ -326,8 +335,7 @@ export function performanceDrift(logs, windowSize=10) {
   if (vals.length < windowSize * 2) return null;
   const recent = avg(vals.slice(-windowSize));
   const prior = avg(vals.slice(-(windowSize*2), -windowSize));
-  if (!prior) return null;
-  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  const deltaPct = safePercentChange(recent, prior);
   return {recent, prior, deltaPct};
 }
 
@@ -336,8 +344,7 @@ export function plateauDetector(logs, windowSize=8, thresholdPct=3) {
   if (vals.length < windowSize*2) return null;
   const recent = avg(vals.slice(-windowSize));
   const prior = avg(vals.slice(-(windowSize*2), -windowSize));
-  if (!prior) return null;
-  const deltaPct = ((recent-prior)/Math.abs(prior))*100;
+  const deltaPct = safePercentChange(recent, prior);
   return {isPlateau: Math.abs(deltaPct) < thresholdPct, deltaPct, recent, prior};
 }
 

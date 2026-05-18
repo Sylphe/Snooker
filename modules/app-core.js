@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.32.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.32.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.32.1";
+} from "./utils.js?v=4.32.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.32.1";
+} from "./settings.js?v=4.32.2";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.32.1";
+} from "./analytics.js?v=4.32.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.32.1";
+} from "./bayesian.js?v=4.32.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.32.1";
+} from "./session.js?v=4.32.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.32.1";
+} from "./pressure.js?v=4.32.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.32.1";
+} from "./recommendations.js?v=4.32.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.32.1";
+} from "./store.js?v=4.32.2";
 
 
 
@@ -606,6 +606,31 @@ function dampenByEvidence(value, n=0){
   const v = Number(value || 0);
   return Math.round(v * evidenceStrength(n).factor * 10) / 10;
 }
+function safePercentChange(recent, prior){
+  const r = Number(recent);
+  const p = Number(prior);
+  if(!Number.isFinite(r) || !Number.isFinite(p)) return 0;
+  if(p === 0) return r > 0 ? 100 : r < 0 ? -100 : 0;
+  return ((r - p) / Math.abs(p)) * 100;
+}
+function wholeNumberOrNull(value){
+  if(value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  if(!Number.isFinite(n)) return null;
+  return Math.round(n);
+}
+function validateWholeNumberField(value, label, {required=false, min=0, max=null}={}){
+  if(value === "" || value === null || value === undefined){
+    if(required) return {error:`${label} is required.`};
+    return {value:""};
+  }
+  const n = Number(value);
+  if(!Number.isFinite(n)) return {error:`${label} must be a valid number.`};
+  if(!Number.isInteger(n)) return {error:`${label} must be a whole number.`};
+  if(n < min) return {error:`${label} must be ${min} or greater.`};
+  if(max !== null && n > max) return {error:`${label} cannot exceed ${max}.`};
+  return {value:n};
+}
 function cautiousActionText(base, n=0){
   const e = evidenceStrength(n);
   if(e.level === "strong" || e.level === "moderate") return base;
@@ -793,7 +818,7 @@ function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentForm
 }
 /* ===== end v4.31.0 Latent Current Form Estimate ===== */
 
-/* ===== v4.32.1 Target Credible Intervals / Bayesian Calibration v1 ===== */
+/* ===== v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 function clampNumber(value, min=0, max=100){
   const v=Number(value);
   if(!Number.isFinite(v)) return min;
@@ -882,7 +907,7 @@ function targetCredibleIntervalInsight(logs){
     return `<div class="insight-card watch"><strong>Target credible intervals v1</strong><div class="muted small">Target range unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.32.1 Target Credible Intervals / Bayesian Calibration v1 ===== */
+/* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
 
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
@@ -2229,10 +2254,10 @@ async function saveCurrentRoutine() {
   if (!r) return;
   const sideSplitEnabled = routineUsesSideSplit(r);
   const attemptMode = getRoutineAttemptMode(r);
-  const leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
-  const rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
-  const score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
-  const attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
+  let leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
+  let rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
+  let score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
+  let attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
   const manualTime = Number($("manualTimeValue")?.value || 0);
   const timerMinutes = getElapsedMinutes();
   const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
@@ -2246,10 +2271,42 @@ async function saveCurrentRoutine() {
   }
   if (Number.isNaN(score)) return validationNotice("Enter a valid score.");
   if (score < 0) return validationNotice("Score cannot be negative.");
+  if ((r.scoring === "success_rate" || r.scoring === "progressive_completion")) {
+    const wholeAttempts = validateWholeNumberField(attempts, "Attempts", {required:true, min:r.scoring === "success_rate" ? 1 : 0});
+    if (wholeAttempts.error) return validationNotice(wholeAttempts.error);
+    attempts = wholeAttempts.value;
+  }
+  if (r.scoring === "success_rate") {
+    if (sideSplitEnabled) {
+      const leftWhole = validateWholeNumberField(leftSideScore, "Left side score", {required:true, min:0});
+      const rightWhole = validateWholeNumberField(rightSideScore, "Right side score", {required:true, min:0});
+      if (leftWhole.error) return validationNotice(leftWhole.error);
+      if (rightWhole.error) return validationNotice(rightWhole.error);
+      leftSideScore = leftWhole.value;
+      rightSideScore = rightWhole.value;
+      score = computeSideCombinedScore(leftSideScore, rightSideScore);
+    } else {
+      const madeWhole = validateWholeNumberField(score, "Made", {required:true, min:0, max:attempts});
+      if (madeWhole.error) return validationNotice(madeWhole.error);
+      score = madeWhole.value;
+    }
+  }
   if (!sideSplitEnabled && r.scoring === "success_rate" && score > attempts) return validationNotice("Score cannot exceed attempts.");
   if (manualTime < 0) return validationNotice("Time cannot be negative.");
-  const sessionTotalUnits = r.scoring === "progressive_completion" ? (Number($("sessionTotalUnitsValue")?.value || 0) || Number(r.totalUnits || 0) || 0) : Number(r.totalUnits || 0);
+  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value || "") || wholeNumberOrNull(r.totalUnits) || 0) : Number(r.totalUnits || 0);
   if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return validationNotice("Enter the completion size / total units for this progressive completion drill.");
+  if (r.scoring === "progressive_completion") {
+    if (score > sessionTotalUnits) return validationNotice(`Average ${progressiveUnitLabel(r)} cannot exceed completion size (${sessionTotalUnits}).`);
+    const bestRaw = $("bestAttemptValue")?.value || "";
+    const completionsRaw = $("completionCountValue")?.value || "";
+    const breakRaw = $("highestBreakValue")?.value || "";
+    const bestCheck = validateWholeNumberField(bestRaw, "Best attempt", {required:false, min:0, max:sessionTotalUnits});
+    if (bestCheck.error) return validationNotice(bestCheck.error);
+    const completionCheck = validateWholeNumberField(completionsRaw, "Completions", {required:false, min:0, max:attempts || null});
+    if (completionCheck.error) return validationNotice(completionCheck.error);
+    const breakCheck = validateWholeNumberField(breakRaw, "Highest break", {required:false, min:0, max:sessionTotalUnits});
+    if (breakCheck.error) return validationNotice(breakCheck.error);
+  }
   const activeProfile = getActiveTargetProfile(r);
 
   activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
@@ -2285,9 +2342,9 @@ async function saveCurrentRoutine() {
     sideScores: sideSplitEnabled ? {left:leftSideScore, right:rightSideScore} : "",
     timeMinutes: Math.round(timeMinutes * 10) / 10,
     normalizedScore: 0,
-    bestAttempt: Number($("bestAttemptValue")?.value || 0) || "",
-    completionCount: Number($("completionCountValue")?.value || 0) || "",
-    highestBreak: Number($("highestBreakValue")?.value || 0) || "",
+    bestAttempt: wholeNumberOrNull($("bestAttemptValue")?.value || "") ?? "",
+    completionCount: wholeNumberOrNull($("completionCountValue")?.value || "") ?? "",
+    highestBreak: wholeNumberOrNull($("highestBreakValue")?.value || "") ?? "",
     totalUnits: r.scoring === "progressive_completion" ? sessionTotalUnits : (r.totalUnits || ""),
     unitType: r.unitType || "",
     targetMode: r.targetMode || "",
@@ -3202,7 +3259,9 @@ function inferTrainingStateMode(context=recentReflectionContext()) {
 }
 function routineVolatilityProfile(routine, stats) {
   const vals = (stats?.vals || routineStats(routine?.id).vals || []).filter(Number.isFinite);
-  const sd = vals.length >= 3 ? stdDev(vals) : 12;
+  const globalVals = (data.logs || []).map(safeLogScoreForTargetInterval).filter(Number.isFinite);
+  const globalFallback = globalVals.length >= 8 ? Math.max(6, Math.min(18, stdDev(globalVals))) : 10;
+  const sd = vals.length >= 3 ? stdDev(vals) : globalFallback;
   const map = getRoutineSkillMap(routine);
   const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
   let base = sd;
@@ -4707,7 +4766,7 @@ function fatigueCurve(logs) {
   const n = Math.max(1, Math.floor(ordered.length / 3));
   const first = avg(ordered.slice(0,n).map(l=>Number(l.normalizedScore||0)));
   const last = avg(ordered.slice(-n).map(l=>Number(l.normalizedScore||0)));
-  const deltaPct = first ? ((last-first)/Math.abs(first))*100 : 0;
+  const deltaPct = safePercentChange(last, first);
   return {first,last,deltaPct};
 }
 
@@ -5184,6 +5243,26 @@ async function saveEditedLog(id, formEl) {
   }
   l.attempts = Number(field("edit-attempts")?.value || 0) || "";
   if (Number(l.attempts || 0) < 0) return validationNotice("Attempts cannot be negative.");
+  if (l.scoring === "success_rate" || l.scoring === "progressive_completion") {
+    const attemptCheck = validateWholeNumberField(l.attempts, "Attempts", {required:l.scoring === "success_rate", min:l.scoring === "success_rate" ? 1 : 0});
+    if (attemptCheck.error) return validationNotice(attemptCheck.error);
+    l.attempts = attemptCheck.value || "";
+  }
+  if (l.scoring === "success_rate") {
+    if (!logUsesSideSplit(l)) {
+      const madeCheck = validateWholeNumberField(l.score, "Score", {required:true, min:0, max:Number(l.attempts || 0)});
+      if (madeCheck.error) return validationNotice(madeCheck.error);
+      l.score = madeCheck.value;
+    } else {
+      const leftCheck = validateWholeNumberField(l.leftSideScore, "Left side score", {required:true, min:0});
+      const rightCheck = validateWholeNumberField(l.rightSideScore, "Right side score", {required:true, min:0});
+      if (leftCheck.error) return validationNotice(leftCheck.error);
+      if (rightCheck.error) return validationNotice(rightCheck.error);
+      l.leftSideScore = leftCheck.value;
+      l.rightSideScore = rightCheck.value;
+      l.score = computeSideCombinedScore(l.leftSideScore, l.rightSideScore);
+    }
+  }
   if (!logUsesSideSplit(l) && l.scoring === "success_rate" && Number(l.score || 0) > Number(l.attempts || 0)) return validationNotice("Score cannot exceed attempts.");
   l.effectiveAttempts = effectiveLogAttempts(l);
   if (logUsesSideSplit(l) && l.scoring === "success_rate") {
@@ -5195,9 +5274,25 @@ async function saveEditedLog(id, formEl) {
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
-  if (field("edit-best")) l.bestAttempt = Number(field("edit-best").value || 0) || "";
-  if (field("edit-completions")) l.completionCount = Number(field("edit-completions").value || 0) || "";
-  if (field("edit-break")) l.highestBreak = Number(field("edit-break").value || 0) || "";
+  if (l.scoring === "progressive_completion") {
+    const totalUnits = Number(l.totalUnitsAtLog || l.totalUnits || routine?.totalUnits || 0);
+    if (totalUnits > 0 && Number(l.score || 0) > totalUnits) return validationNotice(`Score cannot exceed completion size (${totalUnits}).`);
+    if (field("edit-best")) {
+      const bestCheck = validateWholeNumberField(field("edit-best").value || "", "Best attempt", {required:false, min:0, max:totalUnits || null});
+      if (bestCheck.error) return validationNotice(bestCheck.error);
+      l.bestAttempt = bestCheck.value ?? "";
+    }
+    if (field("edit-completions")) {
+      const completionCheck = validateWholeNumberField(field("edit-completions").value || "", "Completions", {required:false, min:0, max:Number(l.attempts || 0) || null});
+      if (completionCheck.error) return validationNotice(completionCheck.error);
+      l.completionCount = completionCheck.value ?? "";
+    }
+    if (field("edit-break")) {
+      const breakCheck = validateWholeNumberField(field("edit-break").value || "", "Highest break", {required:false, min:0, max:totalUnits || null});
+      if (breakCheck.error) return validationNotice(breakCheck.error);
+      l.highestBreak = breakCheck.value ?? "";
+    }
+  }
   updateTagHistoryFromInput(l.sessionTags);
   l.notes = field("edit-notes")?.value || "";
   const venue = field("edit-venue");
@@ -6452,7 +6547,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.32.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.32.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6617,8 +6712,20 @@ function targetUpgradeSuggestionForRoutine(routineId){
   if(logs.length<5) return null;
   const hit=targetHitRate(logs.slice(-8)), psi=performanceStabilityIndex(logs.slice(-10),10), drift=performanceDrift(logs,Math.min(8,Math.max(5,Math.floor(logs.length/2))));
   if(hit!==null&&hit>=80&&psi&&psi.psi>=70&&(!drift||drift.deltaPct>=-2)){
-    const ct=Number(r.target||0), cs=Number(r.stretchTarget||0), bump=5;
-    return {routine:r,suggestedTarget:ct?ct+bump:bump,suggestedStretch:cs?cs+bump:(ct?ct+bump*2:bump*2),reason:`Hit rate ${hit.toFixed(1)}%, Consistency ${psi.psi.toFixed(0)}, performance stable/improving.`};
+    const ct=Number(r.target||0), cs=Number(r.stretchTarget||0);
+    let bump=5, maxTarget=null;
+    if(r.scoring==="success_rate"){
+      const attempts=Number(r.attempts || r.attemptsPerSession || 0);
+      bump=Math.max(1, Math.round(attempts*0.10));
+      maxTarget=attempts || null;
+    } else if(r.scoring==="progressive_completion"){
+      const units=Number(r.totalUnits || 0);
+      bump=Math.max(1, Math.round((units || 20)*0.10));
+      maxTarget=units || null;
+    }
+    const suggestedTarget=maxTarget ? Math.min(maxTarget, ct?ct+bump:bump) : (ct?ct+bump:bump);
+    const suggestedStretch=maxTarget ? Math.min(maxTarget, cs?cs+bump:Math.max(suggestedTarget, suggestedTarget+bump)) : (cs?cs+bump:(ct?ct+bump*2:bump*2));
+    return {routine:r,suggestedTarget,suggestedStretch,reason:`Hit rate ${hit.toFixed(1)}%, Consistency ${psi.psi.toFixed(0)}, performance stable/improving.`};
   }
   return null;
 }
