@@ -1,24 +1,21 @@
-# Snooker Practice PWA v4.36.0
+# Snooker Practice PWA v4.35.2
 
-## v4.36.0 — Bayesian Practice Optimization v1
+## v4.35.2 — UX Readability Polish Safe Rebuild
 
-Built from the confirmed working v4.35.2 UX Readability Polish Safe package.
+Built from the confirmed working v4.35.1 Focus Mode UX Polish package.
 
-### Added
-- Bayesian Practice Optimization v1 for uncertainty-aware recommendation ranking.
-- Controlled exploration vs exploitation weighting.
-- Posterior-style optimizer score layered on top of the existing recommendation engine.
-- Exploration bonuses reduced when volatility is high or recovery mode is active.
-- Optimizer reasons added to recommendation explanations.
-- Bayesian optimization insight card in Insights.
-
-### Safety / stability approach
-- No optimizer execution at module top level.
-- Optimizer calculations are guarded with defensive `try/catch` wrappers.
-- Existing safe score extraction, target intervals, dynamic difficulty, context normalization, and recommendation learning remain intact.
-- No hydration, IndexedDB, or bootstrap changes.
+### Changes
+- Cleaned routine card metadata to reduce badge clutter.
+- Added actionable empty states with a direct path back to Practice.
+- Added safer swipeable history carousel polish.
+- Added CSS-only border/surface cleanup for nested cards.
+- Added separate CSS semantics for system/status warnings versus performance colors.
+- Preserved v4.35.1 Focus Mode improvements.
+- Avoided analytics, hydration, storage, and bootstrap changes.
 
 ### Build
-- Version: v4.36.0
-- Build timestamp: 2026-05-18 14:57 CEST
-- Cache/module refs: v4.36.0
+- Version: v4.35.2
+- Build timestamp: 2026-05-18 14:37 CEST
+- Time zone: Europe/Paris
+
+Local-first PWA. No account. No backend. Export JSON backups regularly.
