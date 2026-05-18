@@ -1,21 +1,22 @@
-# Snooker Practice PWA v4.35.2
+# Snooker Practice PWA v4.36.1
 
-## v4.35.2 — UX Readability Polish Safe Rebuild
+## v4.36.1 — Bayesian Practice Optimization v1 + Smooth Evidence Weighting
 
-Built from the confirmed working v4.35.1 Focus Mode UX Polish package.
+Built from the confirmed working v4.36.1 Bayesian Practice Optimization package.
 
-### Changes
-- Cleaned routine card metadata to reduce badge clutter.
-- Added actionable empty states with a direct path back to Practice.
-- Added safer swipeable history carousel polish.
-- Added CSS-only border/surface cleanup for nested cards.
-- Added separate CSS semantics for system/status warnings versus performance colors.
-- Preserved v4.35.1 Focus Mode improvements.
-- Avoided analytics, hydration, storage, and bootstrap changes.
+### Included
+- Pure inference utility module (`modules/inference.js`) with no DOM access or state mutation.
+- Smooth Bayesian-style evidence weighting using continuous shrinkage instead of abrupt sample-size ladders.
+- Evidence labels remain user-readable while internal confidence factors now move gradually as sample size grows.
+- Bayesian optimizer uncertainty fallback now uses shrinkage-weighted uncertainty.
+- Recommendation/insight evidence badges continue to work without changing storage or hydration.
+
+### Safety notes
+- No storage, hydration, IndexedDB, or session persistence changes.
+- No top-level inference execution during bootstrap.
+- Inference functions are pure and only called from guarded analytics/recommendation paths.
 
 ### Build
-- Version: v4.35.2
-- Build timestamp: 2026-05-18 14:37 CEST
-- Time zone: Europe/Paris
-
-Local-first PWA. No account. No backend. Export JSON backups regularly.
+- Version: v4.36.1
+- Build timestamp: 2026-05-18 15:08 CEST
+- Cache/module refs: v4.36.1
