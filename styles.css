@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.29.1 Context-aware recommendation logic */
+/* v4.30.0 Context-aware recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2772,7 +2772,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
   font-weight:800;
 }
 
-/* v4.29.1 Evidence calibration and readability */
+/* v4.30.0 Evidence calibration and readability */
 .evidence-badge{
   display:inline-flex;
   align-items:center;

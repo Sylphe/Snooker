@@ -1,36 +1,32 @@
-# Snooker Practice PWA v4.29.1
+# Snooker Practice PWA v4.30.0
 
-## v4.29.1 — Evidence Calibration and Readability Patch
+## v4.30.0 — Change-Point Detection v1
 
-Build timestamp: 2026-05-18 10:58 CEST
+Build timestamp: 2026-05-18 11:18 CEST
 
 ## Release focus
 
-v4.29.1 improves the interpretability of the v4.29 Transfer Model and the wider insights page. Advanced signals are now labelled and dampened by evidence strength so that low-sample outputs remain visible but no longer speak with the same authority as mature signals.
+v4.30.0 adds the first change-point detection layer. The app now tries to distinguish meaningful performance shifts from ordinary volatility: possible breakthrough, possible slump, possible plateau, volatile/noisy state, or insufficient evidence.
 
 ## Added
 
-- Evidence-strength labels: Early signal, Weak evidence, Moderate evidence, and Strong evidence.
-- Evidence-weighted dampening for residuals, transfer-need scoring, progress velocity, drift, plateau, and session quality impact.
-- Reflection coverage display so partial reflection data no longer appears as a broken N/A state.
-- Clearer transfer-model wording with primary transfer targets and bottleneck severity labels.
-- Evidence badges in key analytics rows.
-- Extra styling for compact evidence badges on the insights page.
+- Change-Point Detection v1 insight card on the Insights page.
+- Overall breakthrough / slump / plateau / volatility classification.
+- Skill-level change-point checks using the canonical skill tags added in v4.26.
+- Evidence-adjusted effect scoring so low-sample shifts are dampened before being shown as strong signals.
+- Skill-level shift wording that explains the recent window versus the prior baseline.
+- Guardrails against overreacting to noisy, high-volatility windows.
 
 ## Updated
 
-- Expected-vs-actual residuals now show evidence-adjusted residuals for low-N routines.
-- Transfer Model v1 cards now explain that indirect transfer signals are evidence-weighted.
-- Bottlenecks are shown as Low / Moderate / High / Severe rather than opaque raw numbers.
-- Session-length analytics are worded as directional rather than definitive because short-session results can be selection-biased.
-- Plateau and velocity wording now avoids overclaiming from small samples.
-- App version, cache references, service worker cache name, and build metadata updated to v4.29.1.
-- Build timestamps remain in Europe/Paris local time with CET/CEST notation.
+- App version, build metadata, cache references, and service worker cache name updated to v4.30.0.
+- Build timestamp remains in Europe/Paris local time with CET/CEST notation.
+- The Insights page now includes change-point detection alongside reflection intelligence, skill mapping, and the transfer model.
 
 ## Notes
 
-This is not the full Bayesian layer. It is an interim calibration layer that prevents low-sample signals from over-driving interpretation or recommendations before the later probabilistic system is introduced.
+This is still a pragmatic v1, not the full Bayesian latent-state model. It uses window comparisons, evidence dampening, and volatility checks to provide useful coaching signals without overclaiming.
 
 Next planned release:
 
-- v4.30 — Change-Point Detection v1: breakthrough, slump, and plateau detection at skill-category level.
+- v4.31 — Latent Current Form Estimate: separate current form from long-term skill and use fatigue/confidence/context to adjust readiness.

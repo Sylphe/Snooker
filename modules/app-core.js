@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.29.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.30.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.29.1";
+} from "./utils.js?v=4.30.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.29.1";
+} from "./settings.js?v=4.30.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.29.1";
+} from "./analytics.js?v=4.30.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.29.1";
+} from "./bayesian.js?v=4.30.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.29.1";
+} from "./session.js?v=4.30.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.29.1";
+} from "./pressure.js?v=4.30.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.29.1";
+} from "./recommendations.js?v=4.30.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.29.1";
+} from "./store.js?v=4.30.0";
 
 
 
@@ -620,6 +620,84 @@ function signalLabelFromScore(score){
   if(x >= 30) return "Moderate";
   return "Low";
 }
+
+/* ===== v4.30.0 Change-Point Detection v1 ===== */
+function changePointSeverityLabel(score){
+  const x = Math.abs(Number(score || 0));
+  if(x >= 2.0) return "Strong";
+  if(x >= 1.2) return "Moderate";
+  if(x >= 0.7) return "Early";
+  return "Weak";
+}
+function detectSeriesChangePoint(series, options={}){
+  const values = (series || []).map(v => Number(v)).filter(Number.isFinite);
+  const minN = Number(options.minN || 10);
+  if(values.length < minN) return {state:"insufficient", label:"Insufficient data", n:values.length, detail:"Need more logs before change-point detection is meaningful.", severity:0};
+  const window = Math.max(4, Math.min(Number(options.window || 6), Math.floor(values.length / 2)));
+  const prior = values.slice(-window * 2, -window);
+  const recent = values.slice(-window);
+  if(prior.length < 4 || recent.length < 4) return {state:"insufficient", label:"Insufficient data", n:values.length, detail:"Need two comparable windows before detecting breakthroughs or slumps.", severity:0};
+  const priorAvg = avg(prior);
+  const recentAvg = avg(recent);
+  const delta = recentAvg - priorAvg;
+  const pooledStd = Math.max(6, avg([stdDev(prior) || 0, stdDev(recent) || 0]) || 6);
+  const rawEffect = delta / pooledStd;
+  const reliability = evidenceStrength(values.length);
+  const effect = rawEffect * reliability.factor;
+  const volatility = stdDev(values.slice(-Math.min(values.length, window * 2))) || 0;
+  const flat = Math.abs(delta) <= Math.max(3, pooledStd * 0.18);
+  let state = "mixed";
+  let label = "No confirmed shift";
+  let detail = `Recent ${recentAvg.toFixed(1)} vs prior ${priorAvg.toFixed(1)} (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} raw). ${reliability.label}.`;
+  if(effect >= 0.75){
+    state = "breakthrough";
+    label = "Possible breakthrough";
+    detail = `Recent window is materially above prior baseline: ${recentAvg.toFixed(1)} vs ${priorAvg.toFixed(1)}. ${changePointSeverityLabel(effect)} signal · ${reliability.label.toLowerCase()}.`;
+  } else if(effect <= -0.75){
+    state = "slump";
+    label = "Possible slump";
+    detail = `Recent window is materially below prior baseline: ${recentAvg.toFixed(1)} vs ${priorAvg.toFixed(1)}. ${changePointSeverityLabel(effect)} signal · ${reliability.label.toLowerCase()}.`;
+  } else if(flat && volatility <= 18){
+    state = "plateau";
+    label = "Possible plateau";
+    detail = `Recent and prior windows are close (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} raw change) with controlled volatility. ${reliability.label}.`;
+  } else if(volatility > 24){
+    state = "volatile";
+    label = "Volatile / noisy";
+    detail = `Recent movement is hard to classify because volatility is high (${volatility.toFixed(1)}). Avoid overreacting to one session.`;
+  }
+  return {state, label, n:values.length, priorAvg, recentAvg, delta, effect, volatility, evidence:reliability, severity:Math.abs(effect), detail};
+}
+function skillChangePointRows(logs){
+  const rows = {};
+  (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(log => {
+    const score = Number(log.normalizedScore ?? normalizeScore(log));
+    if(!Number.isFinite(score)) return;
+    const weights = routineSkillWeights(log);
+    Object.entries(weights).forEach(([skill, weight]) => {
+      if(!skill || skill === "uncategorized" || Number(weight || 0) <= 0) return;
+      const bucket = rows[skill] || (rows[skill] = {skill, values:[]});
+      bucket.values.push(score);
+    });
+  });
+  return Object.values(rows).map(x => ({...x, change:detectSeriesChangePoint(x.values, {minN:8, window:5})}))
+    .filter(x => x.change.state !== "insufficient")
+    .sort((a,b)=>b.change.severity-a.change.severity)
+    .slice(0,4);
+}
+function changePointInsight(logs){
+  const values = (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const overall = detectSeriesChangePoint(values, {minN:12, window:6});
+  const skillRows = skillChangePointRows(logs);
+  const cls = overall.state === "breakthrough" ? "good" : overall.state === "slump" ? "risk" : "watch";
+  return `<div class="insight-card ${cls}"><strong>Change-point detection v1</strong>
+    <div class="context-row"><span>Overall state</span><strong>${htmlText(overall.label)}</strong><span>${htmlText(overall.evidence?.label || `n=${overall.n}`)}</span></div>
+    <div class="adaptive-rationale">${htmlText(overall.detail)}</div>
+    ${skillRows.length ? `<div class="adaptive-rationale"><strong>Skill-level shifts:</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
+    <div class="adaptive-rationale">Breakthrough/slump/plateau flags are evidence-adjusted and should guide session design, not override judgement.</div>
+  </div>`;
+}
+/* ===== end v4.30.0 Change-Point Detection v1 ===== */
 
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
   const profile = routineGraphTransferProfile(routine);
@@ -3745,6 +3823,7 @@ function renderPhaseOneInsights() {
     ${reflectionIntelligenceSummary(logs)}
     ${skillMapInsight(logs)}
     ${transferModelInsight(logs)}
+    ${changePointInsight(logs)}
   </div>`;
 }
 
@@ -6180,7 +6259,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.29.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.30.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7976,7 +8055,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.29.1 Transfer Model v1 ===== */
+/* ===== v4.30.0 Transfer Model v1 ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -8101,7 +8180,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.29.1 Transfer Model v1 ===== */
+/* ===== end v4.30.0 Transfer Model v1 ===== */
 
 
 document.addEventListener("click", function(e){
