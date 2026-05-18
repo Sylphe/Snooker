@@ -2795,7 +2795,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .context-row .evidence-badge{ margin-left:0; }
 
 
-/* v4.35.1 Focus Mode UX polish */
+/* v4.35.2 Focus Mode UX polish */
 body.session-focus-active #activeSession .focus-readonly-input{
   caret-color:transparent!important;
   user-select:none!important;
@@ -2883,4 +2883,32 @@ body.session-focus-active #timerDisplay{
 @media(max-width:420px){
   body.session-focus-active #activeSession .focus-numpad-grid button{min-height:42px!important;font-size:16px!important;}
   body.session-focus-active #activeSession #saveNextBtn{min-height:50px!important;}
+}
+
+
+/* v4.35.2 UX readability polish */
+.routine-card-compact .item-title{align-items:flex-start;gap:10px;}
+.routine-status-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.routine-meta-line{margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.35;font-weight:650;}
+.routine-meta-secondary{font-weight:550;opacity:.92;}
+.routine-status-badge{background:rgba(30,58,138,.09);color:#1e3a8a;}
+.card .stat-card,.diagnostic-card .stat-card,.advanced-module-body .stat-card,.storage-grid .stat-card{background:var(--panel-bg-2,#f7faf8);border:none;box-shadow:none;}
+.card .overview-kpi,.diagnostic-card .overview-kpi{background:var(--panel-bg-2,#f7faf8);border:none;box-shadow:none;}
+.empty-state-card{margin:12px 0;padding:16px;border-radius:16px;background:var(--panel-bg-2,#f7faf8);border:1px dashed var(--line);display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+.empty-state-card strong{font-size:15px;}
+.empty-state-card p{margin:0;color:var(--muted);}
+.empty-state-action{min-height:40px;}
+.swipe-history-cards{scroll-snap-type:x mandatory;scroll-padding:0 12px;}
+.swipe-history-cards::-webkit-scrollbar{display:none;}
+.swipe-history-cards{scrollbar-width:none;-ms-overflow-style:none;}
+.history-card{scroll-snap-align:center;}
+.storage-status.storage-good{border-left-color:#2563eb;background:rgba(37,99,235,.06);}
+.storage-status.storage-watch{border-left-color:#f97316;background:rgba(249,115,22,.07);}
+.storage-status.storage-risk{border-left-color:#7c3aed;background:rgba(124,58,237,.07);}
+.storage-status.storage-good strong{color:#1d4ed8;}
+.storage-status.storage-watch strong{color:#c2410c;}
+.storage-status.storage-risk strong{color:#6d28d9;}
+@media (max-width:700px){
+  .routine-card-compact .item-title{flex-direction:column;align-items:flex-start;}
+  .routine-status-badges{justify-content:flex-start;}
 }

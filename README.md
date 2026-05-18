@@ -1,20 +1,20 @@
-# Snooker Practice PWA v4.35.1
+# Snooker Practice PWA v4.35.2
 
-## v4.35.1 — Focus Mode UX Polish
+## v4.35.2 — UX Readability Polish
 
-Built from stable v4.35.1 Recommendation Learning v2.
+Built from stable v4.35.1 Focus Mode UX Polish.
 
-### UX changes
-- Focus Mode score fields are readonly to reduce mobile keyboard pop-ups.
-- Added a built-in Focus Mode numpad for score entry.
-- Added long-press acceleration on Focus Mode +/- steppers.
-- Made the primary Save / Save & Next action visually dominant.
-- Kept timer display simple as MM:SS while preserving precise internal timing.
-- Increased minimum mobile tap targets for Focus Mode controls.
-- Simplified coaching insight cards into headline + subtitle format.
+### Included
+- Routine badge cleanup: routine cards now use compact metadata lines and reserve badges for status signals.
+- Border/surface cleanup: nested KPI/stat surfaces are softer and less boxy.
+- Empty states: no-data stats screens now give an actionable path back to Practice.
+- Swipeable history polish: snap scrolling, hidden scrollbar, and centered card behavior.
+- Color semantics: system/storage status uses a separate blue/orange/purple palette instead of performance red/green.
 
-### Stability notes
-- No new analytics engine was added in this release.
-- Recommendation Learning v2 from v4.35.1 is preserved.
-- Service worker cache name, module query strings, and build metadata are aligned to v4.35.1.
-- Build timestamp: 2026-05-18 14:11 CEST.
+### Preserved
+- Recommendation Learning v2 from v4.35.0.
+- Focus Mode UX polish from v4.35.1.
+- No analytics model changes.
+- No top-level execution changes.
+
+Build timestamp: 2026-05-18 14:25 CEST.
