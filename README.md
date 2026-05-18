@@ -1,39 +1,37 @@
-# Snooker Practice PWA v4.28.0
+# Snooker Practice PWA v4.29.0
 
-## v4.28.0 — Context-Aware Recommendation Engine
+## v4.29.0 — Transfer Model v1
 
-Build timestamp: 2026-05-18 10:13 CEST
+Build timestamp: 2026-05-18 10:27 CEST
 
 ## Release focus
 
-v4.28.0 upgrades recommendations from static drill ranking to context-aware coaching. The engine now uses recent reflection signals, fatigue/confidence state, volatility, transfer value, exploration/exploitation logic, and recommendation outcome feedback to decide what to suggest and how to explain it.
+v4.29.0 adds the first explicit skill-transfer layer. The app now reasons beyond direct routine tags: a routine can directly train one skill while indirectly supporting downstream skills such as break-building, recovery, safety, pressure resilience, or confidence stability.
 
 ## Added
 
-- Contextual recommendation scoring: routines are now scored using weakness, transfer value, context fit, recovery suitability, confidence suitability, fatigue suitability, volatility risk, uncertainty, and prior recommendation outcomes.
-- State-aware recommendation modes: the app infers Recovery, Acquisition, Consolidation, or Performance mode from recent reflection and performance signals.
-- Exploration/exploitation weighting: uncertain routines receive controlled exploration upside, while high-evidence weaknesses remain eligible for exploitation.
-- Volatility profiling: routines are classified as low, medium, or high volatility based on historical score variation and skill type.
-- Confidence preservation logic: recovery-context recommendations favor familiar, lower-volatility routines and reduce excessive cognitive/fatigue/confidence load.
-- Context-aware recommendation reasons: recommendation cards and logic panels now explain why a drill fits the current training state.
-- Recommendation outcome signal: completed accepted recommendations now feed back into future scoring through score-after and improvement-after-recommendation.
+- Skill transfer graph v1: canonical skill tags now have weighted upstream/downstream relationships.
+- Direct and indirect skill impact logic: routines are evaluated using primary, secondary, and transfer tags, then mapped into downstream skill effects.
+- Transfer-need scoring: recommendations receive additional weight when their downstream skills are currently weak or deteriorating.
+- Transfer-aware recommendation reasons: recommendation cards can explain that a routine was selected because it is an upstream driver of another skill.
+- Transfer Model v1 insight card: the stats insight panel now highlights high-transfer routines and current bottleneck skills.
+- Foundational skill weighting: cueing, cue-ball speed, cue-ball control, pace control, positional play, safety, pressure resilience, focus consistency, and confidence stability now receive higher broad-transfer treatment.
 
 ## Updated
 
-- Smart Session Builder v2 now uses the same context-aware state mode when auto-selecting recovery/progression-oriented sessions.
-- Adaptive session block scoring now blends energy load, transfer value, contextual fit, and volatility profile.
-- Recommendation logic panel renamed to Context-aware recommendation logic and now displays state mode, volatility, uncertainty, and leading reasons.
-- App version and cache-busting references updated to v4.28.0.
+- Context-aware recommendation scoring now includes transfer graph need, not only direct transfer value.
+- Smart Session Builder v2 benefits from transfer-aware routine ranking when choosing primary and transfer blocks.
+- Recommendation logic displays richer reasons, including upstream transfer rationale.
+- App version and cache-busting references updated to v4.29.0.
 - Build metadata updated in `modules/version.js` and the home screen.
 - Service worker cache name updated for the new release.
 - Build timestamps remain in Europe/Paris local time with CET/CEST notation.
 
 ## Notes
 
-This release operationalizes the Bayesian Optimization roadmap in practical form. The app is still not doing full Bayesian latent-skill estimation; that remains postponed to the advanced probabilistic layer. v4.28 instead introduces the contextual decision layer required before transfer modelling and change-point detection become reliable.
+This is intentionally a pragmatic transfer model, not full Bayesian latent-skill estimation. Correlations and transfer effects are treated as weak decision signals until the user has enough logs. The objective is better practice architecture: if break-building is weak, the app can now recommend upstream cue-ball speed, positional play, or transition drills when those have stronger expected transfer.
 
 Next planned releases:
 
-- v4.29 — Transfer Model v1: skill transfer graph, cross-skill correlation, and transfer-aware recommendations.
 - v4.30 — Change-Point Detection v1: breakthrough, slump, and plateau detection at skill-category level.
 - v4.31+ — Advanced probabilistic layer: latent form estimates, credible intervals, hierarchical priors, and Bayesian practice optimization.

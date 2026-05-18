@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.28.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.29.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.28.0";
+} from "./utils.js?v=4.29.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.28.0";
+} from "./settings.js?v=4.29.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.28.0";
+} from "./analytics.js?v=4.29.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.28.0";
+} from "./bayesian.js?v=4.29.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.28.0";
+} from "./session.js?v=4.29.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.28.0";
+} from "./pressure.js?v=4.29.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.28.0";
+} from "./recommendations.js?v=4.29.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.28.0";
+} from "./store.js?v=4.29.0";
 
 
 
@@ -505,7 +505,127 @@ function skillReasonText(routine){
   const m=getRoutineSkillMap(routine);
   const parts=[`skill focus: ${skillLabel(m.primarySkill)}`];
   if((m.transferTags||[]).length) parts.push(`transfer: ${(m.transferTags||[]).slice(0,2).map(skillLabel).join(" / ")}`);
+  const transfer = routineGraphTransferProfile(routine);
+  if(transfer.topDownstream.length) parts.push(`downstream: ${transfer.topDownstream.slice(0,2).map(x=>skillLabel(x.skill)).join(" / ")}`);
   return parts.join("; ");
+}
+
+const SKILL_TRANSFER_MODEL_VERSION = "v4.29";
+const SKILL_TRANSFER_GRAPH = {
+  cueing: { long_potting:0.30, cue_ball_control:0.25, confidence_stability:0.20, focus_consistency:0.15 },
+  cue_ball_speed: { pace_control:0.55, cue_ball_control:0.45, positional_play:0.30, safety:0.18 },
+  pace_control: { cue_ball_control:0.48, positional_play:0.38, safety:0.25, recovery:0.20 },
+  cue_ball_control: { positional_play:0.45, break_building:0.38, recovery:0.30, safety:0.22 },
+  positional_play: { break_building:0.45, transition_play:0.32, recovery:0.25 },
+  transition_play: { break_building:0.42, positional_play:0.28, confidence_stability:0.14 },
+  long_potting: { confidence_stability:0.25, pressure_resilience:0.20, break_building:0.16 },
+  break_building: { confidence_stability:0.22, pressure_resilience:0.18, focus_consistency:0.14 },
+  safety: { tactical_decision_making:0.48, cue_ball_control:0.26, pace_control:0.24, pressure_resilience:0.18 },
+  tactical_decision_making: { safety:0.35, break_building:0.18, pressure_resilience:0.16 },
+  escape_shots: { safety:0.32, cue_ball_control:0.22, pressure_resilience:0.20 },
+  rest_play: { cueing:0.22, long_potting:0.18, confidence_stability:0.12 },
+  bridging: { cueing:0.20, rest_play:0.18, confidence_stability:0.10 },
+  pressure_resilience: { confidence_stability:0.35, focus_consistency:0.25, break_building:0.18, safety:0.16 },
+  focus_consistency: { pressure_resilience:0.22, cueing:0.18, break_building:0.16 },
+  confidence_stability: { pressure_resilience:0.24, long_potting:0.16, break_building:0.16 },
+  stamina: { focus_consistency:0.28, pressure_resilience:0.20, break_building:0.18 }
+};
+function routineSkillWeights(routineOrLog){
+  const source = routineOrLog || {};
+  let map;
+  if (source.routineId && !source.name) {
+    map = {primarySkill:source.primarySkill, secondarySkills:source.secondarySkills || [], transferTags:source.transferTags || []};
+    if(!map.primarySkill) map = getRoutineSkillMap(routineById(source.routineId));
+  } else {
+    map = getRoutineSkillMap(source);
+  }
+  const out = {};
+  const add = (skill, weight) => { const id = normalizeSkillId(skill); if(id && id !== "uncategorized") out[id] = Math.max(out[id] || 0, weight); };
+  add(map.primarySkill, 1.00);
+  (map.secondarySkills || []).forEach(s => add(s, 0.65));
+  (map.transferTags || []).forEach(s => add(s, 0.35));
+  return out;
+}
+function routineGraphTransferProfile(routine){
+  const direct = routineSkillWeights(routine);
+  const downstream = {};
+  Object.entries(direct).forEach(([from, directWeight]) => {
+    const edges = SKILL_TRANSFER_GRAPH[from] || {};
+    Object.entries(edges).forEach(([to, edgeWeight]) => {
+      if(to === from) return;
+      downstream[to] = (downstream[to] || 0) + directWeight * edgeWeight;
+    });
+  });
+  const topDownstream = Object.entries(downstream)
+    .map(([skill, weight]) => ({skill, weight}))
+    .sort((a,b)=>b.weight-a.weight);
+  const totalWeight = topDownstream.reduce((a,b)=>a+b.weight,0);
+  const breadth = topDownstream.filter(x => x.weight >= 0.12).length;
+  return {version:SKILL_TRANSFER_MODEL_VERSION, direct, topDownstream, totalWeight, breadth};
+}
+function skillPerformanceSummary(logs=(data.logs || []), window=120){
+  const rows = (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).slice(-window);
+  const acc = {};
+  rows.forEach(log => {
+    const score = Number(log.normalizedScore ?? normalizeScore(log));
+    if(!Number.isFinite(score)) return;
+    const weights = routineSkillWeights(log);
+    Object.entries(weights).forEach(([skill, weight]) => {
+      const bucket = acc[skill] || (acc[skill] = {skill, n:0, weighted:0, weight:0, scores:[]});
+      bucket.n += 1;
+      bucket.weighted += score * weight;
+      bucket.weight += weight;
+      bucket.scores.push(score);
+    });
+  });
+  Object.values(acc).forEach(x => {
+    x.avg = x.weight ? x.weighted / x.weight : null;
+    const split = Math.max(1, Math.floor(x.scores.length / 2));
+    const prior = x.scores.slice(0, split);
+    const recent = x.scores.slice(split);
+    x.recentAvg = recent.length ? avg(recent) : x.avg;
+    x.priorAvg = prior.length ? avg(prior) : x.avg;
+    x.trend = (x.recentAvg ?? 0) - (x.priorAvg ?? 0);
+  });
+  return acc;
+}
+function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
+  const profile = routineGraphTransferProfile(routine);
+  let score = 0;
+  const reasons = [];
+  profile.topDownstream.slice(0,6).forEach(edge => {
+    const perf = skillSummary[edge.skill];
+    const avgScore = perf?.avg;
+    const weaknessGap = avgScore === null || avgScore === undefined ? 8 : Math.max(0, 72 - Number(avgScore));
+    const trendPenalty = perf?.trend < -3 ? Math.min(6, Math.abs(perf.trend)) : 0;
+    const contribution = (weaknessGap + trendPenalty) * edge.weight * 0.35;
+    score += contribution;
+    if(contribution >= 1.4) reasons.push(`${skillLabel(edge.skill)} downstream need`);
+  });
+  if(profile.breadth >= 4) { score += 3; reasons.push("broad transfer graph"); }
+  return {score:Math.round(score * 10) / 10, reasons:[...new Set(reasons)].slice(0,3), profile};
+}
+function transferAwareReasonText(routine, transferNeed=null){
+  const t = transferNeed || transferNeedScoreForRoutine(routine);
+  const top = t.profile.topDownstream.slice(0,3);
+  if(!top.length) return "limited observed transfer graph";
+  const downstream = top.map(x=>skillLabel(x.skill)).join(" / ");
+  const need = t.reasons.length ? `; current need: ${t.reasons.join(" · ")}` : "";
+  return `upstream transfer into ${downstream}${need}`;
+}
+function transferModelInsight(logs){
+  const summary = skillPerformanceSummary(logs || data.logs || []);
+  const routines = activeRoutines();
+  if(!routines.length) return '<div class="insight-card watch"><strong>Transfer model</strong><div class="muted">No active routines available.</div></div>';
+  const upstream = routines.map(r => { const t=transferNeedScoreForRoutine(r, summary); return {routine:r, ...t}; })
+    .sort((a,b)=>(b.score + b.profile.totalWeight * 5) - (a.score + a.profile.totalWeight * 5))
+    .slice(0,3);
+  const weakSkills = Object.values(summary).filter(x => x.n >= 2).sort((a,b)=>(a.avg||100)-(b.avg||100)).slice(0,3);
+  return `<div class="insight-card watch"><strong>Transfer model v1</strong>
+    <div class="adaptive-rationale">The app now gives partial indirect credit from upstream skills to downstream skills. These are weak signals until sample sizes grow.</div>
+    ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span></span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
+    ${weakSkills.length?`<div class="adaptive-rationale">Current bottlenecks: ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} ${Number(x.avg||0).toFixed(0)}`).join(" · ")}</div>`:""}
+  </div>`;
 }
 function parseRating(id){ const v=Number($(id)?.value||0); return Number.isFinite(v)&&v>0 ? v : null; }
 function sessionPerformanceForReflection(session){
@@ -2698,10 +2818,13 @@ function routineTransferValue(routine) {
   const primary = map.primarySkill || "";
   const secondaries = new Set(map.secondarySkills || []);
   const transfers = new Set(map.transferTags || []);
-  if (["cueing","cue_ball_control","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) value += 18;
+  if (["cueing","cue_ball_control","cue_ball_speed","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) value += 18;
   if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].includes(primary)) value += 10;
   value += Math.min(14, secondaries.size * 3);
   value += Math.min(10, transfers.size * 3);
+  const graph = routineGraphTransferProfile(routine);
+  value += Math.min(12, graph.totalWeight * 4);
+  value += Math.min(8, graph.breadth * 1.5);
   if (routine?.isAnchor) value += 10;
   const category = String(routine?.category || "").toLowerCase();
   if (["potting","cue-ball","technique","safety","break-building"].includes(category)) value += 6;
@@ -2823,6 +2946,7 @@ function buildContextAwareReason(profile) {
   bits.push(`${fit.stateMode.label} mode: ${fit.stateMode.reason}`);
   bits.push(`volatility ${fit.volatility.level}`);
   bits.push(`transfer ${fit.transfer}/100`);
+  if (profile?.transferNeed?.score) bits.push(`graph need +${profile.transferNeed.score}`);
   if (fit.reasons?.length) bits.push(fit.reasons.slice(0,2).join(" · "));
   return bits.join(" · ");
 }
@@ -3239,17 +3363,19 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const context = stats.contextSignal || recommendationContextSignal(routine.id);
   const bayes = stats.bayesian?.signal?.scoreDelta || 0;
   const transferValue = routineTransferValue(routine);
+  const transferNeed = transferNeedScoreForRoutine(routine);
   const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
   const outcome = recommendationOutcomeSignal(routine.id);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + contextualFit.score + outcome.score;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score;
   const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
-  reasons.unshift(buildContextAwareReason({contextualFit}));
+  reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
   reasons.push(skillReasonText(routine));
+  reasons.push(transferAwareReasonText(routine, transferNeed));
   if (outcome.score) reasons.push(outcome.label);
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
@@ -3258,7 +3384,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + outcome.score,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score,
     trainingValueMean,
     uncertainty,
     sampledValue,
@@ -3266,6 +3392,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     evidenceLabel: routineEvidenceLabel(n),
     selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
     contextualFit,
+    transferNeed,
     stateMode,
     volatilityProfile:volatility,
     transferValue,
@@ -3298,7 +3425,7 @@ function renderRecommendationLogicPanel(candidates, mode) {
       ${rows.map((x, idx)=>`<div class="context-row recommendation-candidate-row">
         <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · volatility ${escapeHtml(x.volatilityProfile?.level || "n/a")} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
         <strong>${(mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score).toFixed(1)}</strong>
-        <span>${escapeHtml((x.reasons || []).slice(0,2).join(" · ") || "balanced rotation")}</span>
+        <span>${escapeHtml((x.reasons || []).slice(0,3).join(" · ") || "balanced rotation")}</span>
       </div>`).join("")}
     </div>
   </div>`;
@@ -3574,6 +3701,7 @@ function renderPhaseOneInsights() {
     ${reflectionPatternInsight(logs)}
     ${reflectionIntelligenceSummary(logs)}
     ${skillMapInsight(logs)}
+    ${transferModelInsight(logs)}
   </div>`;
 }
 
@@ -6009,7 +6137,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.28.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.29.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7805,7 +7933,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.28.0 Context-Aware Recommendation Engine ===== */
+/* ===== v4.29.0 Transfer Model v1 ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7930,7 +8058,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.28.0 Context-Aware Recommendation Engine ===== */
+/* ===== end v4.29.0 Transfer Model v1 ===== */
 
 
 document.addEventListener("click", function(e){

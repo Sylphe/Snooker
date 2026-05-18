@@ -1,3 +1,3 @@
-export const APP_VERSION = "4.28.0-context-aware-recommendation-engine";
-export const APP_BUILD = "v4.28.0";
-export const APP_BUILD_TIMESTAMP = "2026-05-18 10:13 CEST";
+export const APP_VERSION = "4.29.0-transfer-model-v1";
+export const APP_BUILD = "v4.29.0";
+export const APP_BUILD_TIMESTAMP = "2026-05-18 10:27 CEST";
