@@ -22,7 +22,7 @@ button:hover,.file-btn:hover{background:var(--primary-2)}
 .secondary{background:#e9efeb;color:var(--primary);border:1px solid #cddbd2}.secondary:hover{background:#dce7e0}
 .danger{background:var(--danger)}.danger:hover{background:#7e1717}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}.row>*{flex:1}
-.grid.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.grid.five{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
 .list{display:flex;flex-direction:column;gap:10px}
 .folder-group{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fbfcfb}
 .folder-header{background:#ecf1ee;color:var(--primary);padding:10px 12px;font-weight:850}
@@ -49,7 +49,7 @@ button:hover,.file-btn:hover{background:var(--primary-2)}
 svg.chart{width:100%;min-width:320px;height:260px}.chart-axis{stroke:#a9b6ae;stroke-width:1}.chart-line{fill:none;stroke:var(--felt);stroke-width:3}.chart-point{fill:var(--gold);stroke:var(--primary);stroke-width:1.5}.chart-label{fill:var(--muted);font-size:11px}.chart-grid{stroke:#edf1ee;stroke-width:1}
 .hidden{display:none!important}.file-btn input{display:none}.muted{color:var(--muted);font-size:14px}
 footer{text-align:center;padding:20px 16px 30px;color:var(--muted);font-size:13px}
-@media(max-width:760px){.app-header{align-items:flex-start;flex-direction:column}.tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.tab{font-size:12px;padding:10px 2px}.grid.two,.grid.three,.score-grid,.stats-grid{grid-template-columns:1fr}.session-top{flex-direction:column}.timer,.timer-sub{text-align:left}.row>*{flex:1 1 100%}}
+@media(max-width:760px){.app-header{align-items:flex-start;flex-direction:column}.tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.tab{font-size:12px;padding:10px 2px}.grid.two,.grid.three,.grid.five,.score-grid,.stats-grid{grid-template-columns:1fr}.session-top{flex-direction:column}.timer,.timer-sub{text-align:left}.row>*{flex:1 1 100%}}
 
 .chart-bar{fill:#0d4c35;opacity:.82}.chart-bar-alt{fill:#c7a753;opacity:.85}
 
@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.25.2 Thompson recommendation logic */
+/* v4.26.0 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2696,3 +2696,8 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .dq-high{border-left:4px solid #d96b6b;}
 .dq-medium{border-left:4px solid #d9b36b;}
 .dq-low{border-left:4px solid #7f8fa6;}
+
+/* v4.26.0 Reflection & Skill Map Foundation */
+.skill-badge{border-style:dashed;}
+.reflection-rating-grid{margin:10px 0;}
+.reflection-rating-grid input{min-width:0;}

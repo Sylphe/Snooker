@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.25.2</title>
+  <title>Snooker Practice Log v4.26.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.25.2" />
-  <link rel="stylesheet" href="styles.css?v=4.25.2" />
-  <link rel="icon" href="icon.svg?v=4.25.2" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.26.0" />
+  <link rel="stylesheet" href="styles.css?v=4.26.0" />
+  <link rel="icon" href="icon.svg?v=4.26.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.25.2 · Build 2026-05-17 19:35 GMT+1 — Thompson Sampling recommendation mode for Smart Session Builder.</p>
+      <p>v4.26.0 · Build 2026-05-18 08:00 GMT+1 — Reflection intelligence and skill-map foundation.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -529,6 +529,39 @@
               <option value="occasional">Occasional — cap recommendation weight</option>
               <option value="excluded">Exclude from recommendations</option>
             </select>
+          </div>
+
+          <div>
+            <label>Primary skill</label>
+            <select id="routinePrimarySkill">
+              <option value="cueing">Cueing</option>
+              <option value="long_potting">Long potting</option>
+              <option value="cue_ball_control">Cue-ball control</option>
+              <option value="pace_control">Pace control</option>
+              <option value="stun_screw_side">Stun / screw / side</option>
+              <option value="rest_play">Rest play</option>
+              <option value="break_building">Break-building</option>
+              <option value="transition_play">Transition play</option>
+              <option value="positional_play">Positional play</option>
+              <option value="recovery">Recovery</option>
+              <option value="safety">Safety</option>
+              <option value="tactical_decision_making">Tactical decision-making</option>
+              <option value="pressure_resilience">Pressure resilience</option>
+              <option value="focus_consistency">Focus consistency</option>
+              <option value="confidence_stability">Confidence stability</option>
+              <option value="stamina">Stamina</option>
+            </select>
+            <p class="helper-text">Used by the recommendation engine to reason at skill level, not just drill level.</p>
+          </div>
+          <div>
+            <label>Secondary skill tags</label>
+            <input id="routineSecondarySkills" placeholder="e.g. cue_ball_control, pace_control" />
+            <p class="helper-text">Comma-separated. Auto-suggested on migration, manually editable here.</p>
+          </div>
+          <div>
+            <label>Transfer tags</label>
+            <input id="routineTransferTags" placeholder="e.g. break_building, pressure_resilience" />
+            <p class="helper-text">Skills this drill may indirectly improve.</p>
           </div>
           <div>
             <label>Target score <button type="button" class="help-dot" data-action="field-help" data-help-key="targetScore">?</button></label>
@@ -1103,6 +1136,29 @@
           <option value="confidence">Confidence</option>
           <option value="shot_selection">Shot selection</option>
         </select>
+
+        <div class="grid five reflection-rating-grid">
+          <div>
+            <label>Focus 1–5</label>
+            <input id="reflectionFocusRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          </div>
+          <div>
+            <label>Confidence 1–5</label>
+            <input id="reflectionConfidenceRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          </div>
+          <div>
+            <label>Fatigue 1–5</label>
+            <input id="reflectionFatigueRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          </div>
+          <div>
+            <label>Cueing 1–5</label>
+            <input id="reflectionCueingRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          </div>
+          <div>
+            <label>Mental sharpness 1–5</label>
+            <input id="reflectionMentalSharpnessRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          </div>
+        </div>
         <label>Session tags</label>
         <input id="reflectionTags" placeholder="e.g. long pots, tired, club match, new cue action" />
         <label>Intervention note</label>
@@ -1136,7 +1192,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.25.2"></script>
+  <script type="module" src="app.js?v=4.26.0"></script>
 </body>
 
 

@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.24.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.24.1";
+} from "./utils.js?v=4.26.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.24.1";
+} from "./settings.js?v=4.26.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.24.1";
+} from "./analytics.js?v=4.26.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.24.1";
+} from "./bayesian.js?v=4.26.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.24.1";
+} from "./session.js?v=4.26.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.24.1";
+} from "./pressure.js?v=4.26.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.24.1";
+} from "./recommendations.js?v=4.26.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.24.1";
+} from "./store.js?v=4.26.0";
 
 
 
@@ -338,6 +338,139 @@ function applyThemeModeEarly() {
 applyThemeModeEarly();
 
 
+
+const SKILL_TAXONOMY_VERSION = "v4.26";
+const DEFAULT_SKILLS = [
+  {id:"cueing", label:"Cueing", group:"Technical"},
+  {id:"long_potting", label:"Long potting", group:"Technical"},
+  {id:"cue_ball_control", label:"Cue-ball control", group:"Technical"},
+  {id:"pace_control", label:"Pace control", group:"Technical"},
+  {id:"stun_screw_side", label:"Stun / screw / side", group:"Technical"},
+  {id:"rail_shots", label:"Rail / cushion shots", group:"Technical"},
+  {id:"rest_play", label:"Rest play", group:"Technical"},
+  {id:"bridging", label:"Bridging", group:"Technical"},
+  {id:"break_building", label:"Break-building", group:"Break-building"},
+  {id:"transition_play", label:"Transition play", group:"Break-building"},
+  {id:"positional_play", label:"Positional play", group:"Break-building"},
+  {id:"recovery", label:"Recovery", group:"Break-building"},
+  {id:"cluster_management", label:"Cluster management", group:"Break-building"},
+  {id:"safety", label:"Safety", group:"Safety / tactical"},
+  {id:"tactical_decision_making", label:"Tactical decision-making", group:"Safety / tactical"},
+  {id:"escape_shots", label:"Escape shots", group:"Safety / tactical"},
+  {id:"pressure_resilience", label:"Pressure resilience", group:"Mental"},
+  {id:"focus_consistency", label:"Focus consistency", group:"Mental"},
+  {id:"confidence_stability", label:"Confidence stability", group:"Mental"},
+  {id:"stamina", label:"Stamina", group:"Physical"}
+];
+function defaultSkillTaxonomy(){ return {version:SKILL_TAXONOMY_VERSION, skills:structuredCloneSafe(DEFAULT_SKILLS)}; }
+function skillLabel(id){ return (DEFAULT_SKILLS.find(s=>s.id===id)?.label) || String(id||"").replaceAll("_"," "); }
+function normalizeSkillId(value){
+  const raw = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+  return raw || "uncategorized";
+}
+function normalizeSkillList(value){
+  if (Array.isArray(value)) return [...new Set(value.map(normalizeSkillId).filter(Boolean))];
+  return [...new Set(String(value||"").split(/[;,]/).map(normalizeSkillId).filter(Boolean))];
+}
+function inferRoutineSkillMap(routine){
+  const text = `${routine?.name||""} ${routine?.category||""} ${routine?.folder||""} ${routine?.subfolder||""} ${routine?.description||""}`.toLowerCase();
+  const add=[];
+  const has=(...xs)=>xs.some(x=>text.includes(x));
+  let primary = "cueing";
+  if(has("safety","snooker","contain","escape")) primary="safety";
+  else if(has("line-up","lineup","break","clearance","red colour","red-colour")) primary="break_building";
+  else if(has("position","positional","cue ball","cue-ball","transition","blue to black","blue-to-black")) primary="cue_ball_control";
+  else if(has("long","distance")) primary="long_potting";
+  else if(has("rest")) primary="rest_play";
+  else if(has("pressure","match","1-attempt","one attempt")) primary="pressure_resilience";
+  if(has("long")) add.push("long_potting");
+  if(has("cue ball","cue-ball","position","positional","stun","screw","side","pace","cushion","black from")) add.push("cue_ball_control","pace_control");
+  if(has("line-up","lineup","break","clearance","transition","blue to black")) add.push("break_building","transition_play","positional_play");
+  if(has("safety","snooker","escape")) add.push("safety","tactical_decision_making");
+  if(has("rest")) add.push("rest_play","bridging");
+  if(has("pressure","match","1-attempt","one attempt")) add.push("pressure_resilience","confidence_stability");
+  if(has("recovery","short side","short-side")) add.push("recovery","cue_ball_control");
+  if(has("stamina","endurance","fatigue")) add.push("stamina","focus_consistency");
+  const secondary=[...new Set(add.map(normalizeSkillId).filter(x=>x && x!==primary))].slice(0,5);
+  const transfer=[...new Set([...(primary==="safety"?["cue_ball_control","tactical_decision_making"]:[]),...(secondary.includes("cue_ball_control")?["break_building"]:[]),...(secondary.includes("pressure_resilience")?["focus_consistency"]:[])])].filter(x=>x!==primary).slice(0,4);
+  return {primarySkill:primary, secondarySkills:secondary, transferTags:transfer, source:"auto", updatedAt:new Date().toISOString()};
+}
+function normalizeRoutineSkillMap(routine, existing){
+  const inferred = inferRoutineSkillMap(routine);
+  const src = existing || routine?.skillMap || {};
+  return {
+    primarySkill: normalizeSkillId(src.primarySkill || routine?.primarySkill || inferred.primarySkill),
+    secondarySkills: normalizeSkillList(src.secondarySkills || routine?.secondarySkills || inferred.secondarySkills),
+    transferTags: normalizeSkillList(src.transferTags || routine?.transferTags || inferred.transferTags),
+    source: src.source || routine?.skillMapSource || "auto",
+    updatedAt: src.updatedAt || routine?.skillMapUpdatedAt || new Date().toISOString()
+  };
+}
+function getRoutineSkillMap(routine){
+  if(!routine) return inferRoutineSkillMap({});
+  data.routineSkillMap = data.routineSkillMap || {};
+  if(!data.routineSkillMap[routine.id]) data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
+  return data.routineSkillMap[routine.id];
+}
+function routineSkillBadges(routine){
+  const m=getRoutineSkillMap(routine);
+  const sec=(m.secondarySkills||[]).slice(0,3).map(skillLabel).join(" · ");
+  return `<span class="badge skill-badge">Primary: ${htmlText(skillLabel(m.primarySkill))}</span>${sec?`<span class="badge skill-badge">Secondary: ${htmlText(sec)}</span>`:""}`;
+}
+function skillReasonText(routine){
+  const m=getRoutineSkillMap(routine);
+  const parts=[`skill focus: ${skillLabel(m.primarySkill)}`];
+  if((m.transferTags||[]).length) parts.push(`transfer: ${(m.transferTags||[]).slice(0,2).map(skillLabel).join(" / ")}`);
+  return parts.join("; ");
+}
+function parseRating(id){ const v=Number($(id)?.value||0); return Number.isFinite(v)&&v>0 ? v : null; }
+function sessionPerformanceForReflection(session){
+  const ids=new Set((session?.logIds||[]).filter(Boolean));
+  const logs=(data.logs||[]).filter(l=>ids.has(l.id) || (session?.id && l.sessionId===session.id));
+  const vals=logs.map(l=>Number(l.normalizedScore)).filter(Number.isFinite);
+  return vals.length ? avg(vals) : null;
+}
+function classifyReflectionPerformance(session){
+  const ref=session?.reflection||{};
+  const perf=sessionPerformanceForReflection(session);
+  const subjective=[ref.focusRating, ref.confidenceRating, ref.cueingRating, ref.mentalSharpnessRating].map(Number).filter(Number.isFinite);
+  const quality=subjective.length ? avg(subjective) : null;
+  const fatigue=Number(ref.fatigueRating||0) || null;
+  const flags=[];
+  if(perf!==null && quality!==null){
+    if(perf>=70 && quality<=2.5) flags.push("good_score_bad_feel");
+    if(perf<=45 && quality>=4) flags.push("bad_score_good_feel");
+  }
+  if(fatigue!==null && fatigue>=4) flags.push("fatigue_risk");
+  return {performance:perf, subjectiveQuality:quality, fatigue, flags};
+}
+function reflectionIntelligenceSummary(logs){
+  const scoped=new Set((logs||[]).map(l=>l.sessionId).filter(Boolean));
+  const sessions=(data.sessions||[]).filter(s=>scoped.has(s.id)&&s.reflection);
+  if(!sessions.length) return `<div class="insight-card watch"><strong>Reflection intelligence</strong><div class="muted">No structured reflection ratings in this scope yet.</div></div>`;
+  const classified=sessions.map(s=>({session:s,...classifyReflectionPerformance(s)}));
+  const fatigue=classified.map(x=>x.fatigue).filter(Number.isFinite);
+  const quality=classified.map(x=>x.subjectiveQuality).filter(Number.isFinite);
+  const perf=classified.map(x=>x.performance).filter(Number.isFinite);
+  const divGood=classified.filter(x=>x.flags.includes("good_score_bad_feel")).length;
+  const divBad=classified.filter(x=>x.flags.includes("bad_score_good_feel")).length;
+  const fatigueRisk=classified.filter(x=>x.flags.includes("fatigue_risk")).length;
+  return `<div class="insight-card watch"><strong>Reflection intelligence</strong>
+    <div class="context-row"><span>Avg subjective quality</span><strong>${quality.length?avg(quality).toFixed(1)+"/5":"N/A"}</strong><span>${sessions.length} session${sessions.length===1?"":"s"}</span></div>
+    <div class="context-row"><span>Avg fatigue</span><strong>${fatigue.length?avg(fatigue).toFixed(1)+"/5":"N/A"}</strong><span>${fatigueRisk} high-fatigue flags</span></div>
+    <div class="context-row"><span>Avg performance</span><strong>${perf.length?avg(perf).toFixed(1):"N/A"}</strong><span>reflection-linked logs</span></div>
+    <div class="adaptive-rationale">Divergence flags: ${divGood} good-score/bad-feel · ${divBad} bad-score/good-feel. These signals are used as recommendation context, not as hard overrides.</div>
+  </div>`;
+}
+function skillMapInsight(logs){
+  const counts={};
+  (logs||[]).forEach(l=>{ const r=routineById(l.routineId); if(!r)return; const m=getRoutineSkillMap(r); const mins=Number(l.timeMinutes||0)||1; counts[m.primarySkill]=(counts[m.primarySkill]||0)+mins; });
+  const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if(!rows.length) return `<div class="insight-card watch"><strong>Skill map</strong><div class="muted">No skill-mapped logs in this scope yet.</div></div>`;
+  const total=rows.reduce((a,b)=>a+b[1],0);
+  return `<div class="insight-card watch"><strong>Skill map</strong>${rows.map(([k,v])=>`<div class="context-row"><span>${htmlText(skillLabel(k))}</span><strong>${total?((v/total)*100).toFixed(0):0}%</strong><span>${Math.round(v)} min-weighted</span></div>`).join("")}<div class="adaptive-rationale">Primary routine skills now provide the semantic layer for recommendation reasons and later transfer modelling.</div></div>`;
+}
+
 const defaultData = {
   appVersion: APP_VERSION,
   appBuildTimestamp: APP_BUILD_TIMESTAMP,
@@ -366,7 +499,10 @@ const defaultData = {
   plans: [],
   sessions: [],
   logs: [],
-  tagHistory: []
+  tagHistory: [],
+  skillTaxonomy: defaultSkillTaxonomy(),
+  routineSkillMap: {},
+  skillTrendCache: {}
 };
 
 let data = loadData();
@@ -506,6 +642,10 @@ function migrateData(d) {
       });
     }
   });
+  d.skillTaxonomy = d.skillTaxonomy || defaultSkillTaxonomy();
+  d.routineSkillMap = d.routineSkillMap || {};
+  d.skillTrendCache = d.skillTrendCache || {};
+  d.routines.forEach(r => { d.routineSkillMap[r.id] = normalizeRoutineSkillMap(r, d.routineSkillMap[r.id]); });
   return d;
 }
 
@@ -920,6 +1060,7 @@ function renderRoutineItem(r) {
     ${r.attempts ? `<span class="badge">${numText(r.attempts)} attempts</span>` : ""}
     ${r.target ? `<span class="badge">Target: ${numText(r.target)}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
     ${recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""}
+    ${routineSkillBadges(r)}
     ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
@@ -943,7 +1084,7 @@ function applyExerciseFormMode(mode) {
   if (formGrid) formGrid.dataset.formMode = clean;
   document.body.dataset.exerciseFormMode = clean;
   const basicIds = new Set(["routineName","routineScoring","routineAttempts","routineDuration","routineTarget","routineDescription"]);
-  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak"].forEach(id => {
+  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routinePrimarySkill","routineSecondarySkills","routineTransferTags","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak"].forEach(id => {
     const el = $(id);
     const wrap = el?.closest?.("div");
     if (wrap) wrap.classList.add("routine-advanced-field");
@@ -971,6 +1112,10 @@ function editRoutine(id) {
   if ($("routineAttemptMode")) $("routineAttemptMode").value = getRoutineAttemptMode(r);
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
+  const skillMap = getRoutineSkillMap(r);
+  if ($("routinePrimarySkill")) $("routinePrimarySkill").value = skillMap.primarySkill || "cueing";
+  if ($("routineSecondarySkills")) $("routineSecondarySkills").value = (skillMap.secondarySkills || []).join(", ");
+  if ($("routineTransferTags")) $("routineTransferTags").value = (skillMap.transferTags || []).join(", ");
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
@@ -988,12 +1133,13 @@ function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   applyExerciseFormMode(getExerciseFormMode());
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineDescription"].forEach(id => $(id).value = "");
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("routineScoring").value = "raw";
   if ($("routineSideMode")) $("routineSideMode").value = "none";
   if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
   $("routineIsAnchor").value = "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
+  if ($("routinePrimarySkill")) $("routinePrimarySkill").value = "cueing";
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
@@ -1006,7 +1152,12 @@ if ($("exerciseFormMode")) {
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
-  data.routines.push({...r, id: uuid(), name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)});
+  const newId = uuid();
+  const copied = {...r, id: newId, name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)};
+  copied.skillMap = normalizeRoutineSkillMap(copied, getRoutineSkillMap(r));
+  data.routines.push(copied);
+  data.routineSkillMap = data.routineSkillMap || {};
+  data.routineSkillMap[newId] = copied.skillMap;
   saveData();
 }
 function deleteRoutine(id) {
@@ -1040,6 +1191,13 @@ $("saveRoutineBtn").addEventListener("click", () => {
     attemptMode: normalizeSideMode($("routineSideMode")?.value || "none") === "left_right" ? normalizeAttemptMode($("routineAttemptMode")?.value || "shared") : "shared",
     isAnchor: $("routineIsAnchor").value === "yes",
     recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
+    skillMap: {
+      primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
+      secondarySkills: normalizeSkillList($("routineSecondarySkills")?.value || ""),
+      transferTags: normalizeSkillList($("routineTransferTags")?.value || ""),
+      source: "manual",
+      updatedAt: new Date().toISOString()
+    },
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -1054,6 +1212,9 @@ $("saveRoutineBtn").addEventListener("click", () => {
     isDeleted: false,
     deletedAt: ""
   };
+
+  data.routineSkillMap = data.routineSkillMap || {};
+  data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
 
   if ($("routineEditId").value) {
     const oldRoutine = data.routines.find(r => r.id === routine.id);
@@ -2045,6 +2206,7 @@ function openReflectionModal(sessionId) {
   if (!$("reflectionModal")) return;
   $("reflectionFocus").value = "";
   $("reflectionLimiter").value = "";
+  ["reflectionFocusRating","reflectionConfidenceRating","reflectionFatigueRating","reflectionCueingRating","reflectionMentalSharpnessRating"].forEach(id => { if ($(id)) $(id).value = ""; });
   if ($("reflectionTags")) $("reflectionTags").value = "";
   if ($("reflectionInterventionNote")) $("reflectionInterventionNote").value = "";
   $("reflectionNote").value = "";
@@ -2062,6 +2224,11 @@ function saveReflection() {
     data.sessions[idx].reflection = {
       focus: $("reflectionFocus").value || "",
       limiter: $("reflectionLimiter").value || "",
+      focusRating: parseRating("reflectionFocusRating"),
+      confidenceRating: parseRating("reflectionConfidenceRating"),
+      fatigueRating: parseRating("reflectionFatigueRating"),
+      cueingRating: parseRating("reflectionCueingRating"),
+      mentalSharpnessRating: parseRating("reflectionMentalSharpnessRating"),
       tags: reflectionTags,
       interventionNote: reflectionInterventionNote,
       note: $("reflectionNote").value || "",
@@ -2633,6 +2800,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const trainingValueMean = baseScore + weakness * 0.6 + undertraining * 0.7 + Number(context.bonus || 0) * 0.4 + bayes * 0.5;
   const sampledValue = trainingValueMean + gaussianRandom() * uncertainty;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
+  reasons.push(skillReasonText(routine));
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
@@ -2713,6 +2881,7 @@ function renderSmartRecommendation() {
     <span class="badge">Evidence: ${escapeHtml(top.evidenceLabel)}</span>
     <span class="badge">Hit rate: ${top.stats.hit === null ? "N/A" : top.stats.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
+    <span class="badge">Skill: ${escapeHtml(skillLabel(getRoutineSkillMap(routine).primarySkill))}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
     <p class="muted">Reason: ${(top.reasons || []).slice(0,4).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
@@ -2939,7 +3108,11 @@ function renderPhaseOneInsights() {
   box.innerHTML = `<div class="insight-grid">
     ${renderResidualInsights(logs)}
     ${renderPeakWindowInsight(logs)}
-    ${renderContextEffects(logs)}\n    ${renderForecastInsight(logs)}
+    ${renderContextEffects(logs)}
+    ${renderForecastInsight(logs)}
+    ${reflectionPatternInsight(logs)}
+    ${reflectionIntelligenceSummary(logs)}
+    ${skillMapInsight(logs)}
   </div>`;
 }
 
@@ -5374,7 +5547,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.24.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5469,7 +5642,7 @@ function reflectionRoutineSignal(routineId) {
   logs.forEach(l => {
     const ref = sessionById[l.sessionId]?.reflection;
     if (!ref) return;
-    [ref.focus, ref.limiter].filter(Boolean).forEach(x => {
+    [ref.focus, ref.limiter, ...(ref.fatigueRating >= 4 ? ["high fatigue"] : []), ...(ref.confidenceRating <= 2 ? ["low confidence"] : [])].filter(Boolean).forEach(x => {
       const key = String(x).trim();
       if (!key) return;
       patterns[key] = (patterns[key] || 0) + 1;
@@ -5516,6 +5689,7 @@ function getRoutinePriorityReasons(item){
   if(s.bayesian?.policy?.title) reasons.push(`True Skill action: ${s.bayesian.policy.title}`); else if(s.bayesian?.signal?.reason) reasons.push(s.bayesian.signal.reason);
   const ctx = s.contextSignal || recommendationContextSignal(r.id);
   (ctx.reasons || []).forEach(reason => reasons.push(reason));
+  reasons.push(skillReasonText(r));
   if(recommendationMode(r)==="occasional") reasons.push("occasional recommendation cap");
   if(r.isAnchor) reasons.push("anchor drill");
   if(!reasons.length) reasons.push("balanced rotation");
@@ -7164,7 +7338,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.25.2 Unified Recommendation Foundation ===== */
+/* ===== v4.26.0 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7289,7 +7463,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.25.2 Unified Recommendation Foundation ===== */
+/* ===== end v4.26.0 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){
