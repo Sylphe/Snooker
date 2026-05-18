@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.26.0";
+} from "./utils.js?v=4.26.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.26.0";
+} from "./settings.js?v=4.26.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.26.0";
+} from "./analytics.js?v=4.26.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.26.0";
+} from "./bayesian.js?v=4.26.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.26.0";
+} from "./session.js?v=4.26.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.26.0";
+} from "./pressure.js?v=4.26.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.26.0";
+} from "./recommendations.js?v=4.26.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.26.0";
+} from "./store.js?v=4.26.1";
 
 
 
@@ -1402,6 +1402,26 @@ function syncSessionQualityTiles() {
   document.querySelectorAll(".quality-tile").forEach(b => b.classList.toggle("active", String(b.dataset.rating || "") === value));
 }
 
+function syncReflectionRatingTiles(targetId) {
+  const ids = targetId ? [targetId] : ["reflectionFocusRating","reflectionConfidenceRating","reflectionFatigueRating","reflectionCueingRating","reflectionMentalSharpnessRating"];
+  ids.forEach(id => {
+    const value = String($(id)?.value || "");
+    document.querySelectorAll(`.reflection-rating-tile[data-target="${id}"]`).forEach(btn => {
+      const active = String(btn.dataset.rating || "") === value;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  });
+}
+function setReflectionRating(targetId, rating) {
+  const el = $(targetId || "");
+  if (!el) return;
+  const clean = String(rating || "");
+  el.value = /^[1-5]$/.test(clean) ? clean : "";
+  syncReflectionRatingTiles(targetId);
+  hapticFeedback("tap");
+}
+
 function startRoutineScreen() {
   persistActiveSession();
   resetTimerState();
@@ -2207,6 +2227,7 @@ function openReflectionModal(sessionId) {
   $("reflectionFocus").value = "";
   $("reflectionLimiter").value = "";
   ["reflectionFocusRating","reflectionConfidenceRating","reflectionFatigueRating","reflectionCueingRating","reflectionMentalSharpnessRating"].forEach(id => { if ($(id)) $(id).value = ""; });
+  syncReflectionRatingTiles();
   if ($("reflectionTags")) $("reflectionTags").value = "";
   if ($("reflectionInterventionNote")) $("reflectionInterventionNote").value = "";
   $("reflectionNote").value = "";
@@ -5547,7 +5568,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6346,6 +6367,7 @@ function handleDelegatedUIAction(event) {
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
+    case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -7338,7 +7360,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.26.0 Unified Recommendation Foundation ===== */
+/* ===== v4.26.1 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7463,7 +7485,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.26.0 Unified Recommendation Foundation ===== */
+/* ===== end v4.26.1 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){

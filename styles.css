@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.26.0 Thompson recommendation logic */
+/* v4.26.1 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2697,7 +2697,15 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .dq-medium{border-left:4px solid #d9b36b;}
 .dq-low{border-left:4px solid #7f8fa6;}
 
-/* v4.26.0 Reflection & Skill Map Foundation */
+/* v4.26.1 Reflection rating tile UX */
 .skill-badge{border-style:dashed;}
-.reflection-rating-grid{margin:10px 0;}
-.reflection-rating-grid input{min-width:0;}
+.reflection-rating-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0;}
+.reflection-rating-card{min-width:0;}
+.reflection-rating-card label{display:block;margin-bottom:6px;}
+.reflection-tile-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
+.reflection-rating-tile{min-width:0;padding:8px 0;border-radius:10px;font-weight:700;touch-action:manipulation;}
+.reflection-rating-tile.active,
+.reflection-rating-tile[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent, #7aa2ff) inset;transform:translateY(-1px);}
+@media (max-width: 900px){.reflection-rating-grid{grid-template-columns:1fr 1fr;}.reflection-rating-card:last-child{grid-column:1/-1;}}
+@media (max-width: 520px){.reflection-rating-grid{grid-template-columns:1fr;}.reflection-rating-tile{min-height:42px;}}
+

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.26.0</title>
+  <title>Snooker Practice Log v4.26.1</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.26.0" />
-  <link rel="stylesheet" href="styles.css?v=4.26.0" />
-  <link rel="icon" href="icon.svg?v=4.26.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.26.1" />
+  <link rel="stylesheet" href="styles.css?v=4.26.1" />
+  <link rel="icon" href="icon.svg?v=4.26.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.26.0 · Build 2026-05-18 08:00 GMT+1 — Reflection intelligence and skill-map foundation.</p>
+      <p>v4.26.1 · Build 2026-05-18 09:07 CEST — Reflection rating tile UX patch.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1137,26 +1137,61 @@
           <option value="shot_selection">Shot selection</option>
         </select>
 
-        <div class="grid five reflection-rating-grid">
-          <div>
-            <label>Focus 1–5</label>
-            <input id="reflectionFocusRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+        <div class="reflection-rating-grid">
+          <div class="reflection-rating-card">
+            <label>Focus</label>
+            <input id="reflectionFocusRating" type="hidden" />
+            <div class="reflection-tile-row" role="radiogroup" aria-label="Focus rating">
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="focus" data-target="reflectionFocusRating" data-rating="1" aria-pressed="false">1</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="focus" data-target="reflectionFocusRating" data-rating="2" aria-pressed="false">2</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="focus" data-target="reflectionFocusRating" data-rating="3" aria-pressed="false">3</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="focus" data-target="reflectionFocusRating" data-rating="4" aria-pressed="false">4</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="focus" data-target="reflectionFocusRating" data-rating="5" aria-pressed="false">5</button>
+            </div>
           </div>
-          <div>
-            <label>Confidence 1–5</label>
-            <input id="reflectionConfidenceRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          <div class="reflection-rating-card">
+            <label>Confidence</label>
+            <input id="reflectionConfidenceRating" type="hidden" />
+            <div class="reflection-tile-row" role="radiogroup" aria-label="Confidence rating">
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="confidence" data-target="reflectionConfidenceRating" data-rating="1" aria-pressed="false">1</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="confidence" data-target="reflectionConfidenceRating" data-rating="2" aria-pressed="false">2</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="confidence" data-target="reflectionConfidenceRating" data-rating="3" aria-pressed="false">3</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="confidence" data-target="reflectionConfidenceRating" data-rating="4" aria-pressed="false">4</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="confidence" data-target="reflectionConfidenceRating" data-rating="5" aria-pressed="false">5</button>
+            </div>
           </div>
-          <div>
-            <label>Fatigue 1–5</label>
-            <input id="reflectionFatigueRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          <div class="reflection-rating-card">
+            <label>Fatigue</label>
+            <input id="reflectionFatigueRating" type="hidden" />
+            <div class="reflection-tile-row" role="radiogroup" aria-label="Fatigue rating">
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="fatigue" data-target="reflectionFatigueRating" data-rating="1" aria-pressed="false">1</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="fatigue" data-target="reflectionFatigueRating" data-rating="2" aria-pressed="false">2</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="fatigue" data-target="reflectionFatigueRating" data-rating="3" aria-pressed="false">3</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="fatigue" data-target="reflectionFatigueRating" data-rating="4" aria-pressed="false">4</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="fatigue" data-target="reflectionFatigueRating" data-rating="5" aria-pressed="false">5</button>
+            </div>
           </div>
-          <div>
-            <label>Cueing 1–5</label>
-            <input id="reflectionCueingRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          <div class="reflection-rating-card">
+            <label>Cueing</label>
+            <input id="reflectionCueingRating" type="hidden" />
+            <div class="reflection-tile-row" role="radiogroup" aria-label="Cueing rating">
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="cueing" data-target="reflectionCueingRating" data-rating="1" aria-pressed="false">1</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="cueing" data-target="reflectionCueingRating" data-rating="2" aria-pressed="false">2</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="cueing" data-target="reflectionCueingRating" data-rating="3" aria-pressed="false">3</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="cueing" data-target="reflectionCueingRating" data-rating="4" aria-pressed="false">4</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="cueing" data-target="reflectionCueingRating" data-rating="5" aria-pressed="false">5</button>
+            </div>
           </div>
-          <div>
-            <label>Mental sharpness 1–5</label>
-            <input id="reflectionMentalSharpnessRating" type="number" min="1" max="5" step="1" placeholder="1-5" />
+          <div class="reflection-rating-card">
+            <label>Mental sharpness</label>
+            <input id="reflectionMentalSharpnessRating" type="hidden" />
+            <div class="reflection-tile-row" role="radiogroup" aria-label="Mental sharpness rating">
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="mentalSharpness" data-target="reflectionMentalSharpnessRating" data-rating="1" aria-pressed="false">1</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="mentalSharpness" data-target="reflectionMentalSharpnessRating" data-rating="2" aria-pressed="false">2</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="mentalSharpness" data-target="reflectionMentalSharpnessRating" data-rating="3" aria-pressed="false">3</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="mentalSharpness" data-target="reflectionMentalSharpnessRating" data-rating="4" aria-pressed="false">4</button>
+              <button type="button" class="secondary reflection-rating-tile" data-action="set-reflection-rating" data-rating-key="mentalSharpness" data-target="reflectionMentalSharpnessRating" data-rating="5" aria-pressed="false">5</button>
+            </div>
           </div>
         </div>
         <label>Session tags</label>
@@ -1192,7 +1227,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.26.0"></script>
+  <script type="module" src="app.js?v=4.26.1"></script>
 </body>
 
 

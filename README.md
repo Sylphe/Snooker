@@ -1,14 +1,14 @@
-# Snooker Practice PWA v4.26.0
+# Snooker Practice PWA v4.26.1
 
-Build timestamp: 2026-05-18 08:00 GMT+1
+Build timestamp: 2026-05-18 09:07 CEST
 
 ## Release focus
 
-v4.26.0 adds the Reflection & Skill Map Foundation. The objective is to create the semantic layer required for better recommendations: routines are now mapped to underlying skills, reflections capture structured subjective signals, and recommendation reasons can reference skill focus and transfer value instead of remaining purely drill-centric.
+v4.26.1 refines the Reflection & Skill Map Foundation. The objective is to create the semantic layer required for better recommendations: routines are now mapped to underlying skills, reflections capture structured subjective signals, and recommendation reasons can reference skill focus and transfer value instead of remaining purely drill-centric.
 
 ## Added
 
-- Reflection intelligence: post-session reflection now supports structured 1–5 ratings for focus, confidence, fatigue, cueing quality, and mental sharpness.
+- Reflection intelligence: post-session reflection now supports touch-only 1–5 rating tiles for focus, confidence, fatigue, cueing quality, and mental sharpness.
 - Performance/reflection divergence detection: the analytics layer can classify good-score/bad-feel and bad-score/good-feel sessions.
 - Fatigue and confidence signals: high fatigue and low confidence are converted into lightweight contextual signals for recommendation logic.
 - Skill taxonomy: canonical technical, break-building, safety/tactical, mental, and physical skill tags are now available.
@@ -20,7 +20,8 @@ v4.26.0 adds the Reflection & Skill Map Foundation. The objective is to create t
 
 ## Updated
 
-- App version and cache-busting references updated to v4.26.0.
+- Post-session reflection ratings changed from numeric input boxes to tappable 1–5 tiles, matching the Focus Mode session-quality UX.
+- App version and cache-busting references updated to v4.26.1.
 - Build metadata updated in `modules/version.js` and the home screen.
 - Service worker cache name updated for the new release.
 
