@@ -76,6 +76,97 @@ export function betaSample(alpha = 2, beta = 2) {
   return clampNumber(x / total, 0, 1, a / (a + b));
 }
 
+
+
+export function bayesianChangePointEstimate(values = [], options = {}) {
+  const xs = (values || []).map(Number).filter(Number.isFinite);
+  const n = xs.length;
+  const minN = Math.max(8, Number(options.minN) || 10);
+  const minSide = Math.max(3, Number(options.minSide) || 4);
+  if (n < minN || n < minSide * 2 + 1) {
+    return {
+      state: "insufficient",
+      label: "Insufficient data",
+      n,
+      probability: 0,
+      bestIndex: null,
+      direction: "none",
+      delta: 0,
+      detail: "Need more observations before Bayesian change-point scoring is useful."
+    };
+  }
+
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.length);
+  const variance = arr => {
+    if (arr.length < 2) return 0;
+    const m = mean(arr);
+    return arr.reduce((a, x) => a + Math.pow(x - m, 2), 0) / Math.max(1, arr.length - 1);
+  };
+  const globalMean = mean(xs);
+  const globalVar = Math.max(16, variance(xs));
+  const sigma2 = Math.max(16, Number(options.sigma2) || globalVar);
+  const priorStrength = Math.max(0.25, Number(options.priorStrength) || 4);
+  const minAbsDelta = Math.max(2, Number(options.minAbsDelta) || 3);
+
+  function logSegmentMarginal(arr) {
+    if (!arr.length) return -1e9;
+    const k = arr.length;
+    const m = mean(arr);
+    const sse = arr.reduce((a, x) => a + Math.pow(x - m, 2), 0);
+    const shrinkPenalty = (priorStrength * k / (priorStrength + k)) * Math.pow(m - globalMean, 2);
+    const normalizer = -0.5 * k * Math.log(2 * Math.PI * sigma2) - 0.5 * Math.log(1 + k / priorStrength);
+    return normalizer - (sse + shrinkPenalty) / (2 * sigma2);
+  }
+
+  const nullLog = logSegmentMarginal(xs);
+  const candidates = [];
+  for (let split = minSide; split <= n - minSide; split += 1) {
+    const left = xs.slice(0, split);
+    const right = xs.slice(split);
+    const leftMean = mean(left);
+    const rightMean = mean(right);
+    const delta = rightMean - leftMean;
+    const logLikelihood = logSegmentMarginal(left) + logSegmentMarginal(right);
+    candidates.push({ split, logLikelihood, leftMean, rightMean, delta });
+  }
+  if (!candidates.length) {
+    return { state: "insufficient", label: "Insufficient data", n, probability: 0, bestIndex: null, direction: "none", delta: 0, detail: "Need two valid windows before scoring a shift." };
+  }
+  candidates.sort((a, b) => b.logLikelihood - a.logLikelihood);
+  const best = candidates[0];
+  const allLogs = [nullLog, ...candidates.map(c => c.logLikelihood)];
+  const maxLog = Math.max(...allLogs);
+  const nullWeight = Math.exp(Math.max(-80, nullLog - maxLog));
+  const splitWeights = candidates.map(c => Math.exp(Math.max(-80, c.logLikelihood - maxLog)));
+  const totalWeight = nullWeight + splitWeights.reduce((a, b) => a + b, 0);
+  const rawProbability = totalWeight > 0 ? splitWeights[0] / totalWeight : 0;
+  const deltaScale = clampNumber(Math.abs(best.delta) / Math.max(minAbsDelta, Math.sqrt(sigma2) * 0.35), 0, 1, 0);
+  const probability = clampNumber(rawProbability * (0.35 + 0.65 * deltaScale), 0, 0.99, 0);
+  let state = "mixed";
+  let label = "No confirmed shift";
+  if (probability >= 0.72 && best.delta >= minAbsDelta) { state = "breakthrough"; label = "Probable breakthrough"; }
+  else if (probability >= 0.72 && best.delta <= -minAbsDelta) { state = "slump"; label = "Probable slump"; }
+  else if (probability >= 0.52 && Math.abs(best.delta) >= minAbsDelta) { state = best.delta > 0 ? "possible_breakthrough" : "possible_slump"; label = best.delta > 0 ? "Possible breakthrough" : "Possible slump"; }
+  else if (Math.abs(best.delta) < minAbsDelta && probability < 0.45) { state = "plateau"; label = "Likely plateau / stable"; }
+  const pct = Math.round(probability * 100);
+  const direction = best.delta > 0 ? "positive" : best.delta < 0 ? "negative" : "flat";
+  return {
+    state,
+    label,
+    n,
+    probability,
+    probabilityPct: pct,
+    bestIndex: best.split,
+    direction,
+    delta: best.delta,
+    priorAvg: best.leftMean,
+    recentAvg: best.rightMean,
+    severity: probability * Math.min(2.5, Math.abs(best.delta) / Math.sqrt(sigma2 || 1)),
+    candidates: candidates.slice(0, 5).map(c => ({split:c.split, delta:c.delta, logLikelihood:c.logLikelihood})),
+    detail: `${pct}% probability of a ${direction === "positive" ? "positive" : direction === "negative" ? "negative" : "flat"} structural shift around observation ${best.split}; posterior windows ${best.leftMean.toFixed(1)} → ${best.rightMean.toFixed(1)}.`
+  };
+}
+
 export function thompsonRecommendationSample(options = {}) {
   const mean = clampNumber(options.mean, -200, 300, 0);
   const uncertainty = clampNumber(options.uncertainty, 0, 80, 12);

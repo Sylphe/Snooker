@@ -1,24 +1,24 @@
-# Snooker Practice PWA v4.39.0
+# Snooker Practice PWA v4.40.0
 
-## v4.39.0 — Kalman-style Current Form
+## v4.40.0 — Bayesian Change-Point Detection Upgrade
 
-Built from the confirmed-working v4.38.0 Thompson Sampling v2 package.
+Built from the confirmed-working v4.39.0 Kalman Current Form package.
 
 ### Added / changed
-- Adds a pure Kalman-style current-form estimator in `modules/inference.js`.
-- Separates estimated current form from noisy daily observed scores.
-- Uses fatigue, focus, and confidence reflection inputs as observation-noise signals rather than direct hard penalties.
-- Updates the Current Form insight card to show Kalman-style uncertainty.
-- Keeps current-form recommendation adjustments guarded and additive.
+- Upgrades the existing change-point detector with Bayesian-style structural-shift probabilities.
+- Scores likely breakthrough, slump, plateau/stable, and mixed/noisy states with adjusted probability outputs.
+- Adds skill-level Bayesian change-point rows using existing skill tags.
+- Keeps the legacy window-based detector as a guarded fallback.
+- Uses safe normalized-score extraction so malformed logs do not break the insights render path.
 
 ### Safety / stability approach
 - No storage schema changes.
 - No hydration changes.
 - No session-state changes.
-- Kalman calculations are guarded with fallback to the previous recent-vs-baseline method if needed.
+- Bayesian change-point logic is guarded and falls back to the legacy detector if it fails.
 - Syntax and duplicate-declaration checks performed during packaging.
 
 ### Build
-- Version: v4.39.0
-- Build timestamp: 2026-05-18 17:02 CEST
-- Cache/module refs: v4.39.0
+- Version: v4.40.0
+- Build timestamp: 2026-05-18 17:15 CEST
+- Cache/module refs: v4.40.0

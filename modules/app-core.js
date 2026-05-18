@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.39.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate } from "./inference.js?v=4.39.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.40.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.40.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.39.0";
+} from "./utils.js?v=4.40.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.39.0";
+} from "./settings.js?v=4.40.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.39.0";
+} from "./analytics.js?v=4.40.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.39.0";
+} from "./bayesian.js?v=4.40.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.39.0";
+} from "./session.js?v=4.40.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.39.0";
+} from "./pressure.js?v=4.40.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.39.0";
+} from "./recommendations.js?v=4.40.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.39.0";
+} from "./store.js?v=4.40.0";
 
 
 
@@ -652,16 +652,15 @@ function signalLabelFromScore(score){
   return "Low";
 }
 
-/* ===== v4.30.0 Change-Point Detection v1 ===== */
+/* ===== v4.40.0 Bayesian Change-Point Detection Upgrade ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
-  if(x >= 2.0) return "Strong";
-  if(x >= 1.2) return "Moderate";
-  if(x >= 0.7) return "Early";
-  return "Weak";
+  if(x >= 0.75) return "High probability";
+  if(x >= 0.55) return "Moderate probability";
+  if(x >= 0.35) return "Early probability";
+  return "Low probability";
 }
-function detectSeriesChangePoint(series, options={}){
-  const values = (series || []).map(v => Number(v)).filter(Number.isFinite);
+function legacyWindowChangePoint(values, options={}){
   const minN = Number(options.minN || 10);
   if(values.length < minN) return {state:"insufficient", label:"Insufficient data", n:values.length, detail:"Need more logs before change-point detection is meaningful.", severity:0};
   const window = Math.max(4, Math.min(Number(options.window || 6), Math.floor(values.length / 2)));
@@ -679,30 +678,42 @@ function detectSeriesChangePoint(series, options={}){
   const flat = Math.abs(delta) <= Math.max(3, pooledStd * 0.18);
   let state = "mixed";
   let label = "No confirmed shift";
-  let detail = `Recent ${recentAvg.toFixed(1)} vs prior ${priorAvg.toFixed(1)} (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} raw). ${reliability.label}.`;
-  if(effect >= 0.75){
-    state = "breakthrough";
-    label = "Possible breakthrough";
-    detail = `Recent window is materially above prior baseline: ${recentAvg.toFixed(1)} vs ${priorAvg.toFixed(1)}. ${changePointSeverityLabel(effect)} signal · ${reliability.label.toLowerCase()}.`;
-  } else if(effect <= -0.75){
-    state = "slump";
-    label = "Possible slump";
-    detail = `Recent window is materially below prior baseline: ${recentAvg.toFixed(1)} vs ${priorAvg.toFixed(1)}. ${changePointSeverityLabel(effect)} signal · ${reliability.label.toLowerCase()}.`;
-  } else if(flat && volatility <= 18){
-    state = "plateau";
-    label = "Possible plateau";
-    detail = `Recent and prior windows are close (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} raw change) with controlled volatility. ${reliability.label}.`;
-  } else if(volatility > 24){
-    state = "volatile";
-    label = "Volatile / noisy";
-    detail = `Recent movement is hard to classify because volatility is high (${volatility.toFixed(1)}). Avoid overreacting to one session.`;
+  if(effect >= 0.75){ state = "breakthrough"; label = "Possible breakthrough"; }
+  else if(effect <= -0.75){ state = "slump"; label = "Possible slump"; }
+  else if(flat && volatility <= 18){ state = "plateau"; label = "Possible plateau"; }
+  else if(volatility > 24){ state = "volatile"; label = "Volatile / noisy"; }
+  return {state, label, n:values.length, priorAvg, recentAvg, delta, effect, probability:Math.min(0.7, Math.abs(effect)/2), probabilityPct:Math.round(Math.min(0.7, Math.abs(effect)/2)*100), volatility, evidence:reliability, severity:Math.abs(effect), detail:`Fallback window model: recent ${recentAvg.toFixed(1)} vs prior ${priorAvg.toFixed(1)} (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} raw). ${reliability.label}.`};
+}
+function normalizeBayesianChangeState(state){
+  if(state === "possible_breakthrough") return "breakthrough";
+  if(state === "possible_slump") return "slump";
+  return state || "mixed";
+}
+function detectSeriesChangePoint(series, options={}){
+  const values = (series || []).map(v => Number(v)).filter(Number.isFinite);
+  const minN = Number(options.minN || 10);
+  if(values.length < minN) return {state:"insufficient", label:"Insufficient data", n:values.length, detail:"Need more logs before Bayesian change-point scoring is meaningful.", severity:0, probability:0, probabilityPct:0};
+  try{
+    const bayes = bayesianChangePointEstimate(values, {minN, minSide:options.minSide || 4, priorStrength:options.priorStrength || 4, minAbsDelta:options.minAbsDelta || 3});
+    if(!bayes || bayes.state === "insufficient") return bayes || legacyWindowChangePoint(values, options);
+    const reliability = evidenceStrength(values.length);
+    const adjustedProbability = Math.max(0, Math.min(0.98, Number(bayes.probability || 0) * (0.55 + 0.45 * Number(reliability.factor || 0.5))));
+    let state = normalizeBayesianChangeState(bayes.state);
+    let label = bayes.label;
+    if(adjustedProbability < 0.42 && state !== "plateau") { state = "mixed"; label = "No confirmed shift"; }
+    const probabilityPct = Math.round(adjustedProbability * 100);
+    const directionText = bayes.direction === "positive" ? "positive" : bayes.direction === "negative" ? "negative" : "flat";
+    const detail = `${probabilityPct}% adjusted probability of a ${directionText} structural shift near log ${bayes.bestIndex ?? "n/a"}. Estimated windows: ${Number(bayes.priorAvg || 0).toFixed(1)} → ${Number(bayes.recentAvg || 0).toFixed(1)}. ${reliability.label}.`;
+    return {...bayes, state, label, probability:adjustedProbability, probabilityPct, evidence:reliability, severity:adjustedProbability, effect:adjustedProbability, detail, model:"bayesian"};
+  }catch(e){
+    logAppError?.(e,"detectSeriesChangePoint.bayesian");
+    return {...legacyWindowChangePoint(values, options), model:"fallback"};
   }
-  return {state, label, n:values.length, priorAvg, recentAvg, delta, effect, volatility, evidence:reliability, severity:Math.abs(effect), detail};
 }
 function skillChangePointRows(logs){
   const rows = {};
   (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(log => {
-    const score = Number(log.normalizedScore ?? normalizeScore(log));
+    const score = safeNormalizedLogScore(log);
     if(!Number.isFinite(score)) return;
     const weights = routineSkillWeights(log);
     Object.entries(weights).forEach(([skill, weight]) => {
@@ -717,18 +728,18 @@ function skillChangePointRows(logs){
     .slice(0,4);
 }
 function changePointInsight(logs){
-  const values = (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const values = (logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).map(l => safeNormalizedLogScore(l)).filter(Number.isFinite);
   const overall = detectSeriesChangePoint(values, {minN:12, window:6});
   const skillRows = skillChangePointRows(logs);
   const cls = overall.state === "breakthrough" ? "good" : overall.state === "slump" ? "risk" : "watch";
-  return `<div class="insight-card ${cls}"><strong>Change-point detection v1</strong>
-    <div class="context-row"><span>Overall state</span><strong>${htmlText(overall.label)}</strong><span>${htmlText(overall.evidence?.label || `n=${overall.n}`)}</span></div>
+  return `<div class="insight-card ${cls}"><strong>Bayesian change-point detection</strong>
+    <div class="context-row"><span>Overall state</span><strong>${htmlText(overall.label)}</strong><span>${htmlText(overall.probabilityPct !== undefined ? `${overall.probabilityPct}%` : (overall.evidence?.label || `n=${overall.n}`))}</span></div>
     <div class="adaptive-rationale">${htmlText(overall.detail)}</div>
-    ${skillRows.length ? `<div class="adaptive-rationale"><strong>Skill-level shifts:</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
-    <div class="adaptive-rationale">Breakthrough/slump/plateau flags are evidence-adjusted and should guide session design, not override judgement.</div>
+    ${skillRows.length ? `<div class="adaptive-rationale"><strong>Skill-level shifts:</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(x.change.probabilityPct !== undefined ? `${x.change.probabilityPct}%` : changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
+    <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.30.0 Change-Point Detection v1 ===== */
+/* ===== end v4.40.0 Bayesian Change-Point Detection Upgrade ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -7243,7 +7254,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.39.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.40.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
