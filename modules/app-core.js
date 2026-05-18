@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.43.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.43.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.43.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.43.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.43.0";
+} from "./utils.js?v=4.43.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.43.0";
+} from "./settings.js?v=4.43.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.43.0";
+} from "./analytics.js?v=4.43.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.43.0";
+} from "./bayesian.js?v=4.43.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.43.0";
+} from "./session.js?v=4.43.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.43.0";
+} from "./pressure.js?v=4.43.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.43.0";
+} from "./recommendations.js?v=4.43.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.43.0";
+} from "./store.js?v=4.43.1";
 
 
 
@@ -371,6 +371,32 @@ const DEFAULT_SKILLS = [
   {id:"stamina", label:"Stamina", group:"Physical", aliases:["endurance","fatigue resistance","fatigue"]}
 ];
 let activeSkillTaxonomyForNormalization = null;
+let skillLibraryCacheSource = null;
+let skillLibraryCacheAll = null;
+let skillLibraryCacheActive = null;
+function invalidateSkillLibraryCache(){
+  skillLibraryCacheSource = null;
+  skillLibraryCacheAll = null;
+  skillLibraryCacheActive = null;
+}
+function ensureSkillTaxonomyReady(){
+  if(!data || typeof data !== "object") return;
+  const tax = data.skillTaxonomy;
+  if(!tax || !Array.isArray(tax.skills) || tax.version !== SKILL_TAXONOMY_VERSION){
+    data.skillTaxonomy = normalizeSkillTaxonomy(tax || defaultSkillTaxonomy());
+    activeSkillTaxonomyForNormalization = data.skillTaxonomy; invalidateSkillLibraryCache();
+    invalidateSkillLibraryCache();
+    return;
+  }
+  if(activeSkillTaxonomyForNormalization !== tax){
+    activeSkillTaxonomyForNormalization = tax;
+    invalidateSkillLibraryCache();
+  }
+}
+function activeTemplatesPanelName(){
+  const active = document.querySelector('[data-templates-panel].active:not(.hidden)');
+  return active?.dataset?.templatesPanel || null;
+}
 function canonicalSkillKey(value){
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 }
@@ -401,8 +427,13 @@ function normalizeSkillTaxonomy(taxonomy){
 }
 function defaultSkillTaxonomy(){ return normalizeSkillTaxonomy({skills:DEFAULT_SKILLS}); }
 function currentSkillLibrary(options={}){
-  const lib = mergeSkillLibraries(activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS);
-  return options.includeArchived === false ? lib.filter(s => s.active !== false) : lib;
+  const source = activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS;
+  if(skillLibraryCacheSource !== source || !skillLibraryCacheAll){
+    skillLibraryCacheSource = source;
+    skillLibraryCacheAll = (Array.isArray(source) ? source : DEFAULT_SKILLS).slice().sort((a,b)=>String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));
+    skillLibraryCacheActive = skillLibraryCacheAll.filter(s => s.active !== false);
+  }
+  return options.includeArchived === false ? skillLibraryCacheActive : skillLibraryCacheAll;
 }
 function skillAliasMap(){
   const map = {};
@@ -699,7 +730,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.1 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -795,10 +826,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.1 Adaptive Session Periodization ===== */
 
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.1 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -904,9 +935,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.1 Adaptive Session Periodization ===== */
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.1 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -993,7 +1024,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.1 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -2165,7 +2196,7 @@ function renderAll() {
     ["renderPeriodization", renderPeriodization],
     ["renderRegretRoutineOptions", renderRegretRoutineOptions],
     ["renderTableDatabase", renderTableDatabase],
-    ["renderSkillManager", renderSkillManager],
+    ["renderSkillManager", () => { if (activeTemplatesPanelName() === "skills") renderSkillManager(); }],
     ["renderTableSelects", renderTableSelects],
     ["renderTrainingLoad", renderTrainingLoad],
     ["renderWeeklyReview", renderWeeklyReview],
@@ -2189,8 +2220,7 @@ function renderAll() {
 }
 
 function renderRoutineSelects() {
-  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
-  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  ensureSkillTaxonomyReady();
   renderPrimarySkillOptions();
   const cats = categories(), flds = folders(), subs = subfolders();
 
@@ -3577,8 +3607,7 @@ function clearSkillTagForm(){
 }
 function currentSkillById(id){ return currentSkillLibrary({includeArchived:true}).find(s => s.id === id) || null; }
 function renderSkillManager(){
-  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
-  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  ensureSkillTaxonomyReady();
   const list=$("skillManagerList");
   if(!list) return;
   const q=($("skillManagerSearch")?.value||"").trim().toLowerCase();
@@ -3620,7 +3649,7 @@ function saveSkillTagFromForm(){
   });
   skills.push(rec);
   data.skillTaxonomy=normalizeSkillTaxonomy({skills});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   if(editId && editId !== id){
     remapSkillIdAcrossData(editId,id);
   }
@@ -3640,7 +3669,7 @@ function editSkillTag(id){
 function archiveSkillTag(id){
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   const skills=taxonomy.skills.map(s => s.id===id ? {...s, active:s.active===false?true:false} : s);
-  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tag status updated.", "ok");
 }
@@ -3681,7 +3710,7 @@ function mergeSkillTag(id){
   remapSkillIdAcrossData(id,to);
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   data.skillTaxonomy=normalizeSkillTaxonomy({skills:taxonomy.skills.map(s=>s.id===id?{...s, active:false}:s)});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tags merged.", "ok");
 }
@@ -7640,7 +7669,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.43.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.43.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

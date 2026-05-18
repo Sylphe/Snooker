@@ -1,6 +1,6 @@
-# Snooker Practice PWA v4.43.0
+# Snooker Practice PWA v4.43.1
 
-## v4.43.0 — Skill Tag Manager
+## v4.43.1 — Skill Tag Manager Performance Fix
 
 Built from v4.42.0 Adaptive Session Periodization.
 
@@ -22,5 +22,5 @@ Built from v4.42.0 Adaptive Session Periodization.
 - Bootstrap/render hardening remains in place.
 
 ### Build
-- Version: v4.43.0
+- Version: v4.43.1
 - Build timestamp: 2026-05-18 18:43 CEST
