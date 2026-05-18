@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.27.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.26.3";
+} from "./utils.js?v=4.27.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.26.3";
+} from "./settings.js?v=4.27.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.26.3";
+} from "./analytics.js?v=4.27.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.26.3";
+} from "./bayesian.js?v=4.27.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.26.3";
+} from "./session.js?v=4.27.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.26.3";
+} from "./pressure.js?v=4.27.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.26.3";
+} from "./recommendations.js?v=4.27.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.26.3";
+} from "./store.js?v=4.27.0";
 
 
 
@@ -592,7 +592,9 @@ const defaultData = {
   tagHistory: [],
   skillTaxonomy: defaultSkillTaxonomy(),
   routineSkillMap: {},
-  skillTrendCache: {}
+  skillTrendCache: {},
+  recommendationFeedback: [],
+  smartSessionBuilder: {version:"v2"}
 };
 
 let data = loadData();
@@ -735,6 +737,8 @@ function migrateData(d) {
   d.skillTaxonomy = d.skillTaxonomy || defaultSkillTaxonomy();
   d.routineSkillMap = d.routineSkillMap || {};
   d.skillTrendCache = d.skillTrendCache || {};
+  d.recommendationFeedback = Array.isArray(d.recommendationFeedback) ? d.recommendationFeedback : [];
+  d.smartSessionBuilder = d.smartSessionBuilder || {version:"v2"};
   d.routines.forEach(r => { d.routineSkillMap[r.id] = normalizeRoutineSkillMap(r, d.routineSkillMap[r.id]); });
   const routineLookup = new Map((d.routines || []).map(r => [String(r.id), r]));
   d.logs = (d.logs || []).map(l => {
@@ -1882,6 +1886,7 @@ async function saveCurrentRoutine() {
   log.normalizedScore = normalizeScore(log);
   log.performance = classifyPerformance(log, r);
   updateTagHistoryFromInput(log.sessionTags);
+  updateRecommendationCompletionFromLog(log);
   data.logs.push(log);
   activeSession.completedLogs.push(log);
   const persisted = await persistLogDelta(log, "saveCurrentRoutine log put");
@@ -2681,6 +2686,125 @@ function fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes) {
   return blocks;
 }
 
+
+function skillGroupForRoutine(routine) {
+  const map = getRoutineSkillMap(routine);
+  const skill = DEFAULT_SKILLS.find(s => s.id === map.primarySkill);
+  return skill?.group || routine?.category || "Uncategorized";
+}
+function routineTransferValue(routine) {
+  const map = getRoutineSkillMap(routine);
+  let value = 50;
+  const primary = map.primarySkill || "";
+  const secondaries = new Set(map.secondarySkills || []);
+  const transfers = new Set(map.transferTags || []);
+  if (["cueing","cue_ball_control","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) value += 18;
+  if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].includes(primary)) value += 10;
+  value += Math.min(14, secondaries.size * 3);
+  value += Math.min(10, transfers.size * 3);
+  if (routine?.isAnchor) value += 10;
+  const category = String(routine?.category || "").toLowerCase();
+  if (["potting","cue-ball","technique","safety","break-building"].includes(category)) value += 6;
+  if (String(routine?.name || "").toLowerCase().match(/line|long|safety|cue.?ball|black|blue|position|rest|pressure/)) value += 4;
+  return Math.max(20, Math.min(100, Math.round(value)));
+}
+function routineEnergyProfile(state) {
+  const r = state?.routine || {};
+  const map = getRoutineSkillMap(r);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  let cognitive = 2, fatigue = 2, confidence = 2;
+  if (skills.has("tactical_decision_making") || skills.has("safety") || skills.has("positional_play") || skills.has("cluster_management")) cognitive += 1;
+  if (skills.has("pressure_resilience") || skills.has("focus_consistency")) cognitive += 1;
+  if (skills.has("stamina") || Number(r.duration || 0) >= 20) fatigue += 1;
+  if (state?.phase === "progress" || state?.upgrade) cognitive += 1;
+  if (state?.phase === "stabilize" || state?.phase === "recover") confidence += 1;
+  if (String(r.category || "").toLowerCase().includes("mental")) confidence += 1;
+  return {cognitive:Math.min(5,cognitive), fatigue:Math.min(5,fatigue), confidence:Math.min(5,confidence)};
+}
+function sessionBudgetsForGoal(goal, targetMinutes) {
+  const scale = Math.max(0.75, Math.min(1.6, targetMinutes / 60));
+  if (goal === "recovery") return {cognitive:Math.round(8*scale), fatigue:Math.round(7*scale), confidence:Math.round(6*scale), maxSwitches:3};
+  if (goal === "progression") return {cognitive:Math.round(14*scale), fatigue:Math.round(13*scale), confidence:Math.round(11*scale), maxSwitches:5};
+  if (goal === "variety") return {cognitive:Math.round(13*scale), fatigue:Math.round(12*scale), confidence:Math.round(10*scale), maxSwitches:6};
+  return {cognitive:Math.round(12*scale), fatigue:Math.round(11*scale), confidence:Math.round(9*scale), maxSwitches:4};
+}
+function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
+  const transfer = routineTransferValue(state.routine);
+  const energy = routineEnergyProfile(state);
+  let score = baseScore + transfer * 0.22;
+  if (goal === "recovery") {
+    if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.3;
+  } else if (goal === "progression") {
+    if (state.phase === "progress" || state.upgrade) score += 9;
+    score += transfer * 0.08;
+  } else if (goal === "stability") {
+    if (["stabilize","maintain"].includes(state.phase)) score += 8;
+  } else if (goal === "variety") {
+    if (["vary","refresh","baseline"].includes(state.phase)) score += 7;
+  }
+  return score;
+}
+function blockTypeForState(state, goal) {
+  const primary = getRoutineSkillMap(state.routine).primarySkill;
+  if (state.routine?.isAnchor || state.phase === "baseline") return "warmup";
+  if (goal === "recovery") return "recovery";
+  if (["cueing","cue_ball_control","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) return "primary";
+  if ((getRoutineSkillMap(state.routine).transferTags || []).length) return "transfer";
+  if (["pressure_resilience","focus_consistency","confidence_stability","stamina"].includes(primary) || state.routine?.category === "mental") return "pressure";
+  return "transfer";
+}
+function budgetUsageForBlocks(blocks) {
+  const usage = {cognitive:0, fatigue:0, confidence:0, switches:0};
+  let prevGroup = "";
+  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    const energy = routineEnergyProfile(state);
+    usage.cognitive += energy.cognitive * reps;
+    usage.fatigue += energy.fatigue * reps;
+    usage.confidence += energy.confidence * reps;
+    const group = skillGroupForRoutine(state.routine);
+    if (prevGroup && group !== prevGroup) usage.switches += 1;
+    prevGroup = group;
+  }));
+  return usage;
+}
+function budgetBadgeClass(value, limit) {
+  if (!limit) return "";
+  return value <= limit ? "adaptive-ok" : value <= limit * 1.2 ? "adaptive-watch" : "adaptive-risk";
+}
+function ensureRecommendationFeedbackStore(){ data.recommendationFeedback = Array.isArray(data.recommendationFeedback) ? data.recommendationFeedback : []; return data.recommendationFeedback; }
+function recommendationFeedbackSummary(routineId="") {
+  const rows = ensureRecommendationFeedbackStore().filter(x => !routineId || x.routineId === routineId).slice(-80);
+  const counts = rows.reduce((acc,x)=>{ acc[x.action]=(acc[x.action]||0)+1; return acc; },{});
+  return {rows, counts, accepted:counts.accepted||0, skipped:counts.skipped||0, completed:counts.completed||0};
+}
+function trackRecommendationFeedback(routineId, action, meta={}) {
+  const r = routineById(routineId);
+  const beforeLogs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const beforeScore = beforeLogs.length ? Number(beforeLogs[0].normalizedScore || normalizeScore(beforeLogs[0]) || 0) : null;
+  ensureRecommendationFeedbackStore().push({
+    id:uuid(), routineId, routineName:r?.name || "", action, source:meta.source || "smart_session_builder", createdAt:new Date().toISOString(), scoreBefore:beforeScore,
+    scoreAfter:null, improvementAfterRecommendation:null, appVersion:APP_VERSION
+  });
+  saveData({render:"none", immediateIDB:true});
+  showTransientNotice(action === "accepted" ? "Recommendation accepted." : action === "skipped" ? "Recommendation skipped." : "Recommendation feedback recorded.", action === "skipped" ? "warn" : "ok");
+}
+function updateRecommendationCompletionFromLog(log) {
+  if (!log?.routineId) return;
+  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === log.routineId && x.action === "accepted" && x.scoreAfter === null).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const row = rows[0];
+  if (!row) return;
+  row.action = "completed";
+  row.completedAt = new Date().toISOString();
+  row.scoreAfter = Number(log.normalizedScore || normalizeScore(log) || 0);
+  row.improvementAfterRecommendation = row.scoreBefore === null ? null : row.scoreAfter - Number(row.scoreBefore || 0);
+}
+function renderFeedbackButtons(routineId, source="smart_session_builder") {
+  if (!routineId) return "";
+  return `<div class="row compact-action-row recommendation-feedback-row"><button type="button" class="secondary" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="accepted" data-source="${attrText(source)}">Accept</button><button type="button" class="secondary" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="skipped" data-source="${attrText(source)}">Skip</button></div>`;
+}
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -2705,7 +2829,11 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     if (intensity === "pressure" && ["safety","mental","break-building"].includes(s.routine.category)) boost += 8;
     if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
     if (profile?.selectionType === "exploration") boost += 4;
-    return {...s, adaptiveScore: adaptivePriorityScore(s, goal) + boost + recommendationScore * 0.28, recommendationProfile:profile, reasons:[...(s.reasons || []), ...(profile?.reasons || []).slice(0,3)]};
+    const baseAdaptiveScore = adaptivePriorityScore(s, goal) + boost + recommendationScore * 0.28;
+    const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
+    const transferValue = routineTransferValue(s.routine);
+    const energyProfile = routineEnergyProfile(s);
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(profile?.reasons || []).slice(0,3)]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -2763,33 +2891,32 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const anchorPicks = anchors.filter(s => !used.has(s.routine.id));
   anchorPicks.forEach(s => used.add(s.routine.id));
 
-  if (anchorPicks.length) {
-    blocks.push({name:"Anchor baseline", minutes:Math.min(15, Math.round(targetMinutes*0.25)), purpose:"Benchmark consistency", picks:anchorPicks});
+  function takeType(type, n, fallback) {
+    return take(s => (s.blockType === type) || (typeof fallback === "function" && fallback(s)), n);
   }
 
   if (effectiveGoal === "recovery") {
-    blocks.push({name:"Recovery technique block", minutes:Math.round(targetMinutes*0.55), purpose:"Protect quality and reduce fatigue drag", picks:take(s => ["recover","stabilize","maintain"].includes(s.phase), 3)});
-  } else if (effectiveGoal === "progression") {
-    blocks.push({name:"Progression block", minutes:Math.round(targetMinutes*0.55), purpose:"Increase target or constraint on stable drills", picks:take(s => s.phase === "progress" || s.upgrade, 3)});
-    blocks.push({name:"Control block", minutes:Math.round(targetMinutes*0.20), purpose:"Keep fundamentals stable", picks:take(s => s.phase === "maintain" || s.routine.isAnchor, 2)});
-  } else if (effectiveGoal === "stability") {
-    blocks.push({name:"Stability block", minutes:Math.round(targetMinutes*0.60), purpose:"Repeat unstable drills without changing difficulty", picks:take(s => s.phase === "stabilize" || s.psi?.psi < 70, 4)});
-  } else if (effectiveGoal === "variety") {
-    blocks.push({name:"Robustness block", minutes:Math.round(targetMinutes*0.60), purpose:"Avoid overfitting by adding variation", picks:take(s => ["vary","refresh","maintain"].includes(s.phase), 4)});
+    const familiar = ranked.filter(s => Number(s.logs?.length || 0) >= 4 || s.routine.isAnchor);
+    blocks.push({name:"Recovery calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.18)), purpose:"Familiar baseline work with low volatility", picks:take(s => s.routine.isAnchor || Number(s.logs?.length || 0) >= 6, strictness === "high" ? 1 : 2)});
+    blocks.push({name:"Low-switch primary block", blockType:"primary", minutes:Math.round(targetMinutes*0.45), purpose:"One or two familiar drills; protect confidence and reduce context switching", picks:take(s => familiar.includes(s) && ["recover","stabilize","maintain"].includes(s.phase), 2)});
+    blocks.push({name:"Confidence finish", blockType:"confidence", minutes:Math.max(8, Math.round(targetMinutes*0.18)), purpose:"End on a familiar, achievable drill rather than a volatile test", picks:take(s => Number(s.logs?.length || 0) >= 4 && s.phase !== "progress", 1)});
   } else {
-    blocks.push({name:"Main adaptive block", minutes:Math.round(targetMinutes*0.60), purpose:"Highest current adaptive priorities", picks:take(s => true, 4)});
-  }
-
-  if (daysToCompetition !== null && daysToCompetition <= 21) {
-    const pressurePicks = take(s => s.routine.category === "mental" || s.routine.category === "safety" || s.phase === "maintain" || s.phase === "stabilize", 2);
-    if (pressurePicks.length) {
-      blocks.push({name:"Competition pressure block", minutes:Math.max(10, Math.round(targetMinutes * (daysToCompetition <= 7 ? 0.20 : 0.25))), purpose:"Tapered match realism based on the competition date", picks:pressurePicks});
+    if (anchorPicks.length) {
+      blocks.push({name:"Warm-up / calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.16)), purpose:"Calibrate cueing and create a same-session baseline", picks:anchorPicks.slice(0, strictness === "high" ? 2 : 1)});
+    } else {
+      blocks.push({name:"Warm-up / calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.14)), purpose:"Start with low-friction baseline work before the main load", picks:take(s => s.phase === "baseline" || s.phase === "maintain", 1)});
     }
+    const primaryPredicate = effectiveGoal === "progression" ? (s => s.phase === "progress" || s.upgrade || s.blockType === "primary") : effectiveGoal === "stability" ? (s => s.phase === "stabilize" || s.psi?.psi < 70 || s.blockType === "primary") : (s => s.blockType === "primary");
+    blocks.push({name:"Primary skill block", blockType:"primary", minutes:Math.round(targetMinutes*0.38), purpose:"Main work selected by weakness, evidence, and transfer value", picks:take(primaryPredicate, strictness === "high" ? 3 : 2)});
+    blocks.push({name:"Transfer block", blockType:"transfer", minutes:Math.round(targetMinutes*0.22), purpose:"Use adjacent drills that should transfer into the primary skill", picks:takeType("transfer", 2, s => (getRoutineSkillMap(s.routine).transferTags || []).length)});
+    const pressureName = daysToCompetition !== null && daysToCompetition <= 21 ? "Competition pressure / robustness block" : "Pressure or robustness block";
+    blocks.push({name:pressureName, blockType:"pressure", minutes:Math.round(targetMinutes*0.16), purpose:"Add controlled pressure, robustness, or match-relevant variability", picks:takeType("pressure", 2, s => s.routine.category === "mental" || s.routine.category === "safety" || ["vary","stabilize"].includes(s.phase))});
+    blocks.push({name:"Confidence finish", blockType:"confidence", minutes:Math.max(8, Math.round(targetMinutes*0.10)), purpose:"Finish with a confidence-preserving familiar drill", picks:take(s => Number(s.logs?.length || 0) >= 3 && ["maintain","progress","stabilize"].includes(s.phase), 1)});
   }
 
-  const remaining = take(s => true, 3);
+  const remaining = take(s => true, effectiveGoal === "recovery" ? 1 : 2);
   if (remaining.length) {
-    blocks.push({name:"Completion block", minutes:Math.max(10, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with next best priorities", picks:remaining});
+    blocks.push({name:"Completion block", blockType:"completion", minutes:Math.max(8, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with the next best budget-compatible priorities", picks:remaining});
   }
 
   blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
@@ -2797,7 +2924,9 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
-  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked};
+  const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
+  const budgetUsage = budgetUsageForBlocks(blocks);
+  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage};
 }
 
 function renderAdaptiveSession() {
@@ -2811,20 +2940,32 @@ function renderAdaptiveSession() {
   adaptivePlanDraft = [...plan.routineIds];
 
   const mode = getSmartRecommendationMode();
+  const usage = plan.budgetUsage || {cognitive:0,fatigue:0,confidence:0,switches:0};
+  const budgets = plan.budgets || sessionBudgetsForGoal(plan.effectiveGoal, plan.targetMinutes);
+  const budgetHtml = `<div class="smart-budget-grid">
+    <span class="badge ${budgetBadgeClass(usage.cognitive,budgets.cognitive)}">Cognitive ${usage.cognitive}/${budgets.cognitive}</span>
+    <span class="badge ${budgetBadgeClass(usage.fatigue,budgets.fatigue)}">Fatigue ${usage.fatigue}/${budgets.fatigue}</span>
+    <span class="badge ${budgetBadgeClass(usage.confidence,budgets.confidence)}">Confidence risk ${usage.confidence}/${budgets.confidence}</span>
+    <span class="badge ${budgetBadgeClass(usage.switches,budgets.maxSwitches)}">Switches ${usage.switches}/${budgets.maxSwitches}</span>
+  </div>`;
+  const feedback = recommendationFeedbackSummary();
   const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
-    <h4>Smart session mode: ${escapeHtml(plan.effectiveGoal)}</h4>
+    <h4>Smart Session Builder v2: ${escapeHtml(plan.effectiveGoal)}</h4>
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
-    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded plan estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill block${plan.routineIds.length === 1 ? "" : "s"} · Recommendation mode: ${escapeHtml(mode === "thompson" ? "Thompson Sampling" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</div>
-  </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase">
+    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill slot${plan.routineIds.length === 1 ? "" : "s"} · Recommendation mode: ${escapeHtml(mode === "thompson" ? "Thompson Sampling" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</div>
+    ${budgetHtml}
+    <div class="adaptive-rationale">Feedback tracked: ${feedback.accepted} accepted · ${feedback.skipped} skipped · ${feedback.completed} completed. Completed recommendations capture score-after and improvement-after-recommendation once logged.</div>
+  </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase smart-block-card" data-block-type="${attrText(block.blockType || "")}">
     <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
     <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
-    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); return `<div class="routine-row">
+    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); return `<div class="routine-row">
       <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
-        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))} · Est. ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)}</div>
-        <ul class="reason-list">${p.reasons.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
+        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))} · Est. ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · Transfer ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · Load C${energy.cognitive}/F${energy.fatigue}/Conf${energy.confidence}</div>
+        <ul class="reason-list">${(p.reasons || []).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
+        ${renderFeedbackButtons(p.routine.id, "smart_session_builder")}
         ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
       </div>
-      <span class="badge">Score ${p.adaptiveScore.toFixed(1)}</span>
+      <span class="badge">Score ${Number(p.adaptiveScore || 0).toFixed(1)}</span>
     </div>`; }).join("")}
   </div>`).join("");
 
@@ -3005,6 +3146,7 @@ function renderSmartRecommendation() {
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
     <p class="muted">Reason: ${(top.reasons || []).slice(0,4).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
+    ${renderFeedbackButtons(routine.id, "smart_recommendation")}
     ${policyHtml}
     ${renderRecommendationLogicPanel(candidates, mode)}
     <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
@@ -5668,7 +5810,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.27.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6469,6 +6611,7 @@ function handleDelegatedUIAction(event) {
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
     case "toggle-skill-chip": return toggleSkillChip(actionEl.dataset.target || "", actionEl.dataset.container || "", actionEl.dataset.skillId || "");
+    case "recommendation-feedback": return trackRecommendationFeedback(id, actionEl.dataset.feedback || "accepted", {source:actionEl.dataset.source || "smart_session_builder"});
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -7179,6 +7322,7 @@ async function finishPressureSession() {
     createdAt: now,
     updatedAt: now
   };
+  updateRecommendationCompletionFromLog(log);
   data.logs.push(log);
   data.sessions.push(syntheticSession);
   await persistLogDelta(log, "finishPressureSession log put");
@@ -7462,7 +7606,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.26.3 Unified Recommendation Foundation ===== */
+/* ===== v4.27.0 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7587,7 +7731,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.26.3 Unified Recommendation Foundation ===== */
+/* ===== end v4.27.0 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){
