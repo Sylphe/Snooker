@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.34.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.34.0";
+} from "./utils.js?v=4.35.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.34.0";
+} from "./settings.js?v=4.35.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.34.0";
+} from "./analytics.js?v=4.35.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.34.0";
+} from "./bayesian.js?v=4.35.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.34.0";
+} from "./session.js?v=4.35.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.34.0";
+} from "./pressure.js?v=4.35.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.34.0";
+} from "./recommendations.js?v=4.35.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.34.0";
+} from "./store.js?v=4.35.0";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.34.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.35.0 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.34.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.35.0 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -3402,6 +3402,79 @@ function recommendationOutcomeSignal(routineId) {
   const score = Math.max(-10, Math.min(14, improvement * 0.25 + completionRate * 6));
   return {score, label:`recommendation outcomes ${improvement >= 0 ? "+" : ""}${improvement.toFixed(1)} avg`};
 }
+function recommendationLearningProfile(routineId) {
+  try {
+    const rows = ensureRecommendationFeedbackStore()
+      .filter(x => x.routineId === routineId && !x.toggledOffAt)
+      .slice(-60);
+    if (!rows.length) return {score:0, label:"no recommendation learning yet", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]};
+    const activeRows = rows.filter(x => !x.supersededAt || x.action === "completed");
+    const accepted = activeRows.filter(x => x.action === "accepted" || x.action === "completed").length;
+    const skipped = activeRows.filter(x => x.action === "skipped").length;
+    const completed = activeRows.filter(x => x.action === "completed" && x.scoreAfter !== null).length;
+    const completedRows = activeRows.filter(x => x.action === "completed" && x.improvementAfterRecommendation !== null);
+    const totalDecision = accepted + skipped;
+    const skipRate = totalDecision ? skipped / totalDecision : 0;
+    const completionRate = accepted ? completed / accepted : 0;
+    const avgImprovement = completedRows.length ? avg(completedRows.map(x => Number(x.improvementAfterRecommendation || 0))) : null;
+    const evidence = evidenceStrength(activeRows.length);
+    let score = 0;
+    const reasons = [];
+    if (avgImprovement !== null) {
+      const outcomeScore = Math.max(-12, Math.min(16, avgImprovement * 0.32));
+      score += outcomeScore;
+      reasons.push(`post-recommendation outcome ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)}`);
+    }
+    if (completed >= 3 && completionRate >= 0.55) { score += 5; reasons.push("usually completed after acceptance"); }
+    if (skipped >= 3 && skipRate >= 0.55) { score -= 10; reasons.push("often skipped by user"); }
+    else if (skipped >= 2 && skipRate >= 0.4) { score -= 5; reasons.push("sometimes skipped by user"); }
+    if (accepted >= 4 && skipRate <= 0.25) { score += 3; reasons.push("accepted pattern"); }
+    score = Math.max(-16, Math.min(18, score * Math.max(0.35, evidence.factor)));
+    const label = avgImprovement === null
+      ? `${accepted} accepted · ${skipped} skipped · ${completed} completed`
+      : `${accepted} accepted · ${skipped} skipped · ${completed} completed · ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)} after`;
+    return {score:Math.round(score * 10) / 10, label, evidence:evidence.label, accepted, skipped, completed, skipRate, completionRate, avgImprovement, reasons:reasons.slice(0,4)};
+  } catch (err) {
+    console.warn("Recommendation learning profile skipped", err);
+    return {score:0, label:"recommendation learning unavailable", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]};
+  }
+}
+function recommendationLearningReasonForRoutine(routineId) {
+  const p = recommendationLearningProfile(routineId);
+  if (!p || (!p.accepted && !p.skipped && !p.completed)) return "recommendation learning: no personal feedback yet";
+  if (p.skipRate >= 0.55 && p.skipped >= 3) return "recommendation learning: frequently skipped, down-weighted";
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) > 0) return `recommendation learning: completed recommendations improved by ${p.avgImprovement.toFixed(1)} on average`;
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) < 0) return `recommendation learning: completed recommendations underperformed by ${Math.abs(p.avgImprovement).toFixed(1)} on average`;
+  return `recommendation learning: ${p.label}`;
+}
+function recommendationLearningInsight() {
+  try {
+    const rows = ensureRecommendationFeedbackStore().filter(x => !x.toggledOffAt).slice(-120);
+    if (!rows.length) {
+      return `<div class="insight-card watch"><strong>Recommendation learning v2</strong><div class="muted small">No recommendation feedback yet. Accept/skip/completion data will personalize future recommendations.</div></div>`;
+    }
+    const completedRows = rows.filter(x => x.action === "completed" && x.improvementAfterRecommendation !== null);
+    const accepted = rows.filter(x => x.action === "accepted" || x.action === "completed").length;
+    const skipped = rows.filter(x => x.action === "skipped").length;
+    const completed = completedRows.length;
+    const avgImprovement = completedRows.length ? avg(completedRows.map(x => Number(x.improvementAfterRecommendation || 0))) : null;
+    const profiles = activeRoutines().map(r => ({routine:r, learning:recommendationLearningProfile(r.id)}))
+      .filter(x => x.learning.accepted || x.learning.skipped || x.learning.completed)
+      .sort((a,b) => Math.abs(b.learning.score) - Math.abs(a.learning.score))
+      .slice(0,4);
+    const cls = avgImprovement !== null && avgImprovement > 1 ? "good" : avgImprovement !== null && avgImprovement < -1 ? "risk" : "watch";
+    const improvementTxt = avgImprovement === null ? "N/A" : `${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)}`;
+    return `<div class="insight-card ${cls}"><strong>Recommendation learning v2</strong>
+      <div class="context-row"><span>Feedback loop</span><strong>${accepted} accepted · ${skipped} skipped</strong><span>${completed} completed</span></div>
+      <div class="context-row"><span>Avg outcome after completed recommendation</span><strong>${htmlText(improvementTxt)}</strong><span>${htmlText(evidenceStrength(rows.length).label)}</span></div>
+      ${profiles.length ? profiles.map(x => `<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.learning.reasons.join(" · ") || x.learning.label)}</span></span><strong>${x.learning.score >= 0 ? "+" : ""}${x.learning.score.toFixed(1)}</strong><span>${htmlText(x.learning.evidence)}</span></div>`).join("") : `<div class="muted small">No routine-level learning pattern yet.</div>`}
+      <div class="adaptive-rationale">The engine now uses accepted/skipped/completed outcomes as soft weights. Repeated skips down-weight a routine; positive completed outcomes increase its personalized ranking.</div>
+    </div>`;
+  } catch (err) {
+    console.warn("Recommendation learning insight skipped", err);
+    return `<div class="insight-card watch"><strong>Recommendation learning v2</strong><div class="muted small">Recommendation learning unavailable for this data set.</div></div>`;
+  }
+}
 function contextualFitForRoutine(routine, stats, stateModeObj=inferTrainingStateMode()) {
   const map = getRoutineSkillMap(routine);
   const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
@@ -3861,18 +3934,20 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const difficultySignal = dynamicDifficultyAdjustmentForRoutine(routine);
   const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
   const outcome = recommendationOutcomeSignal(routine.id);
+  const learning = recommendationLearningProfile(routine.id);
   const contextNormalization = routineContextNormalizationSignal(routine);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
   const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
   reasons.push(skillReasonText(routine));
   reasons.push(transferAwareReasonText(routine, transferNeed));
   if (outcome.score) reasons.push(outcome.label);
+  if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
@@ -3883,7 +3958,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25,
     trainingValueMean,
     uncertainty,
     sampledValue,
@@ -3896,6 +3971,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     volatilityProfile:volatility,
     transferValue,
     outcomeSignal:outcome,
+    learningSignal:learning,
     contextNormalization,
     reasons:[...new Set(reasons.filter(Boolean))]
   };
@@ -3969,6 +4045,7 @@ function renderSmartRecommendation() {
     <span class="badge">Context: ${escapeHtml(top.stateMode?.label || inferTrainingStateMode().label)}</span>
     <span class="badge">Volatility: ${escapeHtml(top.volatilityProfile?.level || "n/a")}</span>
     <span class="badge">Transfer: ${Number(top.transferValue || routineTransferValue(routine))}/100</span>
+    <span class="badge">Learning: ${top.learningSignal?.score ? (top.learningSignal.score >= 0 ? "+" : "") + top.learningSignal.score.toFixed(1) : "new"}</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
     <p class="muted">Reason: ${(top.reasons || []).slice(0,5).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
@@ -4144,7 +4221,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.34.0 Venue / Context Normalization v1 ===== */
+/* ===== v4.35.0 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4277,7 +4354,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.34.0 Venue / Context Normalization v1 ===== */
+/* ===== end v4.35.0 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -4344,6 +4421,7 @@ function renderPhaseOneInsights() {
     ${currentFormInsight(logs)}
     ${targetCredibleIntervalInsight(logs)}
     ${dynamicDifficultyInsight(logs)}
+    ${recommendationLearningInsight()}
   </div>`;
 }
 
@@ -6818,7 +6896,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.34.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

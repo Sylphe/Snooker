@@ -1,39 +1,20 @@
-# Snooker Practice PWA v4.34.0
+# Snooker Practice PWA v4.35.0
 
-## v4.34.0 — Venue / Context Normalization v1
+## v4.35.0 — Recommendation Learning v2
 
-Build timestamp: 2026-05-18 13:52 CEST (Europe/Paris).
-
-This release is built from the stable v4.33.0 safe Dynamic Difficulty checkpoint and adds context normalization without changing historical scores or bootstrap flow.
+Built from stable v4.34.0. This release adds a guarded recommendation-learning layer on top of accepted/skipped/completed feedback.
 
 ### Added
+- Routine-level recommendation learning profiles from accepted, skipped, and completed recommendations.
+- Soft personalized ranking weights: repeated skips down-weight a routine; positive completed outcomes boost it.
+- Average score-after / improvement-after-recommendation interpretation.
+- Recommendation Learning v2 insight card on the Insights page.
+- Learning badge and learning-aware reasons in Smart Recommendations.
 
-- Context-normalized performance insight card.
-- Table, time-of-day, and fatigue effect modelling.
-- Raw vs context-adjusted average display.
-- Context evidence labels for table/time/fatigue effects.
-- Routine-level context-normalization signal for recommendations.
-- Recommendation reasons now highlight whether recent raw performance was helped or suppressed by context.
+### Stability precautions
+- No top-level recommendation-learning execution.
+- All learning insight calculations are guarded with `try/catch`.
+- Recommendation learning is a soft score only; it does not overwrite logs, scores, tags, or historical records.
+- Service worker cache name, module query strings, and build metadata are aligned to v4.35.0.
 
-### Safety / bootstrap precautions
-
-- No context-normalization logic executes at module top level.
-- All context-normalization calculations are guarded with `try/catch`.
-- Score extraction uses safe normalization so malformed legacy logs cannot break rendering.
-- Historical logs are not rewritten; context adjustment is analytical only.
-- Service worker cache name, module query strings, and build metadata are aligned to v4.34.0.
-
-### Preserved from v4.33.0
-
-- Dynamic Difficulty Adjustment v1.
-- Target credible intervals.
-- Low-N shrinkage.
-- Progressive-completion bounds validation.
-- Whole-number validation for count-based fields.
-- Zero-denominator-safe analytics.
-- Improved volatility fallback.
-
-### Validation
-
-- JavaScript syntax checks passed.
-- Zip integrity check passed.
+Build timestamp: 2026-05-18 14:02 CEST.
