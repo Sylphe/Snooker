@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.26.2 Thompson recommendation logic */
+/* v4.26.3 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2697,7 +2697,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .dq-medium{border-left:4px solid #d9b36b;}
 .dq-low{border-left:4px solid #7f8fa6;}
 
-/* v4.26.2 Reflection rating tile UX */
+/* v4.26.3 Reflection rating tile UX */
 .skill-badge{border-style:dashed;}
 .reflection-rating-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0;}
 .reflection-rating-card{min-width:0;}
@@ -2710,7 +2710,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 @media (max-width: 520px){.reflection-rating-grid{grid-template-columns:1fr;}.reflection-rating-tile{min-height:42px;}}
 
 
-/* v4.26.2 Canonical skill tag chip selector */
+/* v4.26.3 Canonical skill tag chip selector */
 .skill-chip-grid{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
 .skill-chip-section{border:1px solid var(--border, rgba(148,163,184,.28));border-radius:12px;padding:10px;background:var(--panel-soft, rgba(148,163,184,.08));}
 .skill-chip-heading{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted, #64748b);margin-bottom:8px;}

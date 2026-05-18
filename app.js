@@ -1,5 +1,5 @@
-// Snooker Practice Log v4.26.2 module bootstrap
-import "./modules/app-core.js?v=4.26.2";
+// Snooker Practice Log v4.26.3 module bootstrap
+import "./modules/app-core.js?v=4.26.3";
 
 
 function renderRecommendationDiagnostics(candidates){

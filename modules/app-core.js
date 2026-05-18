@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.26.2";
+} from "./utils.js?v=4.26.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.26.2";
+} from "./settings.js?v=4.26.3";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.26.2";
+} from "./analytics.js?v=4.26.3";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.26.2";
+} from "./bayesian.js?v=4.26.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.26.2";
+} from "./session.js?v=4.26.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.26.2";
+} from "./pressure.js?v=4.26.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.26.2";
+} from "./recommendations.js?v=4.26.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.26.2";
+} from "./store.js?v=4.26.3";
 
 
 
@@ -455,6 +455,47 @@ function getRoutineSkillMap(routine){
   if(!data.routineSkillMap[routine.id]) data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
   return data.routineSkillMap[routine.id];
 }
+function skillSnapshotForRoutine(routine, skillMap){
+  const m = normalizeRoutineSkillMap(routine || {}, skillMap || getRoutineSkillMap(routine));
+  return {
+    primarySkill: m.primarySkill,
+    secondarySkills: normalizeSkillList(m.secondarySkills),
+    transferTags: normalizeSkillList(m.transferTags),
+    skillMapSource: m.source || "manual",
+    skillMapUpdatedAt: m.updatedAt || new Date().toISOString()
+  };
+}
+function applySkillSnapshotToLog(log, routine, skillMap){
+  if(!log || !routine) return log;
+  const snap = skillSnapshotForRoutine(routine, skillMap);
+  log.primarySkill = snap.primarySkill;
+  log.secondarySkills = snap.secondarySkills;
+  log.transferTags = snap.transferTags;
+  log.skillMapSource = snap.skillMapSource;
+  log.skillMapUpdatedAt = snap.skillMapUpdatedAt;
+  return log;
+}
+function syncRoutineSkillMapToHistoricalLogs(routineId, skillMap, options = {}){
+  const rid = String(routineId || "");
+  if(!rid || !Array.isArray(data.logs)) return 0;
+  const routine = routineById(rid) || (data.routines || []).find(r => String(r.id) === rid);
+  if(!routine) return 0;
+  const map = normalizeRoutineSkillMap(routine, skillMap || data.routineSkillMap?.[rid] || routine.skillMap);
+  let changed = 0;
+  data.logs.forEach(log => {
+    if(String(log.routineId || "") !== rid) return;
+    const before = JSON.stringify([log.primarySkill, log.secondarySkills, log.transferTags, log.skillMapUpdatedAt]);
+    applySkillSnapshotToLog(log, routine, map);
+    const after = JSON.stringify([log.primarySkill, log.secondarySkills, log.transferTags, log.skillMapUpdatedAt]);
+    if(before !== after) changed += 1;
+  });
+  if(changed && options.persist !== false && indexedDBReady && !indexedDBUnavailable){
+    data.logs
+      .filter(log => String(log.routineId || "") === rid)
+      .forEach(log => idbPut(INDEXEDDB_LOG_STORE, log).catch(e => logAppError(e, "syncRoutineSkillMapToHistoricalLogs idbPut")));
+  }
+  return changed;
+}
 function routineSkillBadges(routine){
   const m=getRoutineSkillMap(routine);
   const sec=(m.secondarySkills||[]).slice(0,3).map(skillLabel).join(" · ");
@@ -507,7 +548,13 @@ function reflectionIntelligenceSummary(logs){
 }
 function skillMapInsight(logs){
   const counts={};
-  (logs||[]).forEach(l=>{ const r=routineById(l.routineId); if(!r)return; const m=getRoutineSkillMap(r); const mins=Number(l.timeMinutes||0)||1; counts[m.primarySkill]=(counts[m.primarySkill]||0)+mins; });
+  (logs||[]).forEach(l=>{
+    const r=routineById(l.routineId);
+    const primary = normalizeSkillId(l.primarySkill || (r ? getRoutineSkillMap(r).primarySkill : ""));
+    if(!primary || primary === "uncategorized") return;
+    const mins=Number(l.timeMinutes||0)||1;
+    counts[primary]=(counts[primary]||0)+mins;
+  });
   const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
   if(!rows.length) return `<div class="insight-card watch"><strong>Skill map</strong><div class="muted">No skill-mapped logs in this scope yet.</div></div>`;
   const total=rows.reduce((a,b)=>a+b[1],0);
@@ -689,6 +736,11 @@ function migrateData(d) {
   d.routineSkillMap = d.routineSkillMap || {};
   d.skillTrendCache = d.skillTrendCache || {};
   d.routines.forEach(r => { d.routineSkillMap[r.id] = normalizeRoutineSkillMap(r, d.routineSkillMap[r.id]); });
+  const routineLookup = new Map((d.routines || []).map(r => [String(r.id), r]));
+  d.logs = (d.logs || []).map(l => {
+    const r = routineLookup.get(String(l.routineId || ""));
+    return r ? applySkillSnapshotToLog(l, r, d.routineSkillMap[r.id]) : l;
+  });
   return d;
 }
 
@@ -1259,6 +1311,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
 
   data.routineSkillMap = data.routineSkillMap || {};
   data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
+  const historicalSkillLogsUpdated = $("routineEditId").value ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:true}) : 0;
 
   if ($("routineEditId").value) {
     const oldRoutine = data.routines.find(r => r.id === routine.id);
@@ -1295,7 +1348,8 @@ $("saveRoutineBtn").addEventListener("click", () => {
   }
 
   clearRoutineForm();
-  saveData();
+  saveData({immediateIDB: historicalSkillLogsUpdated > 0});
+  if (historicalSkillLogsUpdated > 0) showTransientNotice(`Skill tags applied to ${historicalSkillLogsUpdated} historical log${historicalSkillLogsUpdated === 1 ? "" : "s"}.`, "ok");
 });
 
 $("addRoutineToPlanBtn").addEventListener("click", () => {
@@ -1787,6 +1841,7 @@ async function saveCurrentRoutine() {
     folder: r.folder || "Unfiled",
     subfolder: r.subfolder || "General",
     category: r.category || "uncategorized",
+    ...skillSnapshotForRoutine(r),
     scoring: r.scoring,
     score,
     attempts,
@@ -5116,6 +5171,7 @@ function makeSyntheticLog(routine, session, index, batchId) {
     folder: routine?.folder || "Diagnostics",
     subfolder: routine?.subfolder || "Storage test",
     category: routine?.category || "diagnostics",
+    ...(routine ? skillSnapshotForRoutine(routine) : {}),
     scoring,
     score,
     attempts,
@@ -5612,7 +5668,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7042,6 +7098,7 @@ async function finishPressureSession() {
     folder:routine.folder || "Unfiled",
     subfolder:routine.subfolder || "General",
     category:routine.category || "uncategorized",
+    ...skillSnapshotForRoutine(routine),
     scoring:"success_rate",
     score:pressureSession.makes,
     attempts,
@@ -7405,7 +7462,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.26.2 Unified Recommendation Foundation ===== */
+/* ===== v4.26.3 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7530,7 +7587,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.26.2 Unified Recommendation Foundation ===== */
+/* ===== end v4.26.3 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){
