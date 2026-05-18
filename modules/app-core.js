@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.29.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.29.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.29.0";
+} from "./utils.js?v=4.29.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.29.0";
+} from "./settings.js?v=4.29.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.29.0";
+} from "./analytics.js?v=4.29.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.29.0";
+} from "./bayesian.js?v=4.29.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.29.0";
+} from "./session.js?v=4.29.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.29.0";
+} from "./pressure.js?v=4.29.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.29.0";
+} from "./recommendations.js?v=4.29.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.29.0";
+} from "./store.js?v=4.29.1";
 
 
 
@@ -589,6 +589,38 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   });
   return acc;
 }
+function evidenceStrength(n=0){
+  n = Number(n || 0);
+  if(n >= 20) return {level:"strong", label:"Strong evidence", factor:1.00};
+  if(n >= 10) return {level:"moderate", label:"Moderate evidence", factor:0.75};
+  if(n >= 5) return {level:"weak", label:"Weak evidence", factor:0.50};
+  if(n >= 2) return {level:"early", label:"Early signal", factor:0.30};
+  return {level:"insufficient", label:"Insufficient data", factor:0.15};
+}
+function evidenceBadge(n=0, extra=""){
+  const e = evidenceStrength(n);
+  const suffix = extra ? ` · ${htmlText(extra)}` : "";
+  return `<span class="evidence-badge evidence-${attrText(e.level)}">${htmlText(e.label)} · n=${Number(n||0)}${suffix}</span>`;
+}
+function dampenByEvidence(value, n=0){
+  const v = Number(value || 0);
+  return Math.round(v * evidenceStrength(n).factor * 10) / 10;
+}
+function cautiousActionText(base, n=0){
+  const e = evidenceStrength(n);
+  if(e.level === "strong" || e.level === "moderate") return base;
+  if(String(base).includes("outperforming")) return "Early positive signal. Keep difficulty stable unless this repeats.";
+  if(String(base).includes("underperforming")) return "Early negative signal. Check fatigue/context before changing the drill.";
+  return "Early signal. Keep collecting data before changing targets.";
+}
+function signalLabelFromScore(score){
+  const x=Number(score||0);
+  if(x >= 70) return "Severe";
+  if(x >= 50) return "High";
+  if(x >= 30) return "Moderate";
+  return "Low";
+}
+
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
   const profile = routineGraphTransferProfile(routine);
   let score = 0;
@@ -598,9 +630,10 @@ function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSumma
     const avgScore = perf?.avg;
     const weaknessGap = avgScore === null || avgScore === undefined ? 8 : Math.max(0, 72 - Number(avgScore));
     const trendPenalty = perf?.trend < -3 ? Math.min(6, Math.abs(perf.trend)) : 0;
-    const contribution = (weaknessGap + trendPenalty) * edge.weight * 0.35;
+    const n = Number(perf?.n || 0);
+    const contribution = dampenByEvidence((weaknessGap + trendPenalty) * edge.weight * 0.35, n);
     score += contribution;
-    if(contribution >= 1.4) reasons.push(`${skillLabel(edge.skill)} downstream need`);
+    if(contribution >= 1.4) reasons.push(`${skillLabel(edge.skill)} downstream need (${evidenceStrength(n).label.toLowerCase()})`);
   });
   if(profile.breadth >= 4) { score += 3; reasons.push("broad transfer graph"); }
   return {score:Math.round(score * 10) / 10, reasons:[...new Set(reasons)].slice(0,3), profile};
@@ -608,11 +641,12 @@ function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSumma
 function transferAwareReasonText(routine, transferNeed=null){
   const t = transferNeed || transferNeedScoreForRoutine(routine);
   const top = t.profile.topDownstream.slice(0,3);
-  if(!top.length) return "limited observed transfer graph";
+  if(!top.length) return "Limited transfer profile.";
   const downstream = top.map(x=>skillLabel(x.skill)).join(" / ");
-  const need = t.reasons.length ? `; current need: ${t.reasons.join(" · ")}` : "";
-  return `upstream transfer into ${downstream}${need}`;
+  const need = t.reasons.length ? ` Current need: ${t.reasons.join(" · ")}.` : "";
+  return `Primary transfer targets: ${downstream}.${need}`;
 }
+
 function transferModelInsight(logs){
   const summary = skillPerformanceSummary(logs || data.logs || []);
   const routines = activeRoutines();
@@ -620,13 +654,18 @@ function transferModelInsight(logs){
   const upstream = routines.map(r => { const t=transferNeedScoreForRoutine(r, summary); return {routine:r, ...t}; })
     .sort((a,b)=>(b.score + b.profile.totalWeight * 5) - (a.score + a.profile.totalWeight * 5))
     .slice(0,3);
-  const weakSkills = Object.values(summary).filter(x => x.n >= 2).sort((a,b)=>(a.avg||100)-(b.avg||100)).slice(0,3);
+  const weakSkills = Object.values(summary).filter(x => x.n >= 2).map(x=>{
+      const avgScore = Number(x.avg || 0);
+      const weaknessIndex = Math.max(0, 100 - avgScore);
+      return {...x, weaknessIndex, evidence:evidenceStrength(x.n)};
+    }).sort((a,b)=>b.weaknessIndex-a.weaknessIndex).slice(0,3);
   return `<div class="insight-card watch"><strong>Transfer model v1</strong>
-    <div class="adaptive-rationale">The app now gives partial indirect credit from upstream skills to downstream skills. These are weak signals until sample sizes grow.</div>
-    ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span></span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
-    ${weakSkills.length?`<div class="adaptive-rationale">Current bottlenecks: ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} ${Number(x.avg||0).toFixed(0)}`).join(" · ")}</div>`:""}
+    <div class="adaptive-rationale">Indirect transfer signals are evidence-weighted. Low-sample relationships are shown, but dampened in recommendation scoring.</div>
+    ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span><br>${evidenceBadge(Math.max(...x.profile.topDownstream.slice(0,3).map(e=>Number(summary[e.skill]?.n||0)),0), "transfer basis")}</span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
+    ${weakSkills.length?`<div class="adaptive-rationale"><strong>Bottleneck severity:</strong> ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} — ${signalLabelFromScore(x.weaknessIndex)} (${htmlText(x.evidence.label.toLowerCase())})`).join(" · ")}</div>`:""}
   </div>`;
 }
+
 function parseRating(id){ const v=Number($(id)?.value||0); return Number.isFinite(v)&&v>0 ? v : null; }
 function sessionPerformanceForReflection(session){
   const ids=new Set((session?.logIds||[]).filter(Boolean));
@@ -650,8 +689,9 @@ function classifyReflectionPerformance(session){
 }
 function reflectionIntelligenceSummary(logs){
   const scoped=new Set((logs||[]).map(l=>l.sessionId).filter(Boolean));
+  const scopedSessionCount = scoped.size;
   const sessions=(data.sessions||[]).filter(s=>scoped.has(s.id)&&s.reflection);
-  if(!sessions.length) return `<div class="insight-card watch"><strong>Reflection intelligence</strong><div class="muted">No structured reflection ratings in this scope yet.</div></div>`;
+  if(!sessions.length) return `<div class="insight-card watch"><strong>Reflection intelligence</strong><div class="muted">No structured reflection ratings in this scope yet.</div><div class="adaptive-rationale">Coverage: 0 / ${scopedSessionCount || 0} sessions.</div></div>`;
   const classified=sessions.map(s=>({session:s,...classifyReflectionPerformance(s)}));
   const fatigue=classified.map(x=>x.fatigue).filter(Number.isFinite);
   const quality=classified.map(x=>x.subjectiveQuality).filter(Number.isFinite);
@@ -659,13 +699,16 @@ function reflectionIntelligenceSummary(logs){
   const divGood=classified.filter(x=>x.flags.includes("good_score_bad_feel")).length;
   const divBad=classified.filter(x=>x.flags.includes("bad_score_good_feel")).length;
   const fatigueRisk=classified.filter(x=>x.flags.includes("fatigue_risk")).length;
+  const coverage = scopedSessionCount ? `${sessions.length} / ${scopedSessionCount}` : `${sessions.length}`;
   return `<div class="insight-card watch"><strong>Reflection intelligence</strong>
-    <div class="context-row"><span>Avg subjective quality</span><strong>${quality.length?avg(quality).toFixed(1)+"/5":"N/A"}</strong><span>${sessions.length} session${sessions.length===1?"":"s"}</span></div>
+    <div class="context-row"><span>Reflection coverage</span><strong>${coverage}</strong><span>${evidenceStrength(sessions.length).label}</span></div>
+    <div class="context-row"><span>Avg subjective quality</span><strong>${quality.length?avg(quality).toFixed(1)+"/5":"N/A"}</strong><span>${quality.length}/${sessions.length} rated</span></div>
     <div class="context-row"><span>Avg fatigue</span><strong>${fatigue.length?avg(fatigue).toFixed(1)+"/5":"N/A"}</strong><span>${fatigueRisk} high-fatigue flags</span></div>
     <div class="context-row"><span>Avg performance</span><strong>${perf.length?avg(perf).toFixed(1):"N/A"}</strong><span>reflection-linked logs</span></div>
-    <div class="adaptive-rationale">Divergence flags: ${divGood} good-score/bad-feel · ${divBad} bad-score/good-feel. These signals are used as recommendation context, not as hard overrides.</div>
+    <div class="adaptive-rationale">Divergence flags: ${divGood} good-score/bad-feel · ${divBad} bad-score/good-feel. These are context signals, not hard overrides.</div>
   </div>`;
 }
+
 function skillMapInsight(logs){
   const counts={};
   (logs||[]).forEach(l=>{
@@ -3554,7 +3597,7 @@ function routineResidualInsight(routineId) {
   } else {
     action = "Performance is close to expectation. Maintain current progression.";
   }
-  return {routine:routineById(routineId), logs, series, recent, residualMean, residualStd, signal, action};
+  return {routine:routineById(routineId), logs, series, recent, residualMean, adjustedResidualMean:dampenByEvidence(residualMean, logs.length), residualStd, signal, action:cautiousActionText(action, logs.length), evidence:evidenceStrength(logs.length)};
 }
 function renderResidualInsights(logs) {
   const scopedRoutineIds = [...new Set(logs.map(l => l.routineId).filter(Boolean))];
@@ -3562,7 +3605,7 @@ function renderResidualInsights(logs) {
   if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history/variation yet.</div></div>`;
   return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
     <strong>Expected vs actual residuals ${statHelpButton("residual")}</strong>
-    ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.residualMean>=0?"+":""}${i.residualMean.toFixed(1)}</strong><span>n=${i.logs.length}</span></div>`).join("")}
+    ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.adjustedResidualMean>=0?"+":""}${i.adjustedResidualMean.toFixed(1)}</strong><span>${evidenceBadge(i.logs.length)}</span></div>`).join("")}
   </div>`;
 }
 function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15) {
@@ -4676,13 +4719,13 @@ function renderSecondOrderAnalytics(logs, selectedRid, rollingWindow=10) {
   const transfer = selectedRid ? exerciseTransferEffect(data.logs, selectedRid) : null;
 
   const cards = [];
-  if (drift) cards.push({cls: drift.deltaPct < -7 ? "signal-risk" : drift.deltaPct > 7 ? "signal-good" : "signal-watch", title:"Performance drift", text:`Recent ${drift.recent.toFixed(2)} vs prior ${drift.prior.toFixed(2)} (${drift.deltaPct>=0?"+":""}${drift.deltaPct.toFixed(1)}%).`});
-  if (quality) cards.push({cls: quality.deltaPct > 10 ? "signal-good" : "signal-watch", title:"Session quality impact", text:`High-rated sessions average ${quality.highAvg.toFixed(2)} vs low-rated ${quality.lowAvg.toFixed(2)} (${quality.deltaPct>=0?"+":""}${quality.deltaPct.toFixed(1)}%).`});
-  if (optimal) cards.push({cls:"signal-watch", title:"Optimal session length", text:`Best band: ${optimal.best.label} (${optimal.best.avgPerf.toFixed(2)} avg). Time/performance correlation: ${corrText(optimal.corr)}.`});
-  if (velocity) cards.push({cls: velocity.slope > .5 ? "signal-good" : velocity.slope < -.5 ? "signal-risk" : "signal-watch", title:"Progress velocity", text:`Slope over last ${velocity.n}: ${velocity.slope.toFixed(2)} per log (${velocity.label}).`});
-  if (plateau) cards.push({cls: plateau.isPlateau ? "signal-risk" : "signal-watch", title:"Plateau detector", text: plateau.isPlateau ? `Plateau detected: only ${plateau.deltaPct.toFixed(1)}% change.` : `No plateau: ${plateau.deltaPct>=0?"+":""}${plateau.deltaPct.toFixed(1)}% change.`});
+  if (drift) { const ev=evidenceStrength(Math.max(rollingWindow, logs.length)); cards.push({cls: drift.deltaPct < -7 ? "signal-risk" : drift.deltaPct > 7 ? "signal-good" : "signal-watch", title:"Performance drift", text:`Recent ${drift.recent.toFixed(2)} vs prior ${drift.prior.toFixed(2)} (${drift.deltaPct>=0?"+":""}${dampenByEvidence(drift.deltaPct, logs.length).toFixed(1)}% evidence-adjusted). ${ev.label}.`}); }
+  if (quality) { const ev=evidenceStrength(logs.length); cards.push({cls: quality.deltaPct > 10 ? "signal-good" : "signal-watch", title:"Session quality impact", text:`High-rated sessions average ${quality.highAvg.toFixed(2)} vs low-rated ${quality.lowAvg.toFixed(2)} (${quality.deltaPct>=0?"+":""}${dampenByEvidence(quality.deltaPct, logs.length).toFixed(1)}% evidence-adjusted). ${ev.label}.`}); }
+  if (optimal) cards.push({cls:"signal-watch", title:"Optimal session length", text:`Best observed band: ${optimal.best.label} (${optimal.best.avgPerf.toFixed(2)} avg). Treat as directional; short sessions can be selection-biased. Correlation: ${corrText(optimal.corr)}.`});
+  if (velocity) { const ev=evidenceStrength(velocity.n); cards.push({cls: velocity.slope > .5 ? "signal-good" : velocity.slope < -.5 ? "signal-risk" : "signal-watch", title:"Progress velocity", text:`Evidence-adjusted slope over last ${velocity.n}: ${dampenByEvidence(velocity.slope, velocity.n).toFixed(2)} per log (${velocity.label}). ${ev.label}.`}); }
+  if (plateau) { const ev=evidenceStrength(logs.length); cards.push({cls: plateau.isPlateau ? "signal-risk" : "signal-watch", title:"Plateau detector", text: plateau.isPlateau ? `Possible plateau: only ${dampenByEvidence(plateau.deltaPct, logs.length).toFixed(1)}% evidence-adjusted change. ${ev.label}.` : `No confirmed plateau: ${plateau.deltaPct>=0?"+":""}${dampenByEvidence(plateau.deltaPct, logs.length).toFixed(1)}% evidence-adjusted change. ${ev.label}.`}); }
   if (overtraining) cards.push({cls: overtraining.signal==="Risk" ? "signal-risk" : "signal-good", title:"Overtraining signal", text:`Volume ${overtraining.volumeDelta>=0?"+":""}${overtraining.volumeDelta.toFixed(1)}%, performance ${overtraining.perfDelta>=0?"+":""}${overtraining.perfDelta.toFixed(1)}% → ${overtraining.signal}.`});
-  if (transfer) cards.push({cls: transfer.corr > .35 ? "signal-good" : transfer.corr < -.35 ? "signal-risk" : "signal-watch", title:"Exercise transfer effect", text:`Previous-day ${transfer.category} vs selected exercise: ${corrText(transfer.corr)} over ${transfer.n} paired days.`});
+  if (transfer) cards.push({cls: transfer.corr > .35 ? "signal-good" : transfer.corr < -.35 ? "signal-risk" : "signal-watch", title:"Exercise transfer effect", text:`Previous-day ${transfer.category} vs selected exercise: ${corrText(transfer.corr)} over ${transfer.n} paired days. ${evidenceStrength(transfer.n).label}.`});
 
   if (!cards.length) return `<h3>Second-order analytics ${statHelpButton("performanceDrift")}</h3><p class="muted">More logs are needed for drift, quality impact, optimal session length, transfer, plateau, and overtraining diagnostics.</p>`;
   return `<h3>Second-order analytics ${statHelpButton("performanceDrift")}</h3><div class="diagnostic-grid">${cards.map(c=>`<div class="diagnostic-card ${c.cls}"><strong>${escapeHtml(c.title)}</strong>${escapeHtml(c.text)}</div>`).join("")}</div>`;
@@ -6137,7 +6180,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.29.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.29.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7933,7 +7976,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.29.0 Transfer Model v1 ===== */
+/* ===== v4.29.1 Transfer Model v1 ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -8058,7 +8101,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.29.0 Transfer Model v1 ===== */
+/* ===== end v4.29.1 Transfer Model v1 ===== */
 
 
 document.addEventListener("click", function(e){

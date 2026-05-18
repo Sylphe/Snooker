@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.29.0 Context-aware recommendation logic */
+/* v4.29.1 Context-aware recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2771,3 +2771,25 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
   color:var(--accent-strong, var(--text));
   font-weight:800;
 }
+
+/* v4.29.1 Evidence calibration and readability */
+.evidence-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  margin-top:4px;
+  padding:2px 7px;
+  border-radius:999px;
+  font-size:11px;
+  line-height:1.35;
+  font-weight:700;
+  border:1px solid var(--border, rgba(148,163,184,.35));
+  background:rgba(148,163,184,.12);
+  color:var(--muted, #64748b);
+  white-space:nowrap;
+}
+.evidence-strong{ background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); color:#166534; }
+.evidence-moderate{ background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.35); color:#1d4ed8; }
+.evidence-weak,.evidence-early{ background:rgba(245,158,11,.13); border-color:rgba(245,158,11,.38); color:#92400e; }
+.evidence-insufficient{ background:rgba(148,163,184,.13); border-color:rgba(148,163,184,.35); color:#475569; }
+.context-row .evidence-badge{ margin-left:0; }
