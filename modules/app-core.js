@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.36.1";
+} from "./utils.js?v=4.36.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.36.1";
+} from "./settings.js?v=4.36.2";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.36.1";
+} from "./analytics.js?v=4.36.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.36.1";
+} from "./bayesian.js?v=4.36.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.36.1";
+} from "./session.js?v=4.36.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.36.1";
+} from "./pressure.js?v=4.36.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.36.1";
+} from "./recommendations.js?v=4.36.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.36.1";
+} from "./store.js?v=4.36.2";
 
 
 
@@ -324,10 +324,16 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
   }
 }
 async function bootstrapIndexedDBStorage() {
-  await hydrateIndexedDBData();
-  ensureTablesDatabase?.();
-  refreshReferenceNames?.();
-  renderAll();
+  try {
+    await hydrateIndexedDBData();
+  } catch (error) {
+    indexedDBUnavailable = true;
+    indexedDBHydrating = false;
+    try { logAppError(error, "bootstrapIndexedDBStorage hydrate"); } catch (_) { console.error(error); }
+  }
+  safeCall("bootstrap ensureTablesDatabase", () => ensureTablesDatabase?.());
+  safeCall("bootstrap refreshReferenceNames", () => refreshReferenceNames?.());
+  safeRenderAll("bootstrap renderAll");
 }
 
 
@@ -909,7 +915,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.36.2 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1036,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.36.2 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1187,7 +1193,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.36.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.36.2 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1271,6 +1277,35 @@ const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
 let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
 
 function $(id) { return document.getElementById(id); }
+
+// v4.36.2 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
+function safeOn(id, eventName, handler, options) {
+  const el = typeof id === "string" ? $(id) : id;
+  if (!el || typeof el.addEventListener !== "function") return false;
+  el.addEventListener(eventName, handler, options);
+  return true;
+}
+function safeCall(label, fn, fallback) {
+  try {
+    return typeof fn === "function" ? fn() : fallback;
+  } catch (error) {
+    try { logAppError(error, label || "safeCall"); } catch (_) { console.error(label || "safeCall", error); }
+    return fallback;
+  }
+}
+function finiteOr(value, fallback=0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function safeRenderAll(context="safeRenderAll") {
+  try {
+    renderAll();
+    return true;
+  } catch (error) {
+    try { logAppError(error, context); } catch (_) { console.error(context, error); }
+    return false;
+  }
+}
 function normalizeStatsRoutineFilter(value) {
   const v = String(value || "all");
   return v && v !== "" ? v : "all";
@@ -1705,39 +1740,42 @@ function activateTab(tabId) {
 document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
 function renderAll() {
-  renderRoutineSelects();
-  if (typeof renderPressureRoutineOptions === "function") renderPressureRoutineOptions();
-  renderRoutineList();
-  renderPlanBuilder();
-  renderPlanList();
-  renderStats();
-  renderToday();
-  renderSmartRecommendation();
-  renderTagSuggestions();
-  renderBackupReminder();
-  renderStorageDashboard();
-  renderExportFolderStatus();
-  renderPeriodization();
-  renderRegretRoutineOptions();
-  renderTableDatabase();
-  renderTableSelects();
-  renderTrainingLoad();
-  renderWeeklyReview();
-  renderABComparison();
-  renderResumeCard();
-  renderTodayResumeCard();
-  renderQuickResumeBanner();
-  renderTableStats();
-  renderPhaseOneInsights();
-  renderBayesianAnalyticsValidation();
-  toggleStatsStandalonePanels();
-  renderInterfaceSettings();
-  restorePracticeMainTab();
-  restorePlansMainTab();
-  restoreTemplatesMainTab();
-  restoreDataMainTab();
-  updateSessionFocusState();
-  if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons();
+  const renderSteps = [
+    ["renderRoutineSelects", renderRoutineSelects],
+    ["renderPressureRoutineOptions", () => { if (typeof renderPressureRoutineOptions === "function") renderPressureRoutineOptions(); }],
+    ["renderRoutineList", renderRoutineList],
+    ["renderPlanBuilder", renderPlanBuilder],
+    ["renderPlanList", renderPlanList],
+    ["renderStats", renderStats],
+    ["renderToday", renderToday],
+    ["renderSmartRecommendation", renderSmartRecommendation],
+    ["renderTagSuggestions", renderTagSuggestions],
+    ["renderBackupReminder", renderBackupReminder],
+    ["renderStorageDashboard", renderStorageDashboard],
+    ["renderExportFolderStatus", renderExportFolderStatus],
+    ["renderPeriodization", renderPeriodization],
+    ["renderRegretRoutineOptions", renderRegretRoutineOptions],
+    ["renderTableDatabase", renderTableDatabase],
+    ["renderTableSelects", renderTableSelects],
+    ["renderTrainingLoad", renderTrainingLoad],
+    ["renderWeeklyReview", renderWeeklyReview],
+    ["renderABComparison", renderABComparison],
+    ["renderResumeCard", renderResumeCard],
+    ["renderTodayResumeCard", renderTodayResumeCard],
+    ["renderQuickResumeBanner", renderQuickResumeBanner],
+    ["renderTableStats", renderTableStats],
+    ["renderPhaseOneInsights", renderPhaseOneInsights],
+    ["renderBayesianAnalyticsValidation", renderBayesianAnalyticsValidation],
+    ["toggleStatsStandalonePanels", toggleStatsStandalonePanels],
+    ["renderInterfaceSettings", renderInterfaceSettings],
+    ["restorePracticeMainTab", restorePracticeMainTab],
+    ["restorePlansMainTab", restorePlansMainTab],
+    ["restoreTemplatesMainTab", restoreTemplatesMainTab],
+    ["restoreDataMainTab", restoreDataMainTab],
+    ["updateSessionFocusState", updateSessionFocusState],
+    ["ensureRoutinePickerButtons", () => { if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons(); }]
+  ];
+  renderSteps.forEach(([label, fn]) => safeCall(label, fn));
 }
 
 function renderRoutineSelects() {
@@ -1777,8 +1815,8 @@ function renderRoutineSelects() {
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
 ["exerciseTypeFilter","exerciseFolderFilter","exerciseSearch","planTypeFilter","planFolderFilter"].forEach(id => {
-  $(id).addEventListener("input", renderAll);
-  $(id).addEventListener("change", renderAll);
+  safeOn(id, "input", renderAll);
+  safeOn(id, "change", renderAll);
 });
 
 function renderRoutineList() {
@@ -1900,9 +1938,9 @@ function clearRoutineForm() {
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
 }
-$("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
+safeOn("clearRoutineFormBtn", "click", clearRoutineForm);
 if ($("exerciseFormMode")) {
-  $("exerciseFormMode").addEventListener("change", e => applyExerciseFormMode(e.target.value));
+  safeOn("exerciseFormMode", "change", e => applyExerciseFormMode(e.target.value));
   applyExerciseFormMode(getExerciseFormMode());
 }
 renderRoutineSkillChips({secondarySkills: getSkillHiddenValue("routineSecondarySkills"), transferTags: getSkillHiddenValue("routineTransferTags")});
@@ -1925,7 +1963,7 @@ function deleteRoutine(id) {
     saveData();
   });
 }
-$("saveRoutineBtn").addEventListener("click", () => {
+safeOn("saveRoutineBtn", "click", () => {
   const name = $("routineName").value.trim();
   if (!name) return alert("Enter an exercise name.");
   const newCategory = $("routineCategoryNew").value.trim();
@@ -2013,7 +2051,7 @@ $("saveRoutineBtn").addEventListener("click", () => {
   if (historicalSkillLogsUpdated > 0) showTransientNotice(`Skill tags applied to ${historicalSkillLogsUpdated} historical log${historicalSkillLogsUpdated === 1 ? "" : "s"}.`, "ok");
 });
 
-$("addRoutineToPlanBtn").addEventListener("click", () => {
+safeOn("addRoutineToPlanBtn", "click", () => {
   const id = $("routineToAdd").value;
   if (!id) return;
   planDraft.push(id);
@@ -2043,8 +2081,8 @@ function removePlanRoutine(index) {
   planDraft.splice(index, 1);
   renderPlanBuilder();
 }
-$("randomizePlanBtn").addEventListener("click", () => randomizePlan(false));
-$("appendRandomPlanBtn").addEventListener("click", () => randomizePlan(true));
+safeOn("randomizePlanBtn", "click", () => randomizePlan(false));
+safeOn("appendRandomPlanBtn", "click", () => randomizePlan(true));
 function randomizePlan(append) {
   const n = Number($("randomCount").value || 0);
   if (!n || n < 1) return alert("Enter a valid number of exercises.");
@@ -2056,7 +2094,7 @@ function randomizePlan(append) {
   if (!$("planName").value.trim()) $("planName").value = `Random training — ${new Date().toLocaleDateString()}`;
   renderPlanBuilder();
 }
-$("savePlanBtn").addEventListener("click", () => {
+safeOn("savePlanBtn", "click", () => {
   const name = $("planName").value.trim();
   if (!name) return alert("Enter a plan name.");
   if (!planDraft.length) return alert("Add at least one routine.");
@@ -2093,19 +2131,19 @@ function deletePlan(id) {
   });
 }
 
-$("resumeSessionBtn").addEventListener("click", resumePersistedSession);
-$("discardSessionBtn").addEventListener("click", discardPersistedSession);
-$("todayResumeSessionBtn").addEventListener("click", resumePersistedSession);
-$("todayDiscardSessionBtn").addEventListener("click", discardPersistedSession);
+safeOn("resumeSessionBtn", "click", resumePersistedSession);
+safeOn("discardSessionBtn", "click", discardPersistedSession);
+safeOn("todayResumeSessionBtn", "click", resumePersistedSession);
+safeOn("todayDiscardSessionBtn", "click", discardPersistedSession);
 
-$("startSessionBtn").addEventListener("click", () => {
+safeOn("startSessionBtn", "click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
   activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => activeRoutines().some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
   persistActiveSession();
 });
-$("startFreeSessionBtn").addEventListener("click", () => {
+safeOn("startFreeSessionBtn", "click", () => {
   const rid = $("freeRoutineSelect").value;
   if (!rid) return alert("Create at least one exercise first.");
   activeSession = { id: uuid(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
@@ -2121,7 +2159,7 @@ function startRepeatLastExercise() {
   rememberVenueTable(last.venueTable || last.venueTableSnapshot || "", last.tableNote || "");
   startRoutineScreen();
 }
-$("repeatLastExerciseBtn").addEventListener("click", startRepeatLastExercise);
+safeOn("repeatLastExerciseBtn", "click", startRepeatLastExercise);
 document.addEventListener("click", (event) => {
   const toggle = event.target.closest?.('[data-action="toggle-quick-resume"]');
   if (toggle) {
@@ -2190,7 +2228,7 @@ function startRoutineScreen() {
   updateSessionFocusState();
   renderCurrentRoutine();
 }
-$("resetSessionBtn").addEventListener("click", () => {
+safeOn("resetSessionBtn", "click", () => {
   const hasActiveProgress = !!activeSession || getElapsedMs() > 0 || !!timerStartMs;
   if (hasActiveProgress && !window.confirm("Reset the active session? Unsaved exercise progress will be lost.")) return;
   activeSession = null;
@@ -2441,11 +2479,11 @@ function prefillSmartDefaults(r) {
   if (recentRating && $("sessionRating")) $("sessionRating").placeholder = `last: ${recentRating.sessionRating}`;
 }
 
-$("saveNextBtn").addEventListener("click", saveCurrentRoutine);
-$("skipBtn").addEventListener("click", () => { if (!activeSession) return; activeSession.index += 1; persistActiveSession(); stopTimer(); renderCurrentRoutine(); });
-$("endFreeSessionBtn").addEventListener("click", completeSession);
-$("endFreeFromNextBtn").addEventListener("click", completeSession);
-$("continueFreeBtn").addEventListener("click", () => {
+safeOn("saveNextBtn", "click", saveCurrentRoutine);
+safeOn("skipBtn", "click", () => { if (!activeSession) return; activeSession.index += 1; persistActiveSession(); stopTimer(); renderCurrentRoutine(); });
+safeOn("endFreeSessionBtn", "click", completeSession);
+safeOn("endFreeFromNextBtn", "click", completeSession);
+safeOn("continueFreeBtn", "click", () => {
   if (!activeSession) return;
   const rid = $("nextFreeRoutineSelect").value;
   if (!rid) return alert("Select a routine.");
@@ -2717,8 +2755,8 @@ function startPracticeTimer() {
   syncFocusWakeLock();
 }
 function resetTimerState() { cancelTimerAutostartDelay(); stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); syncFocusWakeLock(); }
-$("timerStartBtn").addEventListener("click", startPracticeTimer);
-$("timerPauseBtn").addEventListener("click", () => {
+safeOn("timerStartBtn", "click", startPracticeTimer);
+safeOn("timerPauseBtn", "click", () => {
   cancelTimerAutostartDelay();
   if (!timerStartMs) return;
   elapsedBeforeStartMs += Date.now() - timerStartMs;
@@ -2729,7 +2767,7 @@ $("timerPauseBtn").addEventListener("click", () => {
   syncTimerStateToActiveSession();
   syncFocusWakeLock();
 });
-$("timerResetBtn").addEventListener("click", resetTimerState);
+safeOn("timerResetBtn", "click", resetTimerState);
 function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; syncFocusWakeLock(); }
 function updateTimerDisplay() {
   if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
@@ -2888,7 +2926,7 @@ function progressionSuggestion(values, hitRate) {
 }
 
 
-$("generateConstraintPlanBtn").addEventListener("click", () => {
+safeOn("generateConstraintPlanBtn", "click", () => {
   const total = Number($("constraintTotalMinutes").value || 60);
   const count = Math.max(1, Number($("constraintExerciseCount").value || 4));
   const focus = $("constraintFocusType").value || "all";
@@ -4001,7 +4039,7 @@ function routineEvidenceLabel(n) {
   return "low evidence";
 }
 
-/* ===== v4.36.1 Bayesian Practice Optimization v1 ===== */
+/* ===== v4.36.2 Bayesian Practice Optimization v1 ===== */
 
 function bayesianOptimizationForProfile(profile){
   try {
@@ -4056,7 +4094,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Bayesian Practice Optimization v1 ===== */
+/* ===== end v4.36.2 Bayesian Practice Optimization v1 ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -4236,14 +4274,14 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
   if (el) el.addEventListener("change", renderABComparison);
 });
 
-$("statsRoutineSelect").addEventListener("change", (event) => { setStatsRoutineFilter(event.target.value); });
-$("statsDateSelect").addEventListener("change", renderStats);
-$("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
-$("rollingWindowInput").addEventListener("input", renderStats);
-$("benchmarkWindowInput").addEventListener("input", renderStats);
+safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
+safeOn("statsDateSelect", "change", renderStats);
+safeOn("statsPeriodSelect", "change", () => { safeCall("statsPeriod renderStats", renderStats); safeCall("statsPeriod renderPhaseOneInsights", renderPhaseOneInsights); });
+safeOn("rollingWindowInput", "input", renderStats);
+safeOn("benchmarkWindowInput", "input", renderStats);
 if ($("statsDetailMode")) {
   $("statsDetailMode").value = getStatsDetailMode();
-  $("statsDetailMode").addEventListener("change", e => setStatsDetailMode(e.target.value));
+  safeOn("statsDetailMode", "change", e => setStatsDetailMode(e.target.value));
 }
 
 
@@ -4366,7 +4404,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.36.1 Venue / Context Normalization v1 ===== */
+/* ===== v4.36.2 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4499,7 +4537,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Venue / Context Normalization v1 ===== */
+/* ===== end v4.36.2 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -6004,22 +6042,22 @@ function exportValue(log, field) {
   return log[field] ?? "";
 }
 
-$("exportCsvBtn").addEventListener("click", async () => {
+safeOn("exportCsvBtn", "click", async () => {
   const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","attemptMode","effectiveAttempts","leftSideScore","rightSideScore","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
-$("exportJsonBtn").addEventListener("click", async () => exportFullBackup("manual-json-export"));
-$("runRegretBtn").addEventListener("click", runRegretComparison);
-["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => { const el=$(id); if(el) el.addEventListener("change", renderPeriodization); });
-$("generateAdaptiveSessionBtn").addEventListener("click", renderAdaptiveSession);
-$("loadAdaptiveSessionBtn").addEventListener("click", loadAdaptiveSessionIntoPlanBuilder);
-$("saveTableBtn").addEventListener("click", saveTableDefinition);
-$("clearTableFormBtn").addEventListener("click", clearTableForm);
-$("chooseExportFolderBtn").addEventListener("click", chooseExportFolder);
-$("clearExportFolderBtn").addEventListener("click", clearExportFolder);
-$("exportDebugBtn").addEventListener("click", exportDebugInfo);
-$("exportRawStorageBtn").addEventListener("click", exportRawLocalData);
+safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));
+safeOn("runRegretBtn", "click", runRegretComparison);
+["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => safeOn(id, "change", renderPeriodization));
+safeOn("generateAdaptiveSessionBtn", "click", renderAdaptiveSession);
+safeOn("loadAdaptiveSessionBtn", "click", loadAdaptiveSessionIntoPlanBuilder);
+safeOn("saveTableBtn", "click", saveTableDefinition);
+safeOn("clearTableFormBtn", "click", clearTableForm);
+safeOn("chooseExportFolderBtn", "click", chooseExportFolder);
+safeOn("clearExportFolderBtn", "click", clearExportFolder);
+safeOn("exportDebugBtn", "click", exportDebugInfo);
+safeOn("exportRawStorageBtn", "click", exportRawLocalData);
 $("refreshStorageDashboardBtn")?.addEventListener("click", renderStorageDashboard);
 $("preMigrationBackupBtn")?.addEventListener("click", async () => exportFullBackup("pre-indexeddb-migration"));
 function validateBackupShape(candidate) {
@@ -6033,7 +6071,7 @@ function validateBackupShape(candidate) {
   if (badLog) return {ok:false, message:"At least one log is missing an id or createdAt timestamp."};
   return {ok:true};
 }
-$("importJsonInput").addEventListener("change", async (e) => {
+safeOn("importJsonInput", "change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   try {
@@ -6054,7 +6092,7 @@ $("importJsonInput").addEventListener("change", async (e) => {
     e.target.value = "";
   }
 });
-$("clearDataBtn").addEventListener("click", async () => {
+safeOn("clearDataBtn", "click", async () => {
   if (!confirm("Clear all data? This cannot be undone unless you have exported a backup.")) return;
   localStorage.removeItem(STORAGE_KEY);
   try { await idbReplaceAll(INDEXEDDB_LOG_STORE, []); await idbReplaceAll(INDEXEDDB_SESSION_STORE, []); } catch(e) { logAppError(e, "clearData indexedDB clear"); }
@@ -7040,7 +7078,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
   deferredInstallPrompt = e;
   $("installBtn").classList.remove("hidden");
 });
-$("installBtn").addEventListener("click", async () => {
+safeOn("installBtn", "click", async () => {
   if (!deferredInstallPrompt) return;
   deferredInstallPrompt.prompt();
   await deferredInstallPrompt.userChoice;
@@ -7050,7 +7088,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

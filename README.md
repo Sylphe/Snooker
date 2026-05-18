@@ -1,24 +1,25 @@
-# Snooker Practice PWA v4.36.1
+# Snooker Practice PWA v4.36.2
 
-## v4.36.1 — Bayesian Practice Optimization v1
+## v4.36.2 — Bootstrap / Render Resilience Hardening
 
-Built from the confirmed working v4.35.2 UX Readability Polish Safe package.
+Built from the confirmed working v4.36.1 Bayesian Practice Optimization bootstrap-fix package.
 
-### Added
-- Bayesian Practice Optimization v1 for uncertainty-aware recommendation ranking.
-- Controlled exploration vs exploitation weighting.
-- Posterior-style optimizer score layered on top of the existing recommendation engine.
-- Exploration bonuses reduced when volatility is high or recovery mode is active.
-- Optimizer reasons added to recommendation explanations.
-- Bayesian optimization insight card in Insights.
+### Added / changed
+- Added safe event binding for high-risk root-level DOM listeners.
+- Hardened `bootstrapIndexedDBStorage()` with outer error capture and safe render fallback.
+- Reworked `renderAll()` so individual panel failures are caught and logged instead of blocking the entire UI.
+- Added reusable `safeCall()`, `safeOn()`, `safeRenderAll()`, and finite-number guard utilities.
+- Preserved v4.36 Bayesian Practice Optimization behavior.
 
 ### Safety / stability approach
-- No optimizer execution at module top level.
-- Optimizer calculations are guarded with defensive `try/catch` wrappers.
-- Existing safe score extraction, target intervals, dynamic difficulty, context normalization, and recommendation learning remain intact.
-- No hydration, IndexedDB, or bootstrap changes.
+- No storage schema changes.
+- No hydration data-model changes.
+- No new Bayesian feature logic.
+- No broad event-delegation rewrite.
+- No IndexedDB/session transaction redesign.
+- Syntax and duplicate-declaration checks performed during packaging.
 
 ### Build
-- Version: v4.36.1
-- Build timestamp: 2026-05-18 14:57 CEST
-- Cache/module refs: v4.36.1
+- Version: v4.36.2
+- Build timestamp: 2026-05-18 15:52 CEST
+- Cache/module refs: v4.36.2
