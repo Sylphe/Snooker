@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.33.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.34.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.33.0";
+} from "./utils.js?v=4.34.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.33.0";
+} from "./settings.js?v=4.34.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.33.0";
+} from "./analytics.js?v=4.34.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.33.0";
+} from "./bayesian.js?v=4.34.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.33.0";
+} from "./session.js?v=4.34.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.33.0";
+} from "./pressure.js?v=4.34.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.33.0";
+} from "./recommendations.js?v=4.34.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.33.0";
+} from "./store.js?v=4.34.0";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.33.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.34.0 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.33.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.34.0 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -3861,11 +3861,12 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const difficultySignal = dynamicDifficultyAdjustmentForRoutine(routine);
   const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
   const outcome = recommendationOutcomeSignal(routine.id);
+  const contextNormalization = routineContextNormalizationSignal(routine);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + Number(difficultySignal?.score || 0) * 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
   const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
@@ -3873,6 +3874,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(transferAwareReasonText(routine, transferNeed));
   if (outcome.score) reasons.push(outcome.label);
   reasons.push(targetIntervalReasonForRoutine(routine));
+  reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
@@ -3881,7 +3883,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + Number(difficultySignal?.score || 0) * 0.25,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25,
     trainingValueMean,
     uncertainty,
     sampledValue,
@@ -3894,6 +3896,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     volatilityProfile:volatility,
     transferValue,
     outcomeSignal:outcome,
+    contextNormalization,
     reasons:[...new Set(reasons.filter(Boolean))]
   };
 }
@@ -4139,6 +4142,143 @@ function renderContextEffects(logs) {
   </div>`;
 }
 
+
+
+/* ===== v4.34.0 Venue / Context Normalization v1 ===== */
+function safeContextNormalizationScore(log){
+  try{
+    const direct=Number(log?.normalizedScore);
+    if(Number.isFinite(direct)) return direct;
+    const computed=Number(normalizeScore(log));
+    return Number.isFinite(computed) ? computed : null;
+  }catch(err){
+    console.warn("Skipped malformed log in context normalization", err, log);
+    return null;
+  }
+}
+function contextEvidenceLabel(n){
+  if(n>=30) return "strong context evidence";
+  if(n>=12) return "moderate context evidence";
+  if(n>=5) return "early context evidence";
+  return "low context evidence";
+}
+function contextEffectTable(logs, keyFn, label, minN=3){
+  try{
+    const rows=(logs||[]).map(l=>({log:l, score:safeContextNormalizationScore(l)})).filter(x=>Number.isFinite(x.score));
+    if(rows.length<5) return [];
+    const globalMean=avg(rows.map(x=>x.score));
+    const groups={};
+    rows.forEach(x=>{
+      const key=keyFn(x.log);
+      if(!key) return;
+      groups[key] ||= [];
+      groups[key].push(x.score);
+    });
+    return Object.entries(groups).map(([key, vals])=>{
+      if(vals.length<minN) return null;
+      const delta=avg(vals)-globalMean;
+      const damped=dampenByEvidence(delta, vals.length);
+      return {label,key,n:vals.length,rawDelta:delta,delta:damped,avg:avg(vals),evidence:contextEvidenceLabel(vals.length)};
+    }).filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  }catch(err){
+    console.warn("Context effect table skipped", err);
+    return [];
+  }
+}
+function highFatigueBucket(log){
+  const v=Number(log?.reflectionFatigueRating ?? log?.fatigueRating ?? log?.fatigue ?? log?.reflectionFatigue ?? 0);
+  if(!Number.isFinite(v) || v<=0) return "";
+  return v>=4 ? "High fatigue" : "Normal/low fatigue";
+}
+function buildContextNormalizationModel(logs){
+  try{
+    const arr=(logs||[]).filter(Boolean);
+    const tableEffects=contextEffectTable(arr, l=>getTableName(l)!=="Not specified"?getTableName(l):"", "Table");
+    const timeEffects=contextEffectTable(arr, l=>timeOfDayBucket(l), "Time");
+    const fatigueEffects=contextEffectTable(arr, highFatigueBucket, "Fatigue", 2);
+    const byTable=Object.fromEntries(tableEffects.map(e=>[e.key,e]));
+    const byTime=Object.fromEntries(timeEffects.map(e=>[e.key,e]));
+    const byFatigue=Object.fromEntries(fatigueEffects.map(e=>[e.key,e]));
+    return {tableEffects,timeEffects,fatigueEffects,byTable,byTime,byFatigue};
+  }catch(err){
+    console.warn("Context normalization model skipped", err);
+    return {tableEffects:[],timeEffects:[],fatigueEffects:[],byTable:{},byTime:{},byFatigue:{}};
+  }
+}
+function adjustedScoreForContext(log, model=buildContextNormalizationModel(data.logs||[])){
+  try{
+    const raw=safeContextNormalizationScore(log);
+    if(!Number.isFinite(raw)) return null;
+    const tableKey=getTableName(log)!=="Not specified"?getTableName(log):"";
+    const timeKey=timeOfDayBucket(log);
+    const fatigueKey=highFatigueBucket(log);
+    const tableDelta=Number(model?.byTable?.[tableKey]?.delta || 0);
+    const timeDelta=Number(model?.byTime?.[timeKey]?.delta || 0);
+    const fatigueDelta=Number(model?.byFatigue?.[fatigueKey]?.delta || 0);
+    const adjustment=tableDelta + timeDelta + fatigueDelta;
+    return clampNumber(raw - adjustment, 0, 100);
+  }catch(err){
+    console.warn("Context-adjusted score skipped", err);
+    return null;
+  }
+}
+function routineContextNormalizationSignal(routine){
+  try{
+    const logs=(data.logs||[]).filter(l=>String(l?.routineId)===String(routine?.id));
+    if(logs.length<4) return {score:0,label:"context normalization: insufficient routine history",rawRecent:null,adjustedRecent:null,n:logs.length};
+    const model=buildContextNormalizationModel(data.logs||[]);
+    const recent=logs.slice().sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0)).slice(-Math.min(8, logs.length));
+    const rawVals=recent.map(safeContextNormalizationScore).filter(Number.isFinite);
+    const adjVals=recent.map(l=>adjustedScoreForContext(l, model)).filter(Number.isFinite);
+    if(rawVals.length<3 || adjVals.length<3) return {score:0,label:"context normalization: not enough usable scores",rawRecent:null,adjustedRecent:null,n:logs.length};
+    const rawRecent=avg(rawVals);
+    const adjustedRecent=avg(adjVals);
+    const contextLift=rawRecent-adjustedRecent;
+    let score=0;
+    let label="context-adjusted performance close to raw score";
+    if(contextLift>4){ score-=2; label="recent raw score is helped by favorable context"; }
+    else if(contextLift<-4){ score+=3; label="recent raw score is suppressed by difficult context"; }
+    return {score,label,rawRecent,adjustedRecent,contextLift,n:logs.length};
+  }catch(err){
+    console.warn("Routine context normalization signal skipped", err, routine);
+    return {score:0,label:"context normalization unavailable",rawRecent:null,adjustedRecent:null,n:0};
+  }
+}
+function contextNormalizationReasonForRoutine(routine){
+  const s=routineContextNormalizationSignal(routine);
+  if(!s || !Number.isFinite(Number(s.adjustedRecent))) return "context-adjusted score unavailable";
+  return `${s.label}; adjusted recent ${Number(s.adjustedRecent).toFixed(1)} vs raw ${Number(s.rawRecent).toFixed(1)}`;
+}
+function contextNormalizationInsight(logs){
+  try{
+    const model=buildContextNormalizationModel(logs||[]);
+    const effects=[...model.tableEffects, ...model.timeEffects, ...model.fatigueEffects]
+      .filter(e=>e.n>=2)
+      .sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))
+      .slice(0,6);
+    const scores=(logs||[]).map(safeContextNormalizationScore).filter(Number.isFinite);
+    const adjusted=(logs||[]).map(l=>adjustedScoreForContext(l, model)).filter(Number.isFinite);
+    const rawAvg=scores.length?avg(scores):null;
+    const adjAvg=adjusted.length?avg(adjusted):null;
+    if(!effects.length || !scores.length){
+      return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted">Need more table/time/fatigue variation before normalization becomes useful.</div></div>`;
+    }
+    const cls=effects[0].delta<0?"risk":"good";
+    const avgLine=Number.isFinite(rawAvg)&&Number.isFinite(adjAvg)
+      ? `<div class="context-row"><span>Raw vs context-adjusted avg</span><strong>${rawAvg.toFixed(1)} → ${adjAvg.toFixed(1)}</strong><span>${contextEvidenceLabel(scores.length)}</span></div>`
+      : "";
+    return `<div class="insight-card ${cls}"><strong>Context-normalized performance v1</strong>
+      ${avgLine}
+      ${effects.map(e=>`<div class="context-row"><span>${htmlText(e.label)}: ${htmlText(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>${htmlText(e.evidence)} · n=${e.n}</span></div>`).join("")}
+      <div class="adaptive-rationale">Separates raw score from table, time-of-day, and fatigue effects. This is a coaching adjustment, not a score rewrite; historical logs remain unchanged.</div>
+    </div>`;
+  }catch(err){
+    console.warn("Context normalization insight skipped", err);
+    return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
+  }
+}
+/* ===== end v4.34.0 Venue / Context Normalization v1 ===== */
+
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
   const vals = logs.map(l=>Number(l.normalizedScore||0));
@@ -4194,6 +4334,7 @@ function renderPhaseOneInsights() {
     ${renderResidualInsights(logs)}
     ${renderPeakWindowInsight(logs)}
     ${renderContextEffects(logs)}
+    ${contextNormalizationInsight(logs)}
     ${renderForecastInsight(logs)}
     ${reflectionPatternInsight(logs)}
     ${reflectionIntelligenceSummary(logs)}
@@ -6677,7 +6818,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.33.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.34.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
