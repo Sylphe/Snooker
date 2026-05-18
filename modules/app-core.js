@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.35.1";
+} from "./utils.js?v=4.35.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.35.1";
+} from "./settings.js?v=4.35.2";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.35.1";
+} from "./analytics.js?v=4.35.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.35.1";
+} from "./bayesian.js?v=4.35.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.35.1";
+} from "./session.js?v=4.35.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.35.1";
+} from "./pressure.js?v=4.35.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.35.1";
+} from "./recommendations.js?v=4.35.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.35.1";
+} from "./store.js?v=4.35.2";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1187,7 +1187,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.35.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.35.2 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1690,14 +1690,19 @@ function editCategoryOptions(current) {
   return vals.map(c => `<option value="${escapeAttr(c)}" ${c === (current || "uncategorized") ? "selected" : ""}>${escapeHtml(c)}</option>`).join("");
 }
 
-document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+function activateTab(tabId) {
+  const btn = Array.from(document.querySelectorAll(".tab")).find(b => b.dataset.tab === tabId);
+  const panel = $(tabId);
+  if (!btn || !panel) return;
   document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   btn.classList.add("active");
-  $(btn.dataset.tab).classList.add("active");
-  if (btn.dataset.tab === "today") renderToday();
-  if (btn.dataset.tab === "stats") renderStats();
-}));
+  panel.classList.add("active");
+  if (tabId === "today") renderToday();
+  if (tabId === "stats") renderStats();
+}
+
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
 function renderAll() {
   renderRoutineSelects();
@@ -1795,16 +1800,24 @@ function renderRoutineList() {
   ).join("");
 }
 function renderRoutineItem(r) {
-  return `<div class="item">
-    <div class="item-title"><strong>${htmlText(r.name)}</strong><span class="badge">${htmlText(fmtScoring(r.scoring))}</span></div>
+  const meta = [
+    r.duration ? `${numText(r.duration)}m` : "",
+    r.target ? `Target ${numText(r.target)}` : "",
+    r.attempts ? `${numText(r.attempts)} reps` : "",
+    r.scoring === "progressive_completion" && r.totalUnits ? `Progressive ${numText(r.totalUnits)} ${htmlText(progressiveUnitLabel(r))}` : ""
+  ].filter(Boolean).join(" · ");
+  const statusBadges = [
+    `<span class="badge">${htmlText(fmtScoring(r.scoring))}</span>`,
+    r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : "",
+    recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""
+  ].filter(Boolean).join("");
+  return `<div class="item routine-item-clean">
+    <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges}</div>
     <p>${htmlText(r.description || "")}</p>
-    <span class="badge">Type: ${htmlText(r.category || "uncategorized")}</span>
-    <span class="badge">${numText(r.duration || 0)} min</span>
-    ${r.attempts ? `<span class="badge">${numText(r.attempts)} attempts</span>` : ""}
-    ${r.target ? `<span class="badge">Target: ${numText(r.target)}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
-    ${recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""}
-    ${routineSkillBadges(r)}
-    ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
+    <div class="routine-meta-line">${htmlText(r.category || "uncategorized")}${meta ? ` · ${meta}` : ""}</div>
+    <div class="routine-skill-row">${routineSkillBadges(r)}</div>
+    ${r.stretchTarget ? `<div class="routine-meta-line">Stretch target ${numText(r.stretchTarget)}</div>` : ""}
+    ${r.scoring === "progressive_completion" && r.targetColour ? `<div class="routine-meta-line">Colour ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</div>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
       <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
@@ -4291,7 +4304,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.35.1 Venue / Context Normalization v1 ===== */
+/* ===== v4.35.2 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4424,7 +4437,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.1 Venue / Context Normalization v1 ===== */
+/* ===== end v4.35.2 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -4598,7 +4611,7 @@ function statsModule(title, subtitle, bodyHtml, open = false) {
 function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, benchmarkWindow }) {
   const viewTitle = period === "exercise" ? "Per exercise view" : "Training view";
   if (!logs.length) {
-    return `<h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+    return `<div class="empty-state"><h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3><p>No data yet for this view. Complete a practice session to unlock advanced analytics.</p><button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button></div>`;
   }
 
   const alloc = computeAllocation(logs);
@@ -4628,7 +4641,11 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
 
 
 function renderStatsEmptySection(title, range) {
-  return `<h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+  return `<div class="empty-state">
+    <h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3>
+    <p>No data yet for this view. Complete a practice session to generate trends and coaching insights.</p>
+    <button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button>
+  </div>`;
 }
 
 function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow }) {
@@ -5003,7 +5020,11 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
 }
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
-  if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
+  if (!logs.length) return `<div class="empty-state">
+    <h3>Overview — ${escapeHtml(range.label)}</h3>
+    <p>No data yet. Complete a practice session to see your performance trends.</p>
+    <button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button>
+  </div>`;
 
   if (!rid && getStatsDetailMode() === "basic") {
     const totalTimeBasic = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -5527,7 +5548,7 @@ function renderAdvancedAnalytics(logs, rollingWindow, benchmarkWindow) {
     <div class="analytics-note"><strong>Personal benchmark:</strong> ${escapeHtml(benchmarkText(vals, benchmarkWindow))}</div>`;
 }
 function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
-  if (!logs.length) return `<h3>Routine progression</h3><p>No logs for this exercise in the selected view.</p>`;
+  if (!logs.length) return `<div class="empty-state"><h3>Routine progression</h3><p>No logs for this exercise yet. Log it once to start building a routine trend.</p><button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button></div>`;
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const last5 = vals.slice(-5);
   const best = Math.max(...vals);
@@ -6966,7 +6987,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7748,6 +7769,7 @@ function handleDelegatedUIAction(event) {
   const id = actionEl.dataset.id || "";
   switch (action) {
     case "field-help": return showFieldHelp(actionEl.dataset.helpKey || "");
+    case "switch-tab": return activateTab(actionEl.dataset.tab || "practice");
     case "hide-field-help": return hideFieldHelp();
     case "skip-reflection": return skipReflection();
     case "save-reflection": return saveReflection();

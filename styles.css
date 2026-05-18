@@ -2795,7 +2795,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .context-row .evidence-badge{ margin-left:0; }
 
 
-/* v4.35.1 Focus Mode UX polish */
+/* v4.35.2 Focus Mode UX polish */
 body.session-focus-active #activeSession .focus-readonly-input{
   caret-color:transparent!important;
   user-select:none!important;
@@ -2883,4 +2883,32 @@ body.session-focus-active #timerDisplay{
 @media(max-width:420px){
   body.session-focus-active #activeSession .focus-numpad-grid button{min-height:42px!important;font-size:16px!important;}
   body.session-focus-active #activeSession #saveNextBtn{min-height:50px!important;}
+}
+
+/* v4.35.2 safe UX readability polish */
+.routine-meta-line{font-size:12px;color:var(--muted);margin:6px 0;line-height:1.45}
+.routine-skill-row{margin-top:6px}
+.routine-skill-row .badge{opacity:.85}
+.routine-item-clean .item-title{align-items:flex-start}
+.routine-item-clean p:empty{display:none}
+
+.empty-state{border:1px solid var(--line);border-radius:18px;background:var(--card);padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.035);margin:12px 0}
+.empty-state h3{margin:0 0 6px}
+.empty-state p{margin:0 0 12px;color:var(--muted);line-height:1.45}
+
+.card .stat-card,.card .overview-kpi,.card .diagnostic-card,.card .insight-card{box-shadow:none}
+.card .stat-card,.card .overview-kpi{background:rgba(16,43,34,.035);border-color:transparent}
+.card .diagnostic-card,.card .insight-card{background:rgba(16,43,34,.025)}
+
+.swipe-history-cards{scroll-snap-type:x mandatory;scrollbar-width:none}
+.swipe-history-cards::-webkit-scrollbar{display:none}
+.history-card{scroll-snap-align:center}
+
+.badge.system,.badge.info,.storage-pill,.sync-pill{background:#eef4ff;color:#244a7f;border-color:#cfdef7}
+.badge.warning,.system-warning{background:#fff4e3;color:#7a4b00;border-color:#f2d5a4}
+.badge.sync,.data-sync{background:#f4efff;color:#51328a;border-color:#ded1ff}
+
+@media (max-width: 760px){
+  button,.button,.tab,input,select,textarea,[data-action]{min-height:40px}
+  .small-actions button{min-height:40px}
 }
