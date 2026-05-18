@@ -1,21 +1,21 @@
-const CACHE_NAME = "snooker-practice-log-v4-32-0-dynamic-difficulty-adjustment";
+const CACHE_NAME = "snooker-practice-log-v4-32-0-target-credible-intervals";
 const ASSETS = [
-  "./index.html?v=4.33.1",
-  "./styles.css?v=4.33.1",
-  "./app.js?v=4.33.1",
-  "./modules/app-core.js?v=4.33.1",
-  "./modules/version.js?v=4.33.1",
-  "./modules/store.js?v=4.33.1",
-  "./modules/utils.js?v=4.33.1",
-  "./modules/settings.js?v=4.33.1",
-  "./modules/analytics.js?v=4.33.1",
-  "./modules/bayesian.js?v=4.33.1",
-  "./modules/session.js?v=4.33.1",
-  "./modules/pressure.js?v=4.33.1",
-  "./modules/recommendations.js?v=4.33.1",
-  "./modules/render.js?v=4.33.1",
-  "./manifest.json?v=4.33.1",
-  "./icon.svg?v=4.33.1"
+  "./index.html?v=4.32.0",
+  "./styles.css?v=4.32.0",
+  "./app.js?v=4.32.0",
+  "./modules/app-core.js?v=4.32.0",
+  "./modules/version.js?v=4.32.0",
+  "./modules/store.js?v=4.32.0",
+  "./modules/utils.js?v=4.32.0",
+  "./modules/settings.js?v=4.32.0",
+  "./modules/analytics.js?v=4.32.0",
+  "./modules/bayesian.js?v=4.32.0",
+  "./modules/session.js?v=4.32.0",
+  "./modules/pressure.js?v=4.32.0",
+  "./modules/recommendations.js?v=4.32.0",
+  "./modules/render.js?v=4.32.0",
+  "./manifest.json?v=4.32.0",
+  "./icon.svg?v=4.32.0"
 ];
 
 self.addEventListener("install", event => {
@@ -46,3 +46,28 @@ self.addEventListener("fetch", event => {
   }
   event.respondWith(caches.match(request, { ignoreSearch: true }).then(cached => cached || fetch(request)));
 });
+
+
+function renderRecommendationDiagnostics(candidates){
+  try{
+    const host=document.getElementById("recommendationDiagnosticsBox");
+    if(!host)return;
+    if(!Array.isArray(candidates)||!candidates.length){
+      host.innerHTML='<div class="muted small">No recommendation diagnostics available yet.</div>';
+      return;
+    }
+    host.innerHTML=candidates.slice(0,5).map((c,i)=>`
+      <div class="diag-row">
+        <div><strong>#${i+1} ${c.name||"Routine"}</strong></div>
+        <div class="small muted">${c.reason||"Balanced recommendation"}</div>
+        <div class="small">Priority: ${Math.round(c.score||0)}</div>
+      </div>
+    `).join('');
+  }catch(err){
+    console.warn(err);
+  }
+}
+
+
+
+

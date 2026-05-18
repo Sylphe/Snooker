@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.33.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.32.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.33.1";
+} from "./utils.js?v=4.32.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.33.1";
+} from "./settings.js?v=4.32.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.33.1";
+} from "./analytics.js?v=4.32.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.33.1";
+} from "./bayesian.js?v=4.32.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.33.1";
+} from "./session.js?v=4.32.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.33.1";
+} from "./pressure.js?v=4.32.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.33.1";
+} from "./recommendations.js?v=4.32.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.33.1";
+} from "./store.js?v=4.32.0";
 
 
 
@@ -720,15 +720,7 @@ function reflectionRatingSeries(sessions, key){
 }
 function estimateCurrentFormForLogs(logs, options={}){
   const ordered=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const scores=ordered.map(l=>{
-    try {
-      const direct = Number(l?.normalizedScore);
-      if (Number.isFinite(direct)) return direct;
-      return Number(normalizeScore(l));
-    } catch(e) {
-      return NaN;
-    }
-  }).filter(Number.isFinite);
+  const scores=ordered.map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const minN=Number(options.minN||6);
   if(scores.length<minN) return {state:"insufficient", label:"Insufficient form data", n:scores.length, detail:"Need more logs before separating current form from long-term level.", evidence:evidenceStrength(scores.length), index:null};
   const recentN=Math.max(4, Math.min(8, Math.ceil(scores.length*0.35)));
@@ -801,7 +793,7 @@ function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentForm
 }
 /* ===== end v4.31.0 Latent Current Form Estimate ===== */
 
-/* ===== v4.33.1 Dynamic Difficulty Adjustment ===== */
+/* ===== v4.32.0 Target Credible Intervals / Bayesian Calibration v1 ===== */
 function clampNumber(value, min=0, max=100){
   const v=Number(value);
   if(!Number.isFinite(v)) return min;
@@ -809,15 +801,7 @@ function clampNumber(value, min=0, max=100){
 }
 function targetCredibleIntervalForLogs(logs, options={}){
   const ordered=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const scores=ordered.map(l=>{
-    try {
-      const direct = Number(l?.normalizedScore);
-      if (Number.isFinite(direct)) return direct;
-      return Number(normalizeScore(l));
-    } catch(e) {
-      return NaN;
-    }
-  }).filter(Number.isFinite);
+  const scores=ordered.map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const n=scores.length;
   const priorMean=Number(options.priorMean ?? 50);
   const priorWeight=Number(options.priorWeight ?? 6);
@@ -850,134 +834,28 @@ function targetCredibleIntervalForRoutine(routine){
   return targetCredibleIntervalForLogs(logs);
 }
 function targetIntervalReasonForRoutine(routine){
-  try {
-    const t=targetCredibleIntervalForRoutine(routine);
-    if(!t || !t.n || !Number.isFinite(t.lower) || !Number.isFinite(t.upper)) return "target range not estimated yet";
-    const range=`target range ${t.lower.toFixed(0)}–${t.upper.toFixed(0)}`;
-    if(t.state==="raise_cautiously") return `${range}; cautious progression only`;
-    if(t.state==="reduce_cautiously") return `${range}; simplify if execution remains low`;
-    if(t.state==="wide") return `${range}; uncertainty still wide`;
-    if(t.state==="early") return `${range}; early low-N estimate`;
-    return `${range}; target stable`;
-  } catch(e) {
-    logAppError(e, "targetIntervalReasonForRoutine");
-    return "target range unavailable";
-  }
+  const t=targetCredibleIntervalForRoutine(routine);
+  if(!t || !t.n) return "target range not estimated yet";
+  const range=`target range ${t.lower.toFixed(0)}–${t.upper.toFixed(0)}`;
+  if(t.state==="raise_cautiously") return `${range}; cautious progression only`;
+  if(t.state==="reduce_cautiously") return `${range}; simplify if execution remains low`;
+  if(t.state==="wide") return `${range}; uncertainty still wide`;
+  if(t.state==="early") return `${range}; early low-N estimate`;
+  return `${range}; target stable`;
 }
 function targetCredibleIntervalInsight(logs){
-  try {
-    const t=targetCredibleIntervalForLogs(logs||[]);
-    const cls=t.state==="raise_cautiously"?"good":t.state==="reduce_cautiously"?"risk":"watch";
-    const rangeTxt=(!Number.isFinite(t.lower) || !Number.isFinite(t.upper))?"N/A":`${t.lower.toFixed(1)} – ${t.upper.toFixed(1)}`;
-    const expectedTxt=Number.isFinite(t.expected)?t.expected.toFixed(1):"N/A";
-    const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
-    return `<div class="insight-card ${cls}"><strong>Target credible intervals v1</strong>
-      <div class="context-row"><span>Expected range</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge || "Uncalibrated")}</span></div>
-      <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
-      <div class="adaptive-rationale">${htmlText(t.recommendation || "Target calibration unavailable for this scope.")} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
-    </div>`;
-  } catch(e) {
-    logAppError(e, "targetCredibleIntervalInsight");
-    return `<div class="insight-card watch"><strong>Target credible intervals v1</strong><div class="muted">Target calibration unavailable for this scope.</div></div>`;
-  }
-}
-/* ===== end v4.33.1 Dynamic Difficulty Adjustment ===== */
-
-
-/* ===== v4.33.1 Dynamic Difficulty Adjustment v1 ===== */
-function dynamicDifficultyAdjustmentForLogs(logs, routine=null){
-  const arr=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const n=arr.length;
-  const evidence=evidenceStrength(n);
-  const hit=targetHitRate(arr);
-  const t=targetCredibleIntervalForLogs(arr);
-  const form=estimateCurrentFormForLogs(arr,{minN:6});
-  const recent=arr.slice(-Math.min(8,n)).map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-  const recentAvg=recent.length?avg(recent):null;
-  const volatility=recent.length>=4 ? stdDev(recent) : null;
-  const fatigueFlags=arr.slice(-Math.min(10,n)).filter(l=>Number(l.reflectionFatigue||l.fatigue||0)>=4).length;
-  if(n<4){
-    return {state:"collect", label:"Hold difficulty", action:"collect evidence", severity:"low", score:0, evidence, hit, range:t, form, reason:"Too few logs to change difficulty safely. Keep the drill stable and collect a baseline.", constraints:[]};
-  }
-  let state="maintain", label="Maintain difficulty", action="keep current setup", severity:"moderate", score=0;
-  const constraints=[];
-  const reasons=[];
-  if(hit!==null){
-    if(hit>=82 && evidence.factor>=0.45 && t.state!=="wide"){
-      state="progress"; label="Progress difficulty"; action="increase one constraint"; score+=16;
-      reasons.push(`hit rate ${hit.toFixed(0)}% is above the progression band`);
-      constraints.push("raise target slightly", "add one positional constraint", "reduce allowed attempts");
-    } else if(hit<=35 && evidence.factor>=0.35){
-      state="regress"; label="Regress difficulty"; action="simplify setup"; score-=16;
-      reasons.push(`hit rate ${hit.toFixed(0)}% is below the productive band`);
-      constraints.push("reduce distance or angle", "remove pressure condition", "increase allowed attempts");
-    } else if(hit>=68 && hit<82){
-      state="pressure_ready"; label="Add controlled pressure"; action="add pressure constraint only"; score+=8;
-      reasons.push(`hit rate ${hit.toFixed(0)}% is stable enough for controlled pressure`);
-      constraints.push("add scored target", "add short timer", "finish with one pressure repeat");
-    } else {
-      reasons.push(hit===null?"no hit-rate signal yet":`hit rate ${hit.toFixed(0)}% sits inside the maintenance band`);
-    }
-  }
-  if(t.state==="raise_cautiously" && state!=="regress"){
-    state="progress"; label="Cautious progression"; action="increase one constraint only"; score+=8;
-    reasons.push("credible range supports modest progression");
-  }
-  if(t.state==="reduce_cautiously"){
-    state="regress"; label="Cautious regression"; action="simplify one constraint"; score-=8;
-    reasons.push("credible range supports simplification");
-  }
-  if(t.state==="wide" && state==="progress"){
-    state="maintain"; label="Hold progression"; action="do not progress yet"; score-=10;
-    reasons.push("target interval remains too wide for aggressive progression");
-  }
-  if(form.state==="negative" || fatigueFlags>=3){
-    if(state==="progress" || state==="pressure_ready"){
-      state="preserve_confidence"; label="Preserve confidence"; action="finish easier, do not escalate"; score-=12;
-      reasons.push(form.state==="negative"?"current form is below baseline":"recent fatigue flags are elevated");
-      constraints.length=0;
-      constraints.push("keep familiar setup", "end with a high-success version", "avoid adding pressure today");
-    }
-  }
-  if(Number.isFinite(volatility) && volatility>22 && state==="progress"){
-    state="stabilize"; label="Stabilize before progressing"; action="repeat same setup"; score-=8;
-    reasons.push("recent volatility is high");
-    constraints.length=0; constraints.push("same setup for another block", "reduce switching", "track quality of misses");
-  }
-  if(state==="progress") severity="high";
-  else if(state==="regress" || state==="preserve_confidence") severity="high";
-  else if(state==="pressure_ready" || state==="stabilize") severity="moderate";
-  else severity="low";
-  return {state,label,action,severity,score,evidence,hit,range:t,form,recentAvg,volatility,reason:reasons.slice(0,3).join("; ") || "No strong difficulty-change signal.", constraints};
-}
-function dynamicDifficultyAdjustmentForRoutine(routine){
-  const logs=(data.logs||[]).filter(l=>String(l.routineId)===String(routine?.id));
-  return dynamicDifficultyAdjustmentForLogs(logs,routine);
-}
-function difficultyAdjustmentReasonForRoutine(routine){
-  const d=dynamicDifficultyAdjustmentForRoutine(routine);
-  if(!d) return "difficulty signal unavailable";
-  if(d.state==="progress") return "difficulty: progress one constraint";
-  if(d.state==="pressure_ready") return "difficulty: add controlled pressure";
-  if(d.state==="regress") return "difficulty: simplify one constraint";
-  if(d.state==="preserve_confidence") return "difficulty: preserve confidence today";
-  if(d.state==="stabilize") return "difficulty: stabilize before progressing";
-  if(d.state==="collect") return "difficulty: hold until baseline grows";
-  return "difficulty: maintain current setup";
-}
-function dynamicDifficultyInsight(logs){
-  const d=dynamicDifficultyAdjustmentForLogs(logs||[]);
-  const cls=(d.state==="progress"||d.state==="pressure_ready")?"good":(d.state==="regress"||d.state==="preserve_confidence")?"risk":"watch";
-  const hitTxt=d.hit===null||d.hit===undefined?"N/A":`${d.hit.toFixed(0)}%`;
-  const rangeTxt=d.range?.lower===null||d.range?.lower===undefined?"N/A":`${d.range.lower.toFixed(0)}–${d.range.upper.toFixed(0)}`;
-  return `<div class="insight-card ${cls}"><strong>Dynamic difficulty adjustment v1</strong>
-    <div class="context-row"><span>Recommended action</span><strong>${htmlText(d.label)}</strong><span>${htmlText(d.action)}</span></div>
-    <div class="context-row"><span>Hit-rate / target range</span><strong>${htmlText(hitTxt)}</strong><span>${htmlText(rangeTxt)} · ${htmlText(d.evidence.label)}</span></div>
-    <div class="adaptive-rationale">${htmlText(d.reason)} Target changes are intentionally one-step only: increase target, add pressure, or simplify setup, but not several changes at once.</div>
-    ${d.constraints?.length?`<div class="adaptive-rationale"><strong>Suggested constraint:</strong> ${d.constraints.slice(0,3).map(htmlText).join(" · ")}</div>`:""}
+  const t=targetCredibleIntervalForLogs(logs||[]);
+  const cls=t.state==="raise_cautiously"?"good":t.state==="reduce_cautiously"?"risk":"watch";
+  const rangeTxt=t.lower===null?"N/A":`${t.lower.toFixed(1)} – ${t.upper.toFixed(1)}`;
+  const expectedTxt=Number.isFinite(t.expected)?t.expected.toFixed(1):"N/A";
+  const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
+  return `<div class="insight-card ${cls}"><strong>Target credible intervals v1</strong>
+    <div class="context-row"><span>Expected range</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
+    <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
+    <div class="adaptive-rationale">${htmlText(t.recommendation)} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
   </div>`;
 }
-/* ===== end v4.33.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.32.0 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
 
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
@@ -3770,14 +3648,13 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const bayes = stats.bayesian?.signal?.scoreDelta || 0;
   const transferValue = routineTransferValue(routine);
   const transferNeed = transferNeedScoreForRoutine(routine);
-  const difficultySignal = dynamicDifficultyAdjustmentForRoutine(routine);
   const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
   const outcome = recommendationOutcomeSignal(routine.id);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + Number(difficultySignal.score || 0) * 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score;
   const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
@@ -3785,7 +3662,6 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(transferAwareReasonText(routine, transferNeed));
   if (outcome.score) reasons.push(outcome.label);
   reasons.push(targetIntervalReasonForRoutine(routine));
-  reasons.push(difficultyAdjustmentReasonForRoutine(routine));
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
@@ -3793,7 +3669,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + Number(difficultySignal.score || 0) * 0.25,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score,
     trainingValueMean,
     uncertainty,
     sampledValue,
@@ -3805,7 +3681,6 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     stateMode,
     volatilityProfile:volatility,
     transferValue,
-    difficultySignal,
     outcomeSignal:outcome,
     reasons:[...new Set(reasons.filter(Boolean))]
   };
@@ -4115,7 +3990,6 @@ function renderPhaseOneInsights() {
     ${changePointInsight(logs)}
     ${currentFormInsight(logs)}
     ${targetCredibleIntervalInsight(logs)}
-    ${dynamicDifficultyInsight(logs)}
   </div>`;
 }
 
@@ -4860,9 +4734,6 @@ function renderCoachingEngine(logs, rid=null) {
   if (plateau && plateau.isPlateau) insights.push({title:"Plateau detected", text:"Performance has flattened. Change constraint, drill format, or intensity rather than repeating identical volume."});
   const over = overtrainingSignal(logs, 8);
   if (over && over.signal === "Risk") insights.push({title:"Possible overtraining / low yield", text:"Recent volume increased without matching performance gain. Reduce volume or increase rest between sets."});
-
-  const dda = dynamicDifficultyAdjustmentForLogs(logs);
-  if (dda && !["maintain","collect"].includes(dda.state)) insights.push({title:"Dynamic difficulty", text:`${dda.label}: ${dda.reason}`});
 
   const ladder = difficultyLadderRecommendation(logs);
   if (ladder && ladder.type !== "maintain") insights.push({title:"Difficulty ladder", text: ladder.text});
@@ -6554,14 +6425,14 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.33.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.32.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
     }
   });
 }
-bootstrapIndexedDBStorage().catch(e => logAppError(e, "bootstrapIndexedDBStorage"));
+bootstrapIndexedDBStorage();
 
 let generatedPlanDraft = [];
 let lastGeneratedPlannedRoutineIds = [];
