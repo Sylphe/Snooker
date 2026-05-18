@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.38.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample } from "./inference.js?v=4.38.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.39.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate } from "./inference.js?v=4.39.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.38.0";
+} from "./utils.js?v=4.39.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.38.0";
+} from "./settings.js?v=4.39.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.38.0";
+} from "./analytics.js?v=4.39.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.38.0";
+} from "./bayesian.js?v=4.39.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.38.0";
+} from "./session.js?v=4.39.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.38.0";
+} from "./pressure.js?v=4.39.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.38.0";
+} from "./recommendations.js?v=4.39.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.38.0";
+} from "./store.js?v=4.39.0";
 
 
 
@@ -597,7 +597,7 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   return acc;
 }
 function evidenceStrength(n=0){
-  // v4.38.0: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
+  // v4.39.0: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
   const e = smoothEvidence(n, { priorStrength: 8 });
   // Keep a small display/action floor so early but non-empty signals remain visible without hard jumps.
   const displayFloor = Number(n || 0) > 0 ? 0.12 : 0;
@@ -731,7 +731,7 @@ function changePointInsight(logs){
 /* ===== end v4.30.0 Change-Point Detection v1 ===== */
 
 
-/* ===== v4.31.0 Latent Current Form Estimate ===== */
+/* ===== v4.39.0 Kalman-style Current Form ===== */
 function linearSlope(values){
   const vals=(values||[]).map(Number).filter(Number.isFinite);
   if(vals.length<3) return 0;
@@ -749,37 +749,91 @@ function latestSessionReflectionForLogs(logs){
 function reflectionRatingSeries(sessions, key){
   return (sessions||[]).map(s=>Number(s.reflection?.[key] ?? s.reflection?.[key+"Rating"])).filter(Number.isFinite);
 }
+function reflectionContextForLogs(logs){
+  const ids=new Set((logs||[]).map(l=>l.sessionId).filter(Boolean));
+  const byId={};
+  (data.sessions||[]).forEach(s=>{ if(ids.has(s.id) && s.reflection) byId[s.id]=s.reflection; });
+  return byId;
+}
+function safeNormalizedLogScore(log){
+  try{
+    const direct=Number(log?.normalizedScore);
+    if(Number.isFinite(direct)) return direct;
+    const computed=Number(normalizeScore(log));
+    return Number.isFinite(computed) ? computed : null;
+  }catch(e){
+    logAppError?.(e,"safeNormalizedLogScore");
+    return null;
+  }
+}
 function estimateCurrentFormForLogs(logs, options={}){
   const ordered=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const scores=ordered.map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const minN=Number(options.minN||6);
-  if(scores.length<minN) return {state:"insufficient", label:"Insufficient form data", n:scores.length, detail:"Need more logs before separating current form from long-term level.", evidence:evidenceStrength(scores.length), index:null};
-  const recentN=Math.max(4, Math.min(8, Math.ceil(scores.length*0.35)));
-  const recent=scores.slice(-recentN);
-  const prior=scores.slice(0,-recentN);
-  const baseline=prior.length>=4 ? avg(prior) : avg(scores);
-  const recentAvg=avg(recent);
-  const rawDelta=recentAvg-baseline;
-  const volatility=stdDev(scores.slice(-Math.min(scores.length,12))) || 0;
-  const stability=Math.max(0.45, Math.min(1, 1-(volatility/55)));
-  const evidence=evidenceStrength(scores.length);
-  const sessions=latestSessionReflectionForLogs(ordered.slice(-Math.min(ordered.length,14)));
-  const confidenceVals=reflectionRatingSeries(sessions,"confidence");
-  const fatigueVals=reflectionRatingSeries(sessions,"fatigue");
-  const focusVals=reflectionRatingSeries(sessions,"focus");
-  const confidenceMomentum=confidenceVals.length>=3 ? linearSlope(confidenceVals.slice(-6)) : 0;
-  const fatigueAvg=fatigueVals.length ? avg(fatigueVals.slice(-6)) : null;
-  const focusAvg=focusVals.length ? avg(focusVals.slice(-6)) : null;
-  const fatiguePenalty=fatigueAvg!==null && fatigueAvg>3 ? (fatigueAvg-3)*2.2 : 0;
-  const focusBonus=focusAvg!==null && focusAvg>=4 ? 1.2 : focusAvg!==null && focusAvg<=2.5 ? -1.5 : 0;
-  const adjustedDelta=(rawDelta + confidenceMomentum*2.5 + focusBonus - fatiguePenalty) * evidence.factor * stability;
-  let state="stable", label="Stable form";
-  if(adjustedDelta>=5) { state="positive"; label="Positive current form"; }
-  else if(adjustedDelta<=-5) { state="negative"; label="Negative current form"; }
-  else if(volatility>=24) { state="volatile"; label="Unstable form"; }
-  const direction=rawDelta>=0?"above":"below";
-  const fatigueTxt=fatigueAvg!==null?` Fatigue-adjusted (${fatigueAvg.toFixed(1)}/5 recent fatigue).`:"";
-  return {state,label,n:scores.length,baseline,recentAvg,rawDelta,adjustedDelta,volatility,confidenceMomentum,fatigueAvg,focusAvg,evidence,index:Math.round(50+adjustedDelta*2), detail:`Recent form is ${Math.abs(rawDelta).toFixed(1)} pts ${direction} long-term baseline (${recentAvg.toFixed(1)} vs ${baseline.toFixed(1)}). ${evidence.label}.${fatigueTxt}`};
+  const reflections=reflectionContextForLogs(ordered);
+  let prevDate=null;
+  const observations=[];
+  ordered.forEach(log=>{
+    const score=safeNormalizedLogScore(log);
+    if(!Number.isFinite(score)) return;
+    const d=new Date(log.createdAt||Date.now());
+    const daysGap=prevDate ? Math.max(0,(d-prevDate)/86400000) : 0;
+    prevDate=d;
+    const ref=reflections[log.sessionId]||{};
+    observations.push({
+      score,
+      daysGap,
+      fatigue:Number(ref.fatigue ?? ref.fatigueRating),
+      focus:Number(ref.focus ?? ref.focusRating),
+      confidence:Number(ref.confidence ?? ref.confidenceRating)
+    });
+  });
+  if(observations.length<minN) return {state:"insufficient", label:"Insufficient form data", n:observations.length, detail:"Need more logs before separating current form from long-term level.", evidence:evidenceStrength(observations.length), index:null, adjustedDelta:0};
+  try{
+    const kalman=kalmanCurrentFormEstimate(observations,{minN, processNoise:2.1, observationNoise:11});
+    const evidence=evidenceStrength(observations.length);
+    const sessions=latestSessionReflectionForLogs(ordered.slice(-Math.min(ordered.length,14)));
+    const confidenceVals=reflectionRatingSeries(sessions,"confidence");
+    const fatigueVals=reflectionRatingSeries(sessions,"fatigue");
+    const focusVals=reflectionRatingSeries(sessions,"focus");
+    const confidenceMomentum=confidenceVals.length>=3 ? linearSlope(confidenceVals.slice(-6)) : 0;
+    const fatigueAvg=fatigueVals.length ? avg(fatigueVals.slice(-6)) : null;
+    const focusAvg=focusVals.length ? avg(focusVals.slice(-6)) : null;
+    const volatility=stdDev(observations.slice(-Math.min(observations.length,12)).map(x=>x.score)) || 0;
+    const adjustedDelta=Number(kalman.adjustedDelta||0) * evidence.factor;
+    let state=kalman.state, label=kalman.label;
+    if(Math.abs(adjustedDelta)<3 && state!=="volatile"){ state="stable"; label="Stable form"; }
+    const direction=Number(kalman.delta||0)>=0?"above":"below";
+    const fatigueTxt=fatigueAvg!==null?` Fatigue/focus are treated as observation-noise inputs (${fatigueAvg.toFixed(1)}/5 recent fatigue).`:"";
+    return {
+      ...kalman,
+      state,
+      label,
+      evidence,
+      volatility,
+      confidenceMomentum,
+      fatigueAvg,
+      focusAvg,
+      rawDelta:Number(kalman.delta||0),
+      adjustedDelta,
+      index:Math.round(Math.max(0,Math.min(100,50+adjustedDelta*2))),
+      detail:`Kalman-style current form is ${Math.abs(Number(kalman.delta||0)).toFixed(1)} pts ${direction} baseline (${Number(kalman.current||0).toFixed(1)} vs ${Number(kalman.baseline||0).toFixed(1)}). ${evidence.label}; uncertainty ${Number(kalman.uncertainty||0).toFixed(1)} pts.${fatigueTxt}`
+    };
+  }catch(e){
+    logAppError?.(e,"estimateCurrentFormForLogs");
+    const scores=observations.map(x=>x.score);
+    const recentN=Math.max(4, Math.min(8, Math.ceil(scores.length*0.35)));
+    const recent=scores.slice(-recentN);
+    const prior=scores.slice(0,-recentN);
+    const baseline=prior.length>=4 ? avg(prior) : avg(scores);
+    const recentAvg=avg(recent);
+    const rawDelta=recentAvg-baseline;
+    const evidence=evidenceStrength(scores.length);
+    const adjustedDelta=rawDelta*evidence.factor;
+    let state="stable", label="Stable form";
+    if(adjustedDelta>=5){state="positive"; label="Positive current form";}
+    else if(adjustedDelta<=-5){state="negative"; label="Negative current form";}
+    return {state,label,n:scores.length,baseline,current:recentAvg,recentAvg,rawDelta,adjustedDelta,volatility:stdDev(scores)||0,evidence,index:Math.round(50+adjustedDelta*2),detail:`Fallback form estimate: recent ${recentAvg.toFixed(1)} vs baseline ${baseline.toFixed(1)}. ${evidence.label}.`};
+  }
 }
 function skillCurrentFormRows(logs){
   const rows={};
@@ -799,12 +853,12 @@ function currentFormInsight(logs){
   const form=estimateCurrentFormForLogs(logs||[]);
   const rows=skillCurrentFormRows(logs||[]);
   const cls=form.state==="positive"?"good":form.state==="negative"?"risk":"watch";
-  return `<div class="insight-card ${cls}"><strong>Latent current form estimate</strong>
+  return `<div class="insight-card ${cls}"><strong>Current form</strong>
     <div class="context-row"><span>Current form</span><strong>${htmlText(form.label)}</strong><span>${form.index===null?"N/A":form.index+"/100"}</span></div>
     <div class="adaptive-rationale">${htmlText(form.detail)}</div>
     ${form.confidenceMomentum?`<div class="context-row"><span>Confidence momentum</span><strong>${form.confidenceMomentum>=0?"+":""}${form.confidenceMomentum.toFixed(2)}</strong><span>recent reflection slope</span></div>`:""}
     ${rows.length?`<div class="adaptive-rationale"><strong>Skill-specific form:</strong></div>${rows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.form.detail)}</span></span><strong>${htmlText(x.form.label)}</strong><span>${x.form.index}/100</span></div>`).join("")}`:`<div class="muted">No reliable skill-specific form estimate yet.</div>`}
-    <div class="adaptive-rationale">Current form is separated from long-term skill so recommendations can react to temporary fatigue, confidence, or rhythm changes without rewriting baseline ability.</div>
+    <div class="adaptive-rationale">Kalman-style current form separates estimated underlying form from noisy daily scores; fatigue and focus increase observation noise rather than automatically lowering baseline ability.</div>
   </div>`;
 }
 function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentFormForLogs(data.logs||[])){
@@ -822,7 +876,7 @@ function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentForm
   }
   return {score,reasons,form:globalForm};
 }
-/* ===== end v4.31.0 Latent Current Form Estimate ===== */
+/* ===== end v4.39.0 Kalman-style Current Form ===== */
 
 /* ===== v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 function clampNumber(value, min=0, max=100){
@@ -1193,7 +1247,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.38.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.39.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1278,7 +1332,7 @@ let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "al
 
 function $(id) { return document.getElementById(id); }
 
-// v4.38.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
+// v4.39.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
 function safeOn(id, eventName, handler, options) {
   const el = typeof id === "string" ? $(id) : id;
   if (!el || typeof el.addEventListener !== "function") return false;
@@ -4127,7 +4181,7 @@ function routineEvidenceLabel(n) {
   return "low evidence";
 }
 
-/* ===== v4.38.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
+/* ===== v4.39.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
 
 function bayesianOptimizationForProfile(profile){
   try {
@@ -4183,7 +4237,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.38.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
+/* ===== end v4.39.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -7189,7 +7243,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.38.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.39.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

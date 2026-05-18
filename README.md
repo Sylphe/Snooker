@@ -1,26 +1,24 @@
-# Snooker Practice PWA v4.38.0
+# Snooker Practice PWA v4.39.0
 
-## v4.38.0 — Thompson Sampling v2
+## v4.39.0 — Kalman-style Current Form
 
-Built from the confirmed-working v4.36.3 Smooth Evidence / Inference Utilities package.
+Built from the confirmed-working v4.38.0 Thompson Sampling v2 package.
 
 ### Added / changed
-- Added hierarchical Bayesian skill/drill priors for success-rate routines.
-- Uses a skill-family prior from primary skill history when enough related evidence exists.
-- Uses a global user success-rate fallback prior when skill-family evidence is insufficient.
-- Falls back to generic Beta(2,2) when personalized evidence is still insufficient.
-- Shows prior source in True Skill panels.
-- Adds personalized-prior reasons to recommendations.
-- Adds a Personalized Priors insight card.
+- Adds a pure Kalman-style current-form estimator in `modules/inference.js`.
+- Separates estimated current form from noisy daily observed scores.
+- Uses fatigue, focus, and confidence reflection inputs as observation-noise signals rather than direct hard penalties.
+- Updates the Current Form insight card to show Kalman-style uncertainty.
+- Keeps current-form recommendation adjustments guarded and additive.
 
 ### Safety / stability approach
 - No storage schema changes.
 - No hydration changes.
 - No session-state changes.
-- Prior calculations are guarded and fall back to generic priors on error.
+- Kalman calculations are guarded with fallback to the previous recent-vs-baseline method if needed.
 - Syntax and duplicate-declaration checks performed during packaging.
 
 ### Build
-- Version: v4.38.0
-- Build timestamp: 2026-05-18 16:45 CEST
-- Cache/module refs: v4.38.0
+- Version: v4.39.0
+- Build timestamp: 2026-05-18 17:02 CEST
+- Cache/module refs: v4.39.0

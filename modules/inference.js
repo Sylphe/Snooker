@@ -104,3 +104,85 @@ export function thompsonRecommendationSample(options = {}) {
   };
 }
 
+
+
+export function kalmanCurrentFormEstimate(observations = [], options = {}) {
+  const rows = (observations || [])
+    .map((row, index) => ({
+      index,
+      score: Number(row && row.score),
+      daysGap: Math.max(0, Number(row && row.daysGap) || 0),
+      fatigue: Number(row && row.fatigue),
+      focus: Number(row && row.focus),
+      confidence: Number(row && row.confidence)
+    }))
+    .filter(row => Number.isFinite(row.score));
+
+  const minN = Math.max(3, Number(options.minN) || 6);
+  if (rows.length < minN) {
+    return {
+      state: "insufficient",
+      label: "Insufficient form data",
+      n: rows.length,
+      current: null,
+      baseline: null,
+      delta: 0,
+      uncertainty: null,
+      observationNoise: null,
+      detail: "Need more logs before estimating current form."
+    };
+  }
+
+  const firstScores = rows.slice(0, Math.min(rows.length, Math.max(4, Math.ceil(rows.length * 0.25)))).map(r => r.score);
+  const allScores = rows.map(r => r.score);
+  let x = Number.isFinite(Number(options.initialState)) ? Number(options.initialState) : firstScores.reduce((a,b)=>a+b,0) / firstScores.length;
+  let P = Math.max(16, Math.pow(Number(options.initialUncertainty) || 12, 2));
+  const processNoiseBase = Math.max(0.25, Number(options.processNoise) || 2.2);
+  const baseObservationNoise = Math.max(9, Math.pow(Number(options.observationNoise) || 11, 2));
+  const trajectory = [];
+
+  rows.forEach(row => {
+    const fatiguePenalty = Number.isFinite(row.fatigue) ? Math.max(0, row.fatigue - 3) * 0.28 : 0;
+    const focusNoise = Number.isFinite(row.focus) ? Math.max(0, 3 - row.focus) * 0.22 : 0;
+    const confidenceNoise = Number.isFinite(row.confidence) ? Math.max(0, 3 - row.confidence) * 0.16 : 0;
+    const contextNoiseMultiplier = 1 + fatiguePenalty + focusNoise + confidenceNoise;
+    const gapInflation = Math.min(5, row.daysGap || 0) * processNoiseBase;
+    P = P + processNoiseBase + gapInflation;
+    const R = baseObservationNoise * contextNoiseMultiplier;
+    const K = P / (P + R);
+    x = x + K * (row.score - x);
+    P = (1 - K) * P;
+    trajectory.push({state: x, uncertainty: Math.sqrt(Math.max(P, 0)), gain: K, observationNoise: Math.sqrt(R), score: row.score});
+  });
+
+  const current = trajectory.length ? trajectory[trajectory.length - 1].state : x;
+  const uncertainty = trajectory.length ? trajectory[trajectory.length - 1].uncertainty : Math.sqrt(P);
+  const observationNoise = trajectory.length ? trajectory[trajectory.length - 1].observationNoise : Math.sqrt(baseObservationNoise);
+  const baselineWindow = Math.max(4, Math.min(12, Math.floor(trajectory.length * 0.45)));
+  const baselineStates = trajectory.slice(0, Math.max(1, trajectory.length - baselineWindow)).map(t => t.state);
+  const baseline = baselineStates.length ? baselineStates.reduce((a,b)=>a+b,0) / baselineStates.length : allScores.reduce((a,b)=>a+b,0) / allScores.length;
+  const delta = current - baseline;
+  const confidence = clampNumber(1 - uncertainty / 22, 0.15, 0.95, 0.5);
+  let state = "stable";
+  let label = "Stable form";
+  if (delta >= 5 && confidence >= 0.35) { state = "positive"; label = "Positive current form"; }
+  else if (delta <= -5 && confidence >= 0.35) { state = "negative"; label = "Negative current form"; }
+  else if (uncertainty >= 11 || observationNoise >= 18) { state = "volatile"; label = "Unstable form"; }
+  const direction = delta >= 0 ? "above" : "below";
+  return {
+    state,
+    label,
+    n: rows.length,
+    current,
+    baseline,
+    delta,
+    rawDelta: delta,
+    adjustedDelta: delta * confidence,
+    uncertainty,
+    observationNoise,
+    confidence,
+    index: Math.round(clampNumber(50 + delta * 1.8, 0, 100, 50)),
+    trajectory,
+    detail: `Kalman-style form estimate is ${Math.abs(delta).toFixed(1)} pts ${direction} baseline (${current.toFixed(1)} vs ${baseline.toFixed(1)}), with ${confidence >= 0.65 ? "higher" : confidence >= 0.4 ? "moderate" : "low"} confidence.`
+  };
+}
