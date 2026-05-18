@@ -1,22 +1,24 @@
-# Snooker Practice PWA v4.36.1
+# Snooker Practice PWA v4.36.0
 
-## v4.36.1 — Bayesian Practice Optimization v1 + Smooth Evidence Weighting
+## v4.36.0 — Bayesian Practice Optimization v1
 
-Built from the confirmed working v4.36.1 Bayesian Practice Optimization package.
+Built from the confirmed working v4.35.2 UX Readability Polish Safe package.
 
-### Included
-- Pure inference utility module (`modules/inference.js`) with no DOM access or state mutation.
-- Smooth Bayesian-style evidence weighting using continuous shrinkage instead of abrupt sample-size ladders.
-- Evidence labels remain user-readable while internal confidence factors now move gradually as sample size grows.
-- Bayesian optimizer uncertainty fallback now uses shrinkage-weighted uncertainty.
-- Recommendation/insight evidence badges continue to work without changing storage or hydration.
+### Added
+- Bayesian Practice Optimization v1 for uncertainty-aware recommendation ranking.
+- Controlled exploration vs exploitation weighting.
+- Posterior-style optimizer score layered on top of the existing recommendation engine.
+- Exploration bonuses reduced when volatility is high or recovery mode is active.
+- Optimizer reasons added to recommendation explanations.
+- Bayesian optimization insight card in Insights.
 
-### Safety notes
-- No storage, hydration, IndexedDB, or session persistence changes.
-- No top-level inference execution during bootstrap.
-- Inference functions are pure and only called from guarded analytics/recommendation paths.
+### Safety / stability approach
+- No optimizer execution at module top level.
+- Optimizer calculations are guarded with defensive `try/catch` wrappers.
+- Existing safe score extraction, target intervals, dynamic difficulty, context normalization, and recommendation learning remain intact.
+- No hydration, IndexedDB, or bootstrap changes.
 
 ### Build
-- Version: v4.36.1
-- Build timestamp: 2026-05-18 15:08 CEST
-- Cache/module refs: v4.36.1
+- Version: v4.36.0
+- Build timestamp: 2026-05-18 14:57 CEST
+- Cache/module refs: v4.36.0

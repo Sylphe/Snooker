@@ -2,8 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.36.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.36.1";
+} from "./utils.js?v=4.36.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.36.1";
+} from "./settings.js?v=4.36.0";
 import {
   avg,
   stdDev,
@@ -57,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.36.1";
+} from "./analytics.js?v=4.36.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.36.1";
+} from "./bayesian.js?v=4.36.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.36.1";
+} from "./session.js?v=4.36.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.36.1";
+} from "./pressure.js?v=4.36.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.36.1";
+} from "./recommendations.js?v=4.36.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.36.1";
+} from "./store.js?v=4.36.0";
 
 
 
@@ -591,8 +590,12 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   return acc;
 }
 function evidenceStrength(n=0){
-  // v4.36.1: smooth Bayesian-style shrinkage instead of abrupt sample-size step functions.
-  return smoothEvidence(n, {priorStrength: 8});
+  n = Number(n || 0);
+  if(n >= 20) return {level:"strong", label:"Strong evidence", factor:1.00};
+  if(n >= 10) return {level:"moderate", label:"Moderate evidence", factor:0.75};
+  if(n >= 5) return {level:"weak", label:"Weak evidence", factor:0.50};
+  if(n >= 2) return {level:"early", label:"Early signal", factor:0.30};
+  return {level:"insufficient", label:"Insufficient data", factor:0.15};
 }
 function evidenceBadge(n=0, extra=""){
   const e = evidenceStrength(n);
@@ -906,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.36.0 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1027,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.36.0 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1184,7 +1187,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.36.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.36.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -3992,15 +3995,13 @@ function gaussianRandom() {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 function routineEvidenceLabel(n) {
-  const e = evidenceStrength(n);
-  if (e.level === "strong") return "high evidence";
-  if (e.level === "moderate") return "moderate evidence";
-  if (e.level === "weak" || e.level === "early") return "early evidence";
+  if (n >= 20) return "high evidence";
+  if (n >= 8) return "moderate evidence";
+  if (n >= 3) return "early evidence";
   return "low evidence";
 }
 
-
-/* ===== v4.36.1 Bayesian Practice Optimization v1 ===== */
+/* ===== v4.36.0 Bayesian Practice Optimization v1 ===== */
 function clampNumber(value, min=0, max=100){
   const n = Number(value);
   if (!Number.isFinite(n)) return min;
@@ -4009,7 +4010,7 @@ function clampNumber(value, min=0, max=100){
 function bayesianOptimizationForProfile(profile){
   try {
     const n = Number(profile?.n || profile?.stats?.logs?.length || 0);
-    const uncertainty = clampNumber(profile?.uncertainty ?? (24 * (1 - shrinkageWeight(n, 8))), 0, 40);
+    const uncertainty = clampNumber(profile?.uncertainty ?? (24 / Math.sqrt(n + 1)), 0, 40);
     const posterior = profile?.stats?.bayesian?.posterior || null;
     const posteriorWidth = posterior ? Math.max(0, Number(posterior.upper || 0) - Number(posterior.lower || 0)) : null;
     const evidence = evidenceStrength(n);
@@ -4059,7 +4060,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Bayesian Practice Optimization v1 ===== */
+/* ===== end v4.36.0 Bayesian Practice Optimization v1 ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -4369,7 +4370,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.36.1 Venue / Context Normalization v1 ===== */
+/* ===== v4.36.0 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4502,7 +4503,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.36.1 Venue / Context Normalization v1 ===== */
+/* ===== end v4.36.0 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -7053,7 +7054,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
