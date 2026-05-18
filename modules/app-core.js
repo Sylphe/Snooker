@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.37.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.37.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.38.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample } from "./inference.js?v=4.38.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.37.0";
+} from "./utils.js?v=4.38.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.37.0";
+} from "./settings.js?v=4.38.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.37.0";
+} from "./analytics.js?v=4.38.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.37.0";
+} from "./bayesian.js?v=4.38.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.37.0";
+} from "./session.js?v=4.38.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.37.0";
+} from "./pressure.js?v=4.38.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.37.0";
+} from "./recommendations.js?v=4.38.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.37.0";
+} from "./store.js?v=4.38.0";
 
 
 
@@ -597,7 +597,7 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   return acc;
 }
 function evidenceStrength(n=0){
-  // v4.37.0: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
+  // v4.38.0: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
   const e = smoothEvidence(n, { priorStrength: 8 });
   // Keep a small display/action floor so early but non-empty signals remain visible without hard jumps.
   const displayFloor = Number(n || 0) > 0 ? 0.12 : 0;
@@ -1193,7 +1193,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.37.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.38.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1278,7 +1278,7 @@ let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "al
 
 function $(id) { return document.getElementById(id); }
 
-// v4.37.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
+// v4.38.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
 function safeOn(id, eventName, handler, options) {
   const el = typeof id === "string" ? $(id) : id;
   if (!el || typeof el.addEventListener !== "function") return false;
@@ -4127,7 +4127,7 @@ function routineEvidenceLabel(n) {
   return "low evidence";
 }
 
-/* ===== v4.37.0 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
+/* ===== v4.38.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
 
 function bayesianOptimizationForProfile(profile){
   try {
@@ -4183,7 +4183,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.37.0 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
+/* ===== end v4.38.0 Bayesian Practice Optimization v1 / Strong Thompson Sampling ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -4212,7 +4212,14 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
-  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus + Number(bayesianOptimization.explorationBonus || 0) * 0.35;
+  const thompsonSampling = thompsonRecommendationSample({
+    mean: trainingValueMean,
+    uncertainty,
+    posterior: stats.bayesian?.posterior || null,
+    evidenceWeight: shrinkageWeight(n, 8),
+    explorationBonus: explorationBonus + Number(bayesianOptimization.explorationBonus || 0) * 0.35
+  });
+  const sampledValue = Number(thompsonSampling.sampledValue || trainingValueMean);
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
   reasons.push(skillReasonText(routine));
@@ -4220,6 +4227,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
   reasons.push(bayesianOptimizationReason({bayesianOptimization}));
+  if (thompsonSampling.method === "beta" && Number.isFinite(Number(thompsonSampling.drawPct))) reasons.push(`Thompson sampling: posterior draw ${thompsonSampling.drawPct.toFixed(0)}% success potential`);
   if (stats.bayesian?.prior) reasons.push(bayesianPriorReason(stats.bayesian.prior));
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
@@ -4234,6 +4242,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
+    thompsonSampling,
     uncertainty,
     sampledValue,
     n,
@@ -4256,7 +4265,7 @@ function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSm
     return routineRecommendationProfile(r, stats, strategy, focusOverride);
   }).filter(x => recommendationMode(x.routine) !== "excluded");
   if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
-  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.45) + (x.sampledValue * 0.35) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.35) + (x.sampledValue * 0.45) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
   return base.sort((a,b)=>b.score-a.score);
 }
 function recommendationModeSummary(mode) {
@@ -7180,7 +7189,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.37.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.38.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

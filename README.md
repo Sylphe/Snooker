@@ -1,6 +1,6 @@
-# Snooker Practice PWA v4.37.0
+# Snooker Practice PWA v4.38.0
 
-## v4.37.0 — Hierarchical Bayesian Priors
+## v4.38.0 — Thompson Sampling v2
 
 Built from the confirmed-working v4.36.3 Smooth Evidence / Inference Utilities package.
 
@@ -21,6 +21,6 @@ Built from the confirmed-working v4.36.3 Smooth Evidence / Inference Utilities p
 - Syntax and duplicate-declaration checks performed during packaging.
 
 ### Build
-- Version: v4.37.0
-- Build timestamp: 2026-05-18 16:18 CEST
-- Cache/module refs: v4.37.0
+- Version: v4.38.0
+- Build timestamp: 2026-05-18 16:45 CEST
+- Cache/module refs: v4.38.0
