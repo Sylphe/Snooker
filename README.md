@@ -1,26 +1,22 @@
-# Snooker Practice PWA v4.32.0
+# Snooker Practice PWA v4.32.1
 
-## v4.32.0 — Target Credible Intervals / Bayesian Calibration v1
+## v4.32.1 — Target Credible Intervals Stability Patch
 
-Build timestamp: 2026-05-18 11:37 CEST.
+Build timestamp: 2026-05-18 13:16 CEST (Europe/Paris).
 
-v4.32.0 adds the first uncertainty-aware target calibration layer on top of v4.31.0 Latent Current Form Estimate. The app now shows expected target ranges instead of relying only on point forecasts, and it shrinks low-sample signals toward a neutral prior so early hot or cold streaks do not overdrive target advice.
+This release is a stability checkpoint on top of v4.32.0. It keeps the Target Credible Intervals / Bayesian Calibration v1 feature set, but hardens it so malformed or legacy logs cannot break the bootstrap, tab binding, data hydration, or the Insights render path.
 
-### Added
+### Changes
 
-- Target Credible Intervals v1 insight card on the Insights page.
-- Low-N shrinkage for target range estimation.
-- Uncertainty badges: evidence strength plus interval width.
-- Cautious target progression / regression guidance.
-- Recommendation reasons now include target-range context.
-- Target advice is calibrated separately from raw recent performance and current form.
+- Added safe score extraction for target credible interval calculations.
+- Wrapped target interval calculations, recommendation target reasons, and the target interval insight card in defensive guards.
+- Malformed legacy logs are skipped for target-range calculations instead of throwing inside `renderAll()`.
+- Removed duplicated unused `renderRecommendationDiagnostics()` helpers from module files and the service worker; the app-core definition is retained.
+- Removed the unused `completedLogs` property from synthetic pressure-session records; pressure sessions continue to persist `logIds`.
+- Updated app version, build metadata, module query strings, and service worker cache name to v4.32.1.
 
-### Analytical intent
+### Notes
 
-This is not the full Bayesian optimization layer. It is a practical calibration bridge: the app now treats target advice as uncertain, dampens small-sample signals, and gives range-based guidance before future hierarchical Bayesian skill estimates are introduced.
+This build intentionally does not include v4.33 Dynamic Difficulty Adjustment. It is designed as a clean v4.32 checkpoint before reintroducing v4.33 logic.
 
-### Validation
-
-- App version, build metadata, cache references, and service worker cache name updated to v4.32.0.
-- JavaScript syntax validation passed.
-- Zip integrity validated.
+Local-first PWA. No account. No backend. Export JSON backups regularly.

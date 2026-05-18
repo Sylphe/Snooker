@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.32.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.32.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.32.0";
+} from "./utils.js?v=4.32.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.32.0";
+} from "./settings.js?v=4.32.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.32.0";
+} from "./analytics.js?v=4.32.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.32.0";
+} from "./bayesian.js?v=4.32.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.32.0";
+} from "./session.js?v=4.32.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.32.0";
+} from "./pressure.js?v=4.32.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.32.0";
+} from "./recommendations.js?v=4.32.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.32.0";
+} from "./store.js?v=4.32.1";
 
 
 
@@ -793,16 +793,28 @@ function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentForm
 }
 /* ===== end v4.31.0 Latent Current Form Estimate ===== */
 
-/* ===== v4.32.0 Target Credible Intervals / Bayesian Calibration v1 ===== */
+/* ===== v4.32.1 Target Credible Intervals / Bayesian Calibration v1 ===== */
 function clampNumber(value, min=0, max=100){
   const v=Number(value);
   if(!Number.isFinite(v)) return min;
   return Math.max(min, Math.min(max, v));
 }
+function safeLogScoreForTargetInterval(log){
+  try{
+    const direct=Number(log?.normalizedScore);
+    if(Number.isFinite(direct)) return direct;
+    const computed=Number(normalizeScore(log));
+    return Number.isFinite(computed) ? computed : null;
+  }catch(err){
+    console.warn("Skipped malformed log in target credible interval", err, log);
+    return null;
+  }
+}
 function targetCredibleIntervalForLogs(logs, options={}){
-  const ordered=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  const scores=ordered.map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-  const n=scores.length;
+  try{
+    const ordered=(logs||[]).slice().sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0));
+    const scores=ordered.map(safeLogScoreForTargetInterval).filter(Number.isFinite);
+    const n=scores.length;
   const priorMean=Number(options.priorMean ?? 50);
   const priorWeight=Number(options.priorWeight ?? 6);
   const evidence=evidenceStrength(n);
@@ -826,36 +838,51 @@ function targetCredibleIntervalForLogs(logs, options={}){
   else if(width>28){ state="wide"; label="Wide uncertainty"; recommendation="Avoid aggressive target changes until volatility narrows."; }
   else if(recentMean>upper-4 && evidence.factor>=0.5){ state="raise_cautiously"; label="Cautious progression candidate"; recommendation="Consider a modest target increase or one added constraint, not both."; }
   else if(recentMean<lower+4 && evidence.factor>=0.5){ state="reduce_cautiously"; label="Cautious regression candidate"; recommendation="Simplify the drill slightly or reduce pressure constraints until execution stabilizes."; }
-  const badge = `${evidence.label} · ${width>24?"wide interval":width>14?"moderate interval":"tight interval"}`;
-  return {n,evidence,state,label,mean:sampleMean,recentMean,posteriorMean,expected,lower,upper,width,volatility,shrinkWeight,recommendation,badge};
+    const badge = `${evidence.label} · ${width>24?"wide interval":width>14?"moderate interval":"tight interval"}`;
+    return {n,evidence,state,label,mean:sampleMean,recentMean,posteriorMean,expected,lower,upper,width,volatility,shrinkWeight,recommendation,badge};
+  }catch(err){
+    console.warn("Target credible interval calculation skipped", err);
+    const priorMean=Number(options.priorMean ?? 50);
+    return {n:0, evidence:evidenceStrength(0), state:"insufficient", label:"Target range unavailable", mean:priorMean, expected:priorMean, lower:null, upper:null, width:null, volatility:null, recommendation:"Target range unavailable for this data set; continue logging normally.", badge:"Unavailable"};
+  }
 }
 function targetCredibleIntervalForRoutine(routine){
   const logs=(data.logs||[]).filter(l=>l.routineId===routine?.id);
   return targetCredibleIntervalForLogs(logs);
 }
 function targetIntervalReasonForRoutine(routine){
-  const t=targetCredibleIntervalForRoutine(routine);
-  if(!t || !t.n) return "target range not estimated yet";
-  const range=`target range ${t.lower.toFixed(0)}–${t.upper.toFixed(0)}`;
-  if(t.state==="raise_cautiously") return `${range}; cautious progression only`;
-  if(t.state==="reduce_cautiously") return `${range}; simplify if execution remains low`;
-  if(t.state==="wide") return `${range}; uncertainty still wide`;
-  if(t.state==="early") return `${range}; early low-N estimate`;
-  return `${range}; target stable`;
+  try{
+    const t=targetCredibleIntervalForRoutine(routine);
+    if(!t || !t.n || !Number.isFinite(t.lower) || !Number.isFinite(t.upper)) return "target range not estimated yet";
+    const range=`target range ${t.lower.toFixed(0)}–${t.upper.toFixed(0)}`;
+    if(t.state==="raise_cautiously") return `${range}; cautious progression only`;
+    if(t.state==="reduce_cautiously") return `${range}; simplify if execution remains low`;
+    if(t.state==="wide") return `${range}; uncertainty still wide`;
+    if(t.state==="early") return `${range}; early low-N estimate`;
+    return `${range}; target stable`;
+  }catch(err){
+    console.warn("Target interval reason skipped", err);
+    return "target range not estimated yet";
+  }
 }
 function targetCredibleIntervalInsight(logs){
-  const t=targetCredibleIntervalForLogs(logs||[]);
-  const cls=t.state==="raise_cautiously"?"good":t.state==="reduce_cautiously"?"risk":"watch";
-  const rangeTxt=t.lower===null?"N/A":`${t.lower.toFixed(1)} – ${t.upper.toFixed(1)}`;
-  const expectedTxt=Number.isFinite(t.expected)?t.expected.toFixed(1):"N/A";
-  const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
-  return `<div class="insight-card ${cls}"><strong>Target credible intervals v1</strong>
-    <div class="context-row"><span>Expected range</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
-    <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
-    <div class="adaptive-rationale">${htmlText(t.recommendation)} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
-  </div>`;
+  try{
+    const t=targetCredibleIntervalForLogs(logs||[]);
+    const cls=t.state==="raise_cautiously"?"good":t.state==="reduce_cautiously"?"risk":"watch";
+    const rangeTxt=(t.lower===null || t.upper===null || !Number.isFinite(t.lower) || !Number.isFinite(t.upper))?"N/A":`${t.lower.toFixed(1)} – ${t.upper.toFixed(1)}`;
+    const expectedTxt=Number.isFinite(t.expected)?t.expected.toFixed(1):"N/A";
+    const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
+    return `<div class="insight-card ${cls}"><strong>Target credible intervals v1</strong>
+      <div class="context-row"><span>Expected range</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
+      <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
+      <div class="adaptive-rationale">${htmlText(t.recommendation)} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
+    </div>`;
+  }catch(err){
+    console.warn("Target credible interval insight skipped", err);
+    return `<div class="insight-card watch"><strong>Target credible intervals v1</strong><div class="muted small">Target range unavailable for the current data set.</div></div>`;
+  }
 }
-/* ===== end v4.32.0 Target Credible Intervals / Bayesian Calibration v1 ===== */
+/* ===== end v4.32.1 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
 
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
@@ -6425,7 +6452,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.32.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.32.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7925,7 +7952,6 @@ async function finishPressureSession() {
     sessionName: "Pressure simulation",
     routineIds: [routine.id],
     plannedRoutineIds: [],
-    completedLogs: [log.id],
     logIds: [log.id],
     startedAt: pressureSession.startedAt || now,
     endedAt: now,
