@@ -1,8 +1,8 @@
-# Snooker Practice PWA v4.33.0
+# Snooker Practice PWA v4.33.1
 
-## v4.33.0 — Dynamic Difficulty Adjustment
+## v4.33.1 — Dynamic Difficulty Adjustment
 
-v4.33.0 adds a practical difficulty-control layer on top of v4.32.0 Target Credible Intervals. The app now distinguishes whether an exercise should be progressed, held stable, simplified, pressure-tested, or used as a confidence-preserving finish.
+v4.33.1 adds a practical difficulty-control layer on top of v4.32.0 Target Credible Intervals. The app now distinguishes whether an exercise should be progressed, held stable, simplified, pressure-tested, or used as a confidence-preserving finish.
 
 ### Implemented
 
@@ -21,6 +21,6 @@ The app now avoids treating every good score as a reason to make a drill harder.
 
 ### Build
 
-- App version: v4.33.0
-- Build timestamp: 2026-05-18 11:42 CEST
-- Cache and service worker references updated to v4.33.0.
+- App version: v4.33.1
+- Build timestamp: 2026-05-18 11:55 CEST
+- Cache and service worker references updated to v4.33.1.
