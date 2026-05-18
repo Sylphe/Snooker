@@ -1,8 +1,10 @@
-export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2) {
+export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2, priorMeta={}) {
   const s = Math.max(0, Number(successes || 0));
   const n = Math.max(0, Number(attempts || 0));
-  const alpha = priorAlpha + s;
-  const beta = priorBeta + Math.max(0, n - s);
+  const pa = Math.max(0.0001, Number(priorAlpha || 2));
+  const pb = Math.max(0.0001, Number(priorBeta || 2));
+  const alpha = pa + s;
+  const beta = pb + Math.max(0, n - s);
   const mean = alpha / (alpha + beta);
   const variance = (alpha * beta) / (Math.pow(alpha + beta, 2) * (alpha + beta + 1));
   const sd = Math.sqrt(Math.max(0, variance));
@@ -11,6 +13,13 @@ export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2) {
     beta,
     attempts:n,
     successes:s,
+    priorAlpha:pa,
+    priorBeta:pb,
+    priorStrength:pa + pb,
+    priorMean:pa / (pa + pb),
+    priorSource:priorMeta?.source || "generic",
+    priorLabel:priorMeta?.label || "Generic Beta(2,2) prior",
+    priorDetail:priorMeta?.detail || "Used when personalized evidence is insufficient.",
     mean,
     lower:Math.max(0, mean - 1.96 * sd),
     upper:Math.min(1, mean + 1.96 * sd),

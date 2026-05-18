@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.36.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.37.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.37.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.36.3";
+} from "./utils.js?v=4.37.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.36.3";
+} from "./settings.js?v=4.37.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.36.3";
+} from "./analytics.js?v=4.37.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.36.3";
+} from "./bayesian.js?v=4.37.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.36.3";
+} from "./session.js?v=4.37.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.36.3";
+} from "./pressure.js?v=4.37.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.36.3";
+} from "./recommendations.js?v=4.37.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.36.3";
+} from "./store.js?v=4.37.0";
 
 
 
@@ -597,7 +597,7 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   return acc;
 }
 function evidenceStrength(n=0){
-  // v4.36.3: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
+  // v4.37.0: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
   const e = smoothEvidence(n, { priorStrength: 8 });
   // Keep a small display/action floor so early but non-empty signals remain visible without hard jumps.
   const displayFloor = Number(n || 0) > 0 ? 0.12 : 0;
@@ -1193,7 +1193,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.36.3 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.37.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1278,7 +1278,7 @@ let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "al
 
 function $(id) { return document.getElementById(id); }
 
-// v4.36.3 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
+// v4.37.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
 function safeOn(id, eventName, handler, options) {
   const el = typeof id === "string" ? $(id) : id;
   if (!el || typeof el.addEventListener !== "function") return false;
@@ -1601,16 +1601,103 @@ function lastRoutineSetupSummary(routineId) {
 function getLastLogForRoutine(routineId) {
   return (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0] || null;
 }
+
+function successRateLogsForRoutine(routineId){
+  const rid = String(routineId || "");
+  return (data.logs || []).filter(l => String(l.routineId || "") === rid && l.scoring === "success_rate");
+}
+function primarySkillForRoutineOrLog(item){
+  if(!item) return "uncategorized";
+  const direct = normalizeSkillId(item.primarySkill || "");
+  if(direct && direct !== "uncategorized") return direct;
+  const rid = item.routineId || item.id;
+  const routine = routineById(rid);
+  return normalizeSkillId(routine ? getRoutineSkillMap(routine).primarySkill : "uncategorized");
+}
+function betaPriorFromAggregate(agg, strength, meta){
+  const attempts = Math.max(0, Number(agg?.attempts || 0));
+  const successes = Math.max(0, Number(agg?.successes || 0));
+  const mean = attempts > 0 ? Math.max(0.02, Math.min(0.98, successes / attempts)) : 0.5;
+  const priorStrength = Math.max(2, Number(strength || 4));
+  return {
+    alpha:mean * priorStrength,
+    beta:(1 - mean) * priorStrength,
+    mean,
+    strength:priorStrength,
+    attempts,
+    sessions:Number(agg?.sessions || 0),
+    source:meta?.source || "generic",
+    label:meta?.label || "Generic Beta(2,2) prior",
+    detail:meta?.detail || "Used when personalized evidence is insufficient."
+  };
+}
+function genericBayesianPrior(){
+  return {alpha:2, beta:2, mean:0.5, strength:4, attempts:0, sessions:0, source:"generic", label:"Generic Beta(2,2) prior", detail:"Fallback used until skill or user-level evidence is sufficient."};
+}
+function hierarchicalPriorForRoutine(routine){
+  try {
+    if(!routine || routine.scoring !== "success_rate") return genericBayesianPrior();
+    const rid = String(routine.id || "");
+    const primary = getRoutineSkillMap(routine).primarySkill || "uncategorized";
+    const skillLogs = (data.logs || []).filter(l => l.scoring === "success_rate" && String(l.routineId || "") !== rid && primarySkillForRoutineOrLog(l) === primary);
+    const skillAgg = aggregateSuccessRateLogs(skillLogs);
+    if(Number(skillAgg.rawAttempts || skillAgg.attempts || 0) >= 20 && Number(skillAgg.sessions || 0) >= 2){
+      const strength = Math.max(6, Math.min(40, Number(skillAgg.attempts || 0) * 0.25));
+      return betaPriorFromAggregate(skillAgg, strength, {
+        source:"skill_family",
+        label:`Skill-family prior: ${skillLabel(primary)}`,
+        detail:`Initialized from ${numText(skillAgg.rawAttempts || skillAgg.attempts, "0")} attempts across related ${skillLabel(primary)} drills.`
+      });
+    }
+    const globalLogs = (data.logs || []).filter(l => l.scoring === "success_rate" && String(l.routineId || "") !== rid);
+    const globalAgg = aggregateSuccessRateLogs(globalLogs);
+    if(Number(globalAgg.rawAttempts || globalAgg.attempts || 0) >= 30 && Number(globalAgg.sessions || 0) >= 3){
+      const strength = Math.max(5, Math.min(30, Number(globalAgg.attempts || 0) * 0.15));
+      return betaPriorFromAggregate(globalAgg, strength, {
+        source:"global_user",
+        label:"Global user prior",
+        detail:`Initialized from ${numText(globalAgg.rawAttempts || globalAgg.attempts, "0")} success-rate attempts across your logged drills.`
+      });
+    }
+    return genericBayesianPrior();
+  } catch(e) {
+    logAppError?.(e, "hierarchicalPriorForRoutine");
+    return genericBayesianPrior();
+  }
+}
+function bayesianPriorReason(prior){
+  if(!prior) return "Personalized prior: generic fallback";
+  if(prior.source === "skill_family") return `Personalized prior: calibrated from ${prior.label.replace(/^Skill-family prior: /, "")} history`;
+  if(prior.source === "global_user") return "Personalized prior: calibrated from your global success-rate history";
+  return "Personalized prior: generic fallback until more evidence exists";
+}
+function personalizedPriorsInsight(){
+  try {
+    const rows = (data.routines || [])
+      .filter(r => r && !r.archived && r.scoring === "success_rate")
+      .map(r => ({routine:r, prior:hierarchicalPriorForRoutine(r)}))
+      .filter(x => x.prior && x.prior.source !== "generic")
+      .sort((a,b)=>Number(b.prior.attempts||0)-Number(a.prior.attempts||0))
+      .slice(0,4);
+    if(!rows.length) return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">No skill-family priors yet. The app will use a generic Beta(2,2) fallback until more success-rate evidence exists.</div></div>`;
+    return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">New or low-sample drills inherit calibrated baselines from related skill history before drill-specific evidence takes over.</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name || "Exercise")}</span><strong>${htmlText(x.prior.source === "skill_family" ? "Skill prior" : "Global prior")}</strong><span>${htmlText(formatPercent(x.prior.mean))} baseline · ${numText(x.prior.attempts,"0")} attempts</span></div>`).join("")}</div>`;
+  } catch(e) {
+    logAppError?.(e, "personalizedPriorsInsight");
+    return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">Personalized prior insight unavailable for this scope.</div></div>`;
+  }
+}
+
 function bayesianStatsForRoutine(routineId) {
   const r = routineById(routineId);
   if (!r || r.scoring !== "success_rate") return null;
-  const logs = (data.logs || []).filter(l => l.routineId === routineId && l.scoring === "success_rate");
+  const logs = successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
-  const posterior = betaPosterior(agg.successes, agg.attempts);
+  const prior = hierarchicalPriorForRoutine(r);
+  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, prior);
   const reliability = bayesianReliabilityLabel(posterior);
   const signal = bayesianRecommendationSignal({posterior, targetPct:Number(r.target || 0)});
   const policy = bayesianActionPolicy(signal, posterior, Number(r.target || 0));
-  return {agg, posterior, reliability, signal, policy};
+  return {agg, prior, posterior, reliability, signal, policy};
 }
 function applyLastScoreSetup() {
   if (!activeSession) return;
@@ -4040,7 +4127,7 @@ function routineEvidenceLabel(n) {
   return "low evidence";
 }
 
-/* ===== v4.36.3 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
+/* ===== v4.37.0 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
 
 function bayesianOptimizationForProfile(profile){
   try {
@@ -4096,7 +4183,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.36.3 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
+/* ===== end v4.37.0 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -4133,6 +4220,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
   reasons.push(bayesianOptimizationReason({bayesianOptimization}));
+  if (stats.bayesian?.prior) reasons.push(bayesianPriorReason(stats.bayesian.prior));
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
@@ -4609,6 +4697,7 @@ function renderPhaseOneInsights() {
     ${dynamicDifficultyInsight(logs)}
     ${recommendationLearningInsight()}
     ${bayesianOptimizationInsight(logs)}
+    ${personalizedPriorsInsight()}
   </div>`;
 }
 
@@ -7091,7 +7180,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.37.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7996,9 +8085,10 @@ else ensureBayesianValidationPanel();
 function renderBayesianValidationForRoutine(routineId) {
   const r = routineById(routineId);
   if (!r || r.scoring !== "success_rate") return "";
-  const logs = (data.logs || []).filter(l => l.routineId === routineId && l.scoring === "success_rate");
+  const logs = successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
-  const posterior = betaPosterior(agg.successes, agg.attempts);
+  const prior = hierarchicalPriorForRoutine(r);
+  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, prior);
   const reliability = bayesianReliabilityLabel(posterior);
   const target = Number(r.target || 0);
   const signal = bayesianRecommendationSignal({posterior, targetPct:target});
@@ -8010,13 +8100,14 @@ function renderBayesianValidationForRoutine(routineId) {
       <div><span>Estimated range</span><strong>${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}</strong></div>
       <div><span>${kpiTitle("Evidence", "kpiEvidence")}</span><strong>${numText(agg.attempts, "0")} effective attempts / ${numText(agg.sessions, "0")} logs</strong></div>
       <div><span>Reliability</span><strong>${htmlText(reliability.label)}</strong></div>
+      <div><span>Prior source</span><strong>${htmlText(prior.label)}</strong></div>
     </div>
     <div class="bayes-action-box">
       <strong>${htmlText(policy.title)}</strong>
       <p>${htmlText(policy.instruction)}</p>
       <p class="muted">${htmlText(policy.coaching)} ${htmlText(policy.detail)}</p>
     </div>
-    <p class="muted">${htmlText(reliability.detail)} ${htmlText(bayesianAdvice(posterior, target))}</p>
+    <p class="muted">${htmlText(prior.detail)} ${htmlText(reliability.detail)} ${htmlText(bayesianAdvice(posterior, target))}</p>
   </div>`;
 }
 
