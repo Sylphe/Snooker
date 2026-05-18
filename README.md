@@ -1,26 +1,26 @@
-# Snooker Practice PWA v4.32.0
+# Snooker Practice PWA v4.33.0
 
-## v4.32.0 — Target Credible Intervals / Bayesian Calibration v1
+## v4.33.0 — Dynamic Difficulty Adjustment
 
-Build timestamp: 2026-05-18 11:37 CEST.
+v4.33.0 adds a practical difficulty-control layer on top of v4.32.0 Target Credible Intervals. The app now distinguishes whether an exercise should be progressed, held stable, simplified, pressure-tested, or used as a confidence-preserving finish.
 
-v4.32.0 adds the first uncertainty-aware target calibration layer on top of v4.31.0 Latent Current Form Estimate. The app now shows expected target ranges instead of relying only on point forecasts, and it shrinks low-sample signals toward a neutral prior so early hot or cold streaks do not overdrive target advice.
+### Implemented
 
-### Added
+- Dynamic Difficulty Adjustment v1 insight card.
+- Target hit-rate band interpretation.
+- Cautious progression and regression rules using credible target ranges.
+- Confidence-preserving overrides when current form or fatigue suggests escalation would be counterproductive.
+- Volatility guardrail to stabilize before progressing when recent results are unstable.
+- Recommendation reasons now include difficulty guidance.
+- Smart recommendation scoring now receives a small difficulty-signal adjustment.
+- Coaching insights now surface difficulty-change advice when relevant.
 
-- Target Credible Intervals v1 insight card on the Insights page.
-- Low-N shrinkage for target range estimation.
-- Uncertainty badges: evidence strength plus interval width.
-- Cautious target progression / regression guidance.
-- Recommendation reasons now include target-range context.
-- Target advice is calibrated separately from raw recent performance and current form.
+### Practical interpretation
 
-### Analytical intent
+The app now avoids treating every good score as a reason to make a drill harder. Difficulty changes are one-step only: raise the target, add a controlled pressure constraint, or simplify the setup, but not multiple changes simultaneously. This keeps training progressive without damaging confidence or overreacting to low-sample noise.
 
-This is not the full Bayesian optimization layer. It is a practical calibration bridge: the app now treats target advice as uncertain, dampens small-sample signals, and gives range-based guidance before future hierarchical Bayesian skill estimates are introduced.
+### Build
 
-### Validation
-
-- App version, build metadata, cache references, and service worker cache name updated to v4.32.0.
-- JavaScript syntax validation passed.
-- Zip integrity validated.
+- App version: v4.33.0
+- Build timestamp: 2026-05-18 11:42 CEST
+- Cache and service worker references updated to v4.33.0.

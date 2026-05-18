@@ -1,3 +1,3 @@
-export const APP_VERSION = "4.32.0-target-credible-intervals";
-export const APP_BUILD = "v4.32.0";
-export const APP_BUILD_TIMESTAMP = "2026-05-18 11:37 CEST";
+export const APP_VERSION = "4.33.0-dynamic-difficulty-adjustment";
+export const APP_BUILD = "v4.33.0";
+export const APP_BUILD_TIMESTAMP = "2026-05-18 11:42 CEST";
