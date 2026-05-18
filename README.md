@@ -1,10 +1,10 @@
-# Snooker Practice PWA v4.26.1
+# Snooker Practice PWA v4.26.2
 
-Build timestamp: 2026-05-18 09:07 CEST
+Build timestamp: 2026-05-18 09:27 CEST
 
 ## Release focus
 
-v4.26.1 refines the Reflection & Skill Map Foundation. The objective is to create the semantic layer required for better recommendations: routines are now mapped to underlying skills, reflections capture structured subjective signals, and recommendation reasons can reference skill focus and transfer value instead of remaining purely drill-centric.
+v4.26.2 refines the Reflection & Skill Map Foundation. The objective is to create the semantic layer required for better recommendations: routines are now mapped to underlying skills, reflections capture structured subjective signals, and recommendation reasons can reference skill focus and transfer value instead of remaining purely drill-centric.
 
 ## Added
 
@@ -14,14 +14,18 @@ v4.26.1 refines the Reflection & Skill Map Foundation. The objective is to creat
 - Skill taxonomy: canonical technical, break-building, safety/tactical, mental, and physical skill tags are now available.
 - Routine skill mapping: each routine has a primary skill, secondary skill tags, and transfer tags.
 - Auto-suggested skill maps: existing routines are mapped from name, folder, category, subfolder, and description during migration.
-- Manual override: advanced exercise editing now exposes primary skill, secondary tags, and transfer tags.
+- Manual override: advanced exercise editing now exposes primary skill plus controlled secondary and transfer tag selectors.
+- Canonical skill tag chips: secondary and transfer tags now use selectable chips backed by normalized skill IDs instead of free-text entry.
+- Duplicate-tag protection: common aliases such as cue ball speed / cueball speed / cue-ball speed normalize to the same internal ID.
 - Skill-aware recommendation reasons: recommendation output can now explain the underlying skill focus and transfer logic.
 - Skill-map insight card: stats insights can show the current practice mix by primary skill.
 
 ## Updated
 
 - Post-session reflection ratings changed from numeric input boxes to tappable 1–5 tiles, matching the Focus Mode session-quality UX.
-- App version and cache-busting references updated to v4.26.1.
+- Exercise creator skill fields changed from manual free-text boxes to controlled multi-select chips for secondary and transfer tags.
+- Build timestamps are now expressed in Europe/Paris local time with CET/CEST notation to avoid GMT-offset ambiguity.
+- App version and cache-busting references updated to v4.26.2.
 - Build metadata updated in `modules/version.js` and the home screen.
 - Service worker cache name updated for the new release.
 

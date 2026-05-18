@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.26.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.26.1";
+} from "./utils.js?v=4.26.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.26.1";
+} from "./settings.js?v=4.26.2";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.26.1";
+} from "./analytics.js?v=4.26.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.26.1";
+} from "./bayesian.js?v=4.26.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.26.1";
+} from "./session.js?v=4.26.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.26.1";
+} from "./pressure.js?v=4.26.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.26.1";
+} from "./recommendations.js?v=4.26.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.26.1";
+} from "./store.js?v=4.26.2";
 
 
 
@@ -341,36 +341,77 @@ applyThemeModeEarly();
 
 const SKILL_TAXONOMY_VERSION = "v4.26";
 const DEFAULT_SKILLS = [
-  {id:"cueing", label:"Cueing", group:"Technical"},
-  {id:"long_potting", label:"Long potting", group:"Technical"},
-  {id:"cue_ball_control", label:"Cue-ball control", group:"Technical"},
-  {id:"pace_control", label:"Pace control", group:"Technical"},
-  {id:"stun_screw_side", label:"Stun / screw / side", group:"Technical"},
-  {id:"rail_shots", label:"Rail / cushion shots", group:"Technical"},
-  {id:"rest_play", label:"Rest play", group:"Technical"},
-  {id:"bridging", label:"Bridging", group:"Technical"},
-  {id:"break_building", label:"Break-building", group:"Break-building"},
-  {id:"transition_play", label:"Transition play", group:"Break-building"},
-  {id:"positional_play", label:"Positional play", group:"Break-building"},
-  {id:"recovery", label:"Recovery", group:"Break-building"},
-  {id:"cluster_management", label:"Cluster management", group:"Break-building"},
-  {id:"safety", label:"Safety", group:"Safety / tactical"},
-  {id:"tactical_decision_making", label:"Tactical decision-making", group:"Safety / tactical"},
-  {id:"escape_shots", label:"Escape shots", group:"Safety / tactical"},
-  {id:"pressure_resilience", label:"Pressure resilience", group:"Mental"},
-  {id:"focus_consistency", label:"Focus consistency", group:"Mental"},
-  {id:"confidence_stability", label:"Confidence stability", group:"Mental"},
-  {id:"stamina", label:"Stamina", group:"Physical"}
+  {id:"cueing", label:"Cueing", group:"Technical", aliases:["cue action","cue delivery","technique"]},
+  {id:"long_potting", label:"Long potting", group:"Technical", aliases:["long pot","long pots","distance potting"]},
+  {id:"cue_ball_control", label:"Cue-ball control", group:"Technical", aliases:["cue ball","cueball","white control","cueball control"]},
+  {id:"cue_ball_speed", label:"Cue-ball speed", group:"Technical", aliases:["cue ball speed","cueball speed","cue-ball speed","speed control","pace of white"]},
+  {id:"pace_control", label:"Pace control", group:"Technical", aliases:["speed","weight","touch","pace"]},
+  {id:"stun_screw_side", label:"Stun / screw / side", group:"Technical", aliases:["stun","screw","side","spin"]},
+  {id:"rail_shots", label:"Rail / cushion shots", group:"Technical", aliases:["cushion shots","rail shot","cushion"]},
+  {id:"rest_play", label:"Rest play", group:"Technical", aliases:["rest","mechanical bridge"]},
+  {id:"bridging", label:"Bridging", group:"Technical", aliases:["bridge","awkward bridge"]},
+  {id:"break_building", label:"Break-building", group:"Break-building", aliases:["break building","breaks","clearance"]},
+  {id:"transition_play", label:"Transition play", group:"Break-building", aliases:["transition","blue to black","blue-to-black"]},
+  {id:"positional_play", label:"Positional play", group:"Break-building", aliases:["position","positional","position play"]},
+  {id:"recovery", label:"Recovery", group:"Break-building", aliases:["recovery shots","out of position","short-side recovery"]},
+  {id:"cluster_management", label:"Cluster management", group:"Break-building", aliases:["cluster","pack","cannon"]},
+  {id:"safety", label:"Safety", group:"Safety / tactical", aliases:["safe","snooker","containing safety"]},
+  {id:"tactical_decision_making", label:"Tactical decision-making", group:"Safety / tactical", aliases:["tactics","shot selection","decision making"]},
+  {id:"escape_shots", label:"Escape shots", group:"Safety / tactical", aliases:["escape","escapes","snooker escape"]},
+  {id:"pressure_resilience", label:"Pressure resilience", group:"Mental", aliases:["pressure","match pressure","pressure mode"]},
+  {id:"focus_consistency", label:"Focus consistency", group:"Mental", aliases:["focus","concentration","attention"]},
+  {id:"confidence_stability", label:"Confidence stability", group:"Mental", aliases:["confidence","belief","confidence control"]},
+  {id:"stamina", label:"Stamina", group:"Physical", aliases:["endurance","fatigue resistance","fatigue"]}
 ];
+const SKILL_ALIAS_TO_ID = (() => {
+  const map = {};
+  DEFAULT_SKILLS.forEach(skill => {
+    [skill.id, skill.label, ...(skill.aliases || [])].forEach(value => {
+      const key = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+      if (key) map[key] = skill.id;
+    });
+  });
+  return map;
+})();
 function defaultSkillTaxonomy(){ return {version:SKILL_TAXONOMY_VERSION, skills:structuredCloneSafe(DEFAULT_SKILLS)}; }
 function skillLabel(id){ return (DEFAULT_SKILLS.find(s=>s.id===id)?.label) || String(id||"").replaceAll("_"," "); }
 function normalizeSkillId(value){
   const raw = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
-  return raw || "uncategorized";
+  return SKILL_ALIAS_TO_ID[raw] || raw || "uncategorized";
 }
 function normalizeSkillList(value){
-  if (Array.isArray(value)) return [...new Set(value.map(normalizeSkillId).filter(Boolean))];
-  return [...new Set(String(value||"").split(/[;,]/).map(normalizeSkillId).filter(Boolean))];
+  const arr = Array.isArray(value) ? value : String(value||"").split(/[;,]/);
+  const valid = new Set(DEFAULT_SKILLS.map(s=>s.id));
+  return [...new Set(arr.map(normalizeSkillId).filter(x => x && valid.has(x)))];
+}
+function setSkillHiddenValue(id, values){ const el=$(id); if(el) el.value = normalizeSkillList(values).join(", "); }
+function getSkillHiddenValue(id){ return normalizeSkillList($(id)?.value || ""); }
+function renderSkillChipGroup(containerId, hiddenInputId, selectedValues){
+  const box = $(containerId);
+  if(!box) return;
+  const selected = new Set(normalizeSkillList(selectedValues));
+  setSkillHiddenValue(hiddenInputId, [...selected]);
+  const groups = {};
+  DEFAULT_SKILLS.forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
+  box.innerHTML = Object.entries(groups).map(([group, skills]) => `
+    <div class="skill-chip-section">
+      <div class="skill-chip-heading">${htmlText(group)}</div>
+      <div class="skill-chip-row">${skills.map(skill => {
+        const active = selected.has(skill.id);
+        return `<button type="button" class="skill-select-chip ${active ? "active" : ""}" aria-pressed="${active ? "true" : "false"}" data-action="toggle-skill-chip" data-target="${attrText(hiddenInputId)}" data-container="${attrText(containerId)}" data-skill-id="${attrText(skill.id)}">${htmlText(skill.label)}</button>`;
+      }).join("")}</div>
+    </div>`).join("");
+}
+function renderRoutineSkillChips(skillMap){
+  renderSkillChipGroup("routineSecondarySkillChips", "routineSecondarySkills", skillMap?.secondarySkills || []);
+  renderSkillChipGroup("routineTransferSkillChips", "routineTransferTags", skillMap?.transferTags || []);
+}
+function toggleSkillChip(targetId, containerId, skillId){
+  const current = new Set(getSkillHiddenValue(targetId));
+  const clean = normalizeSkillId(skillId);
+  if(current.has(clean)) current.delete(clean); else current.add(clean);
+  renderSkillChipGroup(containerId, targetId, [...current]);
+  hapticFeedback("tap");
 }
 function inferRoutineSkillMap(routine){
   const text = `${routine?.name||""} ${routine?.category||""} ${routine?.folder||""} ${routine?.subfolder||""} ${routine?.description||""}`.toLowerCase();
@@ -398,8 +439,10 @@ function inferRoutineSkillMap(routine){
 function normalizeRoutineSkillMap(routine, existing){
   const inferred = inferRoutineSkillMap(routine);
   const src = existing || routine?.skillMap || {};
+  const validSkills = new Set(DEFAULT_SKILLS.map(s=>s.id));
+  const primary = normalizeSkillId(src.primarySkill || routine?.primarySkill || inferred.primarySkill);
   return {
-    primarySkill: normalizeSkillId(src.primarySkill || routine?.primarySkill || inferred.primarySkill),
+    primarySkill: validSkills.has(primary) ? primary : inferred.primarySkill,
     secondarySkills: normalizeSkillList(src.secondarySkills || routine?.secondarySkills || inferred.secondarySkills),
     transferTags: normalizeSkillList(src.transferTags || routine?.transferTags || inferred.transferTags),
     source: src.source || routine?.skillMapSource || "auto",
@@ -1114,8 +1157,7 @@ function editRoutine(id) {
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
   const skillMap = getRoutineSkillMap(r);
   if ($("routinePrimarySkill")) $("routinePrimarySkill").value = skillMap.primarySkill || "cueing";
-  if ($("routineSecondarySkills")) $("routineSecondarySkills").value = (skillMap.secondarySkills || []).join(", ");
-  if ($("routineTransferTags")) $("routineTransferTags").value = (skillMap.transferTags || []).join(", ");
+  renderRoutineSkillChips(skillMap);
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
@@ -1140,6 +1182,7 @@ function clearRoutineForm() {
   $("routineIsAnchor").value = "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
   if ($("routinePrimarySkill")) $("routinePrimarySkill").value = "cueing";
+  renderRoutineSkillChips({secondarySkills:[], transferTags:[]});
   $("routineCategorySelect").value = "all";
   $("routineFolderSelect").value = "all";
   $("routineSubfolderSelect").value = "all";
@@ -1149,6 +1192,7 @@ if ($("exerciseFormMode")) {
   $("exerciseFormMode").addEventListener("change", e => applyExerciseFormMode(e.target.value));
   applyExerciseFormMode(getExerciseFormMode());
 }
+renderRoutineSkillChips({secondarySkills: getSkillHiddenValue("routineSecondarySkills"), transferTags: getSkillHiddenValue("routineTransferTags")});
 function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
@@ -5568,7 +5612,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.26.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -6368,6 +6412,7 @@ function handleDelegatedUIAction(event) {
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
+    case "toggle-skill-chip": return toggleSkillChip(actionEl.dataset.target || "", actionEl.dataset.container || "", actionEl.dataset.skillId || "");
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -7360,7 +7405,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.26.1 Unified Recommendation Foundation ===== */
+/* ===== v4.26.2 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7485,7 +7530,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.26.1 Unified Recommendation Foundation ===== */
+/* ===== end v4.26.2 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){
