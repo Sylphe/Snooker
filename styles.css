@@ -2793,3 +2793,94 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .evidence-weak,.evidence-early{ background:rgba(245,158,11,.13); border-color:rgba(245,158,11,.38); color:#92400e; }
 .evidence-insufficient{ background:rgba(148,163,184,.13); border-color:rgba(148,163,184,.35); color:#475569; }
 .context-row .evidence-badge{ margin-left:0; }
+
+
+/* v4.35.1 Focus Mode UX polish */
+body.session-focus-active #activeSession .focus-readonly-input{
+  caret-color:transparent!important;
+  user-select:none!important;
+  touch-action:manipulation!important;
+  background:var(--panel-bg-2, rgba(255,255,255,.06))!important;
+}
+body.session-focus-active #activeSession .focus-numpad-active-row input{
+  outline:2px solid var(--accent)!important;
+  outline-offset:2px!important;
+}
+body.session-focus-active #activeSession .focus-numpad-panel{
+  grid-column:1 / -1!important;
+  order:4!important;
+  background:var(--panel-bg)!important;
+  border:1px solid var(--line)!important;
+  border-radius:14px!important;
+  padding:8px!important;
+  margin:2px 0!important;
+}
+body.session-focus-active #activeSession .focus-numpad-title{
+  color:var(--muted)!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  margin-bottom:6px!important;
+}
+body.session-focus-active #activeSession .focus-numpad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:6px!important;
+}
+body.session-focus-active #activeSession .focus-numpad-grid button{
+  min-height:44px!important;
+  border-radius:12px!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  padding:0!important;
+  touch-action:manipulation!important;
+}
+body.session-focus-active #activeSession .sticky-log-actions,
+body.session-focus-active #activeSession .primary-action-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,4fr) minmax(64px,1fr)!important;
+  gap:8px!important;
+  align-items:stretch!important;
+}
+body.session-focus-active #activeSession #saveNextBtn{
+  min-height:48px!important;
+  font-size:16px!important;
+  font-weight:950!important;
+  border-radius:14px!important;
+}
+body.session-focus-active #activeSession #skipBtn,
+body.session-focus-active #activeSession #endFreeSessionBtn{
+  min-height:48px!important;
+  font-size:12px!important;
+  font-weight:800!important;
+  border-radius:14px!important;
+  opacity:.82!important;
+}
+body.session-focus-active button,
+body.session-focus-active .score-chip,
+body.session-focus-active input,
+body.session-focus-active select{
+  min-height:44px;
+}
+body.session-focus-active #timerDisplay{
+  font-variant-numeric:tabular-nums!important;
+}
+.insight.insight-compact{
+  display:block!important;
+  padding:10px 12px!important;
+}
+.insight.insight-compact strong{
+  display:block!important;
+  font-size:14px!important;
+  line-height:1.2!important;
+  margin-bottom:3px!important;
+}
+.insight.insight-compact .insight-subtitle{
+  display:block!important;
+  color:var(--muted)!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+}
+@media(max-width:420px){
+  body.session-focus-active #activeSession .focus-numpad-grid button{min-height:42px!important;font-size:16px!important;}
+  body.session-focus-active #activeSession #saveNextBtn{min-height:50px!important;}
+}

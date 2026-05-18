@@ -1,20 +1,20 @@
-# Snooker Practice PWA v4.35.0
+# Snooker Practice PWA v4.35.1
 
-## v4.35.0 — Recommendation Learning v2
+## v4.35.1 — Focus Mode UX Polish
 
-Built from stable v4.34.0. This release adds a guarded recommendation-learning layer on top of accepted/skipped/completed feedback.
+Built from stable v4.35.1 Recommendation Learning v2.
 
-### Added
-- Routine-level recommendation learning profiles from accepted, skipped, and completed recommendations.
-- Soft personalized ranking weights: repeated skips down-weight a routine; positive completed outcomes boost it.
-- Average score-after / improvement-after-recommendation interpretation.
-- Recommendation Learning v2 insight card on the Insights page.
-- Learning badge and learning-aware reasons in Smart Recommendations.
+### UX changes
+- Focus Mode score fields are readonly to reduce mobile keyboard pop-ups.
+- Added a built-in Focus Mode numpad for score entry.
+- Added long-press acceleration on Focus Mode +/- steppers.
+- Made the primary Save / Save & Next action visually dominant.
+- Kept timer display simple as MM:SS while preserving precise internal timing.
+- Increased minimum mobile tap targets for Focus Mode controls.
+- Simplified coaching insight cards into headline + subtitle format.
 
-### Stability precautions
-- No top-level recommendation-learning execution.
-- All learning insight calculations are guarded with `try/catch`.
-- Recommendation learning is a soft score only; it does not overwrite logs, scores, tags, or historical records.
-- Service worker cache name, module query strings, and build metadata are aligned to v4.35.0.
-
-Build timestamp: 2026-05-18 14:02 CEST.
+### Stability notes
+- No new analytics engine was added in this release.
+- Recommendation Learning v2 from v4.35.1 is preserved.
+- Service worker cache name, module query strings, and build metadata are aligned to v4.35.1.
+- Build timestamp: 2026-05-18 14:11 CEST.

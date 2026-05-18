@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.35.0";
+} from "./utils.js?v=4.35.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.35.0";
+} from "./settings.js?v=4.35.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.35.0";
+} from "./analytics.js?v=4.35.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.35.0";
+} from "./bayesian.js?v=4.35.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.35.0";
+} from "./session.js?v=4.35.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.35.0";
+} from "./pressure.js?v=4.35.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.35.0";
+} from "./recommendations.js?v=4.35.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.35.0";
+} from "./store.js?v=4.35.1";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.35.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.0 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1186,6 +1186,74 @@ let elapsedBeforeStartMs = 0;
 let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
+
+// v4.35.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
+let focusNumpadTargetId = "scoreValue";
+let focusStepHoldStartTimer = null;
+let focusStepHoldRepeatTimer = null;
+
+function cancelFocusStepHold() {
+  if (focusStepHoldStartTimer) clearTimeout(focusStepHoldStartTimer);
+  if (focusStepHoldRepeatTimer) clearInterval(focusStepHoldRepeatTimer);
+  focusStepHoldStartTimer = null;
+  focusStepHoldRepeatTimer = null;
+}
+
+function normalizeFocusNumpadTarget(id) {
+  const allowed = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue"];
+  return allowed.includes(id) && $(id) ? id : "scoreValue";
+}
+
+function setFocusNumpadTarget(id) {
+  focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
+  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${CSS.escape(focusNumpadTargetId)}`)));
+}
+
+function applyFocusModeInputLocks() {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const ids = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue"];
+  ids.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.readOnly = true;
+    el.setAttribute("inputmode", "none");
+    el.classList.add("focus-readonly-input");
+    el.addEventListener("focus", () => setFocusNumpadTarget(id), {once:false});
+    el.addEventListener("click", () => setFocusNumpadTarget(id), {once:false});
+  });
+  setFocusNumpadTarget(focusNumpadTargetId);
+}
+
+function renderFocusNumpad(r) {
+  const box = $("scoreInputs");
+  if (!box || !document.body?.classList.contains("session-focus-active")) return;
+  box.querySelector(".focus-numpad-panel")?.remove();
+  const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","bestAttemptValue","completionCountValue","highestBreakValue"].filter(id => $(id));
+  if (!candidates.length) return;
+  focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
+  const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","Clear"];
+  box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel" aria-label="Focus mode score numpad">
+    <div class="focus-numpad-title">Tap field, then enter score</div>
+    <div class="focus-numpad-grid">${buttons.map(label => {
+      const action = label === "⌫" ? "backspace" : label === "Clear" ? "clear" : "digit";
+      const value = action === "digit" ? label : "";
+      return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
+    }).join("")}</div>
+  </div>`);
+}
+
+function handleFocusNumpad(action, value) {
+  const el = $(normalizeFocusNumpadTarget(focusNumpadTargetId));
+  if (!el) return;
+  let current = String(el.value || "");
+  if (action === "clear") current = "";
+  else if (action === "backspace") current = current.slice(0, -1);
+  else if (action === "digit") current = `${current}${String(value || "")}`.replace(/^0+(?=\d)/, "");
+  el.value = current;
+  el.dispatchEvent(new Event("input", {bubbles:true}));
+  setFocusNumpadTarget(el.id);
+  refreshCurrentRoutineLivePerformance();
+}
 let wakeLockSentinel = null;
 let wakeLockRequestInFlight = false;
 let deferredInstallPrompt = null;
@@ -2188,6 +2256,8 @@ function renderScoreInputs(r) {
   }
   $("scoreInputs").innerHTML = html;
   renderFocusScoreSteppers(r);
+  renderFocusNumpad(r);
+  applyFocusModeInputLocks();
   renderQuickScoreControls(r);
   const activeCard = $("activeSession");
   if (activeCard) {
@@ -2573,7 +2643,7 @@ function restoreTimerStateFromActiveSession() {
   elapsedBeforeStartMs = Number(ts.elapsedBeforeStartMs || 0);
   timerStartMs = ts.isRunning && ts.timerStartMs ? Number(ts.timerStartMs) : null;
   if (timerStartMs) {
-    timerInterval = setInterval(updateTimerDisplay, 250);
+    timerInterval = setInterval(updateTimerDisplay, 1000);
     if ($("timerState")) $("timerState").textContent = "timer running";
   } else if (elapsedBeforeStartMs > 0 && $("timerState")) {
     $("timerState").textContent = "timer paused";
@@ -2627,7 +2697,7 @@ function startPracticeTimer() {
   cancelTimerAutostartDelay();
   if (timerStartMs) return;
   timerStartMs = Date.now();
-  timerInterval = setInterval(updateTimerDisplay, 250);
+  timerInterval = setInterval(updateTimerDisplay, 1000);
   if ($("timerState")) $("timerState").textContent = "timer running";
   updateTimerDisplay();
   syncTimerStateToActiveSession();
@@ -4221,7 +4291,7 @@ function renderContextEffects(logs) {
 
 
 
-/* ===== v4.35.0 Venue / Context Normalization v1 ===== */
+/* ===== v4.35.1 Venue / Context Normalization v1 ===== */
 function safeContextNormalizationScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -4354,7 +4424,7 @@ function contextNormalizationInsight(logs){
     return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.0 Venue / Context Normalization v1 ===== */
+/* ===== end v4.35.1 Venue / Context Normalization v1 ===== */
 
 function forecastWithConfidence(logs, horizon=5){
   if(!logs || logs.length<5) return null;
@@ -5177,7 +5247,7 @@ function renderCoachingEngine(logs, rid=null) {
     insights.push({title:"Maintain current structure", text:"No strong bottleneck detected. Continue logging to improve signal quality."});
   }
 
-  return `<div class="coaching-box"><h3>Coaching insights</h3>${insights.slice(0,4).map(i=>`<div class="insight"><strong>${escapeHtml(i.title)}</strong>${escapeHtml(i.text)}</div>`).join("")}</div>`;
+  return `<div class="coaching-box"><h3>Coaching insights</h3>${insights.slice(0,4).map(i=>`<div class="insight insight-compact"><strong>${escapeHtml(i.title)}</strong><span class="insight-subtitle">${escapeHtml(i.text)}</span></div>`).join("")}</div>`;
 }
 
 
@@ -6896,7 +6966,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7706,6 +7776,7 @@ function handleDelegatedUIAction(event) {
     case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "focus-numpad": hapticFeedback("tap"); return handleFocusNumpad(actionEl.dataset.numpadAction || "digit", actionEl.dataset.value || "");
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
     case "toggle-skill-chip": return toggleSkillChip(actionEl.dataset.target || "", actionEl.dataset.container || "", actionEl.dataset.skillId || "");
@@ -7722,6 +7793,22 @@ function handleDelegatedUIAction(event) {
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }
 }
+
+
+document.addEventListener("pointerdown", function(event) {
+  const btn = event.target instanceof Element ? event.target.closest?.('[data-action="focus-step"]') : null;
+  if (!btn || !document.body?.classList.contains("session-focus-active")) return;
+  cancelFocusStepHold();
+  const target = btn.dataset.target || "scoreValue";
+  const delta = Number(btn.dataset.delta || 0);
+  focusStepHoldStartTimer = setTimeout(() => {
+    focusStepHoldRepeatTimer = setInterval(() => {
+      adjustNumericInputValue(target, delta);
+      refreshCurrentRoutineLivePerformance();
+    }, 90);
+  }, 350);
+}, {passive:true});
+["pointerup","pointercancel","pointerleave","blur"].forEach(evt => document.addEventListener(evt, cancelFocusStepHold, {passive:true}));
 
 document.addEventListener("click", handleDelegatedUIAction);
 document.addEventListener("change", event => {
