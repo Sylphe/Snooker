@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.42.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.42.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.43.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.43.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.42.0";
+} from "./utils.js?v=4.43.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.42.0";
+} from "./settings.js?v=4.43.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.42.0";
+} from "./analytics.js?v=4.43.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.42.0";
+} from "./bayesian.js?v=4.43.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.42.0";
+} from "./session.js?v=4.43.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.42.0";
+} from "./pressure.js?v=4.43.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.42.0";
+} from "./recommendations.js?v=4.43.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.42.0";
+} from "./store.js?v=4.43.0";
 
 
 
@@ -370,36 +370,82 @@ const DEFAULT_SKILLS = [
   {id:"confidence_stability", label:"Confidence stability", group:"Mental", aliases:["confidence","belief","confidence control"]},
   {id:"stamina", label:"Stamina", group:"Physical", aliases:["endurance","fatigue resistance","fatigue"]}
 ];
-const SKILL_ALIAS_TO_ID = (() => {
+let activeSkillTaxonomyForNormalization = null;
+function canonicalSkillKey(value){
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+}
+function skillIdFromLabel(label){ return canonicalSkillKey(label || "custom_skill"); }
+function normalizeSkillRecord(skill){
+  const id = skillIdFromLabel(skill?.id || skill?.label || "custom_skill");
+  return {
+    id,
+    label: String(skill?.label || id.replaceAll("_"," ")).trim() || id,
+    group: String(skill?.group || "Custom").trim() || "Custom",
+    aliases: [...new Set((Array.isArray(skill?.aliases) ? skill.aliases : String(skill?.aliases || "").split(/[;,]/)).map(x => String(x || "").trim()).filter(Boolean))],
+    active: skill?.active === false ? false : true,
+    transferTargets: normalizeRawSkillIdList(skill?.transferTargets || [])
+  };
+}
+function mergeSkillLibraries(customSkills){
+  const map = new Map();
+  DEFAULT_SKILLS.forEach(s => map.set(s.id, normalizeSkillRecord({...s, active:true})));
+  (Array.isArray(customSkills) ? customSkills : []).forEach(s => {
+    const rec = normalizeSkillRecord(s);
+    const prior = map.get(rec.id);
+    map.set(rec.id, prior ? {...prior, ...rec, aliases:[...new Set([...(prior.aliases||[]), ...(rec.aliases||[])])]} : rec);
+  });
+  return [...map.values()].sort((a,b)=>String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));
+}
+function normalizeSkillTaxonomy(taxonomy){
+  return {version: SKILL_TAXONOMY_VERSION, skills: mergeSkillLibraries(taxonomy?.skills || DEFAULT_SKILLS)};
+}
+function defaultSkillTaxonomy(){ return normalizeSkillTaxonomy({skills:DEFAULT_SKILLS}); }
+function currentSkillLibrary(options={}){
+  const lib = mergeSkillLibraries(activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS);
+  return options.includeArchived === false ? lib.filter(s => s.active !== false) : lib;
+}
+function skillAliasMap(){
   const map = {};
-  DEFAULT_SKILLS.forEach(skill => {
+  currentSkillLibrary({includeArchived:true}).forEach(skill => {
     [skill.id, skill.label, ...(skill.aliases || [])].forEach(value => {
-      const key = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+      const key = canonicalSkillKey(value);
       if (key) map[key] = skill.id;
     });
   });
   return map;
-})();
-function defaultSkillTaxonomy(){ return {version:SKILL_TAXONOMY_VERSION, skills:structuredCloneSafe(DEFAULT_SKILLS)}; }
-function skillLabel(id){ return (DEFAULT_SKILLS.find(s=>s.id===id)?.label) || String(id||"").replaceAll("_"," "); }
+}
+function normalizeRawSkillIdList(value){
+  const arr = Array.isArray(value) ? value : String(value||"").split(/[;,]/);
+  return [...new Set(arr.map(x => canonicalSkillKey(x)).filter(Boolean))];
+}
+function skillLabel(id){ return (currentSkillLibrary({includeArchived:true}).find(s=>s.id===id)?.label) || String(id||"").replaceAll("_"," "); }
 function normalizeSkillId(value){
-  const raw = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
-  return SKILL_ALIAS_TO_ID[raw] || raw || "uncategorized";
+  const raw = canonicalSkillKey(value);
+  return skillAliasMap()[raw] || raw || "uncategorized";
 }
 function normalizeSkillList(value){
   const arr = Array.isArray(value) ? value : String(value||"").split(/[;,]/);
-  const valid = new Set(DEFAULT_SKILLS.map(s=>s.id));
+  const valid = new Set(currentSkillLibrary({includeArchived:true}).map(s=>s.id));
   return [...new Set(arr.map(normalizeSkillId).filter(x => x && valid.has(x)))];
 }
 function setSkillHiddenValue(id, values){ const el=$(id); if(el) el.value = normalizeSkillList(values).join(", "); }
 function getSkillHiddenValue(id){ return normalizeSkillList($(id)?.value || ""); }
+function renderPrimarySkillOptions(selectedValue=""){
+  const select = $("routinePrimarySkill");
+  if(!select) return;
+  const selected = normalizeSkillId(selectedValue || select.value || "cueing");
+  const groups = {};
+  currentSkillLibrary({includeArchived:false}).forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
+  select.innerHTML = Object.entries(groups).map(([group, skills]) => `<optgroup label="${attrText(group)}">${skills.map(skill => `<option value="${attrText(skill.id)}">${htmlText(skill.label)}</option>`).join("")}</optgroup>`).join("");
+  select.value = currentSkillLibrary({includeArchived:true}).some(s=>s.id===selected) ? selected : "cueing";
+}
 function renderSkillChipGroup(containerId, hiddenInputId, selectedValues){
   const box = $(containerId);
   if(!box) return;
   const selected = new Set(normalizeSkillList(selectedValues));
   setSkillHiddenValue(hiddenInputId, [...selected]);
   const groups = {};
-  DEFAULT_SKILLS.forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
+  currentSkillLibrary({includeArchived:false}).forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
   box.innerHTML = Object.entries(groups).map(([group, skills]) => `
     <div class="skill-chip-section">
       <div class="skill-chip-heading">${htmlText(group)}</div>
@@ -446,7 +492,7 @@ function inferRoutineSkillMap(routine){
 function normalizeRoutineSkillMap(routine, existing){
   const inferred = inferRoutineSkillMap(routine);
   const src = existing || routine?.skillMap || {};
-  const validSkills = new Set(DEFAULT_SKILLS.map(s=>s.id));
+  const validSkills = new Set(currentSkillLibrary({includeArchived:true}).map(s=>s.id));
   const primary = normalizeSkillId(src.primarySkill || routine?.primarySkill || inferred.primarySkill);
   return {
     primarySkill: validSkills.has(primary) ? primary : inferred.primarySkill,
@@ -653,7 +699,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v4.42.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -749,10 +795,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.42.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
 
-/* ===== v4.42.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -858,9 +904,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.42.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
-/* ===== v4.42.0 Adaptive Session Periodization ===== */
+/* ===== v4.43.0 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -947,7 +993,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.42.0 Adaptive Session Periodization ===== */
+/* ===== end v4.43.0 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -1453,6 +1499,8 @@ const defaultData = {
 };
 
 let data = loadData();
+activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+data.skillTaxonomy = activeSkillTaxonomyForNormalization;
 ensureTablesDatabase();
 refreshReferenceNames();
 // Core data is compacted after IndexedDB hydration/migration succeeds.
@@ -1686,7 +1734,8 @@ function migrateData(d) {
       });
     }
   });
-  d.skillTaxonomy = d.skillTaxonomy || defaultSkillTaxonomy();
+  d.skillTaxonomy = normalizeSkillTaxonomy(d.skillTaxonomy || defaultSkillTaxonomy());
+  activeSkillTaxonomyForNormalization = d.skillTaxonomy;
   d.routineSkillMap = d.routineSkillMap || {};
   d.skillTrendCache = d.skillTrendCache || {};
   d.recommendationFeedback = Array.isArray(d.recommendationFeedback) ? d.recommendationFeedback : [];
@@ -2116,6 +2165,7 @@ function renderAll() {
     ["renderPeriodization", renderPeriodization],
     ["renderRegretRoutineOptions", renderRegretRoutineOptions],
     ["renderTableDatabase", renderTableDatabase],
+    ["renderSkillManager", renderSkillManager],
     ["renderTableSelects", renderTableSelects],
     ["renderTrainingLoad", renderTrainingLoad],
     ["renderWeeklyReview", renderWeeklyReview],
@@ -2139,6 +2189,9 @@ function renderAll() {
 }
 
 function renderRoutineSelects() {
+  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  renderPrimarySkillOptions();
   const cats = categories(), flds = folders(), subs = subfolders();
 
   setSelectOptions($("routineCategorySelect"), cats, "Select existing type/category", $("routineCategorySelect")?.value || "all");
@@ -3516,6 +3569,123 @@ function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameI
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
 function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
 function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
+
+function clearSkillTagForm(){
+  ["skillEditId","skillManagerLabel","skillManagerId","skillManagerAliases","skillManagerTransferTargets"].forEach(id => { const el=$(id); if(el) el.value=""; });
+  const group=$("skillManagerGroup"); if(group) group.value="Technical";
+  const active=$("skillManagerActive"); if(active) active.value="yes";
+}
+function currentSkillById(id){ return currentSkillLibrary({includeArchived:true}).find(s => s.id === id) || null; }
+function renderSkillManager(){
+  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  const list=$("skillManagerList");
+  if(!list) return;
+  const q=($("skillManagerSearch")?.value||"").trim().toLowerCase();
+  const groupFilter=$("skillManagerFilterGroup")?.value || "all";
+  const skills=currentSkillLibrary({includeArchived:true}).filter(skill => {
+    if(groupFilter !== "all" && skill.group !== groupFilter) return false;
+    const hay=[skill.id, skill.label, skill.group, ...(skill.aliases||[])].join(" ").toLowerCase();
+    return !q || hay.includes(q);
+  });
+  if(!skills.length){ list.innerHTML='<div class="empty-state"><h3>No skill tags found</h3><p>Create a skill tag above, or clear the filters.</p></div>'; return; }
+  const usage={};
+  (data.routines||[]).forEach(r=>{
+    const m=getRoutineSkillMap(r);
+    [m.primarySkill, ...(m.secondarySkills||[]), ...(m.transferTags||[])].filter(Boolean).forEach(id=>usage[id]=(usage[id]||0)+1);
+  });
+  let last="";
+  list.innerHTML=skills.map(skill=>{
+    const header=skill.group!==last?`<h3 class="group-title">${htmlText(skill.group)}</h3>`:"";
+    last=skill.group;
+    const status=skill.active===false?'<span class="badge system-warning">Archived</span>':'<span class="badge system-ok">Active</span>';
+    const aliases=(skill.aliases||[]).length?`<div class="meta">Aliases: ${(skill.aliases||[]).map(htmlText).join(", ")}</div>`:'<div class="meta">No aliases</div>';
+    const transfer=(skill.transferTargets||[]).length?`<div class="meta">Supports: ${(skill.transferTargets||[]).map(id=>htmlText(skillLabel(id))).join(", ")}</div>`:"";
+    return `${header}<div class="skill-manager-row"><div><strong>${htmlText(skill.label)}</strong> <span class="meta">${htmlText(skill.id)}</span> ${status}<div class="meta">Used by ${usage[skill.id]||0} exercise tag assignments</div>${aliases}${transfer}</div><div class="small-actions"><button class="secondary" data-action="edit-skill-tag" data-id="${attrText(skill.id)}">Edit</button><button class="secondary" data-action="archive-skill-tag" data-id="${attrText(skill.id)}">${skill.active===false?"Restore":"Archive"}</button><button class="danger" data-action="merge-skill-tag" data-id="${attrText(skill.id)}">Merge</button></div></div>`;
+  }).join("");
+}
+function saveSkillTagFromForm(){
+  const label=($("skillManagerLabel")?.value||"").trim();
+  const editId=canonicalSkillKey($("skillEditId")?.value||"");
+  const rawId=canonicalSkillKey($("skillManagerId")?.value||"");
+  const id=rawId || skillIdFromLabel(label);
+  if(!label || !id) return alert("Enter a skill label.");
+  const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  const skills=taxonomy.skills.filter(s => s.id !== editId && s.id !== id);
+  const rec=normalizeSkillRecord({
+    id, label, group:$("skillManagerGroup")?.value||"Custom",
+    aliases:($("skillManagerAliases")?.value||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean),
+    active:($("skillManagerActive")?.value||"yes")!=="no",
+    transferTargets:($("skillManagerTransferTargets")?.value||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)
+  });
+  skills.push(rec);
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills});
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  if(editId && editId !== id){
+    remapSkillIdAcrossData(editId,id);
+  }
+  saveData({render:"all"});
+  clearSkillTagForm();
+  renderSkillManager();
+  renderRoutineSkillChips(getRoutineSkillMap(routineById($("routineEditId")?.value||"")||{}));
+  showTransientNotice("Skill tag saved.", "ok");
+}
+function editSkillTag(id){
+  const skill=currentSkillById(id); if(!skill) return;
+  const set=(id2,val)=>{const el=$(id2); if(el) el.value=val||"";};
+  set("skillEditId", skill.id); set("skillManagerLabel", skill.label); set("skillManagerId", skill.id); set("skillManagerGroup", skill.group); set("skillManagerAliases", (skill.aliases||[]).join(", ")); set("skillManagerTransferTargets", (skill.transferTargets||[]).join(", "));
+  const active=$("skillManagerActive"); if(active) active.value=skill.active===false?"no":"yes";
+  activateTab("templates"); setTemplatesMainTab("skills");
+}
+function archiveSkillTag(id){
+  const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  const skills=taxonomy.skills.map(s => s.id===id ? {...s, active:s.active===false?true:false} : s);
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
+  showTransientNotice("Skill tag status updated.", "ok");
+}
+function remapSkillIdAcrossData(fromId,toId){
+  const from=normalizeSkillId(fromId), to=normalizeSkillId(toId);
+  if(!from || !to || from===to) return;
+  const remapList=list=>[...new Set((Array.isArray(list)?list:String(list||"").split(/[;,]/)).map(x=>canonicalSkillKey(x)).filter(Boolean).map(x=>x===from?to:x).filter(x=>currentSkillById(x)))];
+  (data.routines||[]).forEach(r=>{
+    const m=getRoutineSkillMap(r);
+    if(m.primarySkill===from) m.primarySkill=to;
+    m.secondarySkills=remapList(m.secondarySkills);
+    m.transferTags=remapList(m.transferTags);
+    r.primarySkill=m.primarySkill; r.secondarySkills=m.secondarySkills; r.transferTags=m.transferTags; r.skillMap=m;
+  });
+  Object.keys(data.routineSkillMap||{}).forEach(rid=>{
+    const m=data.routineSkillMap[rid]; if(!m) return;
+    if(m.primarySkill===from) m.primarySkill=to;
+    m.secondarySkills=remapList(m.secondarySkills);
+    m.transferTags=remapList(m.transferTags);
+  });
+  (data.logs||[]).forEach(l=>{
+    if(l.primarySkill===from) l.primarySkill=to;
+    l.secondarySkills=remapList(l.secondarySkills);
+    l.transferTags=remapList(l.transferTags);
+    if(l.skillSnapshot){
+      if(l.skillSnapshot.primarySkill===from) l.skillSnapshot.primarySkill=to;
+      l.skillSnapshot.secondarySkills=remapList(l.skillSnapshot.secondarySkills);
+      l.skillSnapshot.transferTags=remapList(l.skillSnapshot.transferTags);
+    }
+  });
+}
+function mergeSkillTag(id){
+  const target=prompt(`Merge ${skillLabel(id)} into which existing skill ID?`);
+  if(!target) return;
+  const to=normalizeSkillId(target);
+  if(!currentSkillById(to)) return alert("Target skill ID not found.");
+  if(!confirm(`Merge ${skillLabel(id)} into ${skillLabel(to)}? Exercise and log skill references will be remapped.`)) return;
+  remapSkillIdAcrossData(id,to);
+  const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills:taxonomy.skills.map(s=>s.id===id?{...s, active:false}:s)});
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
+  showTransientNotice("Skill tags merged.", "ok");
+}
+
 function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${htmlText(t.name)}</strong><div class="meta">${htmlText(t.type||"No type")} · ${htmlText(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>htmlText(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" data-action="edit-table" data-id="${attrText(t.id)}">Edit</button><button class="secondary" data-action="delete-table" data-id="${attrText(t.id)}">Delete</button></div></div>`).join(""); }
 function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${htmlText(measures)}</p><p><strong>How calculated:</strong> ${htmlText(calc)}</p><p><strong>How to interpret:</strong> ${htmlText(interpret)}</p><div class="example"><strong>Typical use:</strong> ${htmlText(use)}</div></div>`; }
 
@@ -7470,7 +7640,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.42.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.43.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8191,7 +8361,7 @@ function restorePlansMainTab(){
 
 
 function setTemplatesMainTab(tab){
-  const allowed = new Set(["exercises", "tables"]);
+  const allowed = new Set(["exercises", "tables", "skills"]);
   const clean = allowed.has(tab) ? tab : "exercises";
   document.querySelectorAll("[data-templates-panel]").forEach(panel => {
     const active = panel.dataset.templatesPanel === clean;
@@ -8209,6 +8379,9 @@ function setTemplatesMainTab(tab){
   }
   if (clean === "tables") {
     try { renderTableDatabase(); } catch(e) { logAppError(e, "setTemplatesMainTab tables"); }
+  }
+  if (clean === "skills") {
+    try { renderSkillManager(); } catch(e) { logAppError(e, "setTemplatesMainTab skills"); }
   }
 }
 function restoreTemplatesMainTab(){
@@ -8294,6 +8467,9 @@ function handleDelegatedUIAction(event) {
     case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
     case "plans-main-tab": return setPlansMainTab(actionEl.dataset.plansTab || "daily");
     case "templates-main-tab": return setTemplatesMainTab(actionEl.dataset.templatesTab || "exercises");
+    case "edit-skill-tag": return editSkillTag(id);
+    case "archive-skill-tag": return archiveSkillTag(id);
+    case "merge-skill-tag": return mergeSkillTag(id);
     case "apply-target-upgrade": return applyTargetUpgrade(id);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
   }
@@ -8315,6 +8491,10 @@ document.addEventListener("pointerdown", function(event) {
 }, {passive:true});
 ["pointerup","pointercancel","pointerleave","blur"].forEach(evt => document.addEventListener(evt, cancelFocusStepHold, {passive:true}));
 
+safeOn("saveSkillTagBtn", "click", saveSkillTagFromForm);
+safeOn("clearSkillTagFormBtn", "click", () => { clearSkillTagForm(); renderSkillManager(); });
+safeOn("skillManagerFilterGroup", "change", renderSkillManager);
+safeOn("skillManagerSearch", "input", renderSkillManager);
 document.addEventListener("click", handleDelegatedUIAction);
 document.addEventListener("change", event => {
   if (event.target && event.target.id === "sessionRating") {

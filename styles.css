@@ -2912,3 +2912,23 @@ body.session-focus-active #timerDisplay{
   button,.button,.tab,input,select,textarea,[data-action]{min-height:40px}
   .small-actions button{min-height:40px}
 }
+
+/* v4.43 Skill Tag Manager */
+.skill-manager-card .helper-text { margin-top: 0.25rem; }
+.skill-manager-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.skill-manager-row:last-child { border-bottom: 0; }
+.skill-manager-row .small-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+.group-title { margin: 1rem 0 0.35rem; font-size: 0.95rem; color: var(--muted); }
+.badge.system-ok { background: rgba(53, 142, 105, 0.12); color: var(--success); border-color: rgba(53, 142, 105, 0.22); }
+.badge.system-warning { background: rgba(213, 135, 48, 0.14); color: var(--warning); border-color: rgba(213, 135, 48, 0.25); }
+@media (max-width: 720px) {
+  .skill-manager-row { flex-direction: column; }
+  .skill-manager-row .small-actions { justify-content: flex-start; }
+}

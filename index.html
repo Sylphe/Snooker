@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.42.0</title>
+  <title>Snooker Practice Log v4.43.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.42.0" />
-  <link rel="stylesheet" href="styles.css?v=4.42.0" />
-  <link rel="icon" href="icon.svg?v=4.42.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=4.43.0" />
+  <link rel="stylesheet" href="styles.css?v=4.43.0" />
+  <link rel="icon" href="icon.svg?v=4.43.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.42.0 · Build 2026-05-18 17:38 CEST — Adaptive Session Periodization.</p>
+      <p>v4.43.0 · Build 2026-05-18 18:43 CEST — Skill Tag Manager.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -436,6 +436,7 @@
         <div class="templates-main-nav" role="tablist" aria-label="Exercise sections">
           <button type="button" class="templates-nav-btn active-subtab" data-action="templates-main-tab" data-templates-tab="exercises" role="tab" aria-selected="true">Exercise Database</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="tables" role="tab" aria-selected="false">Table/Venue Database</button>
+          <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="skills" role="tab" aria-selected="false">Skill Tags</button>
         </div>
       </div>
 
@@ -656,6 +657,75 @@
         </div>
         <div id="routineList" class="list grouped"></div>
       </div>
+      </div>
+
+
+
+      <div class="templates-tab-panel hidden" data-templates-panel="skills">
+        <div class="card skill-manager-card">
+          <h2>Skill Tag Manager</h2>
+          <p class="muted">Manage the controlled vocabulary used by exercise primary skills, secondary tags, transfer tags, recommendations, and analytics. The app stores stable IDs to avoid duplicates.</p>
+          <input id="skillEditId" type="hidden" />
+          <div class="grid two">
+            <div>
+              <label>Skill label</label>
+              <input id="skillManagerLabel" placeholder="e.g. Cue-ball speed" />
+            </div>
+            <div>
+              <label>Canonical ID</label>
+              <input id="skillManagerId" placeholder="auto from label, e.g. cue_ball_speed" />
+              <p class="helper-text">Keep IDs stable once a skill is in use.</p>
+            </div>
+            <div>
+              <label>Category</label>
+              <select id="skillManagerGroup">
+                <option value="Technical">Technical</option>
+                <option value="Break-building">Break-building</option>
+                <option value="Safety / tactical">Safety / tactical</option>
+                <option value="Mental">Mental</option>
+                <option value="Physical">Physical</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label>Status</label>
+              <select id="skillManagerActive">
+                <option value="yes">Active</option>
+                <option value="no">Archived</option>
+              </select>
+            </div>
+          </div>
+          <label>Aliases</label>
+          <input id="skillManagerAliases" placeholder="Comma-separated, e.g. cueball speed, cue-ball speed, speed control" />
+          <label>Transfer relationships</label>
+          <input id="skillManagerTransferTargets" placeholder="Optional canonical IDs this skill tends to support, comma-separated" />
+          <div class="row">
+            <button id="saveSkillTagBtn" type="button">Save Skill Tag</button>
+            <button id="clearSkillTagFormBtn" type="button" class="secondary">Clear</button>
+          </div>
+        </div>
+        <div class="card skill-manager-card">
+          <h2>Controlled skill library</h2>
+          <div class="grid two">
+            <div>
+              <label>Filter category</label>
+              <select id="skillManagerFilterGroup">
+                <option value="all">All categories</option>
+                <option value="Technical">Technical</option>
+                <option value="Break-building">Break-building</option>
+                <option value="Safety / tactical">Safety / tactical</option>
+                <option value="Mental">Mental</option>
+                <option value="Physical">Physical</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label>Search</label>
+              <input id="skillManagerSearch" placeholder="Search skills or aliases..." />
+            </div>
+          </div>
+          <div id="skillManagerList" class="list grouped"></div>
+        </div>
       </div>
 
       <div class="templates-tab-panel hidden" data-templates-panel="tables">
@@ -1234,7 +1304,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.42.0"></script>
+  <script type="module" src="app.js?v=4.43.0"></script>
 </body>
 
 
