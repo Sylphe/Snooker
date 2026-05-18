@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.35.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.35.2";
+} from "./utils.js?v=4.35.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.35.2";
+} from "./settings.js?v=4.35.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.35.2";
+} from "./analytics.js?v=4.35.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.35.2";
+} from "./bayesian.js?v=4.35.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.35.2";
+} from "./session.js?v=4.35.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.35.2";
+} from "./pressure.js?v=4.35.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.35.2";
+} from "./recommendations.js?v=4.35.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.35.2";
+} from "./store.js?v=4.35.1";
 
 
 
@@ -909,7 +909,7 @@ function targetCredibleIntervalInsight(logs){
 }
 /* ===== end v4.32.2 Target Credible Intervals / Bayesian Calibration v1 ===== */
 
-/* ===== v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
 function safeDynamicDifficultyScore(log){
   try{
     const direct=Number(log?.normalizedScore);
@@ -1030,7 +1030,7 @@ function dynamicDifficultyInsight(logs){
     return `<div class="insight-card watch"><strong>Dynamic difficulty adjustment v1</strong><div class="muted small">Difficulty signal unavailable for the current data set.</div></div>`;
   }
 }
-/* ===== end v4.35.2 Dynamic Difficulty Adjustment v1 ===== */
+/* ===== end v4.35.1 Dynamic Difficulty Adjustment v1 ===== */
 
 
 
@@ -1187,7 +1187,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.35.2 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.35.1 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1794,46 +1794,2707 @@ function renderRoutineList() {
     }</div>`
   ).join("");
 }
-function routineMetaLine(r) {
-  const skillMap = getRoutineSkillMap(r);
-  const parts = [];
-  parts.push(htmlText(fmtScoring(r.scoring)));
-  parts.push(`Type: ${htmlText(r.category || "uncategorized")}`);
-  if (r.duration) parts.push(`Time: ${numText(r.duration)}m`);
-  if (r.attempts) parts.push(`Reps: ${numText(r.attempts)}`);
-  if (r.target) parts.push(`Target: ${numText(r.target)}`);
-  if (r.stretchTarget) parts.push(`Stretch: ${numText(r.stretchTarget)}`);
-  if (r.scoring === "progressive_completion") parts.push(`Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}`);
-  if (skillMap?.primarySkill) parts.push(`Skill: ${htmlText(skillLabel(skillMap.primarySkill))}`);
-  return parts.join(" · ");
-}
-function routineSecondaryMetaLine(r) {
-  const m = getRoutineSkillMap(r);
-  const sec = (m.secondarySkills || []).slice(0,3).map(skillLabel).join(", ");
-  const transfer = (m.transferTags || []).slice(0,2).map(skillLabel).join(", ");
-  const out = [];
-  if (sec) out.push(`Secondary: ${htmlText(sec)}`);
-  if (transfer) out.push(`Transfer: ${htmlText(transfer)}`);
-  if (r.targetColour || r.targetMode) out.push(`Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}`);
-  return out.join(" · ");
-}
 function renderRoutineItem(r) {
-  const recMode = recommendationMode(r);
-  const secondary = routineSecondaryMetaLine(r);
-  return `<div class="item routine-card-compact">
-    <div class="item-title"><strong>${htmlText(r.name)}</strong><span class="routine-status-badges">${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}${recMode !== "active" ? `<span class="badge routine-status-badge">${htmlText(recommendationModeLabel(recMode))}</span>` : ""}</span></div>
-    ${r.description ? `<p>${htmlText(r.description)}</p>` : ""}
-    <div class="routine-meta-line">${routineMetaLine(r)}</div>
-    ${secondary ? `<div class="routine-meta-line routine-meta-secondary">${secondary}</div>` : ""}
+  return `<div class="item">
+    <div class="item-title"><strong>${htmlText(r.name)}</strong><span class="badge">${htmlText(fmtScoring(r.scoring))}</span></div>
+    <p>${htmlText(r.description || "")}</p>
+    <span class="badge">Type: ${htmlText(r.category || "uncategorized")}</span>
+    <span class="badge">${numText(r.duration || 0)} min</span>
+    ${r.attempts ? `<span class="badge">${numText(r.attempts)} attempts</span>` : ""}
+    ${r.target ? `<span class="badge">Target: ${numText(r.target)}</span>` : ""}${r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : ""}
+    ${recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""}
+    ${routineSkillBadges(r)}
+    ${r.stretchTarget ? `<span class="badge">Stretch: ${numText(r.stretchTarget)}</span>` : ""}${r.scoring === "progressive_completion" ? `<span class="badge">Progressive: ${numText(r.totalUnits, "?")} ${htmlText(progressiveUnitLabel(r))}</span><span class="badge">Colour: ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</span>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions">
       <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
       <button class="secondary" data-action="toggle-favorite-routine" data-id="${attrText(r.id)}">${isFavoriteRoutine(r.id) ? "Unfavorite" : "Favorite"}</button>
-      <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
+              <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
       <button class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
     </div>
   </div>`;
 }
+function getExerciseFormMode() {
+  const raw = localStorage.getItem(EXERCISE_FORM_MODE_KEY) || $("exerciseFormMode")?.value || "basic";
+  return raw === "advanced" ? "advanced" : "basic";
+}
+function applyExerciseFormMode(mode) {
+  const clean = mode === "advanced" ? "advanced" : "basic";
+  const select = $("exerciseFormMode");
+  if (select) select.value = clean;
+  localStorage.setItem(EXERCISE_FORM_MODE_KEY, clean);
+  const formGrid = $("routineFormGrid");
+  if (formGrid) formGrid.dataset.formMode = clean;
+  document.body.dataset.exerciseFormMode = clean;
+  const basicIds = new Set(["routineName","routineScoring","routineAttempts","routineDuration","routineTarget","routineDescription"]);
+  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routinePrimarySkill","routineSecondarySkills","routineTransferTags","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak"].forEach(id => {
+    const el = $(id);
+    const wrap = el?.closest?.("div");
+    if (wrap) wrap.classList.add("routine-advanced-field");
+  });
+  document.querySelectorAll(".routine-advanced-field").forEach(el => el.classList.toggle("hidden", clean !== "advanced"));
+}
+
+function editRoutine(id) {
+  const r = routineById(id);
+  if (!r) return;
+  applyExerciseFormMode("advanced");
+  $("routineFormTitle").textContent = "Edit exercise";
+  $("routineEditId").value = r.id;
+  $("routineName").value = r.name;
+  $("routineScoring").value = r.scoring;
+  $("routineCategorySelect").value = categories().includes(r.category) ? r.category : "all";
+  $("routineCategoryNew").value = "";
+  $("routineFolderSelect").value = folders().includes(r.folder) ? r.folder : "all";
+  $("routineFolderNew").value = "";
+  $("routineSubfolderSelect").value = subfolders().includes(r.subfolder) ? r.subfolder : "all";
+  $("routineSubfolderNew").value = "";
+  $("routineAttempts").value = r.attempts || "";
+  $("routineDuration").value = r.duration || "";
+  if ($("routineSideMode")) $("routineSideMode").value = normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit);
+  if ($("routineAttemptMode")) $("routineAttemptMode").value = getRoutineAttemptMode(r);
+  $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
+  if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
+  const skillMap = getRoutineSkillMap(r);
+  if ($("routinePrimarySkill")) $("routinePrimarySkill").value = skillMap.primarySkill || "cueing";
+  renderRoutineSkillChips(skillMap);
+  $("routineTarget").value = r.target || "";
+  $("routineStretchTarget").value = r.stretchTarget || "";
+  $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
+  $("routineTotalUnits").value = r.totalUnits || "";
+  $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
+  $("routineUnitType").value = r.unitType || "balls_cleared";
+  $("routineTargetMode").value = r.targetMode || "custom";
+  $("routineTargetColour").value = r.targetColour || inferTargetColour(r.targetMode) || "";
+  $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
+  $("routineDescription").value = r.description || "";
+  document.querySelector('[data-tab="templates"]').click();
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+function clearRoutineForm() {
+  $("routineFormTitle").textContent = "Create exercise";
+  applyExerciseFormMode(getExerciseFormMode());
+  $("routineEditId").value = "";
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription"].forEach(id => { if ($(id)) $(id).value = ""; });
+  $("routineScoring").value = "raw";
+  if ($("routineSideMode")) $("routineSideMode").value = "none";
+  if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
+  $("routineIsAnchor").value = "no";
+  if ($("routineRecommendationMode")) $("routineRecommendationMode").value = "active";
+  if ($("routinePrimarySkill")) $("routinePrimarySkill").value = "cueing";
+  renderRoutineSkillChips({secondarySkills:[], transferTags:[]});
+  $("routineCategorySelect").value = "all";
+  $("routineFolderSelect").value = "all";
+  $("routineSubfolderSelect").value = "all";
+}
+$("clearRoutineFormBtn").addEventListener("click", clearRoutineForm);
+if ($("exerciseFormMode")) {
+  $("exerciseFormMode").addEventListener("change", e => applyExerciseFormMode(e.target.value));
+  applyExerciseFormMode(getExerciseFormMode());
+}
+renderRoutineSkillChips({secondarySkills: getSkillHiddenValue("routineSecondarySkills"), transferTags: getSkillHiddenValue("routineTransferTags")});
+function duplicateRoutine(id) {
+  const r = routineById(id);
+  if (!r) return;
+  const newId = uuid();
+  const copied = {...r, id: newId, name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)};
+  copied.skillMap = normalizeRoutineSkillMap(copied, getRoutineSkillMap(r));
+  data.routines.push(copied);
+  data.routineSkillMap = data.routineSkillMap || {};
+  data.routineSkillMap[newId] = copied.skillMap;
+  saveData();
+}
+function deleteRoutine(id) {
+  return confirmDeleteAction("this exercise template", () => {
+    const now = new Date().toISOString();
+    data.routines = (data.routines || []).map(r => r.id === id ? {...r, isDeleted: true, deletedAt: now} : r);
+    data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
+    saveData();
+  });
+}
+$("saveRoutineBtn").addEventListener("click", () => {
+  const name = $("routineName").value.trim();
+  if (!name) return alert("Enter an exercise name.");
+  const newCategory = $("routineCategoryNew").value.trim();
+  const selectedCategory = $("routineCategorySelect").value;
+  const category = newCategory || (selectedCategory !== "all" ? selectedCategory : "uncategorized");
+  const newFolder = $("routineFolderNew").value.trim();
+  const selectedFolder = $("routineFolderSelect").value;
+  const folder = newFolder || (selectedFolder !== "all" ? selectedFolder : (category || "Unfiled"));
+  const newSubfolder = $("routineSubfolderNew").value.trim();
+  const selectedSubfolder = $("routineSubfolderSelect").value;
+  const subfolder = newSubfolder || (selectedSubfolder !== "all" ? selectedSubfolder : "General");
+
+  const routine = {
+    id: $("routineEditId").value || uuid(),
+    name,
+    scoring: $("routineScoring").value,
+    attempts: Number($("routineAttempts").value || 0) || "",
+    duration: Number($("routineDuration").value || 0) || "",
+    sideMode: normalizeSideMode($("routineSideMode")?.value || "none"),
+    attemptMode: normalizeSideMode($("routineSideMode")?.value || "none") === "left_right" ? normalizeAttemptMode($("routineAttemptMode")?.value || "shared") : "shared",
+    isAnchor: $("routineIsAnchor").value === "yes",
+    recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
+    skillMap: {
+      primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
+      secondarySkills: normalizeSkillList($("routineSecondarySkills")?.value || ""),
+      transferTags: normalizeSkillList($("routineTransferTags")?.value || ""),
+      source: "manual",
+      updatedAt: new Date().toISOString()
+    },
+    target: Number($("routineTarget").value || 0) || "",
+    stretchTarget: Number($("routineStretchTarget").value || 0) || "",
+    totalUnits: Number($("routineTotalUnits").value || 0) || "",
+    attemptsPerSession: Number($("routineAttemptsPerSession").value || 0) || "",
+    unitType: $("routineUnitType").value || "balls_cleared",
+    targetMode: $("routineTargetMode").value || "custom",
+    targetColour: $("routineTargetColour").value || inferTargetColour($("routineTargetMode").value) || "",
+    trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
+    difficultyLabel: $("routineDifficultyLabel").value.trim() || "Base target",
+    category, folder, subfolder,
+    description: $("routineDescription").value.trim(),
+    isDeleted: false,
+    deletedAt: ""
+  };
+
+  data.routineSkillMap = data.routineSkillMap || {};
+  data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
+  const historicalSkillLogsUpdated = $("routineEditId").value ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:true}) : 0;
+
+  if ($("routineEditId").value) {
+    const oldRoutine = data.routines.find(r => r.id === routine.id);
+    if (oldRoutine) {
+      routine.targetHistory = oldRoutine.targetHistory || [];
+      routine.activeTargetProfileId = oldRoutine.activeTargetProfileId || "";
+      const targetChanged = hasTargetProfileChanged(oldRoutine, routine);
+      if (targetChanged) {
+        const createVersion = confirm("Target / difficulty fields changed. Recommended: OK = create a new target version from today. Cancel = correct the existing active target profile.");
+        if (createVersion) {
+          const profile = makeTargetProfile(routine, routine.difficultyLabel || "Updated target");
+          routine.targetHistory.push(profile);
+          routine.activeTargetProfileId = profile.id;
+        } else {
+          ensureTargetHistory(routine);
+          const p = getActiveTargetProfile(routine);
+          if (p) {
+            p.target = routine.target;
+            p.stretchTarget = routine.stretchTarget;
+            p.totalUnits = routine.totalUnits;
+            p.attemptsPerSession = routine.attemptsPerSession || routine.attempts;
+            p.difficultyLabel = routine.difficultyLabel || p.difficultyLabel || "Corrected target";
+            p.scoring = routine.scoring;
+          }
+        }
+      } else {
+        ensureTargetHistory(routine);
+      }
+    }
+    data.routines = data.routines.map(r => r.id === routine.id ? routine : r);
+  } else {
+    ensureTargetHistory(routine);
+    data.routines.push(routine);
+  }
+
+  clearRoutineForm();
+  saveData({immediateIDB: historicalSkillLogsUpdated > 0});
+  if (historicalSkillLogsUpdated > 0) showTransientNotice(`Skill tags applied to ${historicalSkillLogsUpdated} historical log${historicalSkillLogsUpdated === 1 ? "" : "s"}.`, "ok");
+});
+
+$("addRoutineToPlanBtn").addEventListener("click", () => {
+  const id = $("routineToAdd").value;
+  if (!id) return;
+  planDraft.push(id);
+  renderPlanBuilder();
+});
+function renderPlanBuilder() {
+  $("planBuilderList").innerHTML = planDraft.map((id, i) => {
+    const r = routineById(id);
+    return `<div class="item">
+      <strong>${i + 1}. ${escapeHtml(r?.name || "Missing exercise")}</strong>
+      <p>${escapeHtml(r?.folder || "Unfiled")} / ${escapeHtml(r?.subfolder || "General")} · ${escapeHtml(r?.category || "uncategorized")}</p>
+      <div class="small-actions">
+        <button class="secondary" data-action="move-plan-routine" data-index="${i}" data-direction="-1">Up</button>
+        <button class="secondary" data-action="move-plan-routine" data-index="${i}" data-direction="1">Down</button>
+        <button class="danger" data-action="remove-plan-routine" data-index="${i}">Remove</button>
+      </div>
+    </div>`;
+  }).join("") || "<p>No routines added to this plan yet.</p>";
+}
+function movePlanRoutine(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= planDraft.length) return;
+  [planDraft[index], planDraft[newIndex]] = [planDraft[newIndex], planDraft[index]];
+  renderPlanBuilder();
+}
+function removePlanRoutine(index) {
+  planDraft.splice(index, 1);
+  renderPlanBuilder();
+}
+$("randomizePlanBtn").addEventListener("click", () => randomizePlan(false));
+$("appendRandomPlanBtn").addEventListener("click", () => randomizePlan(true));
+function randomizePlan(append) {
+  const n = Number($("randomCount").value || 0);
+  if (!n || n < 1) return alert("Enter a valid number of exercises.");
+  const pool = visibleRoutines($("randomTypeFilter").value || "all", $("randomFolderFilter").value || "all");
+  if (!pool.length) return alert("No exercises match the randomizer filters.");
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const picked = shuffled.slice(0, Math.min(n, shuffled.length)).map(r => r.id);
+  planDraft = append ? planDraft.concat(picked) : picked;
+  if (!$("planName").value.trim()) $("planName").value = `Random training — ${new Date().toLocaleDateString()}`;
+  renderPlanBuilder();
+}
+$("savePlanBtn").addEventListener("click", () => {
+  const name = $("planName").value.trim();
+  if (!name) return alert("Enter a plan name.");
+  if (!planDraft.length) return alert("Add at least one routine.");
+  data.plans.push({id: uuid(), name, routineIds: [...planDraft], createdAt: new Date().toISOString()});
+  $("planName").value = "";
+  planDraft = [];
+  saveData();
+});
+function renderPlanList() {
+  $("planList").innerHTML = data.plans.map(p => {
+    const names = p.routineIds.map(id => routineById(id)?.name || "Missing exercise");
+    return `<div class="item">
+      <div class="item-title"><strong>${escapeHtml(p.name)}</strong><span class="badge">${p.routineIds.length} exercises</span></div>
+      <p>${names.map(escapeHtml).join(" → ")}</p>
+      <div class="small-actions">
+        <button class="secondary" data-action="load-plan" data-id="${attrText(p.id)}">Load / duplicate</button>
+        <button class="danger" data-action="delete-plan" data-id="${attrText(p.id)}">Delete</button>
+      </div>
+    </div>`;
+  }).join("") || "<p>No daily plans saved yet.</p>";
+}
+function loadPlanToBuilder(id) {
+  const p = data.plans.find(x => x.id === id);
+  if (!p) return;
+  $("planName").value = p.name + " copy";
+  planDraft = [...p.routineIds];
+  renderPlanBuilder();
+  document.querySelector('[data-tab="plans"]').click();
+}
+function deletePlan(id) {
+  return confirmDeleteAction("this training plan", () => {
+    data.plans = data.plans.filter(p => p.id !== id);
+    saveData();
+  });
+}
+
+$("resumeSessionBtn").addEventListener("click", resumePersistedSession);
+$("discardSessionBtn").addEventListener("click", discardPersistedSession);
+$("todayResumeSessionBtn").addEventListener("click", resumePersistedSession);
+$("todayDiscardSessionBtn").addEventListener("click", discardPersistedSession);
+
+$("startSessionBtn").addEventListener("click", () => {
+  const plan = data.plans.find(p => p.id === $("planSelect").value);
+  if (!plan) return alert("Create or select a plan first.");
+  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => activeRoutines().some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
+  startRoutineScreen();
+  persistActiveSession();
+});
+$("startFreeSessionBtn").addEventListener("click", () => {
+  const rid = $("freeRoutineSelect").value;
+  if (!rid) return alert("Create at least one exercise first.");
+  activeSession = { id: uuid(), type: "free", planName: `Free training — ${new Date().toLocaleDateString()}`, routineIds: [rid], index: 0, startedAt: new Date().toISOString(), completedLogs: [] };
+  startRoutineScreen();
+  persistActiveSession();
+});
+function startRepeatLastExercise() {
+  const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
+  if (!last) { showTransientNotice("No previous exercise to repeat yet.", "warn"); return; }
+  const routine = routineById(last.routineId);
+  if (!routine) { showTransientNotice("The last exercise template no longer exists.", "warn"); return; }
+  activeSession = { id: uuid(), type: "free", planName: `Repeat — ${new Date().toLocaleDateString()}`, routineIds: [routine.id], index: 0, startedAt: new Date().toISOString(), completedLogs: [], tableId: last.tableId || "", venueTable: last.venueTable || last.venueTableSnapshot || "", tableNote: last.tableNote || "" };
+  rememberVenueTable(last.venueTable || last.venueTableSnapshot || "", last.tableNote || "");
+  startRoutineScreen();
+}
+$("repeatLastExerciseBtn").addEventListener("click", startRepeatLastExercise);
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.('[data-action="toggle-quick-resume"]');
+  if (toggle) {
+    event.preventDefault();
+    setQuickResumeCollapsed(!isQuickResumeCollapsed());
+    renderQuickResumeBanner();
+    return;
+  }
+  const btn = event.target.closest?.('[data-action="quick-resume-last"]');
+  if (!btn) return;
+  event.preventDefault();
+  startRepeatLastExercise();
+});
+
+function isQuickResumeCollapsed() {
+  try { return localStorage.getItem(QUICK_RESUME_COLLAPSED_KEY) === "1"; } catch(e) { return false; }
+}
+function setQuickResumeCollapsed(collapsed) {
+  try { localStorage.setItem(QUICK_RESUME_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch(e) {}
+}
+function renderQuickResumeBanner() {
+  const box = $("quickResumeBanner");
+  if (!box) return;
+  const last = (data.logs || []).slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
+  const routine = last ? routineById(last.routineId) : null;
+  if (!last || !routine) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const collapsed = isQuickResumeCollapsed();
+  const when = last.createdAt ? new Date(last.createdAt).toLocaleDateString() : "last time";
+  box.classList.remove("hidden");
+  box.classList.toggle("collapsed", collapsed);
+  const detailHtml = collapsed ? "" : `<p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p>`;
+  box.innerHTML = `<div class="quick-resume-header"><div><h2>Quick resume</h2>${detailHtml}</div><button type="button" class="quick-resume-toggle" data-action="toggle-quick-resume" aria-label="${collapsed ? "Expand quick resume" : "Collapse quick resume"}">${collapsed ? "+" : "−"}</button></div>${collapsed ? "" : `<div class="quick-resume-content"><button type="button" class="success quick-resume-btn" data-action="quick-resume-last">Repeat now</button></div>`}`;
+}
+
+function syncSessionQualityTiles() {
+  const value = String($("sessionRating")?.value || "");
+  document.querySelectorAll(".quality-tile").forEach(b => b.classList.toggle("active", String(b.dataset.rating || "") === value));
+}
+
+function syncReflectionRatingTiles(targetId) {
+  const ids = targetId ? [targetId] : ["reflectionFocusRating","reflectionConfidenceRating","reflectionFatigueRating","reflectionCueingRating","reflectionMentalSharpnessRating"];
+  ids.forEach(id => {
+    const value = String($(id)?.value || "");
+    document.querySelectorAll(`.reflection-rating-tile[data-target="${id}"]`).forEach(btn => {
+      const active = String(btn.dataset.rating || "") === value;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  });
+}
+function setReflectionRating(targetId, rating) {
+  const el = $(targetId || "");
+  if (!el) return;
+  const clean = String(rating || "");
+  el.value = /^[1-5]$/.test(clean) ? clean : "";
+  syncReflectionRatingTiles(targetId);
+  hapticFeedback("tap");
+}
+
+function startRoutineScreen() {
+  persistActiveSession();
+  resetTimerState();
+  $("sessionSummary").classList.add("hidden");
+  $("freeNextCard").classList.add("hidden");
+  $("activeSession").classList.remove("hidden");
+  updateSessionFocusState();
+  renderCurrentRoutine();
+}
+$("resetSessionBtn").addEventListener("click", () => {
+  const hasActiveProgress = !!activeSession || getElapsedMs() > 0 || !!timerStartMs;
+  if (hasActiveProgress && !window.confirm("Reset the active session? Unsaved exercise progress will be lost.")) return;
+  activeSession = null;
+  clearPersistedActiveSession();
+  stopTimer();
+  resetTimerState();
+  $("activeSession").classList.add("hidden");
+  $("freeNextCard").classList.add("hidden");
+  updateSessionFocusState();
+  $("sessionSummary").classList.add("hidden");
+  updateSessionFocusState();
+  showTransientNotice("Active session reset.", "warn");
+});
+function renderCurrentRoutine() {
+  if (!isResumingActiveSession) persistActiveSession();
+  if (!activeSession || activeSession.index >= activeSession.routineIds.length) return completeSession();
+  const r = routineById(activeSession.routineIds[activeSession.index]);
+  if (!r) return;
+  $("currentRoutineName").textContent = r.name;
+  const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
+  $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
+  const saveBtn = $("saveNextBtn");
+  if (saveBtn) saveBtn.textContent = activeSession.index >= activeSession.routineIds.length - 1 ? "Save & Finish" : "Save & Next";
+  $("practiceNotes").value = "";
+  $("sessionVenueTable").value = activeSession.tableId || getLastTableId() || "";
+  
+  $("sessionIntervention").value = "";
+  $("sessionInterventionNote").value = "";
+  $("sessionRating").value = activeSession?.sessionRatingDraft || "";
+  $("sessionTags").value = "";
+  if (r.description) { $("routineDescriptionBox").textContent = r.description; $("routineDescriptionBox").classList.remove("hidden"); }
+  else $("routineDescriptionBox").classList.add("hidden");
+  resetTimerState();
+  renderScoreInputs(r);
+  syncSessionQualityTiles();
+  prefillSmartDefaults(r);
+  $("saveNextBtn").textContent = activeSession.type === "free" ? "Save Routine" : "Save & Next";
+  $("skipBtn").classList.toggle("hidden", activeSession.type === "free");
+  $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
+  updateSessionFocusState();
+  renderLivePerformanceCard(r);
+  scheduleTimerAutostartForCurrentRoutine();
+}
+function renderScoreInputs(r) {
+  let html = "";
+  if (r.scoring === "progressive_completion") {
+    html += `<div><label>Average ${progressiveUnitLabel(r)} per attempt</label><input id="scoreValue" type="number" min="0" step="0.01" placeholder="e.g. 8" inputmode="decimal"></div>`;
+    html += `<div><label>Best attempt (${progressiveUnitLabel(r)})</label><input id="bestAttemptValue" type="number" min="0" step="0.01" placeholder="e.g. 12" inputmode="decimal"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attemptsPerSession || r.attempts || "")}" inputmode="numeric"></div>`;
+    html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
+    if (Number(r.totalUnits || 0) <= 0) html += `<div class="progressive-total-units-runtime"><label>Completion size / total units</label><input id="sessionTotalUnitsValue" type="number" min="1" step="1" placeholder="Required to save this drill" inputmode="numeric"><p class="muted tiny">This exercise template has no completion size. Enter it here so the log can be saved.</p></div>`;
+    if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  } else if (r.scoring === "success_rate") {
+    html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || "")}" placeholder="e.g. 10" inputmode="numeric"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  } else {
+    html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || r.attemptsPerSession || "")}" placeholder="optional" inputmode="numeric"></div>`;
+    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  }
+  if (routineUsesSideSplit(r)) {
+    const attemptsDefault = Number(r.attempts || r.attemptsPerSession || 0) || "";
+    const modeText = getRoutineAttemptMode(r) === "per_side"
+      ? "Attempts are counted per side. Combined score = Left + Right."
+      : "Attempts are one shared total. Combined score = Left + Right.";
+    html += `<div class="side-split-panel focus-side-tile">
+      <div class="side-split-compact-note">Left / Right split · ${htmlText(attemptModeLabel(getRoutineAttemptMode(r)))} · ${htmlText(modeText)}</div>
+      <div class="grid two">
+        <div><label>Left side</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
+        <div><label>Right side</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
+      </div>
+    </div>`;
+    if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
+  }
+  $("scoreInputs").innerHTML = html;
+  renderFocusScoreSteppers(r);
+  renderFocusNumpad(r);
+  applyFocusModeInputLocks();
+  renderQuickScoreControls(r);
+  const activeCard = $("activeSession");
+  if (activeCard) {
+    activeCard.classList.toggle("focus-has-side-split", routineUsesSideSplit(r));
+    activeCard.classList.toggle("focus-no-side-split", !routineUsesSideSplit(r));
+    activeCard.classList.toggle("focus-has-quick-controls", !!($("quickScoreControls") && !$("quickScoreControls").classList.contains("hidden")));
+  }
+  setTimeout(() => {
+    if (document.body?.classList.contains("session-focus-active")) {
+      if (document.activeElement && ["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName)) document.activeElement.blur();
+      resetSessionFocusScrollTop();
+      return;
+    }
+    $("scoreValue")?.focus();
+  }, 120);
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
+    const el = $(id);
+    if (el) {
+      el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
+      el.addEventListener("input", () => renderLivePerformanceCard(r));
+    }
+  });
+}
+
+function renderFocusScoreSteppers(r) {
+  const box = $("scoreInputs");
+  if (!box) return;
+  box.querySelectorAll(".focus-inline-stepper").forEach(el => el.remove());
+  box.querySelector(".focus-score-stepper-panel")?.remove();
+  box.querySelectorAll(".focus-score-inline-row").forEach(el => el.classList.remove("focus-score-inline-row", "focus-inline-stepper-ready"));
+  const fieldDefs = [
+    {id:"scoreValue", label:r?.scoring === "success_rate" ? "Made" : "Score", deltas:[-1,1]},
+    {id:"leftSideScoreValue", label:"Left", deltas:[-1,1]},
+    {id:"rightSideScoreValue", label:"Right", deltas:[-1,1]},
+    {id:"attemptsValue", label:"Attempts", deltas:[-1,1]},
+    {id:"manualTimeValue", label:"Time", deltas:[-1,1]},
+    {id:"bestAttemptValue", label:"Best", deltas:[-1,1]},
+    {id:"completionCountValue", label:"Completions", deltas:[-1,1]},
+    {id:"highestBreakValue", label:"Break", deltas:[-1,1]},
+    {id:"sessionTotalUnitsValue", label:"Size", deltas:[-1,1]}
+  ].filter(f => $(f.id));
+  fieldDefs.forEach(f => {
+    const input = $(f.id);
+    if (!input) return;
+    const row = input.closest("div");
+    if (!row || row.classList.contains("focus-inline-stepper-ready")) return;
+    row.classList.add("focus-score-inline-row", "focus-inline-stepper-ready");
+    if (f.id === "scoreValue") row.classList.add("focus-primary-score-row");
+    row.insertAdjacentHTML("beforeend", `<div class="focus-inline-stepper" aria-label="${attrText(f.label)} controls">
+      <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[0]}">−</button>
+      <button type="button" class="secondary" data-action="focus-step" data-target="${attrText(f.id)}" data-delta="${f.deltas[1]}">+</button>
+    </div>`);
+  });
+}
+
+function adjustNumericInputValue(inputId, delta) {
+  const el = $(inputId);
+  if (!el) return;
+  const current = Number(el.value || 0);
+  const step = Number(el.getAttribute("step") || 1);
+  const minRaw = el.getAttribute("min");
+  const min = minRaw === null || minRaw === "" ? -Infinity : Number(minRaw);
+  const nextRaw = current + Number(delta || 0);
+  const next = Number.isFinite(min) ? Math.max(min, nextRaw) : nextRaw;
+  const decimals = step && !Number.isInteger(step) ? 2 : 0;
+  el.value = decimals ? String(Math.round(next * 100) / 100) : String(Math.round(next));
+  el.dispatchEvent(new Event("input", {bubbles:true}));
+}
+
+
+function fillSameAsLastTime() {
+  if (!activeSession) return;
+  const rid = activeSession.routineIds[activeSession.index];
+  const last = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).find(l => l.routineId === rid);
+  if (!last) return alert("No previous log for this exercise.");
+  if (!confirm("Fill the score fields with the last logged values for this exercise?")) return;
+  if ($("scoreValue")) $("scoreValue").value = last.score || 0;
+  if ($("attemptsValue")) $("attemptsValue").value = last.attempts || last.attemptsPerSessionAtLog || "";
+  if ($("manualTimeValue")) $("manualTimeValue").value = last.timeMinutes || "";
+  if ($("bestAttemptValue")) $("bestAttemptValue").value = last.bestAttempt || "";
+  if ($("completionCountValue")) $("completionCountValue").value = last.completionCount || "";
+  if ($("highestBreakValue")) $("highestBreakValue").value = last.highestBreak || "";
+  if ($("leftSideScoreValue")) $("leftSideScoreValue").value = last.leftSideScore || last.sideLeftScore || "";
+  if ($("rightSideScoreValue")) $("rightSideScoreValue").value = last.rightSideScore || last.sideRightScore || "";
+  if ($("sessionRating") && last.sessionRating) $("sessionRating").value = last.sessionRating;
+  if ($("sessionTags") && last.sessionTags) $("sessionTags").value = last.sessionTags;
+}
+
+function renderQuickScoreControls(r) {
+  const box = $("quickScoreControls");
+  if (!box) return;
+  box.classList.remove("hidden");
+  const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
+  if (routineUsesSideSplit(r)) {
+    box.innerHTML = `
+      <div class="quick-score-block side-quick-score-block">
+        <div class="quick-score-row side-quick-score-row">
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="-1">L −1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="1">L +1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="leftSideScoreValue" data-delta="5">L +5</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="-1">R −1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="1">R +1</button>
+          <button class="secondary" type="button" data-action="focus-step" data-target="rightSideScoreValue" data-delta="5">R +5</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="0">Clear</button>
+          <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
+        </div>
+      </div>`;
+    return;
+  }
+  if (r.scoring === "success_rate") {
+    const attempts = Math.max(1, Number(r.attempts || r.attemptsPerSession || 10));
+    const chips = Array.from({length: Math.min(attempts, 30) + 1}, (_, i) => i)
+      .map(i => `<button class="secondary score-chip" type="button" data-action="score-set" data-score="${i}">${i}</button>`)
+      .join("");
+    box.innerHTML = `
+      <div class="quick-score-block">
+        <div class="quick-score-title">Made count</div>
+        <div class="score-chip-grid">${chips}</div>
+        ${attempts > 30 ? `<p class="muted">Large attempt count detected. Use the number field for scores above 30.</p>` : ""}
+        <div class="quick-score-row">
+          <button class="secondary" type="button" data-action="score-set" data-score="0">0</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="${Math.floor(attempts/2)}">Half</button>
+          <button class="secondary" type="button" data-action="score-set" data-score="${attempts}">Max</button>
+          <button class="secondary" type="button" data-action="score-adjust" data-delta="-1">-1</button>
+          <button class="secondary" type="button" data-action="score-adjust" data-delta="1">+1</button>
+          <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
+        </div>
+        ${autoMacros ? `<div class="quick-score-row quick-log-row">
+          <button type="button" data-action="quick-log" data-score="0">Log 0 & next</button>
+          <button type="button" data-action="quick-log" data-score="${Math.floor(attempts/2)}">Log half & next</button>
+          <button type="button" data-action="quick-log" data-score="${attempts}">Log max & next</button>
+        </div>` : ""}
+      </div>`;
+  } else {
+    box.innerHTML = `
+      <div class="quick-score-row">
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="-1">-1</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="1">+1</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="5">+5</button>
+        <button class="secondary" type="button" data-action="score-adjust" data-delta="10">+10</button>
+        <button class="secondary" type="button" data-action="score-set" data-score="0">Clear</button>
+        <button class="secondary" type="button" data-action="same-as-last">Same time as last</button>
+          <button class="secondary" type="button" data-action="repeat-last-score-setup">Repeat last score setup</button>
+      </div>`;
+  }
+}
+function quickLogScore(score) {
+  hapticFeedback("save");
+  setScoreValue(score);
+  saveCurrentRoutine();
+}
+function scoreNumber() { return Number($("scoreValue")?.value || 0); }
+function setScoreValue(v) { if ($("scoreValue")) { $("scoreValue").value = v; if (!document.body?.classList.contains("session-focus-active")) $("scoreValue").focus(); } }
+function adjustScore(delta) { setScoreValue(scoreNumber() + delta); }
+function incrementScore() { adjustScore(1); }
+function decrementScore() { adjustScore(-1); }
+
+
+function prefillSmartDefaults(r) {
+  const similar = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const last = similar[0];
+  if (last && $("manualTimeValue") && !Number($("manualTimeValue").value)) {
+    $("manualTimeValue").placeholder = `last: ${last.timeMinutes} min`;
+  }
+  const recentRating = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).find(l => l.sessionRating);
+  if (recentRating && $("sessionRating")) $("sessionRating").placeholder = `last: ${recentRating.sessionRating}`;
+}
+
+$("saveNextBtn").addEventListener("click", saveCurrentRoutine);
+$("skipBtn").addEventListener("click", () => { if (!activeSession) return; activeSession.index += 1; persistActiveSession(); stopTimer(); renderCurrentRoutine(); });
+$("endFreeSessionBtn").addEventListener("click", completeSession);
+$("endFreeFromNextBtn").addEventListener("click", completeSession);
+$("continueFreeBtn").addEventListener("click", () => {
+  if (!activeSession) return;
+  const rid = $("nextFreeRoutineSelect").value;
+  if (!rid) return alert("Select a routine.");
+  activeSession.routineIds = [rid];
+  activeSession.index = 0;
+  $("freeNextCard").classList.add("hidden");
+  $("activeSession").classList.remove("hidden");
+  renderCurrentRoutine();
+});
+async function saveCurrentRoutine() {
+  if (!activeSession) return;
+  const r = routineById(activeSession.routineIds[activeSession.index]);
+  if (!r) return;
+  const sideSplitEnabled = routineUsesSideSplit(r);
+  const attemptMode = getRoutineAttemptMode(r);
+  let leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
+  let rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
+  let score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
+  let attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
+  const manualTime = Number($("manualTimeValue")?.value || 0);
+  const timerMinutes = getElapsedMinutes();
+  const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
+  if (Number.isNaN(attempts) || attempts < 0) return validationNotice("Attempts must be zero or greater.");
+  if (r.scoring === "success_rate" && attempts <= 0) return validationNotice("Enter attempts.");
+  if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return validationNotice("Enter valid left and right side scores.");
+  if (sideSplitEnabled && (leftSideScore < 0 || rightSideScore < 0)) return validationNotice("Left and right side scores cannot be negative.");
+  if (sideSplitEnabled && r.scoring === "success_rate") {
+    const sideError = validateSideSuccessRateInputs({left:leftSideScore, right:rightSideScore, attempts, attemptMode});
+    if (sideError) return validationNotice(sideError);
+  }
+  if (Number.isNaN(score)) return validationNotice("Enter a valid score.");
+  if (score < 0) return validationNotice("Score cannot be negative.");
+  if ((r.scoring === "success_rate" || r.scoring === "progressive_completion")) {
+    const wholeAttempts = validateWholeNumberField(attempts, "Attempts", {required:true, min:r.scoring === "success_rate" ? 1 : 0});
+    if (wholeAttempts.error) return validationNotice(wholeAttempts.error);
+    attempts = wholeAttempts.value;
+  }
+  if (r.scoring === "success_rate") {
+    if (sideSplitEnabled) {
+      const leftWhole = validateWholeNumberField(leftSideScore, "Left side score", {required:true, min:0});
+      const rightWhole = validateWholeNumberField(rightSideScore, "Right side score", {required:true, min:0});
+      if (leftWhole.error) return validationNotice(leftWhole.error);
+      if (rightWhole.error) return validationNotice(rightWhole.error);
+      leftSideScore = leftWhole.value;
+      rightSideScore = rightWhole.value;
+      score = computeSideCombinedScore(leftSideScore, rightSideScore);
+    } else {
+      const madeWhole = validateWholeNumberField(score, "Made", {required:true, min:0, max:attempts});
+      if (madeWhole.error) return validationNotice(madeWhole.error);
+      score = madeWhole.value;
+    }
+  }
+  if (!sideSplitEnabled && r.scoring === "success_rate" && score > attempts) return validationNotice("Score cannot exceed attempts.");
+  if (manualTime < 0) return validationNotice("Time cannot be negative.");
+  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value || "") || wholeNumberOrNull(r.totalUnits) || 0) : Number(r.totalUnits || 0);
+  if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return validationNotice("Enter the completion size / total units for this progressive completion drill.");
+  if (r.scoring === "progressive_completion") {
+    if (score > sessionTotalUnits) return validationNotice(`Average ${progressiveUnitLabel(r)} cannot exceed completion size (${sessionTotalUnits}).`);
+    const bestRaw = $("bestAttemptValue")?.value || "";
+    const completionsRaw = $("completionCountValue")?.value || "";
+    const breakRaw = $("highestBreakValue")?.value || "";
+    const bestCheck = validateWholeNumberField(bestRaw, "Best attempt", {required:false, min:0, max:sessionTotalUnits});
+    if (bestCheck.error) return validationNotice(bestCheck.error);
+    const completionCheck = validateWholeNumberField(completionsRaw, "Completions", {required:false, min:0, max:attempts || null});
+    if (completionCheck.error) return validationNotice(completionCheck.error);
+    const breakCheck = validateWholeNumberField(breakRaw, "Highest break", {required:false, min:0, max:sessionTotalUnits});
+    if (breakCheck.error) return validationNotice(breakCheck.error);
+  }
+  const activeProfile = getActiveTargetProfile(r);
+
+  activeSession.tableId = $("sessionVenueTable")?.value || activeSession.tableId || getLastTableId() || "";
+  activeSession.venueTable = getTableName(activeSession.tableId) || activeSession.venueTable || "";
+  activeSession.tableNote = tableById(activeSession.tableId)?.info || activeSession.tableNote || "";
+  rememberVenueTable(activeSession.venueTable, activeSession.tableNote);
+  rememberTableId(activeSession.tableId, "");
+
+  const log = {
+    id: uuid(),
+    sessionId: activeSession.id,
+    sessionName: activeSession.planName,
+    sessionType: activeSession.type,
+    planId: activeSession.planId || "",
+    sessionPlanId: activeSession.planId || "",
+    planNameSnapshot: activeSession.type === "plan" ? activeSession.planName : "",
+    routineId: r.id,
+    routineName: r.name,
+    routineNameSnapshot: r.name,
+    folder: r.folder || "Unfiled",
+    subfolder: r.subfolder || "General",
+    category: r.category || "uncategorized",
+    ...skillSnapshotForRoutine(r),
+    scoring: r.scoring,
+    score,
+    attempts,
+    sideMode: normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit),
+    sideSplitEnabled,
+    attemptMode,
+    effectiveAttempts: sideSplitEnabled && attemptMode === "per_side" ? attempts * 2 : attempts,
+    leftSideScore,
+    rightSideScore,
+    sideScores: sideSplitEnabled ? {left:leftSideScore, right:rightSideScore} : "",
+    timeMinutes: Math.round(timeMinutes * 10) / 10,
+    normalizedScore: 0,
+    bestAttempt: wholeNumberOrNull($("bestAttemptValue")?.value || "") ?? "",
+    completionCount: wholeNumberOrNull($("completionCountValue")?.value || "") ?? "",
+    highestBreak: wholeNumberOrNull($("highestBreakValue")?.value || "") ?? "",
+    totalUnits: r.scoring === "progressive_completion" ? sessionTotalUnits : (r.totalUnits || ""),
+    unitType: r.unitType || "",
+    targetMode: r.targetMode || "",
+    targetProfileId: activeProfile?.id || "",
+    targetAtLog: activeProfile?.target || r.target || "",
+    stretchTargetAtLog: activeProfile?.stretchTarget || r.stretchTarget || "",
+    totalUnitsAtLog: r.scoring === "progressive_completion" ? sessionTotalUnits : (activeProfile?.totalUnits || r.totalUnits || ""),
+    attemptsPerSessionAtLog: activeProfile?.attemptsPerSession || r.attemptsPerSession || r.attempts || "",
+    difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
+    targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
+    performance: "N/A",
+    tableId: activeSession.tableId || $("sessionVenueTable")?.value || "",
+    venueTable: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || activeSession.venueTable || "",
+    venueTableSnapshot: getTableName(activeSession.tableId || $("sessionVenueTable")?.value) || "",
+    tableNote: tableById(activeSession.tableId)?.info || activeSession.tableNote || "",
+    sessionIntervention: $("sessionIntervention")?.value || "",
+    sessionInterventionNote: $("sessionInterventionNote")?.value || "",
+    sessionRating: Number($("sessionRating")?.value || 0) || "",
+    sessionTags: $("sessionTags")?.value || "",
+    notes: $("practiceNotes").value.trim(),
+    createdAt: new Date().toISOString()
+  };
+  log.normalizedScore = normalizeScore(log);
+  log.performance = classifyPerformance(log, r);
+  updateTagHistoryFromInput(log.sessionTags);
+  updateRecommendationCompletionFromLog(log);
+  data.logs.push(log);
+  activeSession.completedLogs.push(log);
+  const persisted = await persistLogDelta(log, "saveCurrentRoutine log put");
+  if (!persisted && !indexedDBUnavailable) notifyUser("Saved locally, but IndexedDB sync is pending. Export a backup if this warning repeats.", "warn");
+  showTransientNotice(activeSession.index >= activeSession.routineIds.length - 1 ? "Saved." : "Saved — next exercise.", "ok");
+  stopTimer();
+
+  if (activeSession.type === "free") {
+    saveData({render:"sessionLog", idbSync:"skip"});
+    $("activeSession").classList.add("hidden");
+    $("freeNextCard").classList.remove("hidden");
+    updateSessionFocusState();
+  } else {
+    activeSession.index += 1;
+    persistActiveSession();
+    saveData({render:"sessionLog", idbSync:"skip"});
+    renderCurrentRoutine();
+  }
+}
+async function completeSession() {
+  if (!activeSession) return;
+  stopTimer();
+  $("activeSession").classList.add("hidden");
+  $("freeNextCard").classList.add("hidden");
+  updateSessionFocusState?.();
+  const logs = activeSession.completedLogs || data.logs.filter(l => l.sessionId === activeSession.id);
+  const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
+  $("sessionSummary").innerHTML = `<h2>Session complete</h2><p><strong>${escapeHtml(getPlanName(activeSession))}</strong></p><p>${logs.length} exercises logged · ${totalTime.toFixed(1)} total minutes</p><table class="history-table today-table"><thead><tr><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Time</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(getRoutineName(l))}${(l.tableId || l.venueTable) ? `<br><span class="venue-pill">${escapeHtml(getTableName(l))}</span>` : ""}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${l.timeMinutes} min</td></tr>`).join("")}</tbody></table>`;
+  $("sessionSummary").classList.remove("hidden");
+  data.sessions = data.sessions || [];
+  const existingIdx = data.sessions.findIndex(s => s.id === activeSession.id);
+  const completedSessionId = activeSession.id;
+  const sessionRecord = {
+    id: activeSession.id,
+    name: getPlanName(activeSession),
+    planNameSnapshot: activeSession.planName,
+    planId: activeSession.planId || "",
+    type: activeSession.type,
+    tableId: activeSession.tableId || "",
+    venueTable: getTableName(activeSession.tableId) || activeSession.venueTable || "",
+    venueTableSnapshot: getTableName(activeSession.tableId) || activeSession.venueTable || "",
+    tableNote: tableById(activeSession.tableId)?.info || activeSession.tableNote || "",
+    startedAt: activeSession.startedAt,
+    endedAt: new Date().toISOString(),
+    logIds: logs.map(l => l.id)
+  };
+  if (existingIdx >= 0) data.sessions[existingIdx] = sessionRecord;
+  else data.sessions.push(sessionRecord);
+  saveCoreData("completeSession core save");
+  await persistSessionDelta(sessionRecord, "completeSession session put");
+  resetTimerState();
+  if (activeSession) activeSession.timerState = null;
+  activeSession = null;
+  clearPersistedActiveSession();
+  updateSessionFocusState?.();
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  $("practice")?.classList.add("active");
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  document.querySelector('.tab[data-tab="practice"]')?.classList.add("active");
+  renderToday();
+  openReflectionModal(completedSessionId);
+  renderStats();
+}
+
+function getElapsedMs() { return elapsedMsFromState(timerStartMs, elapsedBeforeStartMs); }
+function getElapsedMinutes() { return elapsedMinutesFromState(timerStartMs, elapsedBeforeStartMs); }
+function syncTimerStateToActiveSession() {
+  if (!activeSession) return;
+  activeSession.timerState = makeTimerState(timerStartMs, elapsedBeforeStartMs);
+  persistActiveSession();
+}
+function restoreTimerStateFromActiveSession() {
+  const ts = activeSession?.timerState;
+  if (!ts) return false;
+  stopTimer();
+  elapsedBeforeStartMs = Number(ts.elapsedBeforeStartMs || 0);
+  timerStartMs = ts.isRunning && ts.timerStartMs ? Number(ts.timerStartMs) : null;
+  if (timerStartMs) {
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    if ($("timerState")) $("timerState").textContent = "timer running";
+  } else if (elapsedBeforeStartMs > 0 && $("timerState")) {
+    $("timerState").textContent = "timer paused";
+  }
+  updateTimerDisplay();
+  syncFocusWakeLock();
+  return true;
+}
+
+function getWakeLockSetting(){ return interfaceReadSetting(WAKE_LOCK_KEY, "wakeLock", "off"); }
+function hapticFeedback(kind="tap") {
+  try {
+    if (!navigator.vibrate) return;
+    const pattern = kind === "miss" ? [100, 50, 100] : kind === "save" ? [40, 30, 40] : [50];
+    navigator.vibrate(pattern);
+  } catch(e) {}
+}
+async function requestFocusWakeLock() {
+  if (wakeLockRequestInFlight || wakeLockSentinel || getWakeLockSetting() !== "on") return;
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  if (!timerStartMs && !timerAutostartDelayInterval) return;
+  if (!("wakeLock" in navigator)) return;
+  try {
+    wakeLockRequestInFlight = true;
+    wakeLockSentinel = await navigator.wakeLock.request("screen");
+    wakeLockSentinel.addEventListener?.("release", () => { wakeLockSentinel = null; });
+    if ($("timerState") && timerStartMs) $("timerState").textContent = "timer running · screen awake";
+  } catch(e) {
+    wakeLockSentinel = null;
+    if (typeof logAppError === "function") logAppError(e, "requestFocusWakeLock");
+  } finally {
+    wakeLockRequestInFlight = false;
+  }
+}
+async function releaseFocusWakeLock() {
+  const sentinel = wakeLockSentinel;
+  wakeLockSentinel = null;
+  try { await sentinel?.release?.(); } catch(e) {}
+}
+function syncFocusWakeLock() {
+  const shouldHold = getWakeLockSetting() === "on" && document.body?.classList.contains("session-focus-active") && !!(timerStartMs || timerAutostartDelayInterval);
+  if (shouldHold) requestFocusWakeLock();
+  else releaseFocusWakeLock();
+}
+function cancelTimerAutostartDelay() {
+  if (timerAutostartDelayInterval) clearInterval(timerAutostartDelayInterval);
+  timerAutostartDelayInterval = null;
+  timerAutostartDelayEndsAt = null;
+}
+function startPracticeTimer() {
+  cancelTimerAutostartDelay();
+  if (timerStartMs) return;
+  timerStartMs = Date.now();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+  if ($("timerState")) $("timerState").textContent = "timer running";
+  updateTimerDisplay();
+  syncTimerStateToActiveSession();
+  syncFocusWakeLock();
+}
+function resetTimerState() { cancelTimerAutostartDelay(); stopTimer(); timerStartMs = null; elapsedBeforeStartMs = 0; updateTimerDisplay(); if (!suppressTimerPersistence) syncTimerStateToActiveSession(); syncFocusWakeLock(); }
+$("timerStartBtn").addEventListener("click", startPracticeTimer);
+$("timerPauseBtn").addEventListener("click", () => {
+  cancelTimerAutostartDelay();
+  if (!timerStartMs) return;
+  elapsedBeforeStartMs += Date.now() - timerStartMs;
+  timerStartMs = null;
+  stopTimer();
+  $("timerState").textContent = "timer paused";
+  updateTimerDisplay();
+  syncTimerStateToActiveSession();
+  syncFocusWakeLock();
+});
+$("timerResetBtn").addEventListener("click", resetTimerState);
+function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; syncFocusWakeLock(); }
+function updateTimerDisplay() {
+  if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
+  if (!timerStartMs && getElapsedMs() === 0 && !timerAutostartDelayInterval && $("timerState")) $("timerState").textContent = "timer stopped";
+}
+function updateTimerAutostartDelayDisplay() {
+  if (!timerAutostartDelayEndsAt) return;
+  const rawRemainingMs = timerAutostartDelayEndsAt - Date.now();
+  if (rawRemainingMs <= 0) {
+    startPracticeTimer();
+    return;
+  }
+  const remainingSec = Math.ceil(rawRemainingMs / 1000);
+  if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(remainingSec * 1000);
+  if ($("timerState")) $("timerState").textContent = `auto-start in ${remainingSec}s`;
+}
+function scheduleTimerAutostartForCurrentRoutine() {
+  cancelTimerAutostartDelay();
+  if (!activeSession || getTimerAutostartSetting() !== "auto" || isResumingActiveSession) return;
+  if (timerStartMs || getElapsedMs() > 0) return;
+  const delaySec = getTimerAutostartDelaySetting();
+  if (delaySec <= 0) { startPracticeTimer(); return; }
+  timerAutostartDelayEndsAt = Date.now() + delaySec * 1000;
+  updateTimerAutostartDelayDisplay();
+  timerAutostartDelayInterval = setInterval(updateTimerAutostartDelayDisplay, 250);
+}
+
+function renderLogRow(l) {
+  return `<tr data-log-row-id="${attrText(l.id)}">
+    <td>${new Date(l.createdAt || Date.now()).toLocaleDateString()}</td>
+    <td>${displayScore(l)}</td>
+    <td>${Number(l.normalizedScore || normalizeScore(l) || 0).toFixed(2)}</td>
+    <td>${escapeHtml(l.performance || "N/A")}</td>
+    <td>${escapeHtml(getTargetProfileLabel(l))}</td>
+    <td>${formatDurationHuman(l.timeMinutes)}</td>
+    <td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td>
+  </tr>`;
+}
+
+function displayScore(l) {
+  const rawScore = effectiveLogScore(l);
+  const score = numText(rawScore, "0");
+  const attempts = numText(l.attempts, "0");
+  if (logUsesSideSplit(l)) {
+    const left = getLogLeftSideScore(l);
+    const right = getLogRightSideScore(l);
+    const sideText = `L ${numText(Number.isFinite(left) ? left : 0, "0")} + R ${numText(Number.isFinite(right) ? right : 0, "0")} = ${score}`;
+    const attemptsText = getLogAttemptMode(l) === "per_side" ? `${attempts}/side (${numText(effectiveLogAttempts(l), "0")} total)` : `${attempts} total`;
+    if (l.scoring === "success_rate") return `${sideText}/${attemptsText} (${Number(normalizeScore(l) || 0).toFixed(1)}%)`;
+    if (l.scoring === "score_per_minute") return `${sideText} (${Number(normalizeScore(l) || 0).toFixed(2)}/min)`;
+    return sideText;
+  }
+  if (l.scoring === "progressive_completion") {
+    const total = numText(l.totalUnits, "?");
+    const unit = htmlText(l.unitType || "units");
+    const colour = l.targetColour ? " · " + htmlText(fmtTargetColour(l.targetColour)) : "";
+    const best = l.bestAttempt ? " · best " + numText(l.bestAttempt) : "";
+    const brk = l.highestBreak ? " · break " + numText(l.highestBreak) : "";
+    return `${score}/${total} ${unit} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${colour}${best}${brk}`;
+  }
+  if (l.scoring === "success_rate") return `${score}/${attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
+  if (l.scoring === "score_per_minute") return `${score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
+  return score;
+}
+
+function getPeriodRange(period, dateKey) {
+  const d = dateKey ? new Date(dateKey + "T00:00:00") : new Date();
+  let start, end, label;
+  if (period === "daily" || period === "exercise") {
+    start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    end = new Date(start); end.setDate(end.getDate() + 1);
+    label = localDateKey(start);
+  } else if (period === "weekly") {
+    start = new Date(d);
+    const day = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - day);
+    start.setHours(0,0,0,0);
+    end = new Date(start); end.setDate(end.getDate() + 7);
+    label = `Week of ${localDateKey(start)}`;
+  } else if (period === "monthly") {
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth()+1, 1);
+    label = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  } else if (period === "yearly") {
+    start = new Date(d.getFullYear(), 0, 1);
+    end = new Date(d.getFullYear()+1, 0, 1);
+    label = `${d.getFullYear()}`;
+  } else {
+    start = new Date(0);
+    end = new Date(8640000000000000);
+    label = "Overall";
+  }
+  return {start, end, label};
+}
+function logsInRange(logs, start, end) {
+  return logs.filter(l => {
+    const d = new Date(l.createdAt);
+    return d >= start && d < end;
+  });
+}
+function bucketLogs(logs, period) {
+  const buckets = {};
+  logs.forEach(l => {
+    const d = new Date(l.createdAt);
+    let key;
+    if (period === "weekly") {
+      const s = new Date(d);
+      const day = (s.getDay() + 6) % 7;
+      s.setDate(s.getDate() - day);
+      key = localDateKey(s);
+    } else if (period === "monthly") key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    else if (period === "yearly") key = String(d.getFullYear());
+    else key = localDateKey(d);
+    buckets[key] ||= {label:key, logs:[], time:0, avg:0, count:0};
+    buckets[key].logs.push(l);
+    buckets[key].time += Number(l.timeMinutes || 0);
+  });
+  Object.values(buckets).forEach(b => {
+    b.count = b.logs.length;
+    b.avg = avg(b.logs.map(l => Number(l.normalizedScore || 0)));
+  });
+  return Object.values(buckets).sort((a,b) => a.label.localeCompare(b.label));
+}
+function targetHitRate(logs) {
+  const targetLogs = logs.filter(l => (l.performance || "N/A") !== "N/A");
+  if (!targetLogs.length) return null;
+  return targetLogs.filter(l => l.performance === "On Target" || l.performance === "Above Target").length / targetLogs.length * 100;
+}
+function streaks(logs) {
+  const dates = [...new Set(logs.map(l => localDateKey(l.createdAt)))].sort();
+  if (!dates.length) return {current:0, best:0};
+  let best=1, current=1, run=1;
+  for (let i=1;i<dates.length;i++) {
+    const prev = new Date(dates[i-1]+"T00:00:00");
+    const cur = new Date(dates[i]+"T00:00:00");
+    const diff = Math.round((cur-prev)/86400000);
+    if (diff === 1) run += 1;
+    else run = 1;
+    best = Math.max(best, run);
+  }
+  const last = new Date(dates[dates.length-1]+"T00:00:00");
+  const today = new Date(localDateKey()+"T00:00:00");
+  const diffLast = Math.round((today-last)/86400000);
+  current = diffLast <= 1 ? run : 0;
+  return {current, best};
+}
+function progressionSuggestion(values, hitRate) {
+  if (values.length < 5) return "Add more logs before changing difficulty.";
+  const last3 = avg(values.slice(-3));
+  const prior = avg(values.slice(0,-3));
+  if (hitRate !== null && hitRate >= 80 && last3 >= prior) return "Consider increasing difficulty or stretch target.";
+  if (hitRate !== null && hitRate <= 35) return "Consider reducing difficulty or isolating the technical bottleneck.";
+  if (last3 > prior * 1.1) return "Momentum is positive; consider a slightly harder version.";
+  if (last3 < prior * 0.9) return "Performance is slipping; consider a regression drill or shorter set.";
+  return "Maintain current difficulty.";
+}
+
+
+$("generateConstraintPlanBtn").addEventListener("click", () => {
+  const total = Number($("constraintTotalMinutes").value || 60);
+  const count = Math.max(1, Number($("constraintExerciseCount").value || 4));
+  const focus = $("constraintFocusType").value || "all";
+  const allocs = [
+    {key:"potting", pct:Number($("allocPotting").value || 0)},
+    {key:"break-building", pct:Number($("allocBreak").value || 0)},
+    {key:"other", pct:Number($("allocOther").value || 0)}
+  ];
+  let pool = visibleRoutines();
+  if (focus !== "all") {
+    const focused = pool.filter(r => (r.category || "").toLowerCase() === focus.toLowerCase());
+    if (focused.length) pool = focused.concat(pool.filter(r => !focused.includes(r)));
+  }
+  const picked = [];
+  allocs.forEach(a => {
+    const n = Math.max(0, Math.round(count * a.pct / 100));
+    let catPool = pool.filter(r => {
+      const c = (r.category || "").toLowerCase();
+      if (a.key === "other") return c !== "potting" && c !== "break-building";
+      return c === a.key;
+    });
+    catPool.sort(() => Math.random() - 0.5).slice(0,n).forEach(r => picked.push(r.id));
+  });
+  while (picked.length < count && pool.length) {
+    const candidate = pool[Math.floor(Math.random()*pool.length)];
+    if (!picked.includes(candidate.id)) picked.push(candidate.id);
+    else if (picked.length >= pool.length) break;
+  }
+  planDraft = picked.slice(0,count);
+  if (!$("planName").value.trim()) $("planName").value = `Generated ${total} min session — ${new Date().toLocaleDateString()}`;
+  renderPlanBuilder();
+});
+
+
+
+let pendingReflectionSessionId = "";
+
+function anchorRoutines() {
+  return activeRoutines().filter(r => r.isAnchor);
+}
+function anchorPerformanceSummary(logs) {
+  const anchors = anchorRoutines();
+  if (!anchors.length) return "";
+  const rows = anchors.map(r => {
+    const rLogs = logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    const allLogs = (data.logs || []).filter(l => l.routineId === r.id).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    const todayAvg = rLogs.length ? avg(rLogs.map(l=>Number(l.normalizedScore||0))) : null;
+    const baseline = allLogs.length ? avg(allLogs.slice(-10).map(l=>Number(l.normalizedScore||0))) : null;
+    return {name:r.name, todayAvg, baseline};
+  });
+  return `<div class="review-box"><h3>Anchor drill baseline ${statHelpButton("anchorBaseline")}</h3>${rows.map(row => `<div class="reflection-row"><strong>${escapeHtml(row.name)}</strong>: ${row.todayAvg === null ? "not logged in this view" : row.todayAvg.toFixed(1)}${row.baseline === null ? "" : " vs baseline "+row.baseline.toFixed(1)}</div>`).join("")}</div>`;
+}
+
+function weekStart(dateLike) {
+  const d = new Date(dateLike);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function trainingLoadByDay(days=14) {
+  const out = [];
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  for (let i=days-1;i>=0;i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate()-i);
+    const key = localDateKey(d);
+    const logs = (data.logs || []).filter(l => localDateKey(l.createdAt) === key);
+    out.push({key, label:key.slice(5), time:logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0), count:logs.length});
+  }
+  return out;
+}
+function renderTrainingLoad() {
+  const box = $("trainingLoadBox");
+  if (!box) return;
+  const load = trainingLoadByDay(14);
+  const max = Math.max(1, ...load.map(d=>d.time));
+  const total7 = load.slice(-7).reduce((a,b)=>a+b.time,0);
+  const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
+  const delta = prev7 ? ((total7-prev7)/Math.abs(prev7))*100 : null;
+  box.innerHTML = `<div class="load-card"><h3>Training load — last 14 days ${statHelpButton("trainingLoad")}</h3>
+    <div class="stats-grid"><div class="stat-card"><span>Last 7 days</span><div class="value">${formatDurationHuman(total7)}</div></div><div class="stat-card"><span>Previous 7 days</span><div class="value">${formatDurationHuman(prev7)}</div></div><div class="stat-card"><span>Volume change</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
+    <div class="load-bars">${load.map(d=>`<div class="load-bar" title="${d.key}: ${d.time.toFixed(1)} min" style="height:${Math.max(3,(d.time/max)*90)}px"></div>`).join("")}</div>
+    <div class="load-labels">${load.map(d=>`<span>${d.label}</span>`).join("")}</div>
+    ${renderLoadAdvice(total7, prev7)}
+  </div>`;
+}
+function renderLoadAdvice(total7, prev7) {
+  if (!prev7) return `<div class="analytics-note">Build a baseline first. Log at least two weeks for load guidance.</div>`;
+  const delta = ((total7-prev7)/Math.abs(prev7))*100;
+  if (delta > 35) return `<div class="warning-note">Training load increased sharply. If performance is flat, consider a lighter session or deload.</div>`;
+  if (delta < -35) return `<div class="analytics-note">Training load dropped materially. If this was not deliberate, schedule an anchor session.</div>`;
+  return `<div class="analytics-note">Training load is relatively stable. Good for comparing performance trends.</div>`;
+}
+function warmupSuggestion(logs=data.logs || []) {
+  const f = fatigueCurve(logs);
+  if (f && f.deltaPct < -15) return "Warm-up suggestion: add 5 minutes of light potting before scored drills, then shorten the final block or add a break.";
+  if (f && f.deltaPct > 10) return "Warm-up suggestion: you appear to start slowly. Add an unscored calibration block before logging.";
+  return "Warm-up suggestion: keep a short consistent warm-up so scored drills remain comparable.";
+}
+function variationSuggestionForRoutine(routineId) {
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const plateau = plateauDetector(logs, 6);
+  const r = routineById(routineId);
+  if (!r || !plateau || !plateau.isPlateau) return "";
+  if ((r.category || "").toLowerCase().includes("potting")) return "Variation suggestion: keep the same drill but move the cue ball 2 inches closer to cushion or reduce attempts by 20% to raise focus.";
+  if ((r.category || "").toLowerCase().includes("safety")) return "Variation suggestion: add a stricter leave condition or score only outcomes that create clear advantage.";
+  return "Variation suggestion: change one constraint only — target, position, or attempts — and keep the rest stable.";
+}
+function renderWeeklyReview() {
+  const box = $("weeklyReviewBox");
+  if (!box) return;
+  const today = new Date();
+  const start = weekStart(today);
+  const prev = new Date(start); prev.setDate(start.getDate()-7);
+  const thisLogs = logsInRange(data.logs || [], start, new Date());
+  const prevLogs = logsInRange(data.logs || [], prev, start);
+  const thisAvg = thisLogs.length ? avg(thisLogs.map(l=>Number(l.normalizedScore||0))) : null;
+  const prevAvg = prevLogs.length ? avg(prevLogs.map(l=>Number(l.normalizedScore||0))) : null;
+  const delta = thisAvg !== null && prevAvg ? ((thisAvg-prevAvg)/Math.abs(prevAvg))*100 : null;
+  box.innerHTML = `<div class="review-box"><h3>Weekly review ${statHelpButton("weeklyReview")}</h3>
+    <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance ${statHelpButton("avgPerformance")}</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
+    <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : data.logs))}</div>
+    ${anchorPerformanceSummary(thisLogs)}
+  </div>`;
+}
+function openReflectionModal(sessionId) {
+  pendingReflectionSessionId = sessionId || "";
+  if (!$("reflectionModal")) return;
+  $("reflectionFocus").value = "";
+  $("reflectionLimiter").value = "";
+  ["reflectionFocusRating","reflectionConfidenceRating","reflectionFatigueRating","reflectionCueingRating","reflectionMentalSharpnessRating"].forEach(id => { if ($(id)) $(id).value = ""; });
+  syncReflectionRatingTiles();
+  if ($("reflectionTags")) $("reflectionTags").value = "";
+  if ($("reflectionInterventionNote")) $("reflectionInterventionNote").value = "";
+  $("reflectionNote").value = "";
+  $("reflectionModal").classList.remove("hidden");
+}
+function closeReflectionModal(event) {
+  if (event.target && event.target.id === "reflectionModal") skipReflection();
+}
+function saveReflection() {
+  if (!pendingReflectionSessionId) return skipReflection();
+  const idx = (data.sessions || []).findIndex(s => s.id === pendingReflectionSessionId);
+  if (idx >= 0) {
+    const reflectionTags = $("reflectionTags")?.value || "";
+    const reflectionInterventionNote = $("reflectionInterventionNote")?.value || "";
+    data.sessions[idx].reflection = {
+      focus: $("reflectionFocus").value || "",
+      limiter: $("reflectionLimiter").value || "",
+      focusRating: parseRating("reflectionFocusRating"),
+      confidenceRating: parseRating("reflectionConfidenceRating"),
+      fatigueRating: parseRating("reflectionFatigueRating"),
+      cueingRating: parseRating("reflectionCueingRating"),
+      mentalSharpnessRating: parseRating("reflectionMentalSharpnessRating"),
+      tags: reflectionTags,
+      interventionNote: reflectionInterventionNote,
+      note: $("reflectionNote").value || "",
+      createdAt: new Date().toISOString()
+    };
+    data.sessions[idx].sessionTags = reflectionTags || data.sessions[idx].sessionTags || "";
+    data.sessions[idx].interventionNote = reflectionInterventionNote || data.sessions[idx].interventionNote || "";
+    updateTagHistoryFromInput(reflectionTags);
+    saveCoreData("reflection core save");
+    persistSessionDelta(data.sessions[idx], "reflection session put");
+  }
+  skipReflection();
+  renderAll();
+}
+function skipReflection() {
+  pendingReflectionSessionId = "";
+  if ($("reflectionModal")) $("reflectionModal").classList.add("hidden");
+}
+
+
+
+function formatDurationHuman(minutes) {
+  const m = Math.round(Number(minutes || 0));
+  if (!m) return "0 min";
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if (!h) return `${rem} min`;
+  if (!rem) return `${h}h`;
+  return `${h}h ${rem}m`;
+}
+
+const EXPORT_FOLDER_DB = "snookerPracticePWA.exportFolderDB";
+const EXPORT_FOLDER_STORE = "handles";
+const EXPORT_FOLDER_KEY = "exportFolder";
+function isIOSSafariLike(){ return /iPad|iPhone|iPod/.test(navigator.userAgent || "") || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+function supportsExportFolderPicker(){ return !isIOSSafariLike() && "showDirectoryPicker" in window && "indexedDB" in window; }
+function openExportFolderDB(){ return new Promise((resolve,reject)=>{ const req=indexedDB.open(EXPORT_FOLDER_DB,1); req.onupgradeneeded=()=>req.result.createObjectStore(EXPORT_FOLDER_STORE); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error); }); }
+async function saveExportFolderHandle(handle){ const db=await openExportFolderDB(); return new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).put(handle,EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }
+async function getExportFolderHandle(){ if(!supportsExportFolderPicker()) return null; try{ const db=await openExportFolderDB(); return await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readonly"); const req=tx.objectStore(EXPORT_FOLDER_STORE).get(EXPORT_FOLDER_KEY); req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error); }); }catch(e){ logAppError(e,"getExportFolderHandle"); return null; } }
+async function clearExportFolderHandle(){ if(!("indexedDB" in window)) return; try{ const db=await openExportFolderDB(); await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).delete(EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }catch(e){ logAppError(e,"clearExportFolderHandle"); } }
+async function ensureExportFolderPermission(handle){ if(!handle) return false; try{ const opts={mode:"readwrite"}; if((await handle.queryPermission(opts))==="granted") return true; return (await handle.requestPermission(opts))==="granted"; }catch(e){ logAppError(e,"ensureExportFolderPermission"); return false; } }
+async function chooseExportFolder(){ if(!supportsExportFolderPicker()){ alert("Folder selection is not supported in this browser. Exports will continue using normal downloads."); renderExportFolderStatus(); return; } try{ const handle=await window.showDirectoryPicker({mode:"readwrite"}); await saveExportFolderHandle(handle); localStorage.setItem("snookerPracticePWA.exportFolderName", handle.name || "Selected folder"); renderExportFolderStatus(); }catch(e){ if(e&&e.name!=="AbortError") logAppError(e,"chooseExportFolder"); } }
+async function clearExportFolder(){ await clearExportFolderHandle(); localStorage.removeItem("snookerPracticePWA.exportFolderName"); renderExportFolderStatus(); }
+async function renderExportFolderStatus(){ const el=$("exportFolderStatus"); if(!el) return; const chooseBtn=$("chooseExportFolderBtn"); const clearBtn=$("clearExportFolderBtn"); if(!supportsExportFolderPicker()){ if(chooseBtn) chooseBtn.classList.add("hidden"); if(clearBtn) clearBtn.classList.add("hidden"); el.className="analytics-note export-folder-fallback"; el.innerHTML=isIOSSafariLike()?"iOS Safari uses normal Downloads for exports; folder selection is hidden because the browser does not support it.":"Folder export is not supported by this browser. Files will use normal Downloads."; return; } if(chooseBtn) chooseBtn.classList.remove("hidden"); if(clearBtn) clearBtn.classList.remove("hidden"); const handle=await getExportFolderHandle(); if(!handle){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Export folder not selected. Files will use normal Downloads."; return; } const name=localStorage.getItem("snookerPracticePWA.exportFolderName") || handle.name || "Selected folder"; el.className="analytics-note export-folder-ok"; el.innerHTML=`Selected export folder: <strong>${escapeHtml(name)}</strong>.`; }
+async function saveTextFileToExportFolder(filename,text,mimeType="application/octet-stream"){ const handle=await getExportFolderHandle(); if(!handle) return false; const ok=await ensureExportFolderPermission(handle); if(!ok) return false; try{ const fileHandle=await handle.getFileHandle(filename,{create:true}); const writable=await fileHandle.createWritable(); await writable.write(new Blob([text],{type:mimeType})); await writable.close(); return true; }catch(e){ logAppError(e,"saveTextFileToExportFolder"); return false; } }
+async function exportFile(filename,text,mimeType="application/octet-stream"){ const saved=await saveTextFileToExportFolder(filename,text,mimeType); if(!saved) downloadFile(filename,text,mimeType); }
+
+function ensureTablesDatabase() {
+  data.tables = data.tables || [];
+  const defaults = ["Home table", "Club table 1", "Club table 2", "Club table 3", "Club table 4", "Other"];
+  defaults.forEach(name => {
+    if (!data.tables.some(t => t.name === name)) {
+      data.tables.push({id: uuid(), name, type:name.includes("Club")?"Club":(name==="Home table"?"Home":"Other"), info:"", createdAt:new Date().toISOString(), nameHistory:[]});
+    }
+  });
+  (data.logs || []).forEach(l => {
+    if (l.venueTable && !l.tableId) {
+      const found = data.tables.find(t => t.name === l.venueTable);
+      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; }
+    }
+  });
+}
+function tableById(id){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.id===id); }
+function tableByName(name){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.name===name); }
+function getTableName(logOrId){ const id=typeof logOrId==="string"?logOrId:(logOrId?.tableId||""); const fallback=typeof logOrId==="string"?"":(logOrId?.venueTable||logOrId?.venueTableSnapshot||""); return tableById(id)?.name || fallback || "Not specified"; }
+function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastTableId") || ""; }
+function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
+function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}">${htmlText(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
+function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
+function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
+function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
+function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
+function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
+function renderTableDatabase(){ const box=$("tableList"); if(!box)return; ensureTablesDatabase(); box.innerHTML=(data.tables||[]).map(t=>`<div class="table-db-row"><div><strong>${htmlText(t.name)}</strong><div class="meta">${htmlText(t.type||"No type")} · ${htmlText(t.info||"No info")}</div>${(t.nameHistory||[]).length?`<div class="meta">Previous names: ${(t.nameHistory||[]).map(x=>htmlText(x.name)).join(", ")}</div>`:""}</div><div class="small-actions"><button class="secondary" data-action="edit-table" data-id="${attrText(t.id)}">Edit</button><button class="secondary" data-action="delete-table" data-id="${attrText(t.id)}">Delete</button></div></div>`).join(""); }
+function analyticsHelp(title,measures,calc,interpret,use){ return `<div class="help-rich"><p><strong>What it measures:</strong> ${htmlText(measures)}</p><p><strong>How calculated:</strong> ${htmlText(calc)}</p><p><strong>How to interpret:</strong> ${htmlText(interpret)}</p><div class="example"><strong>Typical use:</strong> ${htmlText(use)}</div></div>`; }
+
+
+let adaptivePlanDraft = [];
+
+
+function getPeriodizationPhase() {
+  const manual = $("periodizationPhase")?.value || "auto";
+  if (manual !== "auto") return manual;
+
+  const comp = $("competitionDate")?.value ? new Date($("competitionDate").value) : null;
+  if (comp && !Number.isNaN(comp.getTime())) {
+    const days = Math.ceil((comp.getTime() - Date.now()) / 86400000);
+    if (days <= 7) return "performance";
+    if (days <= 21) return "stabilization";
+    return "acquisition";
+  }
+
+  const recentLoad = typeof trainingLoadByDay === "function" ? trainingLoadByDay(14) : [];
+  const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
+  const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
+  const f = fatigueSlope(data.logs || []);
+  if ((prev7 && last7 > prev7 * 1.35) || (f && f.slope < -0.25)) return "deload";
+
+  const upgrades = activeRoutines().some(r => targetUpgradeSuggestionForRoutine(r.id));
+  if (upgrades) return "performance";
+
+  const unstable = activeRoutines().some(r => {
+    const logs = (data.logs || []).filter(l => l.routineId === r.id).slice(-10);
+    const psi = performanceStabilityIndex(logs, 10);
+    return psi && psi.psi < 55;
+  });
+  if (unstable) return "stabilization";
+  return "acquisition";
+}
+
+function phaseSettings(phase) {
+  const map = {
+    acquisition: {
+      label:"Skill acquisition",
+      goal:"variety",
+      targetAggression:"low",
+      durationMultiplier:1.00,
+      mix:"More variation, baseline collection, and weaker/undertrained categories.",
+      rationale:"Best when learning new skills or building coverage across drills."
+    },
+    stabilization: {
+      label:"Stabilization",
+      goal:"stability",
+      targetAggression:"medium",
+      durationMultiplier:0.95,
+      mix:"More anchor drills and repeated setups; fewer new constraints.",
+      rationale:"Best when execution is inconsistent and Consistency is low."
+    },
+    performance: {
+      label:"Performance / competition prep",
+      goal:"progression",
+      targetAggression:"high",
+      durationMultiplier:0.90,
+      mix:"Stable drills, pressure-like structure, and target upgrades where justified.",
+      rationale:"Best when competition is near or high hit-rate/stable drills need pressure."
+    },
+    deload: {
+      label:"Deload / recovery",
+      goal:"recovery",
+      targetAggression:"none",
+      durationMultiplier:0.70,
+      mix:"Shorter, lower-complexity technique work; avoid difficulty increases.",
+      rationale:"Best when load or fatigue signals are elevated."
+    }
+  };
+  return map[phase] || map.acquisition;
+}
+
+function renderPeriodization() {
+  const box = $("periodizationOutput");
+  if (!box) return;
+  const phase = getPeriodizationPhase();
+  const s = phaseSettings(phase);
+  const horizon = Number($("periodizationHorizon")?.value || 4);
+  box.innerHTML = `<div class="phase-card">
+    <strong>Active phase: ${escapeHtml(s.label)}</strong>
+    <span class="phase-pill">Horizon: ${horizon} week${horizon>1?"s":""}</span>
+    <span class="phase-pill">Default goal: ${escapeHtml(s.goal)}</span>
+    <span class="phase-pill">Target aggression: ${escapeHtml(s.targetAggression)}</span>
+    <div class="adaptive-rationale">${escapeHtml(s.mix)}</div>
+    <div class="adaptive-rationale">${escapeHtml(s.rationale)}</div>
+  </div>`;
+}
+
+function applyPeriodizationToAdaptiveInputs() {
+  const phase = getPeriodizationPhase();
+  const s = phaseSettings(phase);
+  if ($("adaptiveGoal") && $("adaptiveGoal").value === "auto") {
+    // Keep visible control as Auto, but adaptiveSessionStructure receives phase-adjusted goal.
+  }
+  return {phase, settings:s};
+}
+
+function expectedRoutineScore(routineId, windowSize=20) {
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0, windowSize);
+  if (!logs.length) return null;
+  const vals = logs.map(l => Number(l.normalizedScore || 0));
+  const base = avg(vals);
+  const psi = performanceStabilityIndex(logs, Math.min(10, logs.length));
+  const drift = logs.length >= 6 ? performanceDrift(logs.slice().reverse(), Math.min(6, Math.floor(logs.length/2))) : null;
+  const stabilityAdj = psi ? (psi.psi - 50) * 0.05 : 0;
+  const driftAdj = drift ? Math.max(-5, Math.min(5, drift.deltaPct * 0.08)) : 0;
+  return {expected: base + stabilityAdj + driftAdj, base, psi: psi?.psi ?? null, drift: drift?.deltaPct ?? null, n: logs.length};
+}
+
+function renderRegretRoutineOptions() {
+  const selects = [$("regretChosenRoutine"), $("regretAlternativeRoutine")].filter(Boolean);
+  if (!selects.length) return;
+  const opts = `<option value="">Select routine</option>` + activeRoutines().map(r => `<option value="${escapeAttr(r.id)}">${escapeHtml(r.name)}</option>`).join("");
+  selects.forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML = opts;
+    if (current) sel.value = current;
+  });
+}
+
+function runRegretComparison() {
+  const chosen = $("regretChosenRoutine")?.value || "";
+  const alt = $("regretAlternativeRoutine")?.value || "";
+  const out = $("regretOutput");
+  if (!out) return;
+  if (!chosen || !alt || chosen === alt) {
+    out.innerHTML = "Select two different routines.";
+    return;
+  }
+  const win = Number($("regretWindow")?.value || 20);
+  const c = expectedRoutineScore(chosen, win);
+  const a = expectedRoutineScore(alt, win);
+  const cr = routineById(chosen);
+  const ar = routineById(alt);
+  if (!c || !a) {
+    out.innerHTML = "Not enough historical data for one or both routines.";
+    return;
+  }
+  const regret = a.expected - c.expected;
+  const cls = regret > 5 ? "regret-positive" : regret < -5 ? "regret-good" : "regret-neutral";
+  const msg = regret > 5
+    ? "The alternative looks materially better in recent comparable history."
+    : regret < -5
+      ? "The chosen routine looks better than the alternative."
+      : "No strong counterfactual difference.";
+  out.innerHTML = `<div class="phase-card ${safeClassToken(cls, ["regret-positive","regret-neutral","regret-good"], "regret-neutral")}">
+    <strong>Drill comparison ${statHelpButton("regretEngine")}</strong>
+    <div>${escapeHtml(cr?.name || "Chosen")}: expected ${c.expected.toFixed(1)} · n=${c.n}${c.psi!==null?` · Consistency ${c.psi.toFixed(0)}`:""}</div>
+    <div>${escapeHtml(ar?.name || "Alternative")}: expected ${a.expected.toFixed(1)} · n=${a.n}${a.psi!==null?` · Consistency ${a.psi.toFixed(0)}`:""}</div>
+    <div class="adaptive-rationale"><strong>Regret estimate:</strong> ${regret>=0?"+":""}${regret.toFixed(1)} points vs chosen.</div>
+    <div class="adaptive-rationale">${escapeHtml(msg)}</div>
+    <div class="adaptive-rationale">Interpretation: this is a heuristic selection-quality signal, not proof that the alternative would have caused better performance.</div>
+  </div>`;
+}
+
+function adaptiveRoutineState(routineId) {
+  const r = routineById(routineId);
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const recent = logs.slice(-8);
+  const hit = recent.length ? targetHitRate(recent) : null;
+  const psi = performanceStabilityIndex(logs.slice(-10), 10);
+  const drift = logs.length >= 6 ? performanceDrift(logs, Math.min(8, Math.max(5, Math.floor(logs.length/2)))) : null;
+  const plateau = plateauDetector(logs, 6);
+  const fatigue = fatigueSlope(logs);
+  const lastLog = logs.length ? logs[logs.length-1] : null;
+  const days = lastLog ? daysSince(lastLog.createdAt) : 999;
+  const upgrade = targetUpgradeSuggestionForRoutine(routineId);
+  const gap = logs.length ? skillGapIndex(logs.slice(-10)) : null;
+
+  let phase = "baseline";
+  const reasons = [];
+
+  if (!logs.length || logs.length < 3) {
+    phase = "baseline";
+    reasons.push("not enough history");
+  } else if (psi && psi.psi < 45) {
+    phase = "stabilize";
+    reasons.push("low stability");
+  } else if (hit !== null && hit >= 80 && psi && psi.psi >= 70 && (!drift || drift.deltaPct >= -2)) {
+    phase = "progress";
+    reasons.push("high hit rate and stable execution");
+  } else if (plateau && plateau.isPlateau) {
+    phase = "vary";
+    reasons.push("plateau detected");
+  } else if (drift && drift.deltaPct < -10) {
+    phase = "recover";
+    reasons.push("negative performance drift");
+  } else if (days >= 14) {
+    phase = "refresh";
+    reasons.push("not practiced recently");
+  } else {
+    phase = "maintain";
+    reasons.push("normal training zone");
+  }
+
+  return {routine:r, logs, recent, hit, psi, drift, plateau, fatigue, days, upgrade, gap, phase, reasons};
+}
+
+function adaptivePriorityScore(state, goal="auto") {
+  const r = state?.routine;
+  const undertrained = r ? undertrainedCategoryBonus(r.id) : 0;
+  return scoreAdaptivePriority(state, goal, undertrained);
+}
+
+function adaptiveRoutineExpectedMinutes(r) {
+  return Math.max(5, Number(r?.duration || r?.timeMinutes || r?.estimatedMinutes || 10));
+}
+function adaptiveBlockExpectedMinutes(block) {
+  return (block?.picks || []).reduce((sum, pick) => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    return sum + adaptiveRoutineExpectedMinutes(state.routine) * reps;
+  }, 0);
+}
+function adaptivePlanExpectedMinutes(blocks) {
+  return (blocks || []).reduce((sum, block) => sum + adaptiveBlockExpectedMinutes(block), 0);
+}
+function adaptivePickKey(pick) {
+  const state = pick.state || pick;
+  return state?.routine?.id || "";
+}
+function normalizeAdaptivePick(pick, reps = 1) {
+  if (pick && pick.state) return {...pick, reps:Math.max(1, Number(pick.reps || reps || 1))};
+  return {state:pick, reps:Math.max(1, Number(reps || 1))};
+}
+function flattenAdaptiveRoutineIds(blocks) {
+  const ids = [];
+  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    for (let i=0;i<reps;i++) if (state?.routine?.id) ids.push(state.routine.id);
+  }));
+  return ids;
+}
+function fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes) {
+  if (!ranked.length) return blocks;
+  let expected = adaptivePlanExpectedMinutes(blocks);
+  let guard = 0;
+  let completion = blocks.find(b => b.name === "Completion block");
+  if (!completion) {
+    completion = {name:"Completion block", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
+    blocks.push(completion);
+  }
+  while (expected < targetMinutes * 0.92 && guard < 40) {
+    const state = ranked[guard % ranked.length];
+    const id = state?.routine?.id;
+    if (!id) break;
+    const existing = completion.picks.find(p => adaptivePickKey(p) === id);
+    if (existing) existing.reps = Math.max(1, Number(existing.reps || 1)) + 1;
+    else completion.picks.push(normalizeAdaptivePick(state, 1));
+    expected += adaptiveRoutineExpectedMinutes(state.routine);
+    guard += 1;
+  }
+  return blocks;
+}
+
+
+function skillGroupForRoutine(routine) {
+  const map = getRoutineSkillMap(routine);
+  const skill = DEFAULT_SKILLS.find(s => s.id === map.primarySkill);
+  return skill?.group || routine?.category || "Uncategorized";
+}
+function routineTransferValue(routine) {
+  const map = getRoutineSkillMap(routine);
+  let value = 50;
+  const primary = map.primarySkill || "";
+  const secondaries = new Set(map.secondarySkills || []);
+  const transfers = new Set(map.transferTags || []);
+  if (["cueing","cue_ball_control","cue_ball_speed","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) value += 18;
+  if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].includes(primary)) value += 10;
+  value += Math.min(14, secondaries.size * 3);
+  value += Math.min(10, transfers.size * 3);
+  const graph = routineGraphTransferProfile(routine);
+  value += Math.min(12, graph.totalWeight * 4);
+  value += Math.min(8, graph.breadth * 1.5);
+  if (routine?.isAnchor) value += 10;
+  const category = String(routine?.category || "").toLowerCase();
+  if (["potting","cue-ball","technique","safety","break-building"].includes(category)) value += 6;
+  if (String(routine?.name || "").toLowerCase().match(/line|long|safety|cue.?ball|black|blue|position|rest|pressure/)) value += 4;
+  return Math.max(20, Math.min(100, Math.round(value)));
+}
+function routineEnergyProfile(state) {
+  const r = state?.routine || {};
+  const map = getRoutineSkillMap(r);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  let cognitive = 2, fatigue = 2, confidence = 2;
+  if (skills.has("tactical_decision_making") || skills.has("safety") || skills.has("positional_play") || skills.has("cluster_management")) cognitive += 1;
+  if (skills.has("pressure_resilience") || skills.has("focus_consistency")) cognitive += 1;
+  if (skills.has("stamina") || Number(r.duration || 0) >= 20) fatigue += 1;
+  if (state?.phase === "progress" || state?.upgrade) cognitive += 1;
+  if (state?.phase === "stabilize" || state?.phase === "recover") confidence += 1;
+  if (String(r.category || "").toLowerCase().includes("mental")) confidence += 1;
+  return {cognitive:Math.min(5,cognitive), fatigue:Math.min(5,fatigue), confidence:Math.min(5,confidence)};
+}
+
+function recentReflectionContext(windowSize=8) {
+  const sessionById = Object.fromEntries((data.sessions || []).map(s => [s.id, s]));
+  const logs = (data.logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const recent = logs.slice(-Math.max(windowSize, 12));
+  const recentSessions = [...new Map(recent.map(l => [l.sessionId, sessionById[l.sessionId]]).filter(x => x[0] && x[1]?.reflection)).values()].slice(-windowSize);
+  const getRating = (ref, key) => Number(ref?.[key] ?? ref?.[key + "Rating"]);
+  const nums = key => recentSessions.map(s => getRating(s.reflection, key)).filter(Number.isFinite);
+  const focusVals = nums("focus");
+  const confidenceVals = nums("confidence");
+  const fatigueVals = nums("fatigue");
+  const cueingVals = nums("cueing");
+  const mentalVals = nums("mentalSharpness");
+  const scoreVals = recent.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const mean = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const fatigue = mean(fatigueVals);
+  const focus = mean(focusVals);
+  const confidence = mean(confidenceVals);
+  const cueing = mean(cueingVals);
+  const mental = mean(mentalVals);
+  const recentAvg = scoreVals.length ? mean(scoreVals.slice(-Math.min(4, scoreVals.length))) : null;
+  const priorAvg = scoreVals.length > 4 ? mean(scoreVals.slice(0,-4)) : null;
+  const volatility = scoreVals.length >= 3 ? stdDev(scoreVals) : null;
+  const sessionPerf = recentSessions.map(s => {
+    const linked = recent.filter(l => l.sessionId === s.id).map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+    return {ref:s.reflection || {}, score: linked.length ? mean(linked) : null};
+  }).filter(x => x.score !== null);
+  const goodScoreBadFeel = sessionPerf.filter(x => x.score >= 75 && (getRating(x.ref,"confidence") <= 2 || getRating(x.ref,"focus") <= 2 || getRating(x.ref,"cueing") <= 2)).length;
+  const badScoreGoodFeel = sessionPerf.filter(x => x.score <= 45 && (getRating(x.ref,"confidence") >= 4 || getRating(x.ref,"focus") >= 4 || getRating(x.ref,"cueing") >= 4)).length;
+  return {recent, recentSessions, focus, confidence, fatigue, cueing, mental, recentAvg, priorAvg, volatility, goodScoreBadFeel, badScoreGoodFeel};
+}
+function inferTrainingStateMode(context=recentReflectionContext()) {
+  const fatigue = Number(context.fatigue || 0);
+  const confidence = Number(context.confidence || 0);
+  const focus = Number(context.focus || 0);
+  const volatility = Number(context.volatility || 0);
+  const improvingFeel = Number(context.badScoreGoodFeel || 0) >= 2;
+  const unstableGood = Number(context.goodScoreBadFeel || 0) >= 2;
+  if ((fatigue >= 4 && confidence && confidence <= 3) || (focus && focus <= 2.5) || unstableGood) {
+    return {mode:"recovery", label:"Recovery", reason: unstableGood ? "good scores have recently appeared with poor feel" : "fatigue/focus/confidence context is fragile"};
+  }
+  if (improvingFeel || (confidence >= 4 && context.recentAvg !== null && context.recentAvg < 55)) {
+    return {mode:"acquisition", label:"Acquisition", reason:"process feel is positive while scores still need consolidation"};
+  }
+  if (confidence >= 4 && focus >= 4 && fatigue <= 3 && volatility < 14) {
+    return {mode:"performance", label:"Performance", reason:"confidence/focus are strong and volatility is controlled"};
+  }
+  return {mode:"consolidation", label:"Consolidation", reason:"stable enough for skill transfer and medium pressure"};
+}
+function routineVolatilityProfile(routine, stats) {
+  const vals = (stats?.vals || routineStats(routine?.id).vals || []).filter(Number.isFinite);
+  const globalVals = (data.logs || []).map(safeLogScoreForTargetInterval).filter(Number.isFinite);
+  const globalFallback = globalVals.length >= 8 ? Math.max(6, Math.min(18, stdDev(globalVals))) : 10;
+  const sd = vals.length >= 3 ? stdDev(vals) : globalFallback;
+  const map = getRoutineSkillMap(routine);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  let base = sd;
+  if (skills.has("pressure_resilience") || skills.has("long_potting") || skills.has("escape_shots")) base += 4;
+  if (routine?.isAnchor) base -= 4;
+  const level = base >= 18 ? "high" : base >= 10 ? "medium" : "low";
+  return {score:Math.max(0, Math.round(base)), level};
+}
+function recommendationOutcomeSignal(routineId) {
+  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === routineId && x.scoreAfter !== null && x.improvementAfterRecommendation !== null).slice(-12);
+  if (!rows.length) return {score:0, label:"no outcome evidence"};
+  const improvement = avg(rows.map(x => Number(x.improvementAfterRecommendation || 0)));
+  const completionRate = rows.filter(x => x.completedAt).length / rows.length;
+  const score = Math.max(-10, Math.min(14, improvement * 0.25 + completionRate * 6));
+  return {score, label:`recommendation outcomes ${improvement >= 0 ? "+" : ""}${improvement.toFixed(1)} avg`};
+}
+function recommendationLearningProfile(routineId) {
+  try {
+    const rows = ensureRecommendationFeedbackStore()
+      .filter(x => x.routineId === routineId && !x.toggledOffAt)
+      .slice(-60);
+    if (!rows.length) return {score:0, label:"no recommendation learning yet", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]};
+    const activeRows = rows.filter(x => !x.supersededAt || x.action === "completed");
+    const accepted = activeRows.filter(x => x.action === "accepted" || x.action === "completed").length;
+    const skipped = activeRows.filter(x => x.action === "skipped").length;
+    const completed = activeRows.filter(x => x.action === "completed" && x.scoreAfter !== null).length;
+    const completedRows = activeRows.filter(x => x.action === "completed" && x.improvementAfterRecommendation !== null);
+    const totalDecision = accepted + skipped;
+    const skipRate = totalDecision ? skipped / totalDecision : 0;
+    const completionRate = accepted ? completed / accepted : 0;
+    const avgImprovement = completedRows.length ? avg(completedRows.map(x => Number(x.improvementAfterRecommendation || 0))) : null;
+    const evidence = evidenceStrength(activeRows.length);
+    let score = 0;
+    const reasons = [];
+    if (avgImprovement !== null) {
+      const outcomeScore = Math.max(-12, Math.min(16, avgImprovement * 0.32));
+      score += outcomeScore;
+      reasons.push(`post-recommendation outcome ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)}`);
+    }
+    if (completed >= 3 && completionRate >= 0.55) { score += 5; reasons.push("usually completed after acceptance"); }
+    if (skipped >= 3 && skipRate >= 0.55) { score -= 10; reasons.push("often skipped by user"); }
+    else if (skipped >= 2 && skipRate >= 0.4) { score -= 5; reasons.push("sometimes skipped by user"); }
+    if (accepted >= 4 && skipRate <= 0.25) { score += 3; reasons.push("accepted pattern"); }
+    score = Math.max(-16, Math.min(18, score * Math.max(0.35, evidence.factor)));
+    const label = avgImprovement === null
+      ? `${accepted} accepted · ${skipped} skipped · ${completed} completed`
+      : `${accepted} accepted · ${skipped} skipped · ${completed} completed · ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)} after`;
+    return {score:Math.round(score * 10) / 10, label, evidence:evidence.label, accepted, skipped, completed, skipRate, completionRate, avgImprovement, reasons:reasons.slice(0,4)};
+  } catch (err) {
+    console.warn("Recommendation learning profile skipped", err);
+    return {score:0, label:"recommendation learning unavailable", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]};
+  }
+}
+function recommendationLearningReasonForRoutine(routineId) {
+  const p = recommendationLearningProfile(routineId);
+  if (!p || (!p.accepted && !p.skipped && !p.completed)) return "recommendation learning: no personal feedback yet";
+  if (p.skipRate >= 0.55 && p.skipped >= 3) return "recommendation learning: frequently skipped, down-weighted";
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) > 0) return `recommendation learning: completed recommendations improved by ${p.avgImprovement.toFixed(1)} on average`;
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) < 0) return `recommendation learning: completed recommendations underperformed by ${Math.abs(p.avgImprovement).toFixed(1)} on average`;
+  return `recommendation learning: ${p.label}`;
+}
+function recommendationLearningInsight() {
+  try {
+    const rows = ensureRecommendationFeedbackStore().filter(x => !x.toggledOffAt).slice(-120);
+    if (!rows.length) {
+      return `<div class="insight-card watch"><strong>Recommendation learning v2</strong><div class="muted small">No recommendation feedback yet. Accept/skip/completion data will personalize future recommendations.</div></div>`;
+    }
+    const completedRows = rows.filter(x => x.action === "completed" && x.improvementAfterRecommendation !== null);
+    const accepted = rows.filter(x => x.action === "accepted" || x.action === "completed").length;
+    const skipped = rows.filter(x => x.action === "skipped").length;
+    const completed = completedRows.length;
+    const avgImprovement = completedRows.length ? avg(completedRows.map(x => Number(x.improvementAfterRecommendation || 0))) : null;
+    const profiles = activeRoutines().map(r => ({routine:r, learning:recommendationLearningProfile(r.id)}))
+      .filter(x => x.learning.accepted || x.learning.skipped || x.learning.completed)
+      .sort((a,b) => Math.abs(b.learning.score) - Math.abs(a.learning.score))
+      .slice(0,4);
+    const cls = avgImprovement !== null && avgImprovement > 1 ? "good" : avgImprovement !== null && avgImprovement < -1 ? "risk" : "watch";
+    const improvementTxt = avgImprovement === null ? "N/A" : `${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)}`;
+    return `<div class="insight-card ${cls}"><strong>Recommendation learning v2</strong>
+      <div class="context-row"><span>Feedback loop</span><strong>${accepted} accepted · ${skipped} skipped</strong><span>${completed} completed</span></div>
+      <div class="context-row"><span>Avg outcome after completed recommendation</span><strong>${htmlText(improvementTxt)}</strong><span>${htmlText(evidenceStrength(rows.length).label)}</span></div>
+      ${profiles.length ? profiles.map(x => `<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.learning.reasons.join(" · ") || x.learning.label)}</span></span><strong>${x.learning.score >= 0 ? "+" : ""}${x.learning.score.toFixed(1)}</strong><span>${htmlText(x.learning.evidence)}</span></div>`).join("") : `<div class="muted small">No routine-level learning pattern yet.</div>`}
+      <div class="adaptive-rationale">The engine now uses accepted/skipped/completed outcomes as soft weights. Repeated skips down-weight a routine; positive completed outcomes increase its personalized ranking.</div>
+    </div>`;
+  } catch (err) {
+    console.warn("Recommendation learning insight skipped", err);
+    return `<div class="insight-card watch"><strong>Recommendation learning v2</strong><div class="muted small">Recommendation learning unavailable for this data set.</div></div>`;
+  }
+}
+function contextualFitForRoutine(routine, stats, stateModeObj=inferTrainingStateMode()) {
+  const map = getRoutineSkillMap(routine);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  const energy = routineEnergyProfile({routine, phase:"maintain"});
+  const volatility = routineVolatilityProfile(routine, stats);
+  const transfer = routineTransferValue(routine);
+  let score = 0;
+  const reasons = [];
+  const mode = stateModeObj.mode;
+  if (mode === "recovery") {
+    if (routine?.isAnchor || Number(stats?.logs?.length || 0) >= 6) { score += 12; reasons.push("familiar recovery fit"); }
+    if (volatility.level === "low") { score += 8; reasons.push("low volatility"); }
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.25;
+    if (skills.has("confidence_stability") || skills.has("cueing") || skills.has("pace_control")) { score += 5; reasons.push("confidence-preserving skill"); }
+  } else if (mode === "acquisition") {
+    if (skills.has("cueing") || skills.has("cue_ball_control") || skills.has("pace_control") || skills.has("positional_play")) { score += 9; reasons.push("high-feedback acquisition fit"); }
+    if (volatility.level === "high") { score -= 5; reasons.push("reduced for high volatility"); }
+    if (transfer >= 70) { score += 6; reasons.push("foundational transfer"); }
+  } else if (mode === "performance") {
+    if (skills.has("pressure_resilience") || skills.has("safety") || skills.has("break_building") || volatility.level !== "low") { score += 10; reasons.push("performance-test fit"); }
+    if (transfer >= 65) { score += 4; reasons.push("match-relevant transfer"); }
+  } else {
+    if (transfer >= 65) { score += 8; reasons.push("consolidation transfer value"); }
+    if (volatility.level === "medium") { score += 3; reasons.push("controlled variability"); }
+  }
+  const formAdj = currentFormAdjustmentForRoutine(routine);
+  score += formAdj.score;
+  reasons.push(...formAdj.reasons);
+  return {score:Math.round(score), reasons, volatility, energy, stateMode:stateModeObj, transfer, currentForm:formAdj.form};
+}
+function buildContextAwareReason(profile) {
+  const fit = profile?.contextualFit;
+  if (!fit) return "Context fit not calculated";
+  const bits = [];
+  bits.push(`${fit.stateMode.label} mode: ${fit.stateMode.reason}`);
+  bits.push(`volatility ${fit.volatility.level}`);
+  bits.push(`transfer ${fit.transfer}/100`);
+  if (fit.currentForm?.label) bits.push(`form ${fit.currentForm.label.toLowerCase()}`);
+  if (profile?.transferNeed?.score) bits.push(`graph need +${profile.transferNeed.score}`);
+  if (fit.reasons?.length) bits.push(fit.reasons.slice(0,2).join(" · "));
+  return bits.join(" · ");
+}
+
+function sessionBudgetsForGoal(goal, targetMinutes) {
+  const scale = Math.max(0.75, Math.min(1.6, targetMinutes / 60));
+  if (goal === "recovery") return {cognitive:Math.round(8*scale), fatigue:Math.round(7*scale), confidence:Math.round(6*scale), maxSwitches:3};
+  if (goal === "progression") return {cognitive:Math.round(14*scale), fatigue:Math.round(13*scale), confidence:Math.round(11*scale), maxSwitches:5};
+  if (goal === "variety") return {cognitive:Math.round(13*scale), fatigue:Math.round(12*scale), confidence:Math.round(10*scale), maxSwitches:6};
+  return {cognitive:Math.round(12*scale), fatigue:Math.round(11*scale), confidence:Math.round(9*scale), maxSwitches:4};
+}
+function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
+  const transfer = routineTransferValue(state.routine);
+  const energy = routineEnergyProfile(state);
+  const ctx = contextualFitForRoutine(state.routine, {logs:state.logs || [], vals:(state.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:state.hit}, inferTrainingStateMode());
+  let score = baseScore + transfer * 0.18 + ctx.score * 0.65;
+  if (goal === "recovery") {
+    if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.45;
+    if (ctx.volatility.level === "low") score += 6;
+  } else if (goal === "progression") {
+    if (state.phase === "progress" || state.upgrade) score += 9;
+    score += transfer * 0.08;
+  } else if (goal === "stability") {
+    if (["stabilize","maintain"].includes(state.phase)) score += 8;
+    if (ctx.volatility.level === "high") score -= 3;
+  } else if (goal === "variety") {
+    if (["vary","refresh","baseline"].includes(state.phase)) score += 7;
+  }
+  return score;
+}
+function blockTypeForState(state, goal) {
+  const primary = getRoutineSkillMap(state.routine).primarySkill;
+  if (state.routine?.isAnchor || state.phase === "baseline") return "warmup";
+  if (goal === "recovery") return "recovery";
+  if (["cueing","cue_ball_control","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) return "primary";
+  if ((getRoutineSkillMap(state.routine).transferTags || []).length) return "transfer";
+  if (["pressure_resilience","focus_consistency","confidence_stability","stamina"].includes(primary) || state.routine?.category === "mental") return "pressure";
+  return "transfer";
+}
+function budgetUsageForBlocks(blocks) {
+  const usage = {cognitive:0, fatigue:0, confidence:0, switches:0};
+  let prevGroup = "";
+  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+    const state = pick.state || pick;
+    const reps = Math.max(1, Number(pick.reps || 1));
+    const energy = routineEnergyProfile(state);
+    usage.cognitive += energy.cognitive * reps;
+    usage.fatigue += energy.fatigue * reps;
+    usage.confidence += energy.confidence * reps;
+    const group = skillGroupForRoutine(state.routine);
+    if (prevGroup && group !== prevGroup) usage.switches += 1;
+    prevGroup = group;
+  }));
+  return usage;
+}
+function budgetBadgeClass(value, limit) {
+  if (!limit) return "";
+  return value <= limit ? "adaptive-ok" : value <= limit * 1.2 ? "adaptive-watch" : "adaptive-risk";
+}
+function ensureRecommendationFeedbackStore(){ data.recommendationFeedback = Array.isArray(data.recommendationFeedback) ? data.recommendationFeedback : []; return data.recommendationFeedback; }
+function recommendationFeedbackSummary(routineId="") {
+  const rows = ensureRecommendationFeedbackStore().filter(x => !routineId || x.routineId === routineId).slice(-80);
+  const counts = rows.reduce((acc,x)=>{ acc[x.action]=(acc[x.action]||0)+1; return acc; },{});
+  return {rows, counts, accepted:counts.accepted||0, skipped:counts.skipped||0, completed:counts.completed||0};
+}
+function latestOpenRecommendationFeedbackIndex(routineId, source="smart_session_builder") {
+  const rows = ensureRecommendationFeedbackStore();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const x = rows[i];
+    if (x?.routineId !== routineId) continue;
+    if ((x.source || "smart_session_builder") !== source) continue;
+    if (!["accepted", "skipped"].includes(x.action)) continue;
+    if (x.supersededAt || x.toggledOffAt || x.scoreAfter !== null) continue;
+    return i;
+  }
+  return -1;
+}
+function currentRecommendationFeedbackStatus(routineId, source="smart_session_builder") {
+  const idx = latestOpenRecommendationFeedbackIndex(routineId, source);
+  return idx >= 0 ? ensureRecommendationFeedbackStore()[idx].action : null;
+}
+function trackRecommendationFeedback(routineId, action, meta={}) {
+  if (!routineId || !["accepted", "skipped"].includes(action)) return;
+  const source = meta.source || "smart_session_builder";
+  const rows = ensureRecommendationFeedbackStore();
+  const r = routineById(routineId);
+  const beforeLogs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const beforeScore = beforeLogs.length ? Number(beforeLogs[0].normalizedScore || normalizeScore(beforeLogs[0]) || 0) : null;
+  const now = new Date().toISOString();
+  const previousIndex = latestOpenRecommendationFeedbackIndex(routineId, source);
+  const previousSnapshot = previousIndex >= 0 ? {...rows[previousIndex]} : null;
+  let newRowId = null;
+  let message = "Recommendation feedback recorded.";
+  let tone = action === "skipped" ? "warn" : "ok";
+  if (previousIndex >= 0 && rows[previousIndex].action === action) {
+    rows[previousIndex].toggledOffAt = now;
+    rows[previousIndex].supersededAt = now;
+    rows[previousIndex].supersededByAction = "cleared";
+    message = action === "accepted" ? "Recommendation acceptance cleared." : "Recommendation skip cleared.";
+    tone = "info";
+  } else {
+    if (previousIndex >= 0) {
+      rows[previousIndex].supersededAt = now;
+      rows[previousIndex].supersededByAction = action;
+    }
+    const row = {
+      id:uuid(), routineId, routineName:r?.name || "", action, source, createdAt:now, scoreBefore:beforeScore,
+      scoreAfter:null, improvementAfterRecommendation:null, appVersion:APP_VERSION
+    };
+    newRowId = row.id;
+    rows.push(row);
+    message = action === "accepted" ? "Recommendation accepted." : "Recommendation skipped.";
+  }
+  const undo = () => {
+    const store = ensureRecommendationFeedbackStore();
+    if (newRowId) {
+      const idx = store.findIndex(x => x.id === newRowId);
+      if (idx >= 0) store.splice(idx, 1);
+    }
+    if (previousSnapshot) {
+      const idx = store.findIndex(x => x.id === previousSnapshot.id);
+      if (idx >= 0) store[idx] = previousSnapshot;
+      else store.push(previousSnapshot);
+    }
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice("Recommendation feedback restored.", "ok");
+  };
+  saveData({render:"all", immediateIDB:true});
+  showTransientNotice(message, tone, {label:"Undo", handler:undo});
+}
+function updateRecommendationCompletionFromLog(log) {
+  if (!log?.routineId) return;
+  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === log.routineId && x.action === "accepted" && x.scoreAfter === null && !x.supersededAt && !x.toggledOffAt).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const row = rows[0];
+  if (!row) return;
+  row.action = "completed";
+  row.completedAt = new Date().toISOString();
+  row.scoreAfter = Number(log.normalizedScore || normalizeScore(log) || 0);
+  row.improvementAfterRecommendation = row.scoreBefore === null ? null : row.scoreAfter - Number(row.scoreBefore || 0);
+}
+function renderFeedbackButtons(routineId, source="smart_session_builder") {
+  if (!routineId) return "";
+  const status = currentRecommendationFeedbackStatus(routineId, source);
+  const acceptActive = status === "accepted" ? " active" : "";
+  const skipActive = status === "skipped" ? " active" : "";
+  return `<div class="row compact-action-row recommendation-feedback-row"><button type="button" class="secondary recommendation-feedback-btn${acceptActive}" aria-pressed="${status === "accepted" ? "true" : "false"}" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="accepted" data-source="${attrText(source)}">${status === "accepted" ? "Accepted" : "Accept"}</button><button type="button" class="secondary recommendation-feedback-btn${skipActive}" aria-pressed="${status === "skipped" ? "true" : "false"}" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="skipped" data-source="${attrText(source)}">${status === "skipped" ? "Skipped" : "Skip"}</button></div>`;
+}
+function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
+  const targetMinutes = Number(duration || 60);
+  const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
+  const compDateRaw = periodization.competitionDate || $("competitionDate")?.value || "";
+  const compDate = compDateRaw ? new Date(compDateRaw) : null;
+  const daysToCompetition = compDate && !Number.isNaN(compDate.getTime()) ? Math.ceil((compDate.getTime() - Date.now()) / 86400000) : null;
+  const focusOverride = $("orchestratorFocus")?.value || "all";
+  const strategy = $("orchestratorStrategy")?.value || "balanced";
+  const intensity = $("orchestratorIntensity")?.value || "balanced";
+  const routinePool = recommendationEligibleRoutines().filter(r => focusOverride === "all" || r.category === focusOverride);
+  let states = routinePool.map(r => adaptiveRoutineState(r.id));
+  if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
+  const recommendationModeForBuilder = getSmartRecommendationMode();
+  const recommendationProfiles = new Map(rankRoutinesByMode(focusOverride, strategy, recommendationModeForBuilder).map(x => [x.routine.id, x]));
+  const ranked = states.map(s => {
+    let boost = 0;
+    const profile = recommendationProfiles.get(s.routine.id);
+    const recommendationScore = profile ? (recommendationModeForBuilder === "thompson" ? profile.sampledValue : recommendationModeForBuilder === "hybrid" ? profile.hybridScore : profile.score) : 0;
+    if (strategy === "explore") boost += Math.min(20, Math.max(0, 30 - Number(s.n || 0)));
+    if (strategy === "exploit" && s.phase === "stabilize") boost += 12;
+    if (strategy === "exploit" && s.targetGap > 0) boost += Math.min(12, s.targetGap / 2);
+    if (intensity === "pressure" && ["safety","mental","break-building"].includes(s.routine.category)) boost += 8;
+    if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
+    if (profile?.selectionType === "exploration") boost += 4;
+    const baseAdaptiveScore = adaptivePriorityScore(s, goal) + boost + recommendationScore * 0.28;
+    const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
+    const transferValue = routineTransferValue(s.routine);
+    const energyProfile = routineEnergyProfile(s);
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
+  }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
+  const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
+  const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
+
+  const fatigueAll = fatigueSlope(data.logs || []);
+  const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
+  const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
+  const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
+  let effectiveGoal = goal;
+  const globalReasons = [];
+  const contextualState = inferTrainingStateMode();
+
+  if (goal === "auto" && contextualState.mode === "recovery") {
+    effectiveGoal = "recovery";
+    globalReasons.push(`context mode: ${contextualState.label.toLowerCase()} — ${contextualState.reason}`);
+  } else if (goal === "auto" && contextualState.mode === "performance") {
+    effectiveGoal = "progression";
+    globalReasons.push(`context mode: ${contextualState.label.toLowerCase()} — ${contextualState.reason}`);
+  } else if (daysToCompetition !== null && daysToCompetition <= 7 && goal === "auto") {
+    effectiveGoal = "recovery";
+    globalReasons.push(`competition in ${daysToCompetition} day${daysToCompetition === 1 ? "" : "s"}; taper volume and protect confidence`);
+  } else if (daysToCompetition !== null && daysToCompetition <= 21 && goal === "auto") {
+    effectiveGoal = "stability";
+    globalReasons.push(`competition in ${daysToCompetition} days; prioritize stable match-relevant routines`);
+  } else if (goal === "auto") {
+    if (fatigueAll && fatigueAll.slope < -0.25) {
+      effectiveGoal = "recovery";
+      globalReasons.push("global stamina drop-off is negative");
+    } else if (prev7 && last7 > prev7 * 1.35) {
+      effectiveGoal = "recovery";
+      globalReasons.push("training load rose sharply");
+    } else if (ranked.some(s => s.upgrade)) {
+      effectiveGoal = "progression";
+      globalReasons.push("one or more drills are ready for target increase");
+    } else if (ranked.some(s => s.phase === "stabilize")) {
+      effectiveGoal = "stability";
+      globalReasons.push("some drills are unstable");
+    } else {
+      effectiveGoal = "variety";
+      globalReasons.push("no acute weakness; use robustness/variety");
+    }
+  } else {
+    globalReasons.push(`manual goal: ${goal}`);
+  }
+
+  let blocks = [];
+  const used = new Set();
+
+  function take(predicate, n) {
+    const arr = [];
+    for (const s of ranked) {
+      if (arr.length >= n) break;
+      if (used.has(s.routine.id)) continue;
+      if (predicate(s)) {
+        used.add(s.routine.id);
+        arr.push(s);
+      }
+    }
+    return arr;
+  }
+
+  const anchorPicks = anchors.filter(s => !used.has(s.routine.id));
+  anchorPicks.forEach(s => used.add(s.routine.id));
+
+  function takeType(type, n, fallback) {
+    return take(s => (s.blockType === type) || (typeof fallback === "function" && fallback(s)), n);
+  }
+
+  if (effectiveGoal === "recovery") {
+    const familiar = ranked.filter(s => Number(s.logs?.length || 0) >= 4 || s.routine.isAnchor);
+    blocks.push({name:"Recovery calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.18)), purpose:"Familiar baseline work with low volatility", picks:take(s => s.routine.isAnchor || Number(s.logs?.length || 0) >= 6, strictness === "high" ? 1 : 2)});
+    blocks.push({name:"Low-switch primary block", blockType:"primary", minutes:Math.round(targetMinutes*0.45), purpose:"One or two familiar drills; protect confidence and reduce context switching", picks:take(s => familiar.includes(s) && ["recover","stabilize","maintain"].includes(s.phase), 2)});
+    blocks.push({name:"Confidence finish", blockType:"confidence", minutes:Math.max(8, Math.round(targetMinutes*0.18)), purpose:"End on a familiar, achievable drill rather than a volatile test", picks:take(s => Number(s.logs?.length || 0) >= 4 && s.phase !== "progress", 1)});
+  } else {
+    if (anchorPicks.length) {
+      blocks.push({name:"Warm-up / calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.16)), purpose:"Calibrate cueing and create a same-session baseline", picks:anchorPicks.slice(0, strictness === "high" ? 2 : 1)});
+    } else {
+      blocks.push({name:"Warm-up / calibration", blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.14)), purpose:"Start with low-friction baseline work before the main load", picks:take(s => s.phase === "baseline" || s.phase === "maintain", 1)});
+    }
+    const primaryPredicate = effectiveGoal === "progression" ? (s => s.phase === "progress" || s.upgrade || s.blockType === "primary") : effectiveGoal === "stability" ? (s => s.phase === "stabilize" || s.psi?.psi < 70 || s.blockType === "primary") : (s => s.blockType === "primary");
+    blocks.push({name:"Primary skill block", blockType:"primary", minutes:Math.round(targetMinutes*0.38), purpose:"Main work selected by weakness, evidence, and transfer value", picks:take(primaryPredicate, strictness === "high" ? 3 : 2)});
+    blocks.push({name:"Transfer block", blockType:"transfer", minutes:Math.round(targetMinutes*0.22), purpose:"Use adjacent drills that should transfer into the primary skill", picks:takeType("transfer", 2, s => (getRoutineSkillMap(s.routine).transferTags || []).length)});
+    const pressureName = daysToCompetition !== null && daysToCompetition <= 21 ? "Competition pressure / robustness block" : "Pressure or robustness block";
+    blocks.push({name:pressureName, blockType:"pressure", minutes:Math.round(targetMinutes*0.16), purpose:"Add controlled pressure, robustness, or match-relevant variability", picks:takeType("pressure", 2, s => s.routine.category === "mental" || s.routine.category === "safety" || ["vary","stabilize"].includes(s.phase))});
+    blocks.push({name:"Confidence finish", blockType:"confidence", minutes:Math.max(8, Math.round(targetMinutes*0.10)), purpose:"Finish with a confidence-preserving familiar drill", picks:take(s => Number(s.logs?.length || 0) >= 3 && ["maintain","progress","stabilize"].includes(s.phase), 1)});
+  }
+
+  const remaining = take(s => true, effectiveGoal === "recovery" ? 1 : 2);
+  if (remaining.length) {
+    blocks.push({name:"Completion block", blockType:"completion", minutes:Math.max(8, targetMinutes - blocks.reduce((a,b)=>a+b.minutes,0)), purpose:"Fill remaining time with the next best budget-compatible priorities", picks:remaining});
+  }
+
+  blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
+  blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
+  blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
+  const routineIds = flattenAdaptiveRoutineIds(blocks);
+  const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
+  const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
+  const budgetUsage = budgetUsageForBlocks(blocks);
+  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage};
+}
+
+function renderAdaptiveSession() {
+  const rawGoal = $("adaptiveGoal")?.value || "auto";
+  const phaseInfo = applyPeriodizationToAdaptiveInputs();
+  const goal = rawGoal === "auto" ? phaseInfo.settings.goal : rawGoal;
+  const baseDuration = Number($("adaptiveDuration")?.value || "60");
+  const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
+  const strictness = $("adaptiveStrictness")?.value || "normal";
+  const plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
+  adaptivePlanDraft = [...plan.routineIds];
+
+  const mode = getSmartRecommendationMode();
+  const usage = plan.budgetUsage || {cognitive:0,fatigue:0,confidence:0,switches:0};
+  const budgets = plan.budgets || sessionBudgetsForGoal(plan.effectiveGoal, plan.targetMinutes);
+  const budgetHtml = `<div class="smart-budget-grid">
+    <span class="badge ${budgetBadgeClass(usage.cognitive,budgets.cognitive)}">Cognitive ${usage.cognitive}/${budgets.cognitive}</span>
+    <span class="badge ${budgetBadgeClass(usage.fatigue,budgets.fatigue)}">Fatigue ${usage.fatigue}/${budgets.fatigue}</span>
+    <span class="badge ${budgetBadgeClass(usage.confidence,budgets.confidence)}">Confidence risk ${usage.confidence}/${budgets.confidence}</span>
+    <span class="badge ${budgetBadgeClass(usage.switches,budgets.maxSwitches)}">Switches ${usage.switches}/${budgets.maxSwitches}</span>
+  </div>`;
+  const feedback = recommendationFeedbackSummary();
+  const html = `<div class="adaptive-phase ${plan.effectiveGoal==="recovery"?"adaptive-risk":plan.effectiveGoal==="progression"?"adaptive-ok":"adaptive-watch"}">
+    <h4>Smart Session Builder v2: ${escapeHtml(plan.effectiveGoal)}</h4>
+    <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
+    <div class="adaptive-rationale">Target duration: ${formatDurationHuman(plan.targetMinutes)} · Loaded estimate: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} drill slot${plan.routineIds.length === 1 ? "" : "s"} · Recommendation mode: ${escapeHtml(mode === "thompson" ? "Thompson Sampling" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</div>
+    ${budgetHtml}
+    <div class="adaptive-rationale">Feedback tracked: ${feedback.accepted} accepted · ${feedback.skipped} skipped · ${feedback.completed} completed. Completed recommendations capture score-after and improvement-after-recommendation once logged.</div>
+  </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase smart-block-card" data-block-type="${attrText(block.blockType || "")}">
+    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
+    <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
+    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); return `<div class="routine-row">
+      <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
+        <div class="adaptive-rationale">Phase: ${escapeHtml(p.phase)} · Action: ${escapeHtml(adaptiveActionForState(p))} · Est. ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · Transfer ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · Load C${energy.cognitive}/F${energy.fatigue}/Conf${energy.confidence}</div>
+        <ul class="reason-list">${(p.reasons || []).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
+        ${renderFeedbackButtons(p.routine.id, "smart_session_builder")}
+        ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
+      </div>
+      <span class="badge">Score ${Number(p.adaptiveScore || 0).toFixed(1)}</span>
+    </div>`; }).join("")}
+  </div>`).join("");
+
+  $("adaptiveEngineOutput").innerHTML = html || "No routines available for the Smart Session Builder.";
+}
+
+function loadAdaptiveSessionIntoPlanBuilder() {
+  if (!adaptivePlanDraft.length) return showTransientNotice("Build a smart session first.", "warn");
+  planDraft = [...adaptivePlanDraft];
+  renderPlanBuilder();
+  document.querySelector('[data-tab="plans"]').click();
+}
+
+
+function getPersistedActiveSession() {
+  return readActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
+}
+function persistActiveSession() {
+  return writeActiveSessionDraft(ACTIVE_SESSION_KEY, activeSession, safeStorageSet, logAppError);
+}
+function clearPersistedActiveSession() {
+  return clearActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
+}
+
+function showTransientNotice(message, tone="info", action=null) {
+  let el = $("appToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "appToast";
+    el.className = "app-toast";
+    document.body.appendChild(el);
+  }
+  el.className = `app-toast ${tone === "ok" ? "ok" : tone === "warn" ? "warn" : ""}`;
+  el.innerHTML = `<span>${escapeHtml(message)}</span>${action && typeof action.handler === "function" ? `<button type="button" class="toast-undo-btn">${escapeHtml(action.label || "Undo")}</button>` : ""}`;
+  const btn = el.querySelector(".toast-undo-btn");
+  if (btn) btn.addEventListener("click", () => {
+    try { action.handler(); }
+    catch(e) { logAppError?.(e, "toast undo handler"); }
+    el.classList.remove("show");
+  }, {once:true});
+  el.classList.add("show");
+  window.clearTimeout(showTransientNotice._timer);
+  showTransientNotice._timer = window.setTimeout(() => el.classList.remove("show"), action ? 4200 : 1800);
+}
+
+function createDefaultQuickStartPlan() {
+  const pool = activeRoutines().slice(0, 4);
+  if (!pool.length) { showTransientNotice("Create at least one exercise before creating a quick-start plan.", "warn"); return; }
+  const existing = data.plans.find(p => p.name === "Quick start — default plan");
+  const routineIds = pool.map(r => r.id);
+  if (existing) {
+    existing.routineIds = routineIds;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    data.plans.push({id: uuid(), name: "Quick start — default plan", routineIds, createdAt: new Date().toISOString()});
+  }
+  saveData();
+  renderPlanList();
+  showTransientNotice("Quick-start plan created from the first available exercises.", "ok");
+}
+
+function normalizeSmartRecommendationMode(value) {
+  return ["heuristic", "thompson", "hybrid"].includes(value) ? value : "hybrid";
+}
+function getSmartRecommendationMode() {
+  const selectValue = $("smartRecommendationMode")?.value;
+  return normalizeSmartRecommendationMode(selectValue || localStorage.getItem(SMART_RECOMMENDATION_MODE_KEY) || "hybrid");
+}
+function setSmartRecommendationMode(value) {
+  const mode = normalizeSmartRecommendationMode(value);
+  localStorage.setItem(SMART_RECOMMENDATION_MODE_KEY, mode);
+  if ($("smartRecommendationMode")) $("smartRecommendationMode").value = mode;
+  renderSmartRecommendation();
+  if ($("adaptiveEngineOutput")) renderAdaptiveSession();
+}
+function gaussianRandom() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+function routineEvidenceLabel(n) {
+  if (n >= 20) return "high evidence";
+  if (n >= 8) return "moderate evidence";
+  if (n >= 3) return "early evidence";
+  return "low evidence";
+}
+function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
+  const stateMode = inferTrainingStateMode();
+  const baseScore = routineMixedStrategyScore(routine, stats, strategy) + (focusOverride !== "all" && routine.category === focusOverride ? 25 : 0);
+  const n = Number(stats.logs?.length || 0);
+  const vals = (stats.vals || []).filter(Number.isFinite);
+  const volatility = routineVolatilityProfile(routine, stats);
+  const days = stats.logs?.length ? daysSince(stats.logs[stats.logs.length-1].createdAt) : recommendationRecencyCap(routine);
+  const uncertainty = Math.max(4, Math.min(34, 24 / Math.sqrt(n + 1) + volatility.score * 0.18 + Math.min(8, days * 0.25)));
+  const weakness = stats.hit === null ? 10 : Math.max(0, 75 - Number(stats.hit || 0)) * 0.28;
+  const undertraining = undertrainedCategoryBonus(routine.id) * recommendationUndertrainingMultiplier(routine);
+  const context = stats.contextSignal || recommendationContextSignal(routine.id);
+  const bayes = stats.bayesian?.signal?.scoreDelta || 0;
+  const transferValue = routineTransferValue(routine);
+  const transferNeed = transferNeedScoreForRoutine(routine);
+  const difficultySignal = dynamicDifficultyAdjustmentForRoutine(routine);
+  const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
+  const outcome = recommendationOutcomeSignal(routine.id);
+  const learning = recommendationLearningProfile(routine.id);
+  const contextNormalization = routineContextNormalizationSignal(routine);
+  let explorationBonus = uncertainty * 0.28;
+  if (strategy === "explore") explorationBonus *= 1.45;
+  if (strategy === "exploit") explorationBonus *= 0.55;
+  if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
+  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
+  const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
+  reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
+  reasons.push(skillReasonText(routine));
+  reasons.push(transferAwareReasonText(routine, transferNeed));
+  if (outcome.score) reasons.push(outcome.label);
+  if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
+  reasons.push(targetIntervalReasonForRoutine(routine));
+  reasons.push(contextNormalizationReasonForRoutine(routine));
+  reasons.push(difficultyAdjustmentReasonForRoutine(routine));
+  if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
+  if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
+  if (undertraining >= 7) reasons.unshift("undertrained category");
+  if (transferValue >= 70) reasons.unshift("high transfer-value drill");
+  return {
+    routine,
+    stats,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25,
+    trainingValueMean,
+    uncertainty,
+    sampledValue,
+    n,
+    evidenceLabel: routineEvidenceLabel(n),
+    selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
+    contextualFit,
+    transferNeed,
+    stateMode,
+    volatilityProfile:volatility,
+    transferValue,
+    outcomeSignal:outcome,
+    learningSignal:learning,
+    contextNormalization,
+    reasons:[...new Set(reasons.filter(Boolean))]
+  };
+}
+function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
+  const base = activeRoutines().map(r => {
+    const stats = routineStats(r.id);
+    return routineRecommendationProfile(r, stats, strategy, focusOverride);
+  }).filter(x => recommendationMode(x.routine) !== "excluded");
+  if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
+  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.55) + (x.sampledValue * 0.45)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  return base.sort((a,b)=>b.score-a.score);
+}
+function recommendationModeSummary(mode) {
+  if (mode === "thompson") return "Thompson Sampling: samples each drill's upside and naturally balances confirmed weaknesses with useful exploration.";
+  if (mode === "hybrid") return "Hybrid: blends stable heuristic scoring with Thompson-style exploration so recommendations do not become too repetitive.";
+  return "Heuristic: stable ranking based on weakness, recency, undertraining, context, and True Skill signals.";
+}
+function renderRecommendationLogicPanel(candidates, mode) {
+  const rows = (candidates || []).slice(0,5);
+  if (!rows.length) return "";
+  const state = rows[0]?.stateMode || inferTrainingStateMode();
+  return `<div class="recommendation-logic-panel">
+    <h4>Context-aware recommendation logic</h4>
+    <div class="adaptive-rationale"><strong>${escapeHtml(state.label)} mode:</strong> ${escapeHtml(state.reason)} · ${escapeHtml(recommendationModeSummary(mode))}</div>
+    <div class="recommendation-candidate-list">
+      ${rows.map((x, idx)=>`<div class="context-row recommendation-candidate-row">
+        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · volatility ${escapeHtml(x.volatilityProfile?.level || "n/a")} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
+        <strong>${(mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score).toFixed(1)}</strong>
+        <span>${escapeHtml((x.reasons || []).slice(0,3).join(" · ") || "balanced rotation")}</span>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderSmartRecommendation() {
+  const box = $("smartRecommendationBox");
+  if (!box) return;
+  const mode = getSmartRecommendationMode();
+  if ($("smartRecommendationMode")) $("smartRecommendationMode").value = mode;
+  if (!data.logs.length) {
+    box.innerHTML = `<strong>Start logging exercises.</strong><br>Recommendation will use target hit rate, recent trend, training allocation, and recommendation mode once you have history.<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
+    return;
+  }
+  const focus = $("orchestratorFocus")?.value || "all";
+  const strategy = $("orchestratorStrategy")?.value || "balanced";
+  const candidates = rankRoutinesByMode(focus, strategy, mode);
+  const top = candidates[0];
+  const routine = top?.routine;
+  const recentLogs = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,20);
+  const alloc = computeAllocation(recentLogs);
+  const undertrained = alloc.sort((a,b)=>a.pct-b.pct)[0];
+  if (!routine) {
+    box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
+    return;
+  }
+  const bayesian = top.stats?.bayesian;
+  const policy = bayesian?.policy;
+  const policyHtml = policy ? `<div class="bayes-action-box smart-bayes-action">
+      <strong>${htmlText(policy.title)}</strong>
+      <p>${htmlText(policy.instruction)}</p>
+      <p class="muted">${htmlText(policy.detail)} ${htmlText(policy.coaching)}</p>
+    </div>` : "";
+  box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
+    <span class="badge">Mode: ${escapeHtml(mode === "thompson" ? "Thompson" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</span>
+    <span class="badge">Type: ${escapeHtml(top.selectionType)}</span>
+    <span class="badge">Evidence: ${escapeHtml(top.evidenceLabel)}</span>
+    <span class="badge">Hit rate: ${top.stats.hit === null ? "N/A" : top.stats.hit.toFixed(1)+"%"}</span>
+    <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
+    <span class="badge">Skill: ${escapeHtml(skillLabel(getRoutineSkillMap(routine).primarySkill))}</span>
+    <span class="badge">Context: ${escapeHtml(top.stateMode?.label || inferTrainingStateMode().label)}</span>
+    <span class="badge">Volatility: ${escapeHtml(top.volatilityProfile?.level || "n/a")}</span>
+    <span class="badge">Transfer: ${Number(top.transferValue || routineTransferValue(routine))}/100</span>
+    <span class="badge">Learning: ${top.learningSignal?.score ? (top.learningSignal.score >= 0 ? "+" : "") + top.learningSignal.score.toFixed(1) : "new"}</span>
+    ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
+    ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
+    <p class="muted">Reason: ${(top.reasons || []).slice(0,5).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
+    ${renderFeedbackButtons(routine.id, "smart_recommendation")}
+    ${policyHtml}
+    ${renderRecommendationLogicPanel(candidates, mode)}
+    <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
+}
+function computeAllocation(logs){
+  const total = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
+  const byCat={};
+  logs.forEach(l=>{
+    const k=l.category||"uncategorized";
+    byCat[k]=(byCat[k]||0)+Number(l.timeMinutes||0);
+  });
+  return Object.entries(byCat).map(([cat,time])=>({cat,time,pct:total?time/total*100:0}));
+}
+
+function setStatsMode(mode) {
+  const nextMode = normalizeStatsMode(mode);
+  statsMode = nextMode;
+  localStorage.setItem(STATS_MODE_KEY, statsMode);
+  applyStoredStatsModeVisual();
+  if ($("statsOutput")) renderStats();
+}
+
+function bindStatsNavigation() {
+  const nav = document.querySelector(".stats-internal-nav");
+  if (!nav || nav.dataset.bound === "true") return;
+  nav.dataset.bound = "true";
+  nav.addEventListener("click", event => {
+    const btn = event.target?.closest?.(".stats-nav-btn[data-stats-mode]");
+    if (!btn) return;
+    event.preventDefault();
+    setStatsMode(btn.dataset.statsMode || "overview");
+  });
+}
+
+bindStatsNavigation();
+document.addEventListener("DOMContentLoaded", bindStatsNavigation);
+["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("change", renderABComparison);
+});
+
+$("statsRoutineSelect").addEventListener("change", (event) => { setStatsRoutineFilter(event.target.value); });
+$("statsDateSelect").addEventListener("change", renderStats);
+$("statsPeriodSelect").addEventListener("change", () => { renderStats(); renderPhaseOneInsights(); });
+$("rollingWindowInput").addEventListener("input", renderStats);
+$("benchmarkWindowInput").addEventListener("input", renderStats);
+if ($("statsDetailMode")) {
+  $("statsDetailMode").value = getStatsDetailMode();
+  $("statsDetailMode").addEventListener("change", e => setStatsDetailMode(e.target.value));
+}
+
+
+function emaExpectedSeries(logs, alpha=0.35) {
+  const sorted = logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  let ema = null;
+  return sorted.map((l, idx) => {
+    const actual = Number(l.normalizedScore || 0);
+    const expected = ema === null ? actual : ema;
+    const residual = idx === 0 ? 0 : actual - expected;
+    ema = ema === null ? actual : alpha * actual + (1 - alpha) * ema;
+    return {...l, expected, residual, ema};
+  });
+}
+function routineResidualInsight(routineId) {
+  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if (logs.length < 5) return null;
+  const series = emaExpectedSeries(logs);
+  const recent = series.slice(-5);
+  const residualMean = avg(recent.map(x => Number(x.residual || 0)));
+  const residualStd = stdDev(recent.map(x => Number(x.residual || 0)));
+  let signal = "neutral";
+  let action = "Keep collecting data.";
+  if (residualMean > Math.max(4, residualStd * 0.6)) {
+    signal = "positive";
+    action = "You are outperforming expectation. Consider a target increase or added constraint.";
+  } else if (residualMean < -Math.max(4, residualStd * 0.6)) {
+    signal = "negative";
+    action = "You are underperforming expectation. Hold difficulty, check fatigue/table/context.";
+  } else {
+    action = "Performance is close to expectation. Maintain current progression.";
+  }
+  return {routine:routineById(routineId), logs, series, recent, residualMean, adjustedResidualMean:dampenByEvidence(residualMean, logs.length), residualStd, signal, action:cautiousActionText(action, logs.length), evidence:evidenceStrength(logs.length)};
+}
+function renderResidualInsights(logs) {
+  const scopedRoutineIds = [...new Set(logs.map(l => l.routineId).filter(Boolean))];
+  const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
+  if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history/variation yet.</div></div>`;
+  return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
+    <strong>Expected vs actual residuals ${statHelpButton("residual")}</strong>
+    ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.adjustedResidualMean>=0?"+":""}${i.adjustedResidualMean.toFixed(1)}</strong><span>${evidenceBadge(i.logs.length)}</span></div>`).join("")}
+  </div>`;
+}
+function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15) {
+  const logs = Array.isArray(sessionIdOrLogs)
+    ? sessionIdOrLogs.slice()
+    : (data.logs || []).filter(l => l.sessionId === sessionIdOrLogs);
+  const sorted = logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  if (sorted.length < 3) return null;
+  let cumulative = 0;
+  const points = sorted.map(l => {
+    const start = cumulative;
+    cumulative += Number(l.timeMinutes || 0);
+    return {log:l, mid:start + Number(l.timeMinutes || 0)/2, score:Number(l.normalizedScore || 0)};
+  });
+  let best = null;
+  for (let i=0; i<points.length; i++) {
+    const start = Math.max(0, points[i].mid - windowMinutes/2);
+    const end = start + windowMinutes;
+    const included = points.filter(p => p.mid >= start && p.mid <= end);
+    if (included.length < 2) continue;
+    const score = avg(included.map(p=>p.score));
+    if (!best || score > best.score) best = {start, end, score, n:included.length};
+  }
+  return best;
+}
+function renderPeakWindowInsight(logs) {
+  const sessions = [...new Set(logs.map(l => l.sessionId).filter(Boolean))];
+  const peaks = sessions.map(id => sessionPeakWindow(id)).filter(Boolean);
+  if (!peaks.length) {
+    const fallback = sessionPeakWindow(logs);
+    if (!fallback) return `<div class="insight-card watch"><strong>Peak window</strong><div class="muted">Not enough within-session data/variation yet.</div></div>`;
+    peaks.push(fallback);
+  }
+  const avgStart = avg(peaks.map(p=>p.start));
+  const avgEnd = avg(peaks.map(p=>p.end));
+  const avgScore = avg(peaks.map(p=>p.score));
+  return `<div class="insight-card good"><strong>Session peak window ${statHelpButton("peakWindow")}</strong>
+    <div class="value">${formatDurationHuman(avgStart)}–${formatDurationHuman(avgEnd)}</div>
+    <div class="muted">Average peak-window score: ${avgScore.toFixed(1)} across ${peaks.length} session${peaks.length>1?"s":""}.</div>
+    <div class="adaptive-rationale">Place demanding drills in this window when possible.</div>
+  </div>`;
+}
+function groupContextEffects(logs, keyFn, label) {
+  const globalVals = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+  if (globalVals.length < 5) return [];
+  const globalMean = avg(globalVals);
+  const groups = {};
+  logs.forEach(l => {
+    const key = keyFn(l);
+    if (!key) return;
+    groups[key] ||= [];
+    groups[key].push(l);
+  });
+  return Object.entries(groups).map(([key, arr]) => {
+    const vals = arr.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+    if (vals.length < 3) return null;
+    return {label, key, n:vals.length, avg:avg(vals), delta:avg(vals)-globalMean};
+  }).filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+}
+function timeOfDayBucket(l) {
+  const h = new Date(l.createdAt).getHours();
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  if (h < 21) return "Evening";
+  return "Late";
+}
+function renderContextEffects(logs) {
+  const effects = [
+    ...groupContextEffects(logs, l => getTableName(l) !== "Not specified" ? getTableName(l) : "", "Table"),
+    ...groupContextEffects(logs, l => l.sessionIntervention || "", "Intervention"),
+    ...groupContextEffects(logs, l => timeOfDayBucket(l), "Time")
+  ].filter(e => e.n >= 3).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,8);
+  if (!effects.length) return `<div class="insight-card watch"><strong>Context effects ${statHelpButton("contextEffects")}</strong><div class="muted">Need more logs by table/time/intervention before this signal is reliable.</div></div>`;
+  return `<div class="insight-card ${effects[0].delta<0?"risk":"good"}"><strong>Context effects ${statHelpButton("contextEffects")}</strong>
+    ${effects.map(e => `<div class="context-row"><span>${escapeHtml(e.label)}: ${escapeHtml(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>n=${e.n}</span></div>`).join("")}
+    <div class="adaptive-rationale">Shows performance lifters/drags versus your overall average. Minimum threshold is deliberately low for visibility; treat small samples cautiously.</div>
+  </div>`;
+}
+
+
+
+/* ===== v4.35.1 Venue / Context Normalization v1 ===== */
+function safeContextNormalizationScore(log){
+  try{
+    const direct=Number(log?.normalizedScore);
+    if(Number.isFinite(direct)) return direct;
+    const computed=Number(normalizeScore(log));
+    return Number.isFinite(computed) ? computed : null;
+  }catch(err){
+    console.warn("Skipped malformed log in context normalization", err, log);
+    return null;
+  }
+}
+function contextEvidenceLabel(n){
+  if(n>=30) return "strong context evidence";
+  if(n>=12) return "moderate context evidence";
+  if(n>=5) return "early context evidence";
+  return "low context evidence";
+}
+function contextEffectTable(logs, keyFn, label, minN=3){
+  try{
+    const rows=(logs||[]).map(l=>({log:l, score:safeContextNormalizationScore(l)})).filter(x=>Number.isFinite(x.score));
+    if(rows.length<5) return [];
+    const globalMean=avg(rows.map(x=>x.score));
+    const groups={};
+    rows.forEach(x=>{
+      const key=keyFn(x.log);
+      if(!key) return;
+      groups[key] ||= [];
+      groups[key].push(x.score);
+    });
+    return Object.entries(groups).map(([key, vals])=>{
+      if(vals.length<minN) return null;
+      const delta=avg(vals)-globalMean;
+      const damped=dampenByEvidence(delta, vals.length);
+      return {label,key,n:vals.length,rawDelta:delta,delta:damped,avg:avg(vals),evidence:contextEvidenceLabel(vals.length)};
+    }).filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  }catch(err){
+    console.warn("Context effect table skipped", err);
+    return [];
+  }
+}
+function highFatigueBucket(log){
+  const v=Number(log?.reflectionFatigueRating ?? log?.fatigueRating ?? log?.fatigue ?? log?.reflectionFatigue ?? 0);
+  if(!Number.isFinite(v) || v<=0) return "";
+  return v>=4 ? "High fatigue" : "Normal/low fatigue";
+}
+function buildContextNormalizationModel(logs){
+  try{
+    const arr=(logs||[]).filter(Boolean);
+    const tableEffects=contextEffectTable(arr, l=>getTableName(l)!=="Not specified"?getTableName(l):"", "Table");
+    const timeEffects=contextEffectTable(arr, l=>timeOfDayBucket(l), "Time");
+    const fatigueEffects=contextEffectTable(arr, highFatigueBucket, "Fatigue", 2);
+    const byTable=Object.fromEntries(tableEffects.map(e=>[e.key,e]));
+    const byTime=Object.fromEntries(timeEffects.map(e=>[e.key,e]));
+    const byFatigue=Object.fromEntries(fatigueEffects.map(e=>[e.key,e]));
+    return {tableEffects,timeEffects,fatigueEffects,byTable,byTime,byFatigue};
+  }catch(err){
+    console.warn("Context normalization model skipped", err);
+    return {tableEffects:[],timeEffects:[],fatigueEffects:[],byTable:{},byTime:{},byFatigue:{}};
+  }
+}
+function adjustedScoreForContext(log, model=buildContextNormalizationModel(data.logs||[])){
+  try{
+    const raw=safeContextNormalizationScore(log);
+    if(!Number.isFinite(raw)) return null;
+    const tableKey=getTableName(log)!=="Not specified"?getTableName(log):"";
+    const timeKey=timeOfDayBucket(log);
+    const fatigueKey=highFatigueBucket(log);
+    const tableDelta=Number(model?.byTable?.[tableKey]?.delta || 0);
+    const timeDelta=Number(model?.byTime?.[timeKey]?.delta || 0);
+    const fatigueDelta=Number(model?.byFatigue?.[fatigueKey]?.delta || 0);
+    const adjustment=tableDelta + timeDelta + fatigueDelta;
+    return clampNumber(raw - adjustment, 0, 100);
+  }catch(err){
+    console.warn("Context-adjusted score skipped", err);
+    return null;
+  }
+}
+function routineContextNormalizationSignal(routine){
+  try{
+    const logs=(data.logs||[]).filter(l=>String(l?.routineId)===String(routine?.id));
+    if(logs.length<4) return {score:0,label:"context normalization: insufficient routine history",rawRecent:null,adjustedRecent:null,n:logs.length};
+    const model=buildContextNormalizationModel(data.logs||[]);
+    const recent=logs.slice().sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0)).slice(-Math.min(8, logs.length));
+    const rawVals=recent.map(safeContextNormalizationScore).filter(Number.isFinite);
+    const adjVals=recent.map(l=>adjustedScoreForContext(l, model)).filter(Number.isFinite);
+    if(rawVals.length<3 || adjVals.length<3) return {score:0,label:"context normalization: not enough usable scores",rawRecent:null,adjustedRecent:null,n:logs.length};
+    const rawRecent=avg(rawVals);
+    const adjustedRecent=avg(adjVals);
+    const contextLift=rawRecent-adjustedRecent;
+    let score=0;
+    let label="context-adjusted performance close to raw score";
+    if(contextLift>4){ score-=2; label="recent raw score is helped by favorable context"; }
+    else if(contextLift<-4){ score+=3; label="recent raw score is suppressed by difficult context"; }
+    return {score,label,rawRecent,adjustedRecent,contextLift,n:logs.length};
+  }catch(err){
+    console.warn("Routine context normalization signal skipped", err, routine);
+    return {score:0,label:"context normalization unavailable",rawRecent:null,adjustedRecent:null,n:0};
+  }
+}
+function contextNormalizationReasonForRoutine(routine){
+  const s=routineContextNormalizationSignal(routine);
+  if(!s || !Number.isFinite(Number(s.adjustedRecent))) return "context-adjusted score unavailable";
+  return `${s.label}; adjusted recent ${Number(s.adjustedRecent).toFixed(1)} vs raw ${Number(s.rawRecent).toFixed(1)}`;
+}
+function contextNormalizationInsight(logs){
+  try{
+    const model=buildContextNormalizationModel(logs||[]);
+    const effects=[...model.tableEffects, ...model.timeEffects, ...model.fatigueEffects]
+      .filter(e=>e.n>=2)
+      .sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))
+      .slice(0,6);
+    const scores=(logs||[]).map(safeContextNormalizationScore).filter(Number.isFinite);
+    const adjusted=(logs||[]).map(l=>adjustedScoreForContext(l, model)).filter(Number.isFinite);
+    const rawAvg=scores.length?avg(scores):null;
+    const adjAvg=adjusted.length?avg(adjusted):null;
+    if(!effects.length || !scores.length){
+      return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted">Need more table/time/fatigue variation before normalization becomes useful.</div></div>`;
+    }
+    const cls=effects[0].delta<0?"risk":"good";
+    const avgLine=Number.isFinite(rawAvg)&&Number.isFinite(adjAvg)
+      ? `<div class="context-row"><span>Raw vs context-adjusted avg</span><strong>${rawAvg.toFixed(1)} → ${adjAvg.toFixed(1)}</strong><span>${contextEvidenceLabel(scores.length)}</span></div>`
+      : "";
+    return `<div class="insight-card ${cls}"><strong>Context-normalized performance v1</strong>
+      ${avgLine}
+      ${effects.map(e=>`<div class="context-row"><span>${htmlText(e.label)}: ${htmlText(e.key)}</span><strong>${e.delta>=0?"+":""}${e.delta.toFixed(1)}</strong><span>${htmlText(e.evidence)} · n=${e.n}</span></div>`).join("")}
+      <div class="adaptive-rationale">Separates raw score from table, time-of-day, and fatigue effects. This is a coaching adjustment, not a score rewrite; historical logs remain unchanged.</div>
+    </div>`;
+  }catch(err){
+    console.warn("Context normalization insight skipped", err);
+    return `<div class="insight-card watch"><strong>Context-normalized performance v1</strong><div class="muted small">Context normalization unavailable for the current data set.</div></div>`;
+  }
+}
+/* ===== end v4.35.1 Venue / Context Normalization v1 ===== */
+
+function forecastWithConfidence(logs, horizon=5){
+  if(!logs || logs.length<5) return null;
+  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  const x = vals.map((_,i)=>i);
+  const n = vals.length;
+  const meanX = avg(x), meanY = avg(vals);
+  let num=0,den=0;
+  for(let i=0;i<n;i++){ num+=(x[i]-meanX)*(vals[i]-meanY); den+=(x[i]-meanX)**2;}
+  const slope = den===0?0:num/den;
+  const intercept = meanY - slope*meanX;
+  const preds=[];
+  const residuals=[];
+  for(let i=0;i<n;i++){
+    const yhat = intercept + slope*i;
+    residuals.push(vals[i]-yhat);
+  }
+  const sd = stdDev(residuals);
+  for(let h=1;h<=horizon;h++){
+    const xi = n-1 + h;
+    const yhat = intercept + slope*xi;
+    preds.push({
+      step:h,
+      expected:yhat,
+      upper:yhat+sd,
+      lower:yhat-sd
+    });
+  }
+  return {slope,intercept,sd,preds};
+}
+
+function renderForecastInsight(logs){
+  const fc = forecastWithConfidence(logs,5);
+  if(!fc) return '<div class="insight-card watch"><strong>Forecast</strong><div class="muted">Not enough data.</div></div>';
+  const last = fc.preds[fc.preds.length-1];
+  return `<div class="insight-card watch">
+    <strong>Performance forecast ${statHelpButton("forecast")}</strong>
+    <div class="value">${last.expected.toFixed(1)}</div>
+    <div class="muted">Range: ${last.lower.toFixed(1)} – ${last.upper.toFixed(1)}</div>
+    <div class="adaptive-rationale">Projection based on recent trend ± variability.</div>
+  </div>`;
+}
+
+function renderPhaseOneInsights() {
+  const box = $("phaseOneInsightsOutput");
+  if (!box) return;
+  const scope = getStatsScope();
+  const logs = getScopedStatsLogs();
+  if (!logs.length) {
+    box.innerHTML = `<div class="insight-card watch">No logs available for selected scope${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="insight-grid">
+    ${renderResidualInsights(logs)}
+    ${renderPeakWindowInsight(logs)}
+    ${renderContextEffects(logs)}
+    ${contextNormalizationInsight(logs)}
+    ${renderForecastInsight(logs)}
+    ${reflectionPatternInsight(logs)}
+    ${reflectionIntelligenceSummary(logs)}
+    ${skillMapInsight(logs)}
+    ${transferModelInsight(logs)}
+    ${changePointInsight(logs)}
+    ${currentFormInsight(logs)}
+    ${targetCredibleIntervalInsight(logs)}
+    ${dynamicDifficultyInsight(logs)}
+    ${recommendationLearningInsight()}
+  </div>`;
+}
+
 
 function miniSparkline(values, width=110, height=30) {
   const vals = values.map(v=>Number(v||0)).filter(v=>Number.isFinite(v));
@@ -1934,18 +4595,10 @@ function statsModule(title, subtitle, bodyHtml, open = false) {
   </details>`;
 }
 
-function renderActionableEmptyState(title="No data yet", message="Complete a practice session to see your performance trends.", actionLabel="Go to Practice", tab="practice") {
-  return `<div class="empty-state-card">
-    <strong>${htmlText(title)}</strong>
-    <p>${htmlText(message)}</p>
-    <button class="primary empty-state-action" data-action="open-main-tab" data-tab-target="${attrText(tab)}">${htmlText(actionLabel)}</button>
-  </div>`;
-}
-
 function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, benchmarkWindow }) {
   const viewTitle = period === "exercise" ? "Per exercise view" : "Training view";
   if (!logs.length) {
-    return `<h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3>${renderActionableEmptyState()}`;
+    return `<h3>${escapeHtml(viewTitle)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
   }
 
   const alloc = computeAllocation(logs);
@@ -1975,7 +4628,7 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
 
 
 function renderStatsEmptySection(title, range) {
-  return `<h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3>${renderActionableEmptyState()}`;
+  return `<h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
 }
 
 function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow }) {
@@ -2350,7 +5003,7 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
 }
 
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
-  if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3>${renderActionableEmptyState()}`;
+  if (!logs.length) return `<h3>Overview — ${escapeHtml(range.label)}</h3><p>No logs for this view.</p>`;
 
   if (!rid && getStatsDetailMode() === "basic") {
     const totalTimeBasic = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
@@ -4313,7 +6966,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.35.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -5131,7 +7784,6 @@ function handleDelegatedUIAction(event) {
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
-    case "open-main-tab": return document.querySelector(`[data-tab="${CSS.escape(actionEl.dataset.tabTarget || "practice")}"]`)?.click();
     case "open-data-tab": document.querySelector('[data-tab="data"]')?.click(); return setDataMainTab("developer");
     case "data-main-tab": return setDataMainTab(actionEl.dataset.dataTab || "settings");
     case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
