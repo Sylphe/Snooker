@@ -1,24 +1,25 @@
-# Snooker Practice PWA v4.40.0
+# Snooker Practice PWA v4.41.0
 
-## v4.40.0 — Bayesian Change-Point Detection Upgrade
+## v4.41.0 — Skill Decay & Maintenance Scheduler
 
-Built from the confirmed-working v4.39.0 Kalman Current Form package.
+Built from v4.40.0 Bayesian Change-Point Detection.
 
-### Added / changed
-- Upgrades the existing change-point detector with Bayesian-style structural-shift probabilities.
-- Scores likely breakthrough, slump, plateau/stable, and mixed/noisy states with adjusted probability outputs.
-- Adds skill-level Bayesian change-point rows using existing skill tags.
-- Keeps the legacy window-based detector as a guarded fallback.
-- Uses safe normalized-score extraction so malformed logs do not break the insights render path.
+### Added
+- Skill Decay & Maintenance Scheduler v1.
+- Detects undertrained skills using recent exposure by canonical skill tag.
+- Detects fading skills using recent-vs-prior skill performance movement.
+- Adds maintenance need scores with evidence weighting.
+- Adds suggested maintenance blocks based on routine skill coverage.
+- Adds maintenance-aware recommendation reasons and scoring.
+- Adds a Maintenance Scheduler insight card.
 
-### Safety / stability approach
+### Guardrails
 - No storage schema changes.
-- No hydration changes.
-- No session-state changes.
-- Bayesian change-point logic is guarded and falls back to the legacy detector if it fails.
-- Syntax and duplicate-declaration checks performed during packaging.
+- No hydration or session-flow changes.
+- No historical score rewriting.
+- All maintenance calculations are guarded and fallback-safe.
 
 ### Build
-- Version: v4.40.0
-- Build timestamp: 2026-05-18 17:15 CEST
-- Cache/module refs: v4.40.0
+- Version: v4.41.0
+- Build timestamp: 2026-05-18 17:24 CEST
+- Cache/module refs: v4.41.0

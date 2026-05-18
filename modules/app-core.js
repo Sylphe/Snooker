@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.40.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.40.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.41.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.41.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.40.0";
+} from "./utils.js?v=4.41.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.40.0";
+} from "./settings.js?v=4.41.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.40.0";
+} from "./analytics.js?v=4.41.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.40.0";
+} from "./bayesian.js?v=4.41.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.40.0";
+} from "./session.js?v=4.41.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.40.0";
+} from "./pressure.js?v=4.41.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.40.0";
+} from "./recommendations.js?v=4.41.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.40.0";
+} from "./store.js?v=4.41.0";
 
 
 
@@ -652,7 +652,106 @@ function signalLabelFromScore(score){
   return "Low";
 }
 
-/* ===== v4.40.0 Bayesian Change-Point Detection Upgrade ===== */
+
+/* ===== v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
+  try{
+    const horizonDays = Number(options.horizonDays || 90);
+    const minExposure = Number(options.minExposure || 2);
+    const ordered = (logs || []).slice().sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+    const now = Date.now();
+    const buckets = {};
+    ordered.forEach(log => {
+      const score = safeNormalizedLogScore(log);
+      if(!Number.isFinite(score)) return;
+      const created = new Date(log.createdAt || Date.now());
+      const t = created.getTime();
+      if(!Number.isFinite(t)) return;
+      const weights = routineSkillWeights(log);
+      Object.entries(weights).forEach(([skill, weight]) => {
+        if(!skill || skill === "uncategorized" || Number(weight || 0) <= 0) return;
+        const b = buckets[skill] || (buckets[skill] = {skill, logs:[], exposure:0, recentExposure:0, lastDate:null});
+        b.logs.push({score, createdAt:created, weight:Number(weight || 0), routineId:log.routineId});
+        b.exposure += Number(weight || 0);
+        if((now - t) / 86400000 <= horizonDays) b.recentExposure += Number(weight || 0);
+        if(!b.lastDate || created > b.lastDate) b.lastDate = created;
+      });
+    });
+    const rows = Object.values(buckets).map(b => {
+      const vals = b.logs.map(x=>x.score).filter(Number.isFinite);
+      const lastDays = b.lastDate ? Math.max(0, Math.round((now - b.lastDate.getTime()) / 86400000)) : 999;
+      const recentVals = vals.slice(-Math.min(6, vals.length));
+      const priorVals = vals.slice(-Math.min(12, vals.length), -Math.min(6, vals.length));
+      const recentAvg = recentVals.length ? avg(recentVals) : null;
+      const priorAvg = priorVals.length ? avg(priorVals) : null;
+      const trendDelta = (recentAvg !== null && priorAvg !== null) ? recentAvg - priorAvg : 0;
+      const exposureGap = Math.max(0, minExposure - Number(b.recentExposure || 0));
+      const recencyPressure = Math.max(0, (lastDays - 21) / 7);
+      const fadingPressure = trendDelta < -4 ? Math.min(18, Math.abs(trendDelta) * 1.4) : 0;
+      const undertrainedPressure = exposureGap * 8;
+      const evidence = evidenceStrength(vals.length);
+      const score = Math.round(Math.max(0, recencyPressure * 5 + undertrainedPressure + fadingPressure) * (0.55 + 0.45 * evidence.factor) * 10) / 10;
+      let state = "maintain";
+      let label = "Maintenance watch";
+      if(score >= 45){ state = "urgent"; label = "Maintenance due"; }
+      else if(score >= 25){ state = "watch"; label = "Schedule soon"; }
+      else if(score >= 10){ state = "light"; label = "Light touch"; }
+      else { state = "fresh"; label = "Recently covered"; }
+      const reasons = [];
+      if(lastDays > 21) reasons.push(`${lastDays}d since last exposure`);
+      if(exposureGap > 0) reasons.push(`low ${horizonDays}d exposure`);
+      if(fadingPressure > 0) reasons.push(`recent trend ${trendDelta.toFixed(1)}`);
+      if(!reasons.length) reasons.push("covered recently");
+      return {...b, n:vals.length, lastDays, recentAvg, priorAvg, trendDelta, exposureGap, score, state, label, evidence, reasons:reasons.slice(0,3)};
+    }).sort((a,b)=>b.score-a.score);
+    return {rows, horizonDays, minExposure};
+  }catch(e){
+    logAppError?.(e, "skillDecayAndMaintenanceSummary");
+    return {rows:[], horizonDays:Number(options.horizonDays || 90), minExposure:Number(options.minExposure || 2), error:true};
+  }
+}
+function maintenanceFitForRoutine(routine, summary=null){
+  try{
+    const decay = summary || skillDecayAndMaintenanceSummary(data.logs || []);
+    const rowMap = new Map((decay.rows || []).map(r => [r.skill, r]));
+    const weights = routineSkillWeights(routine);
+    let score = 0;
+    const reasons = [];
+    Object.entries(weights).forEach(([skill, weight]) => {
+      const row = rowMap.get(skill);
+      if(!row) return;
+      const contribution = Number(row.score || 0) * Number(weight || 0);
+      score += contribution;
+      if(contribution >= 8) reasons.push(`${skillLabel(skill)} ${row.label.toLowerCase()}`);
+    });
+    const top = Object.entries(weights).map(([skill, weight]) => ({skill, weight, row:rowMap.get(skill)})).filter(x=>x.row).sort((a,b)=>Number(b.row.score||0)-Number(a.row.score||0))[0];
+    return {score:Math.round(score * 10) / 10, reasons:[...new Set(reasons)].slice(0,3), topSkill:top?.skill || null, topRow:top?.row || null};
+  }catch(e){
+    logAppError?.(e, "maintenanceFitForRoutine");
+    return {score:0, reasons:[], topSkill:null, topRow:null};
+  }
+}
+function maintenanceReasonForRoutine(routine, fit=null){
+  const m = fit || maintenanceFitForRoutine(routine);
+  if(!m || Number(m.score || 0) <= 0) return "maintenance: no urgent decay signal";
+  if(m.topSkill && m.topRow) return `maintenance: ${skillLabel(m.topSkill)} ${m.topRow.label.toLowerCase()} (${m.topRow.reasons.join(" · ")})`;
+  return "maintenance: useful exposure for undertrained skills";
+}
+function maintenanceSchedulerInsight(logs){
+  try{
+    const summary = skillDecayAndMaintenanceSummary(logs || data.logs || []);
+    const rows = (summary.rows || []).filter(r => r.score >= 10).slice(0,4);
+    const routines = activeRoutines().map(r => ({routine:r, fit:maintenanceFitForRoutine(r, summary)})).filter(x => x.fit.score > 0).sort((a,b)=>b.fit.score-a.fit.score).slice(0,3);
+    if(!rows.length) return `<div class="insight-card good"><strong>Maintenance scheduler</strong><div class="muted small">No material skill-decay signal in this scope. Keep rotating core skills.</div></div>`;
+    return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Detects undertrained or fading skills before the decline becomes obvious. Scores are evidence-weighted and should be treated as scheduling prompts.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(skillLabel(r.skill))}<br><span class="muted">${htmlText(r.reasons.join(" · "))}</span></span><strong>${htmlText(r.label)}</strong><span>${Number(r.score || 0).toFixed(1)}</span></div>`).join("")}${routines.length ? `<div class="adaptive-rationale"><strong>Suggested maintenance blocks:</strong> ${routines.map(x=>htmlText(x.routine.name)).join(" · ")}</div>` : ""}</div>`;
+  }catch(e){
+    logAppError?.(e, "maintenanceSchedulerInsight");
+    return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
+  }
+}
+/* ===== end v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+
+/* ===== v4.41.0 Skill Decay & Maintenance Scheduler ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -739,7 +838,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.40.0 Bayesian Change-Point Detection Upgrade ===== */
+/* ===== end v4.41.0 Skill Decay & Maintenance Scheduler ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -4270,11 +4369,12 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const outcome = recommendationOutcomeSignal(routine.id);
   const learning = recommendationLearningProfile(routine.id);
   const contextNormalization = routineContextNormalizationSignal(routine);
+  const maintenanceFit = maintenanceFitForRoutine(routine);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(maintenanceFit.score || 0) * 0.45;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
   const thompsonSampling = thompsonRecommendationSample({
@@ -4297,6 +4397,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
+  if (Number(maintenanceFit.score || 0) >= 8) reasons.push(maintenanceReasonForRoutine(routine, maintenanceFit));
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
@@ -4304,7 +4405,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(maintenanceFit.score || 0) * 0.35 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
     thompsonSampling,
@@ -4321,6 +4422,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     outcomeSignal:outcome,
     learningSignal:learning,
     contextNormalization,
+    maintenanceFit,
     reasons:[...new Set(reasons.filter(Boolean))]
   };
 }
@@ -4764,6 +4866,7 @@ function renderPhaseOneInsights() {
     ${reflectionPatternInsight(logs)}
     ${reflectionIntelligenceSummary(logs)}
     ${skillMapInsight(logs)}
+    ${maintenanceSchedulerInsight(logs)}
     ${transferModelInsight(logs)}
     ${changePointInsight(logs)}
     ${currentFormInsight(logs)}
@@ -7254,7 +7357,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.40.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.41.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
