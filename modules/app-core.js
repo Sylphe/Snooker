@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.27.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.28.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.27.1";
+} from "./utils.js?v=4.28.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.27.1";
+} from "./settings.js?v=4.28.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.27.1";
+} from "./analytics.js?v=4.28.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.27.1";
+} from "./bayesian.js?v=4.28.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.27.1";
+} from "./session.js?v=4.28.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.27.1";
+} from "./pressure.js?v=4.28.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.27.1";
+} from "./recommendations.js?v=4.28.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.27.1";
+} from "./store.js?v=4.28.0";
 
 
 
@@ -2721,6 +2721,112 @@ function routineEnergyProfile(state) {
   if (String(r.category || "").toLowerCase().includes("mental")) confidence += 1;
   return {cognitive:Math.min(5,cognitive), fatigue:Math.min(5,fatigue), confidence:Math.min(5,confidence)};
 }
+
+function recentReflectionContext(windowSize=8) {
+  const sessionById = Object.fromEntries((data.sessions || []).map(s => [s.id, s]));
+  const logs = (data.logs || []).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const recent = logs.slice(-Math.max(windowSize, 12));
+  const recentSessions = [...new Map(recent.map(l => [l.sessionId, sessionById[l.sessionId]]).filter(x => x[0] && x[1]?.reflection)).values()].slice(-windowSize);
+  const getRating = (ref, key) => Number(ref?.[key] ?? ref?.[key + "Rating"]);
+  const nums = key => recentSessions.map(s => getRating(s.reflection, key)).filter(Number.isFinite);
+  const focusVals = nums("focus");
+  const confidenceVals = nums("confidence");
+  const fatigueVals = nums("fatigue");
+  const cueingVals = nums("cueing");
+  const mentalVals = nums("mentalSharpness");
+  const scoreVals = recent.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const mean = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const fatigue = mean(fatigueVals);
+  const focus = mean(focusVals);
+  const confidence = mean(confidenceVals);
+  const cueing = mean(cueingVals);
+  const mental = mean(mentalVals);
+  const recentAvg = scoreVals.length ? mean(scoreVals.slice(-Math.min(4, scoreVals.length))) : null;
+  const priorAvg = scoreVals.length > 4 ? mean(scoreVals.slice(0,-4)) : null;
+  const volatility = scoreVals.length >= 3 ? stdDev(scoreVals) : null;
+  const sessionPerf = recentSessions.map(s => {
+    const linked = recent.filter(l => l.sessionId === s.id).map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+    return {ref:s.reflection || {}, score: linked.length ? mean(linked) : null};
+  }).filter(x => x.score !== null);
+  const goodScoreBadFeel = sessionPerf.filter(x => x.score >= 75 && (getRating(x.ref,"confidence") <= 2 || getRating(x.ref,"focus") <= 2 || getRating(x.ref,"cueing") <= 2)).length;
+  const badScoreGoodFeel = sessionPerf.filter(x => x.score <= 45 && (getRating(x.ref,"confidence") >= 4 || getRating(x.ref,"focus") >= 4 || getRating(x.ref,"cueing") >= 4)).length;
+  return {recent, recentSessions, focus, confidence, fatigue, cueing, mental, recentAvg, priorAvg, volatility, goodScoreBadFeel, badScoreGoodFeel};
+}
+function inferTrainingStateMode(context=recentReflectionContext()) {
+  const fatigue = Number(context.fatigue || 0);
+  const confidence = Number(context.confidence || 0);
+  const focus = Number(context.focus || 0);
+  const volatility = Number(context.volatility || 0);
+  const improvingFeel = Number(context.badScoreGoodFeel || 0) >= 2;
+  const unstableGood = Number(context.goodScoreBadFeel || 0) >= 2;
+  if ((fatigue >= 4 && confidence && confidence <= 3) || (focus && focus <= 2.5) || unstableGood) {
+    return {mode:"recovery", label:"Recovery", reason: unstableGood ? "good scores have recently appeared with poor feel" : "fatigue/focus/confidence context is fragile"};
+  }
+  if (improvingFeel || (confidence >= 4 && context.recentAvg !== null && context.recentAvg < 55)) {
+    return {mode:"acquisition", label:"Acquisition", reason:"process feel is positive while scores still need consolidation"};
+  }
+  if (confidence >= 4 && focus >= 4 && fatigue <= 3 && volatility < 14) {
+    return {mode:"performance", label:"Performance", reason:"confidence/focus are strong and volatility is controlled"};
+  }
+  return {mode:"consolidation", label:"Consolidation", reason:"stable enough for skill transfer and medium pressure"};
+}
+function routineVolatilityProfile(routine, stats) {
+  const vals = (stats?.vals || routineStats(routine?.id).vals || []).filter(Number.isFinite);
+  const sd = vals.length >= 3 ? stdDev(vals) : 12;
+  const map = getRoutineSkillMap(routine);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  let base = sd;
+  if (skills.has("pressure_resilience") || skills.has("long_potting") || skills.has("escape_shots")) base += 4;
+  if (routine?.isAnchor) base -= 4;
+  const level = base >= 18 ? "high" : base >= 10 ? "medium" : "low";
+  return {score:Math.max(0, Math.round(base)), level};
+}
+function recommendationOutcomeSignal(routineId) {
+  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === routineId && x.scoreAfter !== null && x.improvementAfterRecommendation !== null).slice(-12);
+  if (!rows.length) return {score:0, label:"no outcome evidence"};
+  const improvement = avg(rows.map(x => Number(x.improvementAfterRecommendation || 0)));
+  const completionRate = rows.filter(x => x.completedAt).length / rows.length;
+  const score = Math.max(-10, Math.min(14, improvement * 0.25 + completionRate * 6));
+  return {score, label:`recommendation outcomes ${improvement >= 0 ? "+" : ""}${improvement.toFixed(1)} avg`};
+}
+function contextualFitForRoutine(routine, stats, stateModeObj=inferTrainingStateMode()) {
+  const map = getRoutineSkillMap(routine);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  const energy = routineEnergyProfile({routine, phase:"maintain"});
+  const volatility = routineVolatilityProfile(routine, stats);
+  const transfer = routineTransferValue(routine);
+  let score = 0;
+  const reasons = [];
+  const mode = stateModeObj.mode;
+  if (mode === "recovery") {
+    if (routine?.isAnchor || Number(stats?.logs?.length || 0) >= 6) { score += 12; reasons.push("familiar recovery fit"); }
+    if (volatility.level === "low") { score += 8; reasons.push("low volatility"); }
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.25;
+    if (skills.has("confidence_stability") || skills.has("cueing") || skills.has("pace_control")) { score += 5; reasons.push("confidence-preserving skill"); }
+  } else if (mode === "acquisition") {
+    if (skills.has("cueing") || skills.has("cue_ball_control") || skills.has("pace_control") || skills.has("positional_play")) { score += 9; reasons.push("high-feedback acquisition fit"); }
+    if (volatility.level === "high") { score -= 5; reasons.push("reduced for high volatility"); }
+    if (transfer >= 70) { score += 6; reasons.push("foundational transfer"); }
+  } else if (mode === "performance") {
+    if (skills.has("pressure_resilience") || skills.has("safety") || skills.has("break_building") || volatility.level !== "low") { score += 10; reasons.push("performance-test fit"); }
+    if (transfer >= 65) { score += 4; reasons.push("match-relevant transfer"); }
+  } else {
+    if (transfer >= 65) { score += 8; reasons.push("consolidation transfer value"); }
+    if (volatility.level === "medium") { score += 3; reasons.push("controlled variability"); }
+  }
+  return {score:Math.round(score), reasons, volatility, energy, stateMode:stateModeObj, transfer};
+}
+function buildContextAwareReason(profile) {
+  const fit = profile?.contextualFit;
+  if (!fit) return "Context fit not calculated";
+  const bits = [];
+  bits.push(`${fit.stateMode.label} mode: ${fit.stateMode.reason}`);
+  bits.push(`volatility ${fit.volatility.level}`);
+  bits.push(`transfer ${fit.transfer}/100`);
+  if (fit.reasons?.length) bits.push(fit.reasons.slice(0,2).join(" · "));
+  return bits.join(" · ");
+}
+
 function sessionBudgetsForGoal(goal, targetMinutes) {
   const scale = Math.max(0.75, Math.min(1.6, targetMinutes / 60));
   if (goal === "recovery") return {cognitive:Math.round(8*scale), fatigue:Math.round(7*scale), confidence:Math.round(6*scale), maxSwitches:3};
@@ -2731,15 +2837,18 @@ function sessionBudgetsForGoal(goal, targetMinutes) {
 function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
   const transfer = routineTransferValue(state.routine);
   const energy = routineEnergyProfile(state);
-  let score = baseScore + transfer * 0.22;
+  const ctx = contextualFitForRoutine(state.routine, {logs:state.logs || [], vals:(state.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:state.hit}, inferTrainingStateMode());
+  let score = baseScore + transfer * 0.18 + ctx.score * 0.65;
   if (goal === "recovery") {
     if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
-    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.3;
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.45;
+    if (ctx.volatility.level === "low") score += 6;
   } else if (goal === "progression") {
     if (state.phase === "progress" || state.upgrade) score += 9;
     score += transfer * 0.08;
   } else if (goal === "stability") {
     if (["stabilize","maintain"].includes(state.phase)) score += 8;
+    if (ctx.volatility.level === "high") score -= 3;
   } else if (goal === "variety") {
     if (["vary","refresh","baseline"].includes(state.phase)) score += 7;
   }
@@ -2890,7 +2999,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
     const transferValue = routineTransferValue(s.routine);
     const energyProfile = routineEnergyProfile(s);
-    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(profile?.reasons || []).slice(0,3)]};
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -2901,8 +3010,15 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
   let effectiveGoal = goal;
   const globalReasons = [];
+  const contextualState = inferTrainingStateMode();
 
-  if (daysToCompetition !== null && daysToCompetition <= 7 && goal === "auto") {
+  if (goal === "auto" && contextualState.mode === "recovery") {
+    effectiveGoal = "recovery";
+    globalReasons.push(`context mode: ${contextualState.label.toLowerCase()} — ${contextualState.reason}`);
+  } else if (goal === "auto" && contextualState.mode === "performance") {
+    effectiveGoal = "progression";
+    globalReasons.push(`context mode: ${contextualState.label.toLowerCase()} — ${contextualState.reason}`);
+  } else if (daysToCompetition !== null && daysToCompetition <= 7 && goal === "auto") {
     effectiveGoal = "recovery";
     globalReasons.push(`competition in ${daysToCompetition} day${daysToCompetition === 1 ? "" : "s"}; taper volume and protect confidence`);
   } else if (daysToCompetition !== null && daysToCompetition <= 21 && goal === "auto") {
@@ -3111,34 +3227,50 @@ function routineEvidenceLabel(n) {
   return "low evidence";
 }
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
+  const stateMode = inferTrainingStateMode();
   const baseScore = routineMixedStrategyScore(routine, stats, strategy) + (focusOverride !== "all" && routine.category === focusOverride ? 25 : 0);
   const n = Number(stats.logs?.length || 0);
   const vals = (stats.vals || []).filter(Number.isFinite);
-  const volatility = vals.length >= 3 ? Math.min(20, stdDev(vals) || 0) : 12;
+  const volatility = routineVolatilityProfile(routine, stats);
   const days = stats.logs?.length ? daysSince(stats.logs[stats.logs.length-1].createdAt) : recommendationRecencyCap(routine);
-  const uncertainty = Math.max(4, Math.min(30, 22 / Math.sqrt(n + 1) + volatility * 0.18 + Math.min(8, days * 0.25)));
+  const uncertainty = Math.max(4, Math.min(34, 24 / Math.sqrt(n + 1) + volatility.score * 0.18 + Math.min(8, days * 0.25)));
   const weakness = stats.hit === null ? 10 : Math.max(0, 75 - Number(stats.hit || 0)) * 0.28;
   const undertraining = undertrainedCategoryBonus(routine.id) * recommendationUndertrainingMultiplier(routine);
   const context = stats.contextSignal || recommendationContextSignal(routine.id);
   const bayes = stats.bayesian?.signal?.scoreDelta || 0;
-  const trainingValueMean = baseScore + weakness * 0.6 + undertraining * 0.7 + Number(context.bonus || 0) * 0.4 + bayes * 0.5;
-  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty;
+  const transferValue = routineTransferValue(routine);
+  const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
+  const outcome = recommendationOutcomeSignal(routine.id);
+  let explorationBonus = uncertainty * 0.28;
+  if (strategy === "explore") explorationBonus *= 1.45;
+  if (strategy === "exploit") explorationBonus *= 0.55;
+  if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + contextualFit.score + outcome.score;
+  const sampledValue = trainingValueMean + gaussianRandom() * uncertainty + explorationBonus;
   const reasons = getRoutinePriorityReasons({routine, stats}).slice(0, 5);
+  reasons.unshift(buildContextAwareReason({contextualFit}));
   reasons.push(skillReasonText(routine));
+  if (outcome.score) reasons.push(outcome.label);
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
+  if (transferValue >= 70) reasons.unshift("high transfer-value drill");
   return {
     routine,
     stats,
-    score: baseScore,
+    score: baseScore + contextualFit.score + transferValue * 0.14 + outcome.score,
     trainingValueMean,
     uncertainty,
     sampledValue,
     n,
     evidenceLabel: routineEvidenceLabel(n),
     selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
-    reasons:[...new Set(reasons)]
+    contextualFit,
+    stateMode,
+    volatilityProfile:volatility,
+    transferValue,
+    outcomeSignal:outcome,
+    reasons:[...new Set(reasons.filter(Boolean))]
   };
 }
 function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
@@ -3158,12 +3290,13 @@ function recommendationModeSummary(mode) {
 function renderRecommendationLogicPanel(candidates, mode) {
   const rows = (candidates || []).slice(0,5);
   if (!rows.length) return "";
+  const state = rows[0]?.stateMode || inferTrainingStateMode();
   return `<div class="recommendation-logic-panel">
-    <h4>Recommendation logic</h4>
-    <div class="adaptive-rationale">${escapeHtml(recommendationModeSummary(mode))}</div>
+    <h4>Context-aware recommendation logic</h4>
+    <div class="adaptive-rationale"><strong>${escapeHtml(state.label)} mode:</strong> ${escapeHtml(state.reason)} · ${escapeHtml(recommendationModeSummary(mode))}</div>
     <div class="recommendation-candidate-list">
       ${rows.map((x, idx)=>`<div class="context-row recommendation-candidate-row">
-        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
+        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · volatility ${escapeHtml(x.volatilityProfile?.level || "n/a")} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
         <strong>${(mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score).toFixed(1)}</strong>
         <span>${escapeHtml((x.reasons || []).slice(0,2).join(" · ") || "balanced rotation")}</span>
       </div>`).join("")}
@@ -3206,9 +3339,12 @@ function renderSmartRecommendation() {
     <span class="badge">Hit rate: ${top.stats.hit === null ? "N/A" : top.stats.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     <span class="badge">Skill: ${escapeHtml(skillLabel(getRoutineSkillMap(routine).primarySkill))}</span>
+    <span class="badge">Context: ${escapeHtml(top.stateMode?.label || inferTrainingStateMode().label)}</span>
+    <span class="badge">Volatility: ${escapeHtml(top.volatilityProfile?.level || "n/a")}</span>
+    <span class="badge">Transfer: ${Number(top.transferValue || routineTransferValue(routine))}/100</span>
     ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
     ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
-    <p class="muted">Reason: ${(top.reasons || []).slice(0,4).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
+    <p class="muted">Reason: ${(top.reasons || []).slice(0,5).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
     ${renderFeedbackButtons(routine.id, "smart_recommendation")}
     ${policyHtml}
     ${renderRecommendationLogicPanel(candidates, mode)}
@@ -5873,7 +6009,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.27.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.28.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7669,7 +7805,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.27.1 Unified Recommendation Foundation ===== */
+/* ===== v4.28.0 Context-Aware Recommendation Engine ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7794,7 +7930,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.27.1 Unified Recommendation Foundation ===== */
+/* ===== end v4.28.0 Context-Aware Recommendation Engine ===== */
 
 
 document.addEventListener("click", function(e){

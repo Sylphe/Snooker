@@ -1,38 +1,39 @@
-# Snooker Practice PWA v4.27.1
+# Snooker Practice PWA v4.28.0
 
-## v4.27.1 — Recommendation feedback toggle + undo
+## v4.28.0 — Context-Aware Recommendation Engine
 
-This patch makes recommendation feedback reversible. Accept and Skip now behave as toggles: selecting the active state clears it, selecting the opposite state replaces the prior open feedback state, and each change shows an undo toast. Completion tracking now only completes currently active accepted recommendations, so an accepted recommendation that was later skipped or cleared is no longer incorrectly marked as completed by a future log.
-
-
-Build timestamp: 2026-05-18 10:06 CEST
+Build timestamp: 2026-05-18 10:13 CEST
 
 ## Release focus
 
-v4.27.1 upgrades the Smart Session Builder from a drill picker into a practice architect. The builder now structures a session around energy budgets, block sequencing, transfer value, recovery-mode constraints, and recommendation feedback tracking.
+v4.28.0 upgrades recommendations from static drill ranking to context-aware coaching. The engine now uses recent reflection signals, fatigue/confidence state, volatility, transfer value, exploration/exploitation logic, and recommendation outcome feedback to decide what to suggest and how to explain it.
 
 ## Added
 
-- Smart Session Builder v2: sessions are now built as structured blocks rather than a flat ranked drill list.
-- Session energy architecture: cognitive load, fatigue load, confidence-risk load, and context-switching are estimated for the generated plan.
-- Budget display: the generated session shows cognitive, fatigue, confidence-risk, and switching usage versus the current session budget.
-- Block-based session design: warm-up/calibration, primary skill block, transfer block, pressure or robustness block, and confidence finish.
-- Recovery-mode redesign: fewer drills, lower switching, more familiar drills, lower volatility, and a confidence-preserving finish.
-- Transfer-value weighting: foundational drills and routines with stronger skill-transfer characteristics receive additional weighting.
-- Recommendation feedback tracking: recommendations can be marked accepted or skipped.
-- Completion feedback tracking: when an accepted recommendation is later logged, the app records score-after and improvement-after-recommendation.
-- Recommendation feedback counters: the Smart Session Builder shows accepted, skipped, and completed recommendation counts.
+- Contextual recommendation scoring: routines are now scored using weakness, transfer value, context fit, recovery suitability, confidence suitability, fatigue suitability, volatility risk, uncertainty, and prior recommendation outcomes.
+- State-aware recommendation modes: the app infers Recovery, Acquisition, Consolidation, or Performance mode from recent reflection and performance signals.
+- Exploration/exploitation weighting: uncertain routines receive controlled exploration upside, while high-evidence weaknesses remain eligible for exploitation.
+- Volatility profiling: routines are classified as low, medium, or high volatility based on historical score variation and skill type.
+- Confidence preservation logic: recovery-context recommendations favor familiar, lower-volatility routines and reduce excessive cognitive/fatigue/confidence load.
+- Context-aware recommendation reasons: recommendation cards and logic panels now explain why a drill fits the current training state.
+- Recommendation outcome signal: completed accepted recommendations now feed back into future scoring through score-after and improvement-after-recommendation.
 
 ## Updated
 
-- Adaptive scoring now blends existing heuristic/Bayesian signals with transfer value and energy load.
-- Session blocks are now explicitly labelled by purpose, making the generated plan easier to follow during practice.
-- Recommendation rows include transfer value and load indicators.
-- App version and cache-busting references updated to v4.27.1.
+- Smart Session Builder v2 now uses the same context-aware state mode when auto-selecting recovery/progression-oriented sessions.
+- Adaptive session block scoring now blends energy load, transfer value, contextual fit, and volatility profile.
+- Recommendation logic panel renamed to Context-aware recommendation logic and now displays state mode, volatility, uncertainty, and leading reasons.
+- App version and cache-busting references updated to v4.28.0.
 - Build metadata updated in `modules/version.js` and the home screen.
 - Service worker cache name updated for the new release.
 - Build timestamps remain in Europe/Paris local time with CET/CEST notation.
 
 ## Notes
 
-This release makes the Bayesian Optimization roadmap practical: the app now records recommendation decisions and outcomes, which creates the feedback loop required for future sequential decision-making under uncertainty. v4.28 can build on this by making recommendation scoring more context-aware, while v4.29 can use the skill map and feedback outcomes to estimate transfer between drills.
+This release operationalizes the Bayesian Optimization roadmap in practical form. The app is still not doing full Bayesian latent-skill estimation; that remains postponed to the advanced probabilistic layer. v4.28 instead introduces the contextual decision layer required before transfer modelling and change-point detection become reliable.
+
+Next planned releases:
+
+- v4.29 — Transfer Model v1: skill transfer graph, cross-skill correlation, and transfer-aware recommendations.
+- v4.30 — Change-Point Detection v1: breakthrough, slump, and plateau detection at skill-category level.
+- v4.31+ — Advanced probabilistic layer: latent form estimates, credible intervals, hierarchical priors, and Bayesian practice optimization.
