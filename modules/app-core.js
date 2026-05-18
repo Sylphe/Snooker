@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.37.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.37.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.37.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.37.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.37.0";
+} from "./utils.js?v=4.37.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.37.0";
+} from "./settings.js?v=4.37.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.37.0";
+} from "./analytics.js?v=4.37.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.37.0";
+} from "./bayesian.js?v=4.37.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.37.0";
+} from "./session.js?v=4.37.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.37.0";
+} from "./pressure.js?v=4.37.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.37.0";
+} from "./recommendations.js?v=4.37.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.37.0";
+} from "./store.js?v=4.37.1";
 
 
 
@@ -1564,65 +1564,88 @@ function getLastLogForRoutine(routineId) {
   return (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0] || null;
 }
 
-/* ===== v4.37 Hierarchical Bayesian Skill/Drill Priors ===== */
-function routinePrimarySkillId(routine){
-  try { return normalizeSkillId(getRoutineSkillMap(routine).primarySkill || routine?.primarySkill || ""); }
-  catch(e){ return normalizeSkillId(routine?.primarySkill || ""); }
+/* ===== v4.37.1 Hierarchical Bayesian Skill/Drill Priors ===== */
+function routinePrimarySkillIdForPrior(routine){
+  try {
+    const map = getRoutineSkillMap(routine);
+    return normalizeSkillId(map.primarySkill || routine?.primarySkill || "");
+  } catch(e) {
+    return normalizeSkillId(routine?.primarySkill || "");
+  }
 }
-function skillPriorStrengthFromAttempts(attempts, source="skill"){
+function priorStrengthFromAttempts(attempts, source="skill"){
   const n = Math.max(0, Number(attempts || 0));
-  if(source === "routine") return Math.max(4, Math.min(18, Math.sqrt(n) * 1.8));
   if(source === "global") return Math.max(4, Math.min(12, Math.sqrt(n) * 1.2));
-  return Math.max(4, Math.min(24, Math.sqrt(n) * 2.2));
+  return Math.max(4, Math.min(24, Math.sqrt(n) * 2.0));
 }
-function betaPriorFromAggregate(agg, source="skill", fallbackMean=0.5){
-  const attempts = Math.max(0, Number(agg?.attempts || agg?.rawAttempts || 0));
-  const successes = Math.max(0, Number(agg?.successes || agg?.rawSuccesses || 0));
-  const mean = attempts > 0 ? Math.max(0.03, Math.min(0.97, successes / attempts)) : Math.max(0.03, Math.min(0.97, Number(fallbackMean || 0.5)));
-  const strength = skillPriorStrengthFromAttempts(attempts, source);
-  return {alpha:Math.max(0.5, mean * strength), beta:Math.max(0.5, (1 - mean) * strength), mean, strength, attempts, successes, source};
+function betaPriorFromSuccessAggregate(agg, source="skill", fallbackMean=0.5){
+  const attempts = Math.max(0, Number(agg?.attempts || 0));
+  const successes = Math.max(0, Number(agg?.successes || 0));
+  const rawMean = attempts > 0 ? successes / attempts : Number(fallbackMean || 0.5);
+  const mean = Math.max(0.03, Math.min(0.97, Number.isFinite(rawMean) ? rawMean : 0.5));
+  const strength = priorStrengthFromAttempts(attempts, source);
+  return {
+    alpha: Math.max(0.5, mean * strength),
+    beta: Math.max(0.5, (1 - mean) * strength),
+    mean, strength, attempts, successes, source
+  };
 }
 function hierarchicalPriorForRoutine(routine, options={}){
-  try{
-    if(!routine || routine.scoring !== "success_rate") return {alpha:2, beta:2, mean:0.5, strength:4, source:"generic", label:"Generic prior", attempts:0, successes:0};
-    const skill = routinePrimarySkillId(routine);
+  try {
+    if(!routine || routine.scoring !== "success_rate") {
+      return {alpha:2, beta:2, mean:0.5, strength:4, source:"generic", label:"Generic prior", attempts:0, successes:0};
+    }
+    const skill = routinePrimarySkillIdForPrior(routine);
     const excludeId = options.excludeRoutine === false ? "" : String(routine.id || "");
-    const skillLogs = (data.logs || []).filter(l => {
-      if(String(l.routineId || "") === excludeId) return false;
-      if((l.scoring || "success_rate") !== "success_rate") return false;
-      const lr = routineById(l.routineId);
-      const primary = normalizeSkillId(l.primarySkill || (lr ? routinePrimarySkillId(lr) : ""));
-      return primary && primary === skill;
-    });
-    const skillAgg = aggregateSuccessRateLogs(skillLogs);
-    if(skillAgg.attempts >= 12){
-      const prior = betaPriorFromAggregate(skillAgg, "skill");
-      return {...prior, skill, label:`${skillLabel(skill)} skill prior`, logCount:skillLogs.length};
+    if(skill){
+      const skillLogs = (data.logs || []).filter(l => {
+        if(String(l.routineId || "") === excludeId) return false;
+        if((l.scoring || "success_rate") !== "success_rate") return false;
+        const lr = routineById(l.routineId);
+        const primary = normalizeSkillId(l.primarySkill || (lr ? routinePrimarySkillIdForPrior(lr) : ""));
+        return primary && primary === skill;
+      });
+      const skillAgg = aggregateSuccessRateLogs(skillLogs);
+      if(Number(skillAgg?.attempts || 0) >= 12){
+        const prior = betaPriorFromSuccessAggregate(skillAgg, "skill");
+        return {...prior, skill, label:`${skillLabel(skill)} skill prior`, logCount:skillLogs.length};
+      }
     }
     const globalLogs = (data.logs || []).filter(l => {
       if(String(l.routineId || "") === excludeId) return false;
       return (l.scoring || "success_rate") === "success_rate";
     });
     const globalAgg = aggregateSuccessRateLogs(globalLogs);
-    if(globalAgg.attempts >= 20){
-      const prior = betaPriorFromAggregate(globalAgg, "global");
+    if(Number(globalAgg?.attempts || 0) >= 20){
+      const prior = betaPriorFromSuccessAggregate(globalAgg, "global");
       return {...prior, skill, label:"User success-rate prior", logCount:globalLogs.length};
     }
-  }catch(e){ logAppError?.(e, "hierarchicalPriorForRoutine"); }
+  } catch(e) {
+    try { logAppError(e, "hierarchicalPriorForRoutine"); } catch(_) {}
+  }
   return {alpha:2, beta:2, mean:0.5, strength:4, source:"generic", label:"Generic prior", attempts:0, successes:0};
 }
 function betaPosteriorForRoutine(routine, agg, options={}){
-  const prior = hierarchicalPriorForRoutine(routine, options);
-  const posterior = betaPosterior(Number(agg?.successes || 0), Number(agg?.attempts || 0), prior.alpha, prior.beta);
-  posterior.hierarchicalPrior = prior;
-  return posterior;
+  try {
+    const prior = hierarchicalPriorForRoutine(routine, options);
+    const posterior = betaPosterior(Number(agg?.successes || 0), Number(agg?.attempts || 0), prior.alpha, prior.beta);
+    posterior.hierarchicalPrior = prior;
+    return posterior;
+  } catch(e) {
+    try { logAppError(e, "betaPosteriorForRoutine"); } catch(_) {}
+    const posterior = betaPosterior(Number(agg?.successes || 0), Number(agg?.attempts || 0));
+    posterior.hierarchicalPrior = {source:"generic", label:"Generic prior", attempts:0, successes:0, mean:0.5, strength:4};
+    return posterior;
+  }
 }
 function hierarchicalPriorReason(prior){
-  if(!prior) return "Hierarchical prior unavailable";
-  if(prior.source === "skill") return `Prior calibrated from ${skillLabel(prior.skill)} history (${numText(prior.attempts,"0")} effective attempts)`;
-  if(prior.source === "global") return `Prior calibrated from your overall success-rate history (${numText(prior.attempts,"0")} effective attempts)`;
-  return "Generic 50% prior used until more skill history exists";
+  if(!prior) return "Generic prior used until more history exists";
+  if(prior.source === "skill") return `Prior uses ${skillLabel(prior.skill)} history`;
+  if(prior.source === "global") return "Prior uses your overall success-rate history";
+  return "Generic 50% prior until more skill history exists";
 }
+/* ===== end v4.37.1 Hierarchical Bayesian Skill/Drill Priors ===== */
+
 function bayesianStatsForRoutine(routineId) {
   const r = routineById(routineId);
   if (!r || r.scoring !== "success_rate") return null;
@@ -1634,7 +1657,6 @@ function bayesianStatsForRoutine(routineId) {
   const policy = bayesianActionPolicy(signal, posterior, Number(r.target || 0));
   return {agg, posterior, reliability, signal, policy, hierarchicalPrior:posterior.hierarchicalPrior};
 }
-/* ===== end v4.37 Hierarchical Bayesian Skill/Drill Priors ===== */
 function applyLastScoreSetup() {
   if (!activeSession) return;
   const r = routineById(activeSession.routineIds[activeSession.index]);
@@ -4120,28 +4142,6 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-
-function hierarchicalPriorInsight(logs){
-  try {
-    const rows = activeRoutines()
-      .filter(r => r.scoring === "success_rate")
-      .map(r => {
-        const prior = hierarchicalPriorForRoutine(r);
-        const ownLogs = (data.logs || []).filter(l => l.routineId === r.id && l.scoring === "success_rate");
-        return {routine:r, prior, ownLogs};
-      })
-      .sort((a,b) => {
-        const sourceRank = src => src === "skill" ? 2 : src === "global" ? 1 : 0;
-        return sourceRank(b.prior.source) - sourceRank(a.prior.source) || Number(b.prior.attempts||0) - Number(a.prior.attempts||0);
-      })
-      .slice(0,3);
-    if(!rows.length) return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">Success-rate routines will inherit skill-family baselines once enough related logs exist.</div></div>`;
-    return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">New or low-sample drills now start from your related skill history rather than a fixed 50% assumption.</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(hierarchicalPriorReason(x.prior))}</span></span><strong>${formatPercent(x.prior.mean || 0.5)}</strong><span>${htmlText(x.prior.source)} prior</span></div>`).join("")}</div>`;
-  } catch(e) {
-    logAppError?.(e, "hierarchicalPriorInsight");
-    return `<div class="insight-card watch"><strong>Personalized priors</strong><div class="muted small">Personalized prior insight unavailable for this scope.</div></div>`;
-  }
-}
 /* ===== end v4.36.1 Bayesian Practice Optimization v1 ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
@@ -4178,7 +4178,6 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
   reasons.push(bayesianOptimizationReason({bayesianOptimization}));
-  if (stats.bayesian?.hierarchicalPrior) reasons.push(hierarchicalPriorReason(stats.bayesian.hierarchicalPrior));
   reasons.push(targetIntervalReasonForRoutine(routine));
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
@@ -4655,7 +4654,6 @@ function renderPhaseOneInsights() {
     ${dynamicDifficultyInsight(logs)}
     ${recommendationLearningInsight()}
     ${bayesianOptimizationInsight(logs)}
-    ${hierarchicalPriorInsight(logs)}
   </div>`;
 }
 
@@ -5136,8 +5134,7 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
     confidenceLabel = reliability.label;
     trueSkill = formatPercent(posterior.mean);
     interval = `${formatPercent(posterior.lower)}–${formatPercent(posterior.upper)}`;
-    const priorNote = hierarchicalPriorReason(posterior.hierarchicalPrior);
-    bayesHtml = `<div class="exercise-focus-action"><strong>${htmlText(policy.title)}</strong><p>${htmlText(policy.instruction)}</p><p class="muted small">${htmlText(priorNote)}</p></div>`;
+    bayesHtml = `<div class="exercise-focus-action"><strong>${htmlText(policy.title)}</strong><p>${htmlText(policy.instruction)}</p></div>`;
   }
   const bayes = r.scoring === "success_rate" ? bayesianStatsForRoutine(rid) : null;
   const uncertainty = bayes?.posterior ? (bayes.posterior.upper - bayes.posterior.lower) : 0;
@@ -7139,7 +7136,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.37.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.37.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
