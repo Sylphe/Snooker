@@ -2,7 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.36.3";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior } from "./inference.js?v=4.36.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.36.2";
+} from "./utils.js?v=4.36.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.36.2";
+} from "./settings.js?v=4.36.3";
 import {
   avg,
   stdDev,
@@ -56,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.36.2";
+} from "./analytics.js?v=4.36.3";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.36.2";
+} from "./bayesian.js?v=4.36.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.36.2";
+} from "./session.js?v=4.36.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.36.2";
+} from "./pressure.js?v=4.36.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.36.2";
+} from "./recommendations.js?v=4.36.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.36.2";
+} from "./store.js?v=4.36.3";
 
 
 
@@ -596,12 +597,11 @@ function skillPerformanceSummary(logs=(data.logs || []), window=120){
   return acc;
 }
 function evidenceStrength(n=0){
-  n = Number(n || 0);
-  if(n >= 20) return {level:"strong", label:"Strong evidence", factor:1.00};
-  if(n >= 10) return {level:"moderate", label:"Moderate evidence", factor:0.75};
-  if(n >= 5) return {level:"weak", label:"Weak evidence", factor:0.50};
-  if(n >= 2) return {level:"early", label:"Early signal", factor:0.30};
-  return {level:"insufficient", label:"Insufficient data", factor:0.15};
+  // v4.36.3: smooth Bayesian-style shrinkage instead of abrupt sample-size steps.
+  const e = smoothEvidence(n, { priorStrength: 8 });
+  // Keep a small display/action floor so early but non-empty signals remain visible without hard jumps.
+  const displayFloor = Number(n || 0) > 0 ? 0.12 : 0;
+  return {...e, factor: Math.max(displayFloor, Number(e.factor || 0))};
 }
 function evidenceBadge(n=0, extra=""){
   const e = evidenceStrength(n);
@@ -1193,7 +1193,7 @@ let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
 
-// v4.36.2 Focus-mode UX: local touch controls should avoid native keyboard friction.
+// v4.36.3 Focus-mode UX: local touch controls should avoid native keyboard friction.
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
@@ -1278,7 +1278,7 @@ let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "al
 
 function $(id) { return document.getElementById(id); }
 
-// v4.36.2 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
+// v4.36.3 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
 function safeOn(id, eventName, handler, options) {
   const el = typeof id === "string" ? $(id) : id;
   if (!el || typeof el.addEventListener !== "function") return false;
@@ -4033,23 +4033,25 @@ function gaussianRandom() {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 function routineEvidenceLabel(n) {
-  if (n >= 20) return "high evidence";
-  if (n >= 8) return "moderate evidence";
-  if (n >= 3) return "early evidence";
+  const e = evidenceStrength(n);
+  if (e.level === "strong") return "high evidence";
+  if (e.level === "moderate") return "moderate evidence";
+  if (e.level === "weak" || e.level === "early") return "early evidence";
   return "low evidence";
 }
 
-/* ===== v4.36.2 Bayesian Practice Optimization v1 ===== */
+/* ===== v4.36.3 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
 
 function bayesianOptimizationForProfile(profile){
   try {
     const n = Number(profile?.n || profile?.stats?.logs?.length || 0);
-    const uncertainty = clampNumber(profile?.uncertainty ?? (24 / Math.sqrt(n + 1)), 0, 40);
+    const uncertaintyFallback = 6 + 20 * (1 - shrinkageWeight(n, 8));
+    const uncertainty = clampNumber(profile?.uncertainty ?? uncertaintyFallback, 0, 40);
     const posterior = profile?.stats?.bayesian?.posterior || null;
     const posteriorWidth = posterior ? Math.max(0, Number(posterior.upper || 0) - Number(posterior.lower || 0)) : null;
     const evidence = evidenceStrength(n);
     const mean = Number(profile?.trainingValueMean ?? profile?.score ?? 0);
-    const explorationAllowance = evidence.factor < 0.25 ? 0.45 : evidence.factor < 0.55 ? 0.75 : 1;
+    const explorationAllowance = 0.40 + 0.60 * clampNumber(evidence.factor, 0, 1);
     const volatilityLevel = profile?.volatilityProfile?.level || profile?.contextualFit?.volatility?.level || "medium";
     const recoveryMode = profile?.stateMode?.mode === "recovery";
     let explorationBonus = uncertainty * 0.22 * explorationAllowance;
@@ -4094,7 +4096,7 @@ function bayesianOptimizationInsight(logs){
     return `<div class="insight-card watch"><strong>Bayesian optimization</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.36.2 Bayesian Practice Optimization v1 ===== */
+/* ===== end v4.36.3 Bayesian Practice Optimization v1 / Smooth Evidence ===== */
 
 function routineRecommendationProfile(routine, stats, strategy="balanced", focusOverride="all") {
   const stateMode = inferTrainingStateMode();
@@ -4103,7 +4105,8 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const vals = (stats.vals || []).filter(Number.isFinite);
   const volatility = routineVolatilityProfile(routine, stats);
   const days = stats.logs?.length ? daysSince(stats.logs[stats.logs.length-1].createdAt) : recommendationRecencyCap(routine);
-  const uncertainty = Math.max(4, Math.min(34, 24 / Math.sqrt(n + 1) + volatility.score * 0.18 + Math.min(8, days * 0.25)));
+  const sampleUncertainty = 6 + 18 * (1 - shrinkageWeight(n, 8));
+  const uncertainty = Math.max(4, Math.min(34, sampleUncertainty + volatility.score * 0.18 + Math.min(8, days * 0.25)));
   const weakness = stats.hit === null ? 10 : Math.max(0, 75 - Number(stats.hit || 0)) * 0.28;
   const undertraining = undertrainedCategoryBonus(routine.id) * recommendationUndertrainingMultiplier(routine);
   const context = stats.contextSignal || recommendationContextSignal(routine.id);
@@ -7088,7 +7091,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.36.3");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);

@@ -1,6 +1,6 @@
-# Snooker Practice PWA v4.36.2
+# Snooker Practice PWA v4.36.3
 
-## v4.36.2 — Bootstrap / Render Resilience Hardening
+## v4.36.3 — Smooth Evidence / Inference Utilities
 
 Built from the confirmed working v4.36.1 Bayesian Practice Optimization bootstrap-fix package.
 
@@ -20,6 +20,13 @@ Built from the confirmed working v4.36.1 Bayesian Practice Optimization bootstra
 - Syntax and duplicate-declaration checks performed during packaging.
 
 ### Build
-- Version: v4.36.2
-- Build timestamp: 2026-05-18 15:52 CEST
-- Cache/module refs: v4.36.2
+- Version: v4.36.3
+- Build timestamp: 2026-05-18 16:04 CEST
+- Cache/module refs: v4.36.3
+
+### v4.36.3 changes
+- Added new pure `modules/inference.js` utility module.
+- Replaced abrupt evidence step factors with smooth shrinkage-based weighting.
+- Reduced sample-size threshold jumps in recommendation confidence.
+- Optimizer uncertainty fallback now uses shrinkage weighting.
+- No storage, hydration, or session schema changes.
