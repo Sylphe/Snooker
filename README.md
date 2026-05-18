@@ -1,32 +1,23 @@
-# Snooker Practice PWA v4.30.0
+# Snooker Practice PWA v4.31.0
 
-## v4.30.0 — Change-Point Detection v1
+## v4.31.0 — Latent Current Form Estimate
 
-Build timestamp: 2026-05-18 11:18 CEST
+Build timestamp: 2026-05-18 11:39 CEST
 
-## Release focus
+v4.31.0 adds the first current-form layer on top of v4.30.0 Change-Point Detection. The app now separates recent form from long-term baseline and uses fatigue, confidence, focus, volatility, and recent score movement to estimate readiness.
 
-v4.30.0 adds the first change-point detection layer. The app now tries to distinguish meaningful performance shifts from ordinary volatility: possible breakthrough, possible slump, possible plateau, volatile/noisy state, or insufficient evidence.
+### Included
 
-## Added
-
-- Change-Point Detection v1 insight card on the Insights page.
-- Overall breakthrough / slump / plateau / volatility classification.
-- Skill-level change-point checks using the canonical skill tags added in v4.26.
-- Evidence-adjusted effect scoring so low-sample shifts are dampened before being shown as strong signals.
-- Skill-level shift wording that explains the recent window versus the prior baseline.
-- Guardrails against overreacting to noisy, high-volatility windows.
-
-## Updated
-
-- App version, build metadata, cache references, and service worker cache name updated to v4.30.0.
+- Latent Current Form Estimate insight card on the Insights page.
+- Current form versus long-term baseline separation.
+- Fatigue-adjusted form estimate using structured reflection ratings when available.
+- Confidence momentum tracking from recent reflections.
+- Skill-specific current-form rows using canonical skill tags.
+- Recommendation scoring now incorporates current form context.
+- Context-aware recommendation reasons now mention current form state.
+- App version, build metadata, cache references, and service worker cache name updated to v4.31.0.
 - Build timestamp remains in Europe/Paris local time with CET/CEST notation.
-- The Insights page now includes change-point detection alongside reflection intelligence, skill mapping, and the transfer model.
 
-## Notes
+### Notes
 
-This is still a pragmatic v1, not the full Bayesian latent-state model. It uses window comparisons, evidence dampening, and volatility checks to provide useful coaching signals without overclaiming.
-
-Next planned release:
-
-- v4.31 — Latent Current Form Estimate: separate current form from long-term skill and use fatigue/confidence/context to adjust readiness.
+This release does not replace the long-term skill model. It estimates short-term readiness so the app can distinguish temporary form changes from durable skill changes. The output is evidence-weighted and should guide practice architecture rather than act as a hard override.

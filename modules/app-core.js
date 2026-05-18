@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.30.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.31.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.30.0";
+} from "./utils.js?v=4.31.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.30.0";
+} from "./settings.js?v=4.31.0";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.30.0";
+} from "./analytics.js?v=4.31.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.30.0";
+} from "./bayesian.js?v=4.31.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.30.0";
+} from "./session.js?v=4.31.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.30.0";
+} from "./pressure.js?v=4.31.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.30.0";
+} from "./recommendations.js?v=4.31.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.30.0";
+} from "./store.js?v=4.31.0";
 
 
 
@@ -698,6 +698,100 @@ function changePointInsight(logs){
   </div>`;
 }
 /* ===== end v4.30.0 Change-Point Detection v1 ===== */
+
+
+/* ===== v4.31.0 Latent Current Form Estimate ===== */
+function linearSlope(values){
+  const vals=(values||[]).map(Number).filter(Number.isFinite);
+  if(vals.length<3) return 0;
+  const n=vals.length;
+  const xs=vals.map((_,i)=>i);
+  const mx=avg(xs), my=avg(vals);
+  const den=xs.reduce((a,x)=>a+Math.pow(x-mx,2),0)||1;
+  const num=vals.reduce((a,y,i)=>a+(xs[i]-mx)*(y-my),0);
+  return num/den;
+}
+function latestSessionReflectionForLogs(logs){
+  const ids=new Set((logs||[]).map(l=>l.sessionId).filter(Boolean));
+  return (data.sessions||[]).filter(s=>ids.has(s.id)&&s.reflection).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+}
+function reflectionRatingSeries(sessions, key){
+  return (sessions||[]).map(s=>Number(s.reflection?.[key] ?? s.reflection?.[key+"Rating"])).filter(Number.isFinite);
+}
+function estimateCurrentFormForLogs(logs, options={}){
+  const ordered=(logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const scores=ordered.map(l=>Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const minN=Number(options.minN||6);
+  if(scores.length<minN) return {state:"insufficient", label:"Insufficient form data", n:scores.length, detail:"Need more logs before separating current form from long-term level.", evidence:evidenceStrength(scores.length), index:null};
+  const recentN=Math.max(4, Math.min(8, Math.ceil(scores.length*0.35)));
+  const recent=scores.slice(-recentN);
+  const prior=scores.slice(0,-recentN);
+  const baseline=prior.length>=4 ? avg(prior) : avg(scores);
+  const recentAvg=avg(recent);
+  const rawDelta=recentAvg-baseline;
+  const volatility=stdDev(scores.slice(-Math.min(scores.length,12))) || 0;
+  const stability=Math.max(0.45, Math.min(1, 1-(volatility/55)));
+  const evidence=evidenceStrength(scores.length);
+  const sessions=latestSessionReflectionForLogs(ordered.slice(-Math.min(ordered.length,14)));
+  const confidenceVals=reflectionRatingSeries(sessions,"confidence");
+  const fatigueVals=reflectionRatingSeries(sessions,"fatigue");
+  const focusVals=reflectionRatingSeries(sessions,"focus");
+  const confidenceMomentum=confidenceVals.length>=3 ? linearSlope(confidenceVals.slice(-6)) : 0;
+  const fatigueAvg=fatigueVals.length ? avg(fatigueVals.slice(-6)) : null;
+  const focusAvg=focusVals.length ? avg(focusVals.slice(-6)) : null;
+  const fatiguePenalty=fatigueAvg!==null && fatigueAvg>3 ? (fatigueAvg-3)*2.2 : 0;
+  const focusBonus=focusAvg!==null && focusAvg>=4 ? 1.2 : focusAvg!==null && focusAvg<=2.5 ? -1.5 : 0;
+  const adjustedDelta=(rawDelta + confidenceMomentum*2.5 + focusBonus - fatiguePenalty) * evidence.factor * stability;
+  let state="stable", label="Stable form";
+  if(adjustedDelta>=5) { state="positive"; label="Positive current form"; }
+  else if(adjustedDelta<=-5) { state="negative"; label="Negative current form"; }
+  else if(volatility>=24) { state="volatile"; label="Unstable form"; }
+  const direction=rawDelta>=0?"above":"below";
+  const fatigueTxt=fatigueAvg!==null?` Fatigue-adjusted (${fatigueAvg.toFixed(1)}/5 recent fatigue).`:"";
+  return {state,label,n:scores.length,baseline,recentAvg,rawDelta,adjustedDelta,volatility,confidenceMomentum,fatigueAvg,focusAvg,evidence,index:Math.round(50+adjustedDelta*2), detail:`Recent form is ${Math.abs(rawDelta).toFixed(1)} pts ${direction} long-term baseline (${recentAvg.toFixed(1)} vs ${baseline.toFixed(1)}). ${evidence.label}.${fatigueTxt}`};
+}
+function skillCurrentFormRows(logs){
+  const rows={};
+  (logs||[]).slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(log=>{
+    const weights=routineSkillWeights(log);
+    Object.entries(weights).forEach(([skill,weight])=>{
+      if(!skill || skill==="uncategorized" || Number(weight||0)<=0) return;
+      (rows[skill]||(rows[skill]={skill,logs:[]})).logs.push(log);
+    });
+  });
+  return Object.values(rows).map(x=>({skill:x.skill, form:estimateCurrentFormForLogs(x.logs,{minN:5})}))
+    .filter(x=>x.form.state!=="insufficient")
+    .sort((a,b)=>Math.abs(b.form.adjustedDelta||0)-Math.abs(a.form.adjustedDelta||0))
+    .slice(0,4);
+}
+function currentFormInsight(logs){
+  const form=estimateCurrentFormForLogs(logs||[]);
+  const rows=skillCurrentFormRows(logs||[]);
+  const cls=form.state==="positive"?"good":form.state==="negative"?"risk":"watch";
+  return `<div class="insight-card ${cls}"><strong>Latent current form estimate</strong>
+    <div class="context-row"><span>Current form</span><strong>${htmlText(form.label)}</strong><span>${form.index===null?"N/A":form.index+"/100"}</span></div>
+    <div class="adaptive-rationale">${htmlText(form.detail)}</div>
+    ${form.confidenceMomentum?`<div class="context-row"><span>Confidence momentum</span><strong>${form.confidenceMomentum>=0?"+":""}${form.confidenceMomentum.toFixed(2)}</strong><span>recent reflection slope</span></div>`:""}
+    ${rows.length?`<div class="adaptive-rationale"><strong>Skill-specific form:</strong></div>${rows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.form.detail)}</span></span><strong>${htmlText(x.form.label)}</strong><span>${x.form.index}/100</span></div>`).join("")}`:`<div class="muted">No reliable skill-specific form estimate yet.</div>`}
+    <div class="adaptive-rationale">Current form is separated from long-term skill so recommendations can react to temporary fatigue, confidence, or rhythm changes without rewriting baseline ability.</div>
+  </div>`;
+}
+function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentFormForLogs(data.logs||[])){
+  const map=getRoutineSkillMap(routine);
+  const skills=[map.primarySkill,...(map.secondarySkills||[]),...(map.transferTags||[])].filter(Boolean);
+  let score=0; const reasons=[];
+  if(globalForm.state==="negative"){
+    const preserving=skills.some(s=>["cueing","pace_control","confidence_stability","focus_consistency"].includes(s));
+    if(preserving){ score+=5; reasons.push("current form recovery fit"); }
+    if(skills.includes("pressure_resilience")){ score-=4; reasons.push("reduced pressure load while form is weak"); }
+  } else if(globalForm.state==="positive"){
+    if(skills.some(s=>["break_building","pressure_resilience","positional_play","transition_play"].includes(s))){ score+=5; reasons.push("positive form supports progression test"); }
+  } else if(globalForm.state==="volatile"){
+    if(routine?.isAnchor || skills.includes("cueing") || skills.includes("pace_control")){ score+=4; reasons.push("stabilizes volatile form"); }
+  }
+  return {score,reasons,form:globalForm};
+}
+/* ===== end v4.31.0 Latent Current Form Estimate ===== */
 
 function transferNeedScoreForRoutine(routine, skillSummary=skillPerformanceSummary()){
   const profile = routineGraphTransferProfile(routine);
@@ -3058,7 +3152,10 @@ function contextualFitForRoutine(routine, stats, stateModeObj=inferTrainingState
     if (transfer >= 65) { score += 8; reasons.push("consolidation transfer value"); }
     if (volatility.level === "medium") { score += 3; reasons.push("controlled variability"); }
   }
-  return {score:Math.round(score), reasons, volatility, energy, stateMode:stateModeObj, transfer};
+  const formAdj = currentFormAdjustmentForRoutine(routine);
+  score += formAdj.score;
+  reasons.push(...formAdj.reasons);
+  return {score:Math.round(score), reasons, volatility, energy, stateMode:stateModeObj, transfer, currentForm:formAdj.form};
 }
 function buildContextAwareReason(profile) {
   const fit = profile?.contextualFit;
@@ -3067,6 +3164,7 @@ function buildContextAwareReason(profile) {
   bits.push(`${fit.stateMode.label} mode: ${fit.stateMode.reason}`);
   bits.push(`volatility ${fit.volatility.level}`);
   bits.push(`transfer ${fit.transfer}/100`);
+  if (fit.currentForm?.label) bits.push(`form ${fit.currentForm.label.toLowerCase()}`);
   if (profile?.transferNeed?.score) bits.push(`graph need +${profile.transferNeed.score}`);
   if (fit.reasons?.length) bits.push(fit.reasons.slice(0,2).join(" · "));
   return bits.join(" · ");
@@ -3824,6 +3922,7 @@ function renderPhaseOneInsights() {
     ${skillMapInsight(logs)}
     ${transferModelInsight(logs)}
     ${changePointInsight(logs)}
+    ${currentFormInsight(logs)}
   </div>`;
 }
 
@@ -6259,7 +6358,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.30.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.31.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
