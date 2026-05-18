@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.41.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.41.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.42.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.42.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.41.0";
+} from "./utils.js?v=4.42.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.41.0";
+} from "./settings.js?v=4.42.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.41.0";
+} from "./analytics.js?v=4.42.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.41.0";
+} from "./bayesian.js?v=4.42.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.41.0";
+} from "./session.js?v=4.42.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.41.0";
+} from "./pressure.js?v=4.42.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.41.0";
+} from "./recommendations.js?v=4.42.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.41.0";
+} from "./store.js?v=4.42.0";
 
 
 
@@ -653,7 +653,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+/* ===== v4.42.0 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -749,9 +749,118 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+/* ===== end v4.42.0 Adaptive Session Periodization ===== */
 
-/* ===== v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+
+/* ===== v4.42.0 Adaptive Session Periodization ===== */
+const PERIODIZATION_BLOCK_TARGETS = {
+  acquisition: 0.24,
+  consolidation: 0.24,
+  pressure: 0.16,
+  recovery: 0.14,
+  maintenance: 0.22
+};
+function periodizationBlockForRoutine(routine){
+  try{
+    const skills = Object.keys(routineSkillWeights(routine || {}));
+    const name = String(routine?.name || "").toLowerCase();
+    const cat = String(routine?.category || "").toLowerCase();
+    if(skills.includes("pressure_resilience") || name.includes("pressure") || cat.includes("pressure")) return "pressure";
+    if(skills.includes("confidence_stability") || skills.includes("cueing") || skills.includes("pace_control") || routine?.isAnchor) return "recovery";
+    if(skills.includes("break_building") || skills.includes("transition_play") || skills.includes("positional_play")) return "consolidation";
+    if(skills.includes("cue_ball_control") || skills.includes("long_potting") || skills.includes("rest_play") || skills.includes("safety")) return "acquisition";
+    return "maintenance";
+  }catch(e){
+    logAppError?.(e, "periodizationBlockForRoutine");
+    return "maintenance";
+  }
+}
+function periodizationBlockForLog(log){
+  const r = routineById(log?.routineId) || log || {};
+  return periodizationBlockForRoutine(r);
+}
+function periodizationBlockLabel(block){
+  return ({acquisition:"Acquisition", consolidation:"Consolidation", pressure:"Pressure", recovery:"Recovery", maintenance:"Maintenance"})[block] || "Maintenance";
+}
+function adaptiveSessionPeriodizationSummary(logs=(data.logs || []), options={}){
+  try{
+    const horizonDays = Number(options.horizonDays || 7);
+    const now = Date.now();
+    const recent = (logs || []).filter(l => {
+      const t = new Date(l.createdAt || 0).getTime();
+      return Number.isFinite(t) && (now - t) / 86400000 <= horizonDays;
+    });
+    const blockCounts = {acquisition:0, consolidation:0, pressure:0, recovery:0, maintenance:0};
+    const blockMinutes = {acquisition:0, consolidation:0, pressure:0, recovery:0, maintenance:0};
+    recent.forEach(log => {
+      const block = periodizationBlockForLog(log);
+      const minutes = Math.max(1, Number(log.durationMin || log.minutes || log.duration || 1));
+      blockCounts[block] = (blockCounts[block] || 0) + 1;
+      blockMinutes[block] = (blockMinutes[block] || 0) + minutes;
+    });
+    const total = Object.values(blockMinutes).reduce((a,b)=>a+Number(b||0),0) || Object.values(blockCounts).reduce((a,b)=>a+Number(b||0),0) || 0;
+    const rows = Object.keys(PERIODIZATION_BLOCK_TARGETS).map(block => {
+      const actual = total ? Number(blockMinutes[block] || 0) / total : 0;
+      const target = PERIODIZATION_BLOCK_TARGETS[block];
+      const gap = target - actual;
+      const need = Math.max(0, gap) * 100;
+      let state = "balanced";
+      if(gap >= 0.12) state = "underweighted";
+      else if(gap <= -0.12) state = "overweighted";
+      return {block, label:periodizationBlockLabel(block), target, actual, gap, need, state, count:blockCounts[block] || 0, minutes:blockMinutes[block] || 0};
+    }).sort((a,b)=>b.need-a.need);
+    const topNeeds = rows.filter(r=>r.need >= 5).slice(0,3);
+    const maintenance = skillDecayAndMaintenanceSummary(logs || data.logs || []);
+    const hasMaintenancePressure = (maintenance.rows || []).some(r=>Number(r.score||0) >= 25);
+    const weeklyTheme = topNeeds[0]?.block || (hasMaintenancePressure ? "maintenance" : "consolidation");
+    return {rows, topNeeds, weeklyTheme, horizonDays, totalMinutes:total, recentLogs:recent.length, hasMaintenancePressure};
+  }catch(e){
+    logAppError?.(e, "adaptiveSessionPeriodizationSummary");
+    return {rows:[], topNeeds:[], weeklyTheme:"consolidation", horizonDays:Number(options.horizonDays || 7), totalMinutes:0, recentLogs:0, error:true};
+  }
+}
+function periodizationFitForRoutine(routine, summary=null){
+  try{
+    const p = summary || adaptiveSessionPeriodizationSummary(data.logs || []);
+    const block = periodizationBlockForRoutine(routine);
+    const row = (p.rows || []).find(r=>r.block === block);
+    const blockNeed = row ? Math.max(0, Number(row.gap || 0)) * 100 : 0;
+    const maintenance = maintenanceFitForRoutine(routine);
+    let score = blockNeed * 0.55;
+    const reasons = [];
+    if(row?.state === "underweighted") reasons.push(`${periodizationBlockLabel(block)} underweighted this week`);
+    if(block === p.weeklyTheme) { score += 4; reasons.push(`weekly theme: ${periodizationBlockLabel(block)}`); }
+    if(block === "maintenance" && Number(maintenance.score || 0) >= 8) { score += Math.min(10, Number(maintenance.score || 0) * 0.25); reasons.push("maintenance pressure"); }
+    if(block === "recovery"){
+      const mode = inferTrainingStateMode();
+      if(mode?.mode === "recovery") { score += 6; reasons.push("recovery state fit"); }
+    }
+    return {score:Math.round(score*10)/10, block, row, weeklyTheme:p.weeklyTheme, reasons:[...new Set(reasons)].slice(0,3)};
+  }catch(e){
+    logAppError?.(e, "periodizationFitForRoutine");
+    return {score:0, block:"maintenance", row:null, weeklyTheme:"consolidation", reasons:[]};
+  }
+}
+function periodizationReasonForRoutine(routine, fit=null){
+  const f = fit || periodizationFitForRoutine(routine);
+  if(!f || Number(f.score || 0) <= 0) return "periodization: balanced weekly mix";
+  return `periodization: ${periodizationBlockLabel(f.block)} block fit${f.reasons.length ? ` (${f.reasons.join(" · ")})` : ""}`;
+}
+function adaptiveSessionPeriodizationInsight(logs){
+  try{
+    const summary = adaptiveSessionPeriodizationSummary(logs || data.logs || []);
+    const rows = (summary.rows || []).slice().sort((a,b)=>b.need-a.need).slice(0,5);
+    if(!summary.recentLogs) return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">No recent logs in the 7-day window. Next week should start with acquisition and calibration blocks before pressure work.</div></div>`;
+    const theme = periodizationBlockLabel(summary.weeklyTheme);
+    return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Week-level balance across acquisition, consolidation, pressure, recovery, and maintenance. Current weekly theme: ${htmlText(theme)}.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(r.label)}<br><span class="muted">actual ${(r.actual*100).toFixed(0)}% · target ${(r.target*100).toFixed(0)}%</span></span><strong>${htmlText(r.state === "underweighted" ? "Add" : r.state === "overweighted" ? "Reduce" : "Balanced")}</strong><span>${htmlText(r.minutes ? `${Math.round(r.minutes)}m` : `${r.count} logs`)}</span></div>`).join("")}${summary.topNeeds.length ? `<div class="adaptive-rationale"><strong>Next-session bias:</strong> ${summary.topNeeds.map(r=>htmlText(r.label)).join(" · ")}</div>` : `<div class="adaptive-rationale">Weekly training mix is broadly balanced. Use recommendations for skill-specific prioritization.</div>`}</div>`;
+  }catch(e){
+    logAppError?.(e, "adaptiveSessionPeriodizationInsight");
+    return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
+  }
+}
+/* ===== end v4.42.0 Adaptive Session Periodization ===== */
+
+/* ===== v4.42.0 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -838,7 +947,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.41.0 Skill Decay & Maintenance Scheduler ===== */
+/* ===== end v4.42.0 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -4370,11 +4479,12 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const learning = recommendationLearningProfile(routine.id);
   const contextNormalization = routineContextNormalizationSignal(routine);
   const maintenanceFit = maintenanceFitForRoutine(routine);
+  const periodizationFit = periodizationFitForRoutine(routine);
   let explorationBonus = uncertainty * 0.28;
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(maintenanceFit.score || 0) * 0.45;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
   const thompsonSampling = thompsonRecommendationSample({
@@ -4398,6 +4508,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(contextNormalizationReasonForRoutine(routine));
   reasons.push(difficultyAdjustmentReasonForRoutine(routine));
   if (Number(maintenanceFit.score || 0) >= 8) reasons.push(maintenanceReasonForRoutine(routine, maintenanceFit));
+  if (Number(periodizationFit.score || 0) >= 5) reasons.push(periodizationReasonForRoutine(routine, periodizationFit));
   if (uncertainty >= 16) reasons.unshift("exploration upside: uncertain but worth sampling");
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
@@ -4405,7 +4516,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(maintenanceFit.score || 0) * 0.35 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
     thompsonSampling,
@@ -4423,6 +4534,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     learningSignal:learning,
     contextNormalization,
     maintenanceFit,
+    periodizationFit,
     reasons:[...new Set(reasons.filter(Boolean))]
   };
 }
@@ -4867,6 +4979,7 @@ function renderPhaseOneInsights() {
     ${reflectionIntelligenceSummary(logs)}
     ${skillMapInsight(logs)}
     ${maintenanceSchedulerInsight(logs)}
+    ${adaptiveSessionPeriodizationInsight(logs)}
     ${transferModelInsight(logs)}
     ${changePointInsight(logs)}
     ${currentFormInsight(logs)}
@@ -7357,7 +7470,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.41.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.42.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
