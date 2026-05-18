@@ -1,10 +1,15 @@
-# Snooker Practice PWA v4.27.0
+# Snooker Practice PWA v4.27.1
 
-Build timestamp: 2026-05-18 09:47 CEST
+## v4.27.1 — Recommendation feedback toggle + undo
+
+This patch makes recommendation feedback reversible. Accept and Skip now behave as toggles: selecting the active state clears it, selecting the opposite state replaces the prior open feedback state, and each change shows an undo toast. Completion tracking now only completes currently active accepted recommendations, so an accepted recommendation that was later skipped or cleared is no longer incorrectly marked as completed by a future log.
+
+
+Build timestamp: 2026-05-18 10:06 CEST
 
 ## Release focus
 
-v4.27.0 upgrades the Smart Session Builder from a drill picker into a practice architect. The builder now structures a session around energy budgets, block sequencing, transfer value, recovery-mode constraints, and recommendation feedback tracking.
+v4.27.1 upgrades the Smart Session Builder from a drill picker into a practice architect. The builder now structures a session around energy budgets, block sequencing, transfer value, recovery-mode constraints, and recommendation feedback tracking.
 
 ## Added
 
@@ -23,7 +28,7 @@ v4.27.0 upgrades the Smart Session Builder from a drill picker into a practice a
 - Adaptive scoring now blends existing heuristic/Bayesian signals with transfer value and energy load.
 - Session blocks are now explicitly labelled by purpose, making the generated plan easier to follow during practice.
 - Recommendation rows include transfer value and load indicators.
-- App version and cache-busting references updated to v4.27.0.
+- App version and cache-busting references updated to v4.27.1.
 - Build metadata updated in `modules/version.js` and the home screen.
 - Service worker cache name updated for the new release.
 - Build timestamps remain in Europe/Paris local time with CET/CEST notation.

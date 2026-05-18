@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.27.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.27.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,7 +16,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.27.0";
+} from "./utils.js?v=4.27.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -34,7 +34,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.27.0";
+} from "./settings.js?v=4.27.1";
 import {
   avg,
   stdDev,
@@ -56,7 +56,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.27.0";
+} from "./analytics.js?v=4.27.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -65,7 +65,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.27.0";
+} from "./bayesian.js?v=4.27.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -74,7 +74,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.27.0";
+} from "./session.js?v=4.27.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -82,7 +82,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.27.0";
+} from "./pressure.js?v=4.27.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -94,7 +94,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.27.0";
+} from "./recommendations.js?v=4.27.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -106,7 +106,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.27.0";
+} from "./store.js?v=4.27.1";
 
 
 
@@ -2780,20 +2780,74 @@ function recommendationFeedbackSummary(routineId="") {
   const counts = rows.reduce((acc,x)=>{ acc[x.action]=(acc[x.action]||0)+1; return acc; },{});
   return {rows, counts, accepted:counts.accepted||0, skipped:counts.skipped||0, completed:counts.completed||0};
 }
+function latestOpenRecommendationFeedbackIndex(routineId, source="smart_session_builder") {
+  const rows = ensureRecommendationFeedbackStore();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const x = rows[i];
+    if (x?.routineId !== routineId) continue;
+    if ((x.source || "smart_session_builder") !== source) continue;
+    if (!["accepted", "skipped"].includes(x.action)) continue;
+    if (x.supersededAt || x.toggledOffAt || x.scoreAfter !== null) continue;
+    return i;
+  }
+  return -1;
+}
+function currentRecommendationFeedbackStatus(routineId, source="smart_session_builder") {
+  const idx = latestOpenRecommendationFeedbackIndex(routineId, source);
+  return idx >= 0 ? ensureRecommendationFeedbackStore()[idx].action : null;
+}
 function trackRecommendationFeedback(routineId, action, meta={}) {
+  if (!routineId || !["accepted", "skipped"].includes(action)) return;
+  const source = meta.source || "smart_session_builder";
+  const rows = ensureRecommendationFeedbackStore();
   const r = routineById(routineId);
   const beforeLogs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   const beforeScore = beforeLogs.length ? Number(beforeLogs[0].normalizedScore || normalizeScore(beforeLogs[0]) || 0) : null;
-  ensureRecommendationFeedbackStore().push({
-    id:uuid(), routineId, routineName:r?.name || "", action, source:meta.source || "smart_session_builder", createdAt:new Date().toISOString(), scoreBefore:beforeScore,
-    scoreAfter:null, improvementAfterRecommendation:null, appVersion:APP_VERSION
-  });
-  saveData({render:"none", immediateIDB:true});
-  showTransientNotice(action === "accepted" ? "Recommendation accepted." : action === "skipped" ? "Recommendation skipped." : "Recommendation feedback recorded.", action === "skipped" ? "warn" : "ok");
+  const now = new Date().toISOString();
+  const previousIndex = latestOpenRecommendationFeedbackIndex(routineId, source);
+  const previousSnapshot = previousIndex >= 0 ? {...rows[previousIndex]} : null;
+  let newRowId = null;
+  let message = "Recommendation feedback recorded.";
+  let tone = action === "skipped" ? "warn" : "ok";
+  if (previousIndex >= 0 && rows[previousIndex].action === action) {
+    rows[previousIndex].toggledOffAt = now;
+    rows[previousIndex].supersededAt = now;
+    rows[previousIndex].supersededByAction = "cleared";
+    message = action === "accepted" ? "Recommendation acceptance cleared." : "Recommendation skip cleared.";
+    tone = "info";
+  } else {
+    if (previousIndex >= 0) {
+      rows[previousIndex].supersededAt = now;
+      rows[previousIndex].supersededByAction = action;
+    }
+    const row = {
+      id:uuid(), routineId, routineName:r?.name || "", action, source, createdAt:now, scoreBefore:beforeScore,
+      scoreAfter:null, improvementAfterRecommendation:null, appVersion:APP_VERSION
+    };
+    newRowId = row.id;
+    rows.push(row);
+    message = action === "accepted" ? "Recommendation accepted." : "Recommendation skipped.";
+  }
+  const undo = () => {
+    const store = ensureRecommendationFeedbackStore();
+    if (newRowId) {
+      const idx = store.findIndex(x => x.id === newRowId);
+      if (idx >= 0) store.splice(idx, 1);
+    }
+    if (previousSnapshot) {
+      const idx = store.findIndex(x => x.id === previousSnapshot.id);
+      if (idx >= 0) store[idx] = previousSnapshot;
+      else store.push(previousSnapshot);
+    }
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice("Recommendation feedback restored.", "ok");
+  };
+  saveData({render:"all", immediateIDB:true});
+  showTransientNotice(message, tone, {label:"Undo", handler:undo});
 }
 function updateRecommendationCompletionFromLog(log) {
   if (!log?.routineId) return;
-  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === log.routineId && x.action === "accepted" && x.scoreAfter === null).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === log.routineId && x.action === "accepted" && x.scoreAfter === null && !x.supersededAt && !x.toggledOffAt).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   const row = rows[0];
   if (!row) return;
   row.action = "completed";
@@ -2803,7 +2857,10 @@ function updateRecommendationCompletionFromLog(log) {
 }
 function renderFeedbackButtons(routineId, source="smart_session_builder") {
   if (!routineId) return "";
-  return `<div class="row compact-action-row recommendation-feedback-row"><button type="button" class="secondary" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="accepted" data-source="${attrText(source)}">Accept</button><button type="button" class="secondary" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="skipped" data-source="${attrText(source)}">Skip</button></div>`;
+  const status = currentRecommendationFeedbackStatus(routineId, source);
+  const acceptActive = status === "accepted" ? " active" : "";
+  const skipActive = status === "skipped" ? " active" : "";
+  return `<div class="row compact-action-row recommendation-feedback-row"><button type="button" class="secondary recommendation-feedback-btn${acceptActive}" aria-pressed="${status === "accepted" ? "true" : "false"}" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="accepted" data-source="${attrText(source)}">${status === "accepted" ? "Accepted" : "Accept"}</button><button type="button" class="secondary recommendation-feedback-btn${skipActive}" aria-pressed="${status === "skipped" ? "true" : "false"}" data-action="recommendation-feedback" data-id="${attrText(routineId)}" data-feedback="skipped" data-source="${attrText(source)}">${status === "skipped" ? "Skipped" : "Skip"}</button></div>`;
 }
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
@@ -2990,7 +3047,7 @@ function clearPersistedActiveSession() {
   return clearActiveSessionDraft(ACTIVE_SESSION_KEY, logAppError);
 }
 
-function showTransientNotice(message, tone="info") {
+function showTransientNotice(message, tone="info", action=null) {
   let el = $("appToast");
   if (!el) {
     el = document.createElement("div");
@@ -2999,10 +3056,16 @@ function showTransientNotice(message, tone="info") {
     document.body.appendChild(el);
   }
   el.className = `app-toast ${tone === "ok" ? "ok" : tone === "warn" ? "warn" : ""}`;
-  el.textContent = message;
+  el.innerHTML = `<span>${escapeHtml(message)}</span>${action && typeof action.handler === "function" ? `<button type="button" class="toast-undo-btn">${escapeHtml(action.label || "Undo")}</button>` : ""}`;
+  const btn = el.querySelector(".toast-undo-btn");
+  if (btn) btn.addEventListener("click", () => {
+    try { action.handler(); }
+    catch(e) { logAppError?.(e, "toast undo handler"); }
+    el.classList.remove("show");
+  }, {once:true});
   el.classList.add("show");
   window.clearTimeout(showTransientNotice._timer);
-  showTransientNotice._timer = window.setTimeout(() => el.classList.remove("show"), 1800);
+  showTransientNotice._timer = window.setTimeout(() => el.classList.remove("show"), action ? 4200 : 1800);
 }
 
 function createDefaultQuickStartPlan() {
@@ -5810,7 +5873,7 @@ $("installBtn").addEventListener("click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.27.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.27.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -7606,7 +7669,7 @@ function renderRecommendationDiagnostics(candidates){
 
 
 
-/* ===== v4.27.0 Unified Recommendation Foundation ===== */
+/* ===== v4.27.1 Unified Recommendation Foundation ===== */
 function derivePerformanceSignal(log, routine){
   const attempts = Number(log?.effectiveAttempts || log?.attempts || log?.totalAttempts || 0);
   const score = Number(log?.score || 0);
@@ -7731,7 +7794,7 @@ function renderDataQualityAudit(){
       </div>
     `).join('');
 }
-/* ===== end v4.27.0 Unified Recommendation Foundation ===== */
+/* ===== end v4.27.1 Unified Recommendation Foundation ===== */
 
 
 document.addEventListener("click", function(e){

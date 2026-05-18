@@ -2656,7 +2656,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 
 
-/* v4.27.0 Thompson recommendation logic */
+/* v4.27.1 Thompson recommendation logic */
 .recommendation-logic-panel{margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-soft, rgba(127,127,127,.06));}
 .recommendation-logic-panel h4{margin:.1rem 0 .35rem 0;}
 .recommendation-candidate-list{display:grid;gap:.45rem;margin-top:.5rem;}
@@ -2697,7 +2697,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .dq-medium{border-left:4px solid #d9b36b;}
 .dq-low{border-left:4px solid #7f8fa6;}
 
-/* v4.27.0 Reflection rating tile UX */
+/* v4.27.1 Reflection rating tile UX */
 .skill-badge{border-style:dashed;}
 .reflection-rating-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0;}
 .reflection-rating-card{min-width:0;}
@@ -2710,7 +2710,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 @media (max-width: 520px){.reflection-rating-grid{grid-template-columns:1fr;}.reflection-rating-tile{min-height:42px;}}
 
 
-/* v4.27.0 Canonical skill tag chip selector */
+/* v4.27.1 Canonical skill tag chip selector */
 .skill-chip-grid{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
 .skill-chip-section{border:1px solid var(--border, rgba(148,163,184,.28));border-radius:12px;padding:10px;background:var(--panel-soft, rgba(148,163,184,.08));}
 .skill-chip-heading{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted, #64748b);margin-bottom:8px;}
@@ -2719,7 +2719,7 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 .skill-select-chip.active,.skill-select-chip[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent, #7aa2ff) inset;font-weight:700;}
 @media (max-width:520px){.skill-select-chip{padding:9px 11px;}}
 
-/* v4.27.0 Smart Session Builder v2 */
+/* v4.27.1 Smart Session Builder v2 */
 .smart-budget-grid{
   display:flex;
   flex-wrap:wrap;
@@ -2741,4 +2741,33 @@ body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-
 }
 .recommendation-feedback-row button{
   min-height:36px;
+}
+
+/* v4.27.1 Recommendation feedback toggle + undo toast */
+.app-toast{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  pointer-events:none;
+}
+.app-toast.show{
+  pointer-events:auto;
+}
+.toast-undo-btn{
+  border:1px solid var(--line);
+  background:var(--chip-bg, rgba(255,255,255,.08));
+  color:var(--text);
+  border-radius:999px;
+  padding:5px 10px;
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+}
+.recommendation-feedback-btn.active,
+.recommendation-feedback-row button.active{
+  border-color:var(--accent);
+  background:var(--accent-soft, rgba(74,144,226,.16));
+  color:var(--accent-strong, var(--text));
+  font-weight:800;
 }
