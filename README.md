@@ -1,27 +1,40 @@
-# Snooker Practice PWA v4.32.2
+# Snooker Practice PWA v4.33.0
 
-## v4.32.2 — Target Credible Intervals Stability + Data Integrity Cleanup
+## v4.33.0 — Dynamic Difficulty Adjustment v1
 
-Build timestamp: 2026-05-18 13:37 CEST (Europe/Paris).
+Build timestamp: 2026-05-18 13:44 CEST (Europe/Paris).
 
-This release is a stability and data-integrity checkpoint on top of v4.32.1. It keeps the Target Credible Intervals / Bayesian Calibration v1 feature set, while tightening validation and analytics safeguards before reintroducing v4.33 Dynamic Difficulty Adjustment.
+This release is built from the stable v4.32.2 checkpoint and reintroduces Dynamic Difficulty Adjustment with bootstrap-safety precautions.
 
-### Changes
+### Added
 
-- Added safe score extraction for target credible interval calculations.
-- Wrapped target interval calculations, recommendation target reasons, and the target interval insight card in defensive guards.
-- Malformed legacy logs are skipped for target-range calculations instead of throwing inside `renderAll()`.
-- Removed duplicated unused `renderRecommendationDiagnostics()` helpers from module files and the service worker; the app-core definition is retained.
-- Removed the unused `completedLogs` property from synthetic pressure-session records; pressure sessions continue to persist `logIds`.
-- Added bounded progressive-completion validation so average units, best attempt, completions, and highest break cannot exceed logical limits.
-- Enforced whole-number validation for count-based fields such as attempts, made balls, completions, highest break, and side scores in success-rate mode.
-- Replaced flat target-upgrade bumps with scoring-type-aware scaling and caps for success-rate and progressive-completion drills.
-- Added safe zero-denominator percentage-change handling for drift, plateau, and fatigue calculations.
-- Improved new-routine volatility fallback by using global user volatility where available instead of a fixed arbitrary value.
-- Updated app version, build metadata, module query strings, and service worker cache name to v4.32.2.
+- Dynamic Difficulty Adjustment v1 insight card.
+- Progress / regress / maintain / stabilize / preserve-confidence difficulty states.
+- Target hit-rate bands for progression and regression guidance.
+- Credible-interval guardrails before target progression.
+- Current-form and fatigue guardrails before adding difficulty or pressure.
+- Volatility guardrail before progression.
+- One-step-only difficulty recommendations: raise target, add pressure, or simplify setup, but not multiple changes at once.
+- Recommendation reasons now include difficulty guidance.
 
-### Notes
+### Stability precautions
 
-This build intentionally does not include v4.33 Dynamic Difficulty Adjustment. It is designed as a clean v4.32 checkpoint before reintroducing v4.33 logic.
+- Dynamic difficulty calculations are fully guarded with `try/catch`.
+- Score extraction uses safe normalization to avoid render-path crashes from malformed legacy logs.
+- No v4.33 logic executes at module top level.
+- If DDA cannot compute, the app displays an unavailable state instead of breaking bootstrap.
+- Service worker cache name, module query strings, and build metadata are aligned to v4.33.0.
 
-Local-first PWA. No account. No backend. Export JSON backups regularly.
+### Preserved from v4.32.2
+
+- Target credible intervals.
+- Low-N shrinkage.
+- Progressive-completion bounds validation.
+- Whole-number validation for count-based fields.
+- Zero-denominator-safe analytics.
+- Improved volatility fallback.
+
+### Validation
+
+- JavaScript syntax checks passed.
+- Zip integrity check passed.
