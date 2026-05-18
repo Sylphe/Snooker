@@ -2932,3 +2932,465 @@ body.session-focus-active #timerDisplay{
   .skill-manager-row { flex-direction: column; }
   .skill-manager-row .small-actions { justify-content: flex-start; }
 }
+
+
+/* v5.1.0 Mobile navigation redesign — part 1 */
+.mobile-bottom-nav{display:none}
+.library-quick-nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+.practice-command-card{border:1px solid var(--line);background:var(--card)}
+.practice-command-grid{display:grid;grid-template-columns:1.2fr .9fr;gap:1rem;align-items:center}
+.practice-command-grid .eyebrow{margin:0 0 .25rem;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.practice-command-grid h2{margin:.1rem 0 .25rem}
+.practice-command-actions{display:flex;flex-direction:column;gap:.5rem;align-items:stretch}
+.resume-inline{display:flex;flex-direction:column;gap:.15rem;border-radius:14px;background:rgba(16,43,34,.045);padding:.75rem;color:var(--text)}
+.resume-inline span{font-size:.86rem;color:var(--muted)}
+@media (max-width:760px){
+  body{padding-bottom:74px}
+  .tabs{display:none!important}
+  .mobile-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:90;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:.35rem max(.35rem,env(safe-area-inset-left)) calc(.35rem + env(safe-area-inset-bottom)) max(.35rem,env(safe-area-inset-right));background:rgba(250,251,248,.96);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.08);backdrop-filter:blur(12px)}
+  [data-theme="dark"] .mobile-bottom-nav,[data-theme-mode="dark"] .mobile-bottom-nav{background:rgba(10,18,15,.96)}
+  .mobile-nav-btn{appearance:none;border:0;background:transparent;color:var(--muted);border-radius:16px;min-height:48px;padding:.3rem .2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;font-size:.74rem;font-weight:700}
+  .mobile-nav-btn.active{background:rgba(16,43,34,.10);color:var(--accent)}
+  .mobile-nav-icon{font-size:1.05rem;line-height:1}
+  .practice-command-grid{grid-template-columns:1fr;gap:.75rem}
+  .practice-command-actions{gap:.45rem}
+  .templates-hub-card .library-quick-nav button{flex:1 1 30%;min-width:96px}
+}
+
+
+/* v5.1.0 Mobile navigation redesign — part 2 */
+.library-plans-hub-card{margin-bottom:1rem}
+.library-quick-nav .library-nav-btn{min-height:40px}
+.library-quick-nav .active-library-link{background:var(--accent);color:var(--accent-contrast, #fff);border-color:var(--accent);}
+@media (max-width: 760px){
+  .plans-hub-card{margin-top:.5rem}
+  .library-plans-hub-card .library-quick-nav button{flex:1 1 30%;min-width:96px}
+}
+
+
+/* v5.1.0 Mobile navigation redesign — part 3: Stats and Settings/Data grouping */
+.stats-hub-nav{display:flex;flex-direction:column;gap:.75rem;margin:.85rem 0 1rem;}
+.stats-nav-group{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;padding:.65rem;background:var(--panel-bg-2, rgba(127,127,127,.08));border-radius:12px;border:0;}
+.stats-nav-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;min-width:72px;}
+.stats-nav-group .stats-nav-btn{min-height:40px;}
+.data-hub-card .data-main-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;}
+.data-hub-card .data-nav-btn{min-height:40px;}
+.data-subnav{display:flex;flex-wrap:wrap;gap:.4rem;margin:.25rem 0 .75rem;}
+.data-subnav-btn{min-height:36px;}
+@media (max-width:760px){
+  .stats-nav-group{align-items:stretch;}
+  .stats-nav-label{flex:1 0 100%;min-width:0;}
+  .stats-nav-group .stats-nav-btn{flex:1 1 calc(50% - .5rem);}
+  .data-hub-card .data-nav-btn{flex:1 1 30%;}
+}
+
+
+/* v5.1.0 — Practice Flow Optimization */
+.practice-command-card{overflow:hidden;}
+.practice-command-v2{display:grid;gap:14px;}
+.practice-hero-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.practice-hero-card{background:var(--panel-bg-2);border:0;border-radius:16px;padding:14px;min-height:116px;display:flex;flex-direction:column;justify-content:space-between;}
+.practice-hero-card h2{margin:4px 0 2px;font-size:clamp(20px,4vw,28px);line-height:1.05;}
+.practice-resume-card{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--panel-bg);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.06);}
+.practice-resume-card.active{border-color:rgba(16,185,129,.35);background:linear-gradient(135deg,rgba(16,185,129,.10),var(--panel-bg));}
+.practice-resume-card.empty{background:var(--panel-bg-2);box-shadow:none;}
+.practice-resume-card h3{margin:2px 0 4px;font-size:18px;}
+.practice-resume-actions{display:flex;gap:8px;align-items:center;}
+.practice-action-strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;}
+.practice-action-strip button,.practice-resume-actions button{min-height:44px;}
+.practice-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.practice-mini-panel{background:var(--panel-bg-2);border-radius:14px;padding:12px;border:0;}
+.practice-recent-list{display:grid;gap:6px;margin-top:8px;}
+.practice-recent-drill{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:40px;border-radius:12px;background:var(--card);border:1px solid rgba(148,163,184,.24);color:var(--text);font-size:13px;text-align:left;}
+.practice-recent-drill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.practice-recent-drill strong{font-variant-numeric:tabular-nums;}
+@media(max-width:760px){
+  .practice-hub-card{display:block;}
+  .quick-resume-banner{display:none!important;}
+  .practice-hero-row,.practice-secondary-grid{grid-template-columns:1fr;}
+  .practice-resume-card{align-items:stretch;flex-direction:column;}
+  .practice-resume-actions{display:grid;grid-template-columns:1fr auto;}
+  .practice-action-strip{grid-template-columns:1fr;}
+  .practice-command-card{padding:12px;}
+  .practice-hero-card{min-height:auto;}
+}
+
+/* v5.1.3 — Mobile practice dashboard visibility and visual adaptation */
+.practice-action-strip.compact{grid-template-columns:1.4fr 1fr;}
+.practice-today-details{background:var(--panel-bg-2);border-radius:14px;padding:12px;border:0;}
+.practice-today-log-list{display:grid;gap:6px;margin-top:8px;}
+.practice-today-log-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid rgba(148,163,184,.22);border-radius:12px;padding:8px 10px;}
+.practice-today-log-row span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.practice-today-log-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.practice-today-log-row small{color:var(--muted);font-size:12px;}
+.practice-today-log-row b{font-variant-numeric:tabular-nums;}
+@media(max-width:760px){.practice-action-strip.compact{grid-template-columns:1fr;}}
+
+/* v5.1.3 — mobile practice dashboard adaptation */
+.practice-command-card{background:linear-gradient(145deg,rgba(8,42,31,.96),rgba(7,25,20,.98));border:1px solid rgba(96,165,122,.28);box-shadow:0 18px 42px rgba(0,0,0,.16);}
+.practice-command-v3{display:grid;gap:14px;}
+.practice-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.practice-title-row h2{margin:.1rem 0 .2rem;font-size:clamp(22px,3vw,32px);line-height:1;}
+.practice-hero-row.v3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+.practice-hero-row.v3 .practice-hero-card{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(26,63,49,.70),rgba(13,39,31,.82));border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:15px;min-height:116px;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);}
+.practice-hero-row.v3 .practice-hero-card::before{content:"";position:absolute;inset:auto -20px -30px auto;width:90px;height:90px;background:radial-gradient(circle,rgba(34,197,94,.16),transparent 65%);pointer-events:none;}
+.practice-hero-row.v3 .practice-hero-card h2{margin:.2rem 0;font-size:clamp(24px,4vw,34px);letter-spacing:-.03em;}
+.practice-hero-row.v3 .practice-hero-card .eyebrow{position:relative;z-index:1;}
+.practice-resume-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(34,197,94,.28),rgba(16,185,129,.13));color:#d9f99d;font-weight:800;box-shadow:0 10px 24px rgba(16,185,129,.14);flex:0 0 auto;}
+.practice-resume-copy{min-width:0;flex:1;}
+.practice-action-strip.v3{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:10px;}
+.practice-action-strip.v3 button{min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:14px;}
+.practice-action-strip.v3 button strong{font-size:14px;}
+.practice-action-strip.v3 button span{font-size:12px;color:inherit;opacity:.78;font-weight:600;}
+.practice-secondary-grid.v3{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.practice-mini-panel.recent,.practice-mini-panel.maintenance{background:linear-gradient(145deg,rgba(18,50,39,.78),rgba(10,36,29,.86));border:1px solid rgba(148,163,184,.16);padding:14px;border-radius:16px;}
+.practice-recent-drill,.practice-maintenance-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;width:100%;min-height:48px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(148,163,184,.14);color:var(--text);text-align:left;}
+.practice-maintenance-row{grid-template-columns:minmax(0,1fr) auto;}
+.practice-recent-drill span,.practice-maintenance-row span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.practice-recent-drill strong,.practice-maintenance-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;}
+.practice-recent-drill small,.practice-maintenance-row small,.practice-recent-drill em,.practice-maintenance-row em{color:var(--muted);font-size:12px;font-style:normal;}
+.practice-recent-drill b{font-variant-numeric:tabular-nums;color:var(--accent);font-size:13px;}
+.practice-maintenance-list{display:grid;gap:7px;margin-top:8px;}
+.practice-today-inline{display:block;}
+.practice-today-inline.hidden{display:none!important;}
+.full-width{width:100%;margin-top:8px;}
+@media(max-width:900px){
+  .practice-hero-row.v3{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .practice-action-strip.v3{grid-template-columns:1fr 1fr;}
+  .practice-secondary-grid.v3{grid-template-columns:1fr;}
+}
+@media(max-width:760px){
+  main{padding:12px;}
+  .app-header{padding:12px 14px;}
+  .app-header h1{font-size:20px;}
+  .app-header p{font-size:12px;}
+  .practice-command-card{border-radius:18px;margin:0 0 12px;padding:12px;}
+  .practice-title-row h2{font-size:24px;}
+  .practice-hero-row.v3{grid-template-columns:1fr 1fr;gap:9px;}
+  .practice-hero-row.v3 .practice-hero-card{min-height:96px;padding:12px;border-radius:14px;}
+  .practice-hero-row.v3 .practice-hero-card h2{font-size:24px;}
+  .practice-resume-card{border-radius:16px;padding:12px;gap:10px;}
+  .practice-resume-icon{width:44px;height:44px;border-radius:14px;}
+  .practice-resume-actions{grid-template-columns:1fr;}
+  .practice-action-strip.v3{grid-template-columns:1fr;gap:8px;}
+  .practice-action-strip.v3 button{min-height:56px;align-items:flex-start;padding:10px 14px;}
+  .practice-mini-panel.recent,.practice-mini-panel.maintenance{padding:12px;border-radius:14px;}
+  .practice-recent-drill,.practice-maintenance-row{min-height:46px;}
+}
+
+/* v5.1.4 — mobile material practice dashboard polish */
+:root{
+  --mobile-glass: rgba(18, 31, 38, .84);
+  --mobile-glass-2: rgba(20, 42, 45, .72);
+  --mobile-line: rgba(148, 163, 184, .16);
+  --mobile-line-strong: rgba(52, 211, 153, .34);
+  --mobile-shadow: 0 20px 46px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.035);
+  --mobile-green: #2ce981;
+}
+.practice-command-card{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.practice-command-v4{
+  display:grid;
+  gap:14px;
+  width:100%;
+}
+.practice-command-v4 .eyebrow{
+  margin:0 0 8px;
+  color:#c9d5dc;
+  letter-spacing:.095em;
+  text-transform:uppercase;
+  font-size:12px;
+  font-weight:800;
+}
+.practice-hero-row.v4{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.practice-hero-row.v4 .practice-hero-card{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  min-height:132px;
+  padding:18px;
+  border-radius:18px;
+  border:1px solid var(--mobile-line);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(52,211,153,.10), transparent 36%),
+    linear-gradient(145deg, rgba(23,39,47,.92), rgba(9,21,27,.94));
+  box-shadow:var(--mobile-shadow);
+  overflow:hidden;
+}
+.practice-card-icon,.action-icon,.panel-icon,.drill-icon{
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  color:#40f28c;
+  background:linear-gradient(145deg, rgba(22,163,74,.42), rgba(13,88,56,.22));
+  border:1px solid rgba(52,211,153,.18);
+  box-shadow:0 10px 24px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.practice-card-icon{
+  width:46px;
+  height:46px;
+  border-radius:14px;
+  font-size:19px;
+}
+.practice-hero-card.last .practice-card-icon{color:#7c83ff;background:linear-gradient(145deg, rgba(79,70,229,.34), rgba(39,44,94,.34));border-color:rgba(129,140,248,.18)}
+.practice-hero-card.streak .practice-card-icon{color:#ff9a3c;background:linear-gradient(145deg, rgba(249,115,22,.30), rgba(93,47,19,.30));border-color:rgba(251,146,60,.16)}
+.practice-hero-row.v4 .practice-hero-card h2{
+  margin:0 0 9px;
+  font-size:28px;
+  line-height:1.05;
+  letter-spacing:-.04em;
+  color:#f7fff9;
+}
+.practice-hero-row.v4 .practice-hero-card h2 span{
+  font-size:15px;
+  color:#b9c6cf;
+  font-weight:600;
+  letter-spacing:0;
+}
+.practice-hero-row.v4 .practice-hero-card .muted{
+  margin:0;
+  color:#b8c3ca;
+  font-size:14px;
+  line-height:1.38;
+}
+.practice-hero-row.v4 .practice-hero-card .muted strong{color:#f4fff8;font-weight:800;margin-left:8px;}
+.practice-resume-card.v4,
+.practice-action-panel.v4,
+.practice-today-inline,
+.practice-mini-panel.recent,
+.practice-mini-panel.maintenance{
+  border:1px solid var(--mobile-line);
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(52,211,153,.06), transparent 34%),
+    linear-gradient(145deg, rgba(21,37,44,.90), rgba(7,19,25,.94));
+  box-shadow:var(--mobile-shadow);
+}
+.practice-resume-card.v4{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:18px;
+}
+.practice-resume-card.v4 .practice-resume-icon{
+  width:56px;
+  height:56px;
+  border-radius:18px;
+  color:#fff;
+  font-size:24px;
+  background:linear-gradient(145deg, rgba(34,197,94,.58), rgba(22,101,52,.44));
+  border:1px solid rgba(134,239,172,.20);
+}
+.practice-resume-card.v4 h3{margin:.05rem 0 .22rem;font-size:18px;letter-spacing:-.01em;}
+.practice-resume-card.v4 .muted{margin:0;color:#b8c3ca;}
+.practice-resume-card.v4 .practice-resume-actions{margin-left:auto;display:flex;gap:10px;align-items:center;}
+.practice-resume-card.v4 .practice-resume-actions button{
+  min-height:44px;
+  border-radius:12px;
+  padding:0 18px;
+  font-weight:800;
+}
+.practice-action-panel.v4{padding:18px;}
+.practice-action-panel.v4>.eyebrow{margin-bottom:14px;color:#c7d3db;}
+.practice-action-strip.v4{
+  display:grid;
+  grid-template-columns:1.12fr 1fr 1fr 1fr;
+  gap:14px;
+}
+.practice-action-strip.v4 button{
+  min-height:148px;
+  border-radius:16px;
+  padding:18px 14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:9px;
+  text-align:center;
+  border:1px solid var(--mobile-line);
+  background:linear-gradient(145deg, rgba(28,45,53,.86), rgba(12,25,32,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035), 0 12px 24px rgba(0,0,0,.14);
+  color:#eefaf3;
+}
+.practice-action-strip.v4 button.primary-action{
+  background:linear-gradient(145deg, #18a957, #0c7a42);
+  border-color:rgba(134,239,172,.22);
+  box-shadow:0 16px 28px rgba(18,126,67,.24), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.practice-action-strip.v4 button strong{font-size:17px;line-height:1.15;}
+.practice-action-strip.v4 button small{font-size:13px;color:#c7d3dc;font-weight:600;line-height:1.3;}
+.practice-action-strip.v4 button.primary-action small{color:#d8ffe5;}
+.action-icon{width:44px;height:44px;border-radius:14px;font-size:21px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.10)}
+.practice-today-inline{padding:18px;}
+.practice-today-inline.hidden{display:none!important;}
+.practice-today-details.empty{padding:4px 0;}
+.practice-secondary-grid.v4{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.practice-mini-panel.recent,.practice-mini-panel.maintenance{padding:18px;}
+.practice-mini-panel .item-title{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:14px;
+}
+.practice-mini-panel .item-title strong{
+  display:block;
+  color:#edf7f1;
+  font-size:15px;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.practice-mini-panel .item-title .muted{display:block;margin-top:2px;font-size:13px;color:#b6c2ca;}
+.panel-icon{width:30px;height:30px;border-radius:10px;font-size:14px;}
+.practice-recent-list,.practice-maintenance-list{display:grid;gap:8px;}
+.practice-recent-drill,.practice-maintenance-row{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  width:100%;
+  min-height:56px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.10);
+  background:linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  color:#f2fbf5;
+  text-align:left;
+}
+.practice-maintenance-row{grid-template-columns:auto minmax(0,1fr) auto auto;}
+.drill-icon{width:30px;height:30px;border-radius:8px;font-style:normal;font-size:13px;}
+.practice-recent-drill span,.practice-maintenance-row span{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.practice-recent-drill strong,.practice-maintenance-row strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.practice-recent-drill small,.practice-maintenance-row small{font-size:11px;color:#b8c4ca;}
+.practice-recent-drill em{font-size:12px;font-style:normal;color:#c5d0d7;white-space:nowrap;}
+.practice-recent-drill b,.practice-maintenance-row b{font-size:24px;line-height:1;color:#d7e4dc;font-weight:500;}
+.practice-maintenance-row em{font-size:13px;font-style:normal;font-weight:800;white-space:nowrap;}
+.practice-maintenance-row.priority-high em{color:#ff8b2f;}
+.practice-maintenance-row.priority-medium em{color:#ffd23c;}
+.practice-maintenance-row.priority-low em{color:#53f589;}
+.practice-secondary-grid.v4 .full-width{
+  margin-top:12px;
+  width:100%;
+  min-height:44px;
+  border-radius:12px;
+  border:1px solid rgba(52,211,153,.52);
+  background:rgba(16,185,129,.06);
+  color:#47f694;
+  font-weight:900;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+}
+@media(max-width:900px){
+  .practice-hero-row.v4{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .practice-action-strip.v4{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .practice-secondary-grid.v4{grid-template-columns:1fr;}
+}
+@media(max-width:640px){
+  body{background:radial-gradient(circle at 20% -10%,rgba(36,123,90,.18),transparent 28%),linear-gradient(180deg,#04100f,#061014 48%,#050b0f)!important;}
+  main{padding:10px 10px 88px!important;}
+  .practice-command-v4{gap:12px;}
+  .practice-hero-row.v4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .practice-hero-row.v4 .practice-hero-card{grid-template-columns:1fr;gap:10px;min-height:140px;padding:14px;border-radius:16px;}
+  .practice-card-icon{width:42px;height:42px;border-radius:13px;font-size:17px;}
+  .practice-hero-row.v4 .practice-hero-card h2{font-size:24px;}
+  .practice-hero-row.v4 .practice-hero-card .muted{font-size:12px;}
+  .practice-resume-card.v4{padding:14px;border-radius:16px;gap:12px;}
+  .practice-resume-card.v4 .practice-resume-icon{width:48px;height:48px;border-radius:15px;}
+  .practice-resume-card.v4 .practice-resume-actions button{min-height:40px;padding:0 12px;font-size:12px;}
+  .practice-action-panel.v4{padding:14px;border-radius:16px;}
+  .practice-action-strip.v4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .practice-action-strip.v4 button{min-height:134px;padding:14px 10px;border-radius:14px;}
+  .practice-action-strip.v4 button strong{font-size:15px;}
+  .practice-action-strip.v4 button small{font-size:12px;}
+  .action-icon{width:40px;height:40px;border-radius:13px;}
+  .practice-mini-panel.recent,.practice-mini-panel.maintenance,.practice-today-inline{padding:14px;border-radius:16px;}
+  .practice-recent-drill,.practice-maintenance-row{min-height:52px;padding:9px 10px;gap:8px;}
+  .practice-recent-drill strong,.practice-maintenance-row strong{font-size:12px;}
+  .practice-recent-drill small,.practice-maintenance-row small{font-size:10px;}
+}
+
+
+/* v5.1.5 — mobile practice dashboard data-bound polish */
+:root{
+  --practice-accent:var(--accent, var(--felt, #16a34a));
+  --practice-accent-strong:var(--accent-strong, #22c55e);
+  --practice-accent-soft:color-mix(in srgb, var(--practice-accent) 18%, transparent);
+  --practice-surface:linear-gradient(145deg, color-mix(in srgb, var(--primary) 16%, #172731 84%), color-mix(in srgb, var(--primary) 10%, #071219 90%));
+}
+[data-theme="light"]{
+  --practice-surface:linear-gradient(145deg, color-mix(in srgb, var(--felt) 7%, #ffffff 93%), #f5faf7);
+}
+.practice-hero-row.v4 .practice-hero-card,
+.practice-resume-card.v4,
+.practice-action-panel.v4,
+.practice-today-inline,
+.practice-mini-panel.recent,
+.practice-mini-panel.maintenance{
+  background:radial-gradient(circle at 12% -4%, color-mix(in srgb, var(--practice-accent) 15%, transparent), transparent 34%), var(--practice-surface)!important;
+  border-color:color-mix(in srgb, var(--practice-accent) 20%, var(--mobile-line, rgba(148,163,184,.16)))!important;
+}
+.practice-card-icon,.panel-icon,.drill-icon{
+  color:var(--practice-accent-strong)!important;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--practice-accent) 42%, transparent), color-mix(in srgb, var(--practice-accent) 15%, transparent))!important;
+  border-color:color-mix(in srgb, var(--practice-accent) 24%, transparent)!important;
+}
+.practice-hero-card.last .practice-card-icon,
+.practice-hero-card.streak .practice-card-icon{
+  color:var(--practice-accent-strong)!important;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--practice-accent) 30%, transparent), color-mix(in srgb, var(--practice-accent) 10%, transparent))!important;
+  border-color:color-mix(in srgb, var(--practice-accent) 20%, transparent)!important;
+}
+.practice-resume-card.v4{
+  width:100%;
+  text-align:left;
+  color:var(--text);
+  cursor:pointer;
+}
+.practice-resume-card.v4:hover{transform:translateY(-1px);filter:brightness(1.04);}
+.practice-resume-card.v4 .practice-resume-icon{
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--practice-accent) 62%, #ffffff 0%), color-mix(in srgb, var(--practice-accent) 34%, #000000 16%))!important;
+  border-color:color-mix(in srgb, var(--practice-accent) 32%, transparent)!important;
+}
+.practice-resume-card.v4 .practice-resume-copy{min-width:0;}
+.practice-resume-card.v4 .practice-resume-chevron{
+  margin-left:auto;
+  color:var(--practice-accent-strong);
+  font-size:28px;
+  font-weight:500;
+}
+.practice-action-strip.v4 button.primary-action{
+  background:linear-gradient(145deg, color-mix(in srgb, var(--practice-accent) 92%, #ffffff 2%), color-mix(in srgb, var(--practice-accent) 70%, #000000 18%))!important;
+  border-color:color-mix(in srgb, var(--practice-accent) 35%, transparent)!important;
+  box-shadow:0 16px 28px color-mix(in srgb, var(--practice-accent) 26%, transparent), inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+.practice-action-strip.v4 button:not(.primary-action):hover,
+.practice-recent-drill:hover,.practice-maintenance-row:hover{
+  border-color:color-mix(in srgb, var(--practice-accent) 34%, transparent)!important;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--practice-accent) 10%, rgba(255,255,255,.04)), rgba(255,255,255,.02))!important;
+}
+.practice-secondary-grid.v4 .full-width{
+  border-color:color-mix(in srgb, var(--practice-accent) 52%, transparent)!important;
+  background:color-mix(in srgb, var(--practice-accent) 8%, transparent)!important;
+  color:var(--practice-accent-strong)!important;
+}
+@media(max-width:640px){
+  .practice-resume-card.v4{align-items:center;}
+  .practice-resume-card.v4 .practice-resume-chevron{display:block;}
+}
