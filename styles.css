@@ -1,7 +1,7 @@
 :root {
   --bg:#f4f6f2; --card:#fff; --text:#17211c; --muted:#667168; --line:#dce4de;
   --primary:#102b22; --primary-2:#184332; --felt:#0d4c35; --gold:#c7a753; --danger:#9f1d1d;
-  --shadow:0 8px 24px rgba(0,0,0,.08);
+  --shadow:0 8px 24px rgba(0,0,0,.08); --surface-soft:rgba(16,43,34,.035);
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
@@ -337,7 +337,7 @@ body[data-theme="light"]{
   --warning-text:#5c4310;
   --chart-grid:#edf1ee;
   --chart-axis:#a9b6ae;
-  --shadow:0 8px 24px rgba(0,0,0,.08);
+  --shadow:0 8px 24px rgba(0,0,0,.08); --surface-soft:rgba(16,43,34,.035);
   color-scheme:light;
 }
 :root[data-theme="dark"],
@@ -1081,7 +1081,7 @@ body[data-theme] .advanced-stats-module>summary{background:var(--panel-bg-2);col
   margin-top:12px;
   padding:12px;
   border:1px solid var(--line);
-  background:var(--soft);
+  background:var(--surface-soft);
   border-radius:14px;
 }
 .exercise-focus-action p{margin:5px 0 0;color:var(--muted);}
@@ -2438,7 +2438,7 @@ body.session-focus-active #activeSession.focus-no-side-split #sessionExtraFields
 body.session-focus-active #activeSession.focus-no-side-split #quickScoreControls,
 body.session-focus-active #activeSession.focus-no-side-split #quickScoreControls .quick-score-block,
 body.session-focus-active #activeSession.focus-no-side-split #quickScoreControls .quick-score-row{
-  display:contents!important;
+  display:block!important;
 }
 body.session-focus-active #activeSession.focus-no-side-split #scoreInputs > div:not(.side-split-panel),
 body.session-focus-active #activeSession.focus-no-side-split #sessionExtraFields #focusVenueBlock,
@@ -4246,4 +4246,56 @@ svg.chart line {
 svg.chart .chart-point,
 svg.chart circle {
   pointer-events: auto;
+}
+
+
+/* v5.5.7 runtime/performance hardening: final focus-mode cascade and motion safety */
+body.session-focus-active{
+  --focus-tile-gap:6px;
+}
+body.session-focus-active #activeSession .focus-timer-action-row,
+body.session-focus-active #activeSession .row.focus-timer-action-row{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(54px,1fr))!important;
+  gap:var(--focus-tile-gap)!important;
+  align-items:stretch!important;
+}
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession .row.focus-timer-action-row > button{
+  min-height:40px!important;
+  height:auto!important;
+  padding:6px 5px!important;
+  font-size:10px!important;
+  line-height:1.05!important;
+  border-radius:10px!important;
+}
+body.session-focus-active #activeSession .live-perf{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:var(--focus-tile-gap)!important;
+  padding:5px!important;
+}
+body.session-focus-active #activeSession .live-perf > div{
+  grid-column:auto!important;
+  min-width:0!important;
+  border-radius:9px!important;
+}
+body.session-focus-active #activeSession .live-perf > div:first-child{
+  grid-column:1 / -1!important;
+  display:flex!important;
+  flex-direction:row!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+}
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+  body.session-focus-active .focus-card-pulse,
+  body.session-focus-active .focus-score-pulse{
+    animation:none!important;
+  }
 }

@@ -31,6 +31,9 @@ function ensureObjectStores(db) {
 export function openSnookerDB() {
   return new Promise((resolve, reject) => {
     if (!("indexedDB" in window)) return reject(new Error("IndexedDB is not available in this browser."));
+    if (activeDb && activeDb.objectStoreNames?.contains(INDEXEDDB_LOG_STORE) && activeDb.objectStoreNames?.contains(INDEXEDDB_SESSION_STORE)) {
+      return resolve(activeDb);
+    }
     const req = indexedDB.open(INDEXEDDB_NAME, INDEXEDDB_VERSION);
     req.onupgradeneeded = () => {
       ensureObjectStores(req.result);
@@ -57,8 +60,8 @@ export function idbGetAll(storeName) {
       const req = tx.objectStore(storeName).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
-      tx.oncomplete = () => closeDb(db);
-      tx.onerror = () => { closeDb(db); reject(tx.error); };
+      tx.oncomplete = () => {};
+      tx.onerror = () => { reject(tx.error); };
     } catch(e) {
       closeDb(db);
       reject(e);
@@ -95,7 +98,7 @@ export function idbGetStores(storeNames) {
           }
         };
       });
-      tx.oncomplete = () => closeDb(db);
+      tx.oncomplete = () => {};
       tx.onerror = () => {
         closeDb(db);
         if (!settled) {
@@ -118,8 +121,8 @@ export function idbReplaceAll(storeName, rows) {
       const store = tx.objectStore(storeName);
       store.clear();
       (rows || []).forEach(row => { if (row && row.id) store.put(row); });
-      tx.oncomplete = () => { closeDb(db); resolve(true); };
-      tx.onerror = () => { closeDb(db); reject(tx.error); };
+      tx.oncomplete = () => { resolve(true); };
+      tx.onerror = () => { reject(tx.error); };
     } catch(e) {
       closeDb(db);
       reject(e);
@@ -134,8 +137,8 @@ export function idbPut(storeName, item) {
     try {
       tx = db.transaction(storeName, "readwrite");
       tx.objectStore(storeName).put(item);
-      tx.oncomplete = () => { closeDb(db); resolve(true); };
-      tx.onerror = () => { closeDb(db); reject(tx.error); };
+      tx.oncomplete = () => { resolve(true); };
+      tx.onerror = () => { reject(tx.error); };
     } catch(e) {
       closeDb(db);
       reject(e);
@@ -150,8 +153,8 @@ export function idbDelete(storeName, id) {
     try {
       tx = db.transaction(storeName, "readwrite");
       tx.objectStore(storeName).delete(id);
-      tx.oncomplete = () => { closeDb(db); resolve(true); };
-      tx.onerror = () => { closeDb(db); reject(tx.error); };
+      tx.oncomplete = () => { resolve(true); };
+      tx.onerror = () => { reject(tx.error); };
     } catch(e) {
       closeDb(db);
       reject(e);

@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.6";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.6";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.7";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.7";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.6";
+} from "./utils.js?v=5.5.7";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.6";
+} from "./settings.js?v=5.5.7";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.6";
+} from "./analytics.js?v=5.5.7";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.6";
+} from "./bayesian.js?v=5.5.7";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.6";
+} from "./session.js?v=5.5.7";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.6";
+} from "./pressure.js?v=5.5.7";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.6";
+} from "./recommendations.js?v=5.5.7";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -109,7 +109,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.6";
+} from "./store.js?v=5.5.7";
 
 
 
@@ -333,6 +333,9 @@ async function hydrateIndexedDBData(retryAfterReset=false, options={}) {
     const sessions = mergeById(pendingPreHydrationSessions, mergeById(idbSessions, localSessions)).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
     data.logs = logs;
     data.sessions = sessions;
+    if (logs.length > 15000) {
+      console.warn("Large snooker dataset detected. Consider exporting and archiving older sessions to keep mobile hydration responsive.");
+    }
     indexedDBReady = true;
     indexedDBHydrating = false;
     if (!readOnlySync && (localLogs.length || localSessions.length || logs.length !== idbLogs.length || sessions.length !== idbSessions.length)) {
@@ -1033,7 +1036,7 @@ function detectSeriesChangePoint(series, options={}){
   const minN = Number(options.minN || 10);
   if(values.length < minN) return {state:"insufficient", label:"Insufficient data", n:values.length, detail:"Need more logs before Bayesian change-point scoring is meaningful.", severity:0, probability:0, probabilityPct:0};
   try{
-    const bayes = bayesianChangePointEstimate(values, {minN, minSide:options.minSide || 4, priorStrength:options.priorStrength || 4, minAbsDelta:options.minAbsDelta || 3});
+    const bayes = bayesianChangePointEstimate(values, {minN, minSide:options.minSide || 4, priorStrength:options.priorStrength || 4, minAbsDelta:options.minAbsDelta || 3, maxWindow:options.maxWindow || 150});
     if(!bayes || bayes.state === "insufficient") return bayes || legacyWindowChangePoint(values, options);
     const reliability = evidenceStrength(values.length);
     const adjustedProbability = Math.max(0, Math.min(0.98, Number(bayes.probability || 0) * (0.55 + 0.45 * Number(reliability.factor || 0.5))));
@@ -2617,7 +2620,7 @@ function bayesianStatsForRoutine(routineId) {
   const logs = successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
   const prior = hierarchicalPriorForRoutine(r);
-  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, prior);
+  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, {...prior, rawAttempts:agg.rawAttempts, rawSuccesses:agg.rawSuccesses});
   const reliability = bayesianReliabilityLabel(posterior);
   const signal = bayesianRecommendationSignal({posterior, targetPct:Number(r.target || 0)});
   const policy = bayesianActionPolicy(signal, posterior, Number(r.target || 0));
@@ -2807,7 +2810,20 @@ function renderAll() {
     ["updateSessionFocusState", updateSessionFocusState],
     ["ensureRoutinePickerButtons", () => { if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons(); }]
   ];
-  renderSteps.forEach(([label, fn]) => safeCall(label, fn));
+  if (typeof requestAnimationFrame !== "function") {
+    renderSteps.forEach(([label, fn]) => safeCall(label, fn));
+    return;
+  }
+  let index = 0;
+  const runChunk = () => {
+    const deadline = performance.now() + 10;
+    while (index < renderSteps.length && performance.now() < deadline) {
+      const [label, fn] = renderSteps[index++];
+      safeCall(label, fn);
+    }
+    if (index < renderSteps.length) requestAnimationFrame(runChunk);
+  };
+  requestAnimationFrame(runChunk);
 }
 
 function renderRoutineSelects() {
@@ -4144,7 +4160,7 @@ function renderTrainingLoad() {
   const box = $("trainingLoadBox");
   if (!box) return;
   const load = trainingLoadByDay(14);
-  const max = Math.max(1, ...load.map(d=>d.time));
+  const max = Math.max(1, safeMax(load.map(d=>d.time)) || 1);
   const total7 = load.slice(-7).reduce((a,b)=>a+b.time,0);
   const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
   const delta = prev7 ? ((total7-prev7)/Math.abs(prev7))*100 : null;
@@ -5096,8 +5112,13 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
   const compDateRaw = periodization.competitionDate || $("competitionDate")?.value || "";
-  const compDate = compDateRaw ? new Date(compDateRaw) : null;
-  const daysToCompetition = compDate && !Number.isNaN(compDate.getTime()) ? Math.ceil((compDate.getTime() - Date.now()) / 86400000) : null;
+  let compDate = null;
+  if (compDateRaw) {
+    const parts = String(compDateRaw).split("-").map(Number);
+    compDate = parts.length >= 3 && parts.every(Number.isFinite) ? new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0) : new Date(compDateRaw);
+  }
+  const rawDaysToCompetition = compDate && !Number.isNaN(compDate.getTime()) ? Math.ceil((compDate.getTime() - Date.now()) / 86400000) : null;
+  const daysToCompetition = rawDaysToCompetition !== null && rawDaysToCompetition >= 0 ? rawDaysToCompetition : null;
   const focusOverride = $("orchestratorFocus")?.value || "all";
   const strategy = $("orchestratorStrategy")?.value || "balanced";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
@@ -6359,6 +6380,10 @@ function toggleStatsStandalonePanels() {
 function renderStats() {
   const output = $("statsOutput");
   if (!output) return;
+  if (indexedDBHydrating && !indexedDBReady && !indexedDBUnavailable) {
+    output.innerHTML = `<div class="analytics-note"><strong>Loading analytics…</strong><br><span class="muted">Storage hydration is still completing. Stats will render automatically when the local database is ready.</span></div>`;
+    return;
+  }
   statsMode = normalizeStatsMode(statsMode);
   try {
     const scope = getStatsScope();
@@ -6445,7 +6470,7 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
   if (r.scoring === "success_rate") {
     const agg = aggregateSuccessRateLogs(ordered.filter(l => l.scoring === "success_rate" || !l.scoring));
     evidence = `${numText(agg.attempts, "0")} effective attempts · ${numText(agg.sessions, "0")} logs`;
-    const posterior = betaPosterior(agg.successes, agg.attempts);
+    const posterior = betaPosterior(agg.successes, agg.attempts, 2, 2, {rawAttempts:agg.rawAttempts, rawSuccesses:agg.rawSuccesses});
     const reliability = bayesianReliabilityLabel(posterior);
     const policy = bayesianActionPolicy(bayesianRecommendationSignal({posterior, targetPct:target}), posterior, target);
     confidenceLabel = reliability.label;
@@ -7268,9 +7293,16 @@ function makeRoutineSnapshotFromLog(l) {
 }
 function deleteLog(id) {
   return confirmDeleteAction("this session log", async () => {
-    data.logs = data.logs.filter(l => l.id !== id);
+    const previousLogs = data.logs || [];
+    const target = previousLogs.find(l => l.id === id);
     purgePendingIndexedDBDelta("log", id);
-    await deleteLogDelta(id, "deleteLog log delete");
+    const deleted = await deleteLogDelta(id, "deleteLog log delete");
+    if (!deleted && !storageReadOnlyMode) {
+      if (target) data.logs = previousLogs;
+      notifyUser("Could not delete this log from storage. Nothing was removed.", "warn");
+      return;
+    }
+    data.logs = previousLogs.filter(l => l.id !== id);
     saveData({render:"logEdit", idbSync:"skip", allowReadOnlyCleanup:true});
   });
 }
@@ -7525,7 +7557,17 @@ safeOn("importJsonInput", "change", async (e) => {
     const raw = JSON.parse(await file.text());
     const precheck = validateBackupShape(raw);
     if (!precheck.ok) return alert(`Invalid backup file. ${precheck.message}`);
-    const imported = migrateData(raw);
+    const baseImport = structuredCloneSafe(defaultData);
+    const allowedImportKeys = new Set([
+      ...Object.keys(baseImport),
+      "backupVersion", "exportedAt", "appVersion", "updatedAt", "createdAt",
+      "indexedDBStorage", "smartSessionBuilder", "interfaceSettings", "routineSkillMap",
+      "skillTaxonomy", "skillTrendCache", "recommendationFeedback"
+    ]);
+    Object.keys(raw || {}).forEach(key => {
+      if (allowedImportKeys.has(key)) baseImport[key] = raw[key];
+    });
+    const imported = migrateData(baseImport);
     const postcheck = validateBackupShape(imported);
     if (!postcheck.ok) return alert(`Invalid backup after migration. ${postcheck.message}`);
     if (activeSession) {
@@ -7761,7 +7803,7 @@ function logAppError(error, context="runtime") {
       message:String(safeMessage || "Unknown error").slice(0,500),
       stack:String(safeStack || "").slice(0,1000)
     });
-    localStorage.setItem("snookerPracticePWA.errorLog", JSON.stringify(errors.slice(0,10)));
+    localStorage.setItem("snookerPracticePWA.errorLog", JSON.stringify(errors.slice(0,5)));
   } catch(e) {}
 }
 window.addEventListener("error", e => logAppError(e.error || e.message, "window.error"));
@@ -9571,7 +9613,7 @@ function renderBayesianValidationForRoutine(routineId) {
   const logs = successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
   const prior = hierarchicalPriorForRoutine(r);
-  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, prior);
+  const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, {...prior, rawAttempts:agg.rawAttempts, rawSuccesses:agg.rawSuccesses});
   const reliability = bayesianReliabilityLabel(posterior);
   const target = Number(r.target || 0);
   const signal = bayesianRecommendationSignal({posterior, targetPct:target});

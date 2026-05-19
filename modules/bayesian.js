@@ -12,7 +12,9 @@ export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2, pr
     alpha,
     beta,
     attempts:n,
+    rawAttempts:Number(priorMeta?.rawAttempts ?? n),
     successes:s,
+    rawSuccesses:Number(priorMeta?.rawSuccesses ?? s),
     priorAlpha:pa,
     priorBeta:pb,
     priorStrength:pa + pb,
@@ -66,10 +68,11 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
 }
 
 export function bayesianReliabilityLabel(posterior) {
-  if (!posterior || posterior.attempts < 10) return {level:"low", label:"Low confidence", detail:"Not enough attempts yet."};
+  const rawAttempts = Number(posterior?.rawAttempts ?? posterior?.attempts ?? 0);
+  if (!posterior || rawAttempts < 10) return {level:"low", label:"Low confidence", detail:"Not enough attempts yet."};
   const width = posterior.upper - posterior.lower;
-  if (posterior.attempts >= 80 && width <= 0.18) return {level:"high", label:"High confidence", detail:"Stable enough for target decisions."};
-  if (posterior.attempts >= 30 && width <= 0.28) return {level:"medium", label:"Medium confidence", detail:"Usable, but keep collecting data."};
+  if (rawAttempts >= 80 && width <= 0.18) return {level:"high", label:"High confidence", detail:"Stable enough for target decisions."};
+  if (rawAttempts >= 30 && width <= 0.28) return {level:"medium", label:"Medium confidence", detail:"Usable, but keep collecting data."};
   return {level:"low", label:"Low confidence", detail:"Wide uncertainty band."};
 }
 

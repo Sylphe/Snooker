@@ -364,7 +364,10 @@ export function overtrainingSignal(logs, windowSize=8) {
 }
 
 export function fatigueSlope(logs) {
-  const ordered = (logs || []).slice().sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+  const ordered = (logs || [])
+    .slice()
+    .sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0))
+    .filter(l => Number(l.timeMinutes || 0) > 0 && Number.isFinite(Number(l.normalizedScore || 0)));
   if (!ordered.length) return null;
   let cumulative = 0;
   const xs = [], ys = [];
@@ -373,13 +376,14 @@ export function fatigueSlope(logs) {
     xs.push(cumulative);
     ys.push(Number(l.normalizedScore || 0));
   });
-  if (xs.length < 3) return null;
+  if (xs.length < 3 || new Set(xs).size < 3) return null;
   const mx = avg(xs), my = avg(ys);
   const num = xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0);
   const den = xs.reduce((a,x)=>a+Math.pow(x-mx,2),0);
-  const slope = den ? num/den : 0;
+  if (!den) return null;
+  const slope = num/den;
   const corr = correlation(xs, ys);
-  return {slope, corr, n: xs.length};
+  return {slope, corr:Number.isFinite(corr) ? corr : 0, n: xs.length};
 }
 
 

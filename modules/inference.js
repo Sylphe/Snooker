@@ -92,7 +92,8 @@ export function betaSample(alpha = 2, beta = 2) {
 
 
 export function bayesianChangePointEstimate(values = [], options = {}) {
-  const xs = (values || []).map(Number).filter(Number.isFinite);
+  const maxWindow = Math.max(30, Number(options.maxWindow) || 150);
+  const xs = (values || []).map(Number).filter(Number.isFinite).slice(-maxWindow);
   const n = xs.length;
   const minN = Math.max(8, Number(options.minN) || 10);
   const minSide = Math.max(3, Number(options.minSide) || 4);
@@ -255,7 +256,7 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
     const R = baseObservationNoise * contextNoiseMultiplier;
     const K = P / (P + R);
     x = x + K * (row.score - x);
-    P = (1 - K) * P;
+    P = Math.max(4, (1 - K) * P);
     trajectory.push({state: x, uncertainty: Math.sqrt(Math.max(P, 0)), gain: K, observationNoise: Math.sqrt(R), score: row.score});
   });
 
@@ -286,7 +287,7 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
     observationNoise,
     confidence,
     index: Math.round(clampNumber(50 + delta * 1.8, 0, 100, 50)),
-    trajectory,
+    trajectory: trajectory.slice(-30),
     detail: `Kalman-style form estimate is ${Math.abs(delta).toFixed(1)} pts ${direction} baseline (${current.toFixed(1)} vs ${baseline.toFixed(1)}), with ${confidence >= 0.65 ? "higher" : confidence >= 0.4 ? "moderate" : "low"} confidence.`
   };
 }
