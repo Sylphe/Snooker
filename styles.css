@@ -4304,3 +4304,29 @@ body.session-focus-active #activeSession .live-perf > div:first-child{
 .wake-lock-indicator{position:fixed;right:16px;bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:2100;background:var(--panel-bg,#fff);color:var(--text,#102b22);border:1px solid var(--border,#dbe7df);border-radius:999px;padding:8px 12px;font-size:.82rem;font-weight:700;box-shadow:0 10px 28px rgba(0,0,0,.16);display:none;align-items:center;gap:6px}
 body.wake-lock-active .wake-lock-indicator{display:flex}
 body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
+
+/* ===== v5.5.16 Performance cache/pass paint containment ===== */
+.history-table,
+.routine-item-clean,
+.folder-group,
+.stats-section,
+.stats-module,
+.insight-card,
+.table-stats,
+.smart-block-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 420px;
+}
+#routineList,
+#statsContent,
+#todaySummary,
+#sessionLog,
+#tableStatsBox,
+#phaseOneInsights {
+  contain: layout paint style;
+}
+.analytics-note button.small {
+  margin-left: 8px;
+  padding: 5px 9px;
+  font-size: .78rem;
+}

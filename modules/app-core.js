@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.15";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.15";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.16";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.16";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.15";
+} from "./utils.js?v=5.5.16";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.15";
+} from "./settings.js?v=5.5.16";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.15";
+} from "./analytics.js?v=5.5.16";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.15";
+} from "./bayesian.js?v=5.5.16";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.15";
+} from "./session.js?v=5.5.16";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.15";
+} from "./pressure.js?v=5.5.16";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.15";
+} from "./recommendations.js?v=5.5.16";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.15";
+} from "./store.js?v=5.5.16";
 
 
 
@@ -248,8 +248,31 @@ function allowRateLimitedOperation(key, maxOps=20, windowMs=60000, message="Too 
 
 const HEAVY_ANALYTICS_LOG_LIMIT = 500;
 const HISTORY_RENDER_ROW_LIMIT = 150;
+const HISTORY_RENDER_ROW_INCREMENT = 150;
+let historyRenderRowLimit = HISTORY_RENDER_ROW_LIMIT;
 let logsByRoutineCacheSignature = "";
 let logsByRoutineCache = null;
+const analyticsMemoCache = new Map();
+const rankRoutineMemoCache = new Map();
+function clearPerformanceMemoCaches() {
+  analyticsMemoCache.clear();
+  rankRoutineMemoCache.clear();
+}
+function memoKeyForLogs(label, logs, extra = "") {
+  return `${label}|${extra}|${logsSignature(logs || [])}`;
+}
+function memoizedAnalytics(label, logs, extra, compute) {
+  const windowed = analyticsWindow(logs || []);
+  const key = memoKeyForLogs(label, windowed, extra);
+  if (analyticsMemoCache.has(key)) return analyticsMemoCache.get(key);
+  const value = compute(windowed);
+  if (analyticsMemoCache.size > 80) analyticsMemoCache.clear();
+  analyticsMemoCache.set(key, value);
+  return value;
+}
+function cachedFatigueSlope(logs) {
+  return memoizedAnalytics("fatigueSlope", logs, "", sample => fatigueSlope(sample));
+}
 function analyticsWindow(logs, limit = HEAVY_ANALYTICS_LOG_LIMIT) {
   const arr = Array.isArray(logs) ? logs.filter(Boolean) : [];
   return arr.length > limit ? arr.slice(-limit) : arr;
@@ -277,6 +300,7 @@ function getLogsByRoutineMap(logs = data.logs || []) {
 function invalidateLogsByRoutineCache() {
   logsByRoutineCacheSignature = "";
   logsByRoutineCache = null;
+  clearPerformanceMemoCaches();
 }
 function debounce(fn, delay = 150) {
   let timer = null;
@@ -4691,7 +4715,7 @@ function getPeriodizationPhase() {
   const recentLoad = typeof trainingLoadByDay === "function" ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
   const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
-  const f = fatigueSlope(analyticsWindow(data.logs || []));
+  const f = cachedFatigueSlope(data.logs || []);
   if ((prev7 && last7 > prev7 * 1.35) || (f && f.slope < -0.25)) return "deload";
 
   const upgrades = activeRoutines().some(r => targetUpgradeSuggestionForRoutine(r.id));
@@ -4839,7 +4863,7 @@ function adaptiveRoutineState(routineId) {
   const psi = performanceStabilityIndex(logs.slice(-10), 10);
   const drift = logs.length >= 6 ? performanceDrift(logs, Math.min(8, Math.max(5, Math.floor(logs.length/2)))) : null;
   const plateau = plateauDetector(logs, 6);
-  const fatigue = fatigueSlope(analyticsWindow(logs));
+  const fatigue = cachedFatigueSlope(logs);
   const lastLog = logs.length ? logs[logs.length-1] : null;
   const days = lastLog ? daysSince(lastLog.createdAt) : 999;
   const upgrade = targetUpgradeSuggestionForRoutine(routineId);
@@ -5378,7 +5402,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
 
-  const fatigueAll = fatigueSlope(analyticsWindow(data.logs || []));
+  const fatigueAll = cachedFatigueSlope(data.logs || []);
   const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
   const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
@@ -5751,13 +5775,21 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   };
 }
 function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
+  const routineSig = `${(data.routines || []).length}|${(data.routines || [])[0]?.id || ""}|${(data.routines || [])[(data.routines || []).length - 1]?.id || ""}|${data?.updatedAt || ""}`;
+  const cacheKey = `${focusOverride}|${strategy}|${mode}|${logsSignature(data.logs || [])}|${routineSig}`;
+  if (rankRoutineMemoCache.has(cacheKey)) return rankRoutineMemoCache.get(cacheKey).slice();
+  const logMap = getLogsByRoutineMap(data.logs || []);
   const base = activeRoutines().map(r => {
-    const stats = routineStats(r.id, getLogsByRoutineMap(data.logs || []));
+    const stats = routineStats(r.id, logMap);
     return routineRecommendationProfile(r, stats, strategy, focusOverride);
   }).filter(x => recommendationMode(x.routine) !== "excluded");
-  if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
-  if (mode === "hybrid") return base.map(x => ({...x, hybridScore:(x.score * 0.35) + (x.sampledValue * 0.45) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
-  return base.sort((a,b)=>b.score-a.score);
+  let ranked;
+  if (mode === "thompson") ranked = base.sort((a,b)=>b.sampledValue-a.sampledValue);
+  else if (mode === "hybrid") ranked = base.map(x => ({...x, hybridScore:(x.score * 0.35) + (x.sampledValue * 0.45) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  else ranked = base.sort((a,b)=>b.score-a.score);
+  if (rankRoutineMemoCache.size > 30) rankRoutineMemoCache.clear();
+  rankRoutineMemoCache.set(cacheKey, ranked.slice());
+  return ranked.slice();
 }
 function recommendationModeSummary(mode) {
   if (mode === "thompson") return "Thompson Sampling: samples each drill's upside and naturally balances confirmed weaknesses with useful exploration.";
@@ -5977,7 +6009,7 @@ function groupContextEffects(logs, keyFn, label) {
   });
   return Object.entries(groups).map(([key, arr]) => {
     const vals = arr.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
-    if (vals.length < 3) return null;
+    if (vals.length < 3) { analyticsMemoCache.set(cacheKey, null); return null; }
     return {label, key, n:vals.length, avg:avg(vals), delta:avg(vals)-globalMean};
   }).filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
 }
@@ -7114,13 +7146,16 @@ function exerciseTransferEffect(allLogs, targetRid) {
 }
 
 function performanceStabilityIndex(logs, windowSize=10) {
-  const vals = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+  const sampleLogs = Array.isArray(logs) ? analyticsWindow(logs, Math.max(windowSize, Math.min(HEAVY_ANALYTICS_LOG_LIMIT, 500))) : [];
+  const cacheKey = memoKeyForLogs("psi", sampleLogs, String(windowSize));
+  if (analyticsMemoCache.has(cacheKey)) return analyticsMemoCache.get(cacheKey);
+  const vals = sampleLogs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
   if (vals.length < 3) return null;
   const recent = vals.slice(-windowSize);
   const mean = avg(recent);
   let cv = mean ? stdDev(recent) / Math.max(0.1, Math.abs(mean)) : 0;
   cv = Number.isFinite(cv) ? Math.min(3, Math.max(0, cv)) : 3;
-  const hitSeries = logs.slice(-windowSize).map(l => {
+  const hitSeries = sampleLogs.slice(-windowSize).map(l => {
     const p = l.performance || "N/A";
     return (p === "On Target" || p === "Above Target") ? 1 : 0;
   });
@@ -7129,7 +7164,10 @@ function performanceStabilityIndex(logs, windowSize=10) {
   let label = "Stable";
   if (psi < 45) label = "Unstable";
   else if (psi < 70) label = "Watch";
-  return {psi, cv, hitVol, label, mean, n: recent.length};
+  const result = {psi, cv, hitVol, label, mean, n: recent.length};
+  if (analyticsMemoCache.size > 80) analyticsMemoCache.clear();
+  analyticsMemoCache.set(cacheKey, result);
+  return result;
 }
 
 function renderPerformanceStability(logs) {
@@ -7143,7 +7181,7 @@ function renderPerformanceStability(logs) {
 }
 
 function renderFatigueSlope(logs) {
-  const f = fatigueSlope(analyticsWindow(logs));
+  const f = cachedFatigueSlope(logs);
   if (!f) return `<div class="psi-card psi-watch"><strong>Stamina drop-off ${statHelpButton("fatigueSlope")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
@@ -7609,8 +7647,11 @@ function renderDateView(logs) {
   const types = Object.create(null);
   sourceLogs.forEach(l => { types[l.category || "uncategorized"] = (types[l.category || "uncategorized"] || 0) + 1; });
   const hit = targetHitRate(sourceLogs);
-  const displayLogs = sourceLogs.length > HISTORY_RENDER_ROW_LIMIT ? sourceLogs.slice(-HISTORY_RENDER_ROW_LIMIT) : sourceLogs;
-  const rowLimitNote = sourceLogs.length > displayLogs.length ? `<div class="analytics-note muted">Showing latest ${displayLogs.length} of ${sourceLogs.length} logs in this table. Use filters or exports for full history.</div>` : "";
+  const activeLimit = Math.max(HISTORY_RENDER_ROW_LIMIT, Number(historyRenderRowLimit || HISTORY_RENDER_ROW_LIMIT));
+  const displayLogs = sourceLogs.length > activeLimit ? sourceLogs.slice(-activeLimit) : sourceLogs;
+  const rowLimitNote = sourceLogs.length > displayLogs.length
+    ? `<div class="analytics-note muted">Showing latest ${displayLogs.length} of ${sourceLogs.length} logs in this table. Use filters or exports for full history. <button type="button" class="secondary small" data-action="show-more-history">Show more</button></div>`
+    : "";
   return `<div class="stats-grid">
     <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${sourceLogs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
@@ -9803,6 +9844,9 @@ function handleDelegatedUIAction(event) {
     case "merge-skill-tag": return mergeSkillTag(id);
     case "apply-target-upgrade": return applyTargetUpgrade(id);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
+    case "show-more-history":
+      historyRenderRowLimit = Math.min(2000, Math.max(HISTORY_RENDER_ROW_LIMIT, historyRenderRowLimit || HISTORY_RENDER_ROW_LIMIT) + HISTORY_RENDER_ROW_INCREMENT);
+      return renderStats();
   }
 }
 
@@ -9842,7 +9886,7 @@ document.addEventListener("touchend", handleFocusSwipeEnd, {passive:true});
 safeOn("saveSkillTagBtn", "click", saveSkillTagFromForm);
 safeOn("clearSkillTagFormBtn", "click", () => { clearSkillTagForm(); renderSkillManager(); });
 safeOn("skillManagerFilterGroup", "change", renderSkillManager);
-safeOn("skillManagerSearch", "input", renderSkillManager);
+safeOn("skillManagerSearch", "input", debounce(() => renderSkillManager(), 150));
 
 
 document.addEventListener("focusin", event => {
