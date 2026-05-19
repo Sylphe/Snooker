@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.3.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.3.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.2.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.2.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.3.1";
+} from "./utils.js?v=5.2.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.3.1";
+} from "./settings.js?v=5.2.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.3.1";
+} from "./analytics.js?v=5.2.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.3.1";
+} from "./bayesian.js?v=5.2.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.3.1";
+} from "./session.js?v=5.2.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.3.1";
+} from "./pressure.js?v=5.2.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.3.1";
+} from "./recommendations.js?v=5.2.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.3.1";
+} from "./store.js?v=5.2.1";
 
 
 
@@ -1616,61 +1616,6 @@ function applyFocusModeInputLocks() {
   setFocusNumpadTarget(focusNumpadTargetId);
 }
 
-function focusModeCurrentRoutine() {
-  if (!activeSession || !Array.isArray(activeSession.routineIds)) return null;
-  return routineById(activeSession.routineIds[activeSession.index]);
-}
-function focusModeTargetText(r) {
-  const t = Number(r?.target || 0);
-  return Number.isFinite(t) && t ? String(Math.round(t)) : "—";
-}
-function focusModePbText(r) {
-  const logs = (data.logs || []).filter(l => l.routineId === r?.id);
-  const vals = logs.map(l => Number(l.score ?? l.normalizedScore ?? 0)).filter(Number.isFinite);
-  if (!vals.length) return "—";
-  return String(Math.round(Math.max(...vals)));
-}
-function focusModeDeltaText(score, r) {
-  const target = Number(r?.target || 0);
-  if (!Number.isFinite(score) || !target) return "On target";
-  const delta = Math.round(score - target);
-  if (delta > 0) return `${delta} ahead of target`;
-  if (delta < 0) return `${Math.abs(delta)} behind target`;
-  return "On target";
-}
-function focusModeElapsedMinutesText() {
-  const manual = Number($("manualTimeValue")?.value || 0);
-  if (Number.isFinite(manual) && manual > 0) return `${Math.round(manual)}m`;
-  const txt = String($("timerLabel")?.textContent || $("sessionTimer")?.textContent || "").trim();
-  const parts = txt.split(":").map(Number);
-  if (parts.length >= 2 && parts.every(Number.isFinite)) {
-    const mins = parts.length === 3 ? parts[0] * 60 + parts[1] : parts[0];
-    return `${Math.max(0, Math.round(mins))}m`;
-  }
-  return "0m";
-}
-function updateFocusCockpitDisplay() {
-  if (!document.body?.classList.contains("session-focus-active")) return;
-  const r = focusModeCurrentRoutine();
-  const score = Number($(focusNumpadTargetId)?.value || $("scoreValue")?.value || 0);
-  const displayScore = Number.isFinite(score) ? Math.round(score) : 0;
-  const value = document.querySelector(".current-break-value");
-  if (value) value.textContent = String(displayScore);
-  const delta = document.querySelector(".current-break-delta span");
-  if (delta) delta.textContent = focusModeDeltaText(displayScore, r);
-  const attempts = document.querySelector(".focus-meta-attempts .meta-value");
-  if (attempts) attempts.textContent = String($("attemptsValue")?.value || activeSession?.index + 1 || 0);
-  const time = document.querySelector(".focus-meta-time .meta-value");
-  if (time) time.textContent = focusModeElapsedMinutesText();
-  const venue = document.querySelector(".focus-meta-venue .meta-value");
-  if (venue) {
-    const select = $("sessionVenueTable");
-    const selected = select?.selectedOptions?.[0]?.textContent?.trim();
-    venue.textContent = selected || "Not set";
-  }
-  document.querySelectorAll(".quality-option").forEach(btn => btn.classList.toggle("active", String(btn.dataset.rating || "") === String($("sessionRating")?.value || "")));
-}
-
 function renderFocusNumpad(r) {
   const box = $("scoreInputs");
   if (!box || !document.body?.classList.contains("session-focus-active")) return;
@@ -1678,39 +1623,26 @@ function renderFocusNumpad(r) {
   const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","bestAttemptValue","completionCountValue","highestBreakValue"].filter(id => $(id));
   if (!candidates.length) return;
   focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
+  const targetLabel = (() => {
+    const row = $(focusNumpadTargetId)?.closest("div");
+    return row?.querySelector("label")?.textContent?.trim() || "Score";
+  })();
   const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
-  const score = Number($(focusNumpadTargetId)?.value || $("scoreValue")?.value || 0) || 0;
-  const target = focusModeTargetText(r);
-  const pb = focusModePbText(r);
   box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel focus-score-cockpit" aria-label="Focus mode score cockpit">
-    <section class="current-break-card">
-      <div class="current-break-label">Current Break</div>
-      <div class="current-break-value">${htmlText(String(Math.round(score)))}</div>
-      <div class="current-break-delta"><span class="delta-arrow">↗</span><span>${htmlText(focusModeDeltaText(score, r))}</span></div>
-    </section>
-    <section class="score-numpad">${buttons.map(label => {
+    <div class="focus-cockpit-header">
+      <span class="focus-cockpit-label">${htmlText(targetLabel)}</span>
+      <span class="focus-cockpit-hint">tap score · ✓ saves</span>
+    </div>
+    <div class="focus-numpad-grid">${buttons.map(label => {
       const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : "digit";
       const value = action === "digit" ? label : "";
-      return `<button type="button" class="score-key ${action === "enter" ? "confirm" : action === "backspace" ? "backspace" : ""}" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
-    }).join("")}</section>
-    <section class="focus-meta-strip">
-      <div class="meta-item focus-meta-attempts"><span class="meta-icon">☷</span><div><div class="meta-label">Attempts</div><div class="meta-value">${htmlText($("attemptsValue")?.value || "0")}</div></div></div>
-      <div class="meta-item focus-meta-time"><span class="meta-icon">◷</span><div><div class="meta-label">Time</div><div class="meta-value">${htmlText(focusModeElapsedMinutesText())}</div></div></div>
-      <div class="meta-item focus-meta-venue"><span class="meta-icon">⌖</span><div><div class="meta-label">Venue</div><div class="meta-value">${htmlText($("sessionVenueTable")?.selectedOptions?.[0]?.textContent?.trim() || "Not set")}</div></div></div>
-      <button type="button" class="meta-menu" data-action="same-as-last" aria-label="More Focus Mode options">⋮</button>
-    </section>
-    <section class="quality-card">
-      <div class="quality-label">Quality (1–5)</div>
-      <div class="quality-options">${[1,2,3,4,5].map(n => `<button type="button" class="quality-option ${String($("sessionRating")?.value || "") === String(n) ? "active" : ""}" data-action="set-session-rating" data-rating="${n}">${n}</button>`).join("")}</div>
-    </section>
-    <button type="button" class="floating-save" data-action="focus-numpad" data-numpad-action="enter"><span class="check">✓</span><span class="label">Save</span></button>
-    <footer class="gesture-footer">
-      <div class="gesture-hint">← Swipe left<strong>Undo last</strong></div>
-      <div class="gesture-hint">Long press 0<strong>Reset break</strong></div>
-      <div class="gesture-hint">Double tap<strong>Repeat last</strong></div>
-    </footer>
+      return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
+    }).join("")}</div>
+    <div class="focus-numpad-footer">
+      <button type="button" class="secondary" data-action="same-as-last">Same time</button>
+      <button type="button" class="secondary" data-action="repeat-last-score-setup">Repeat last setup</button>
+    </div>
   </div>`);
-  updateFocusCockpitDisplay();
 }
 
 function handleFocusNumpad(action, value) {
@@ -2842,7 +2774,6 @@ function renderCurrentRoutine() {
   $("endFreeSessionBtn").classList.toggle("hidden", activeSession.type !== "free");
   updateSessionFocusState();
   renderLivePerformanceCard(r);
-  updateFocusCockpitDisplay();
   scheduleTimerAutostartForCurrentRoutine();
 }
 function renderScoreInputs(r) {
@@ -7865,7 +7796,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.3.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.2.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8684,7 +8615,7 @@ function handleDelegatedUIAction(event) {
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); focusModeScoreFeedback("scoreValue"); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-numpad": hapticFeedback("tap"); return handleFocusNumpad(actionEl.dataset.numpadAction || "digit", actionEl.dataset.value || "");
-    case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); updateFocusCockpitDisplay(); } hapticFeedback("tap"); return; }
+    case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
     case "toggle-skill-chip": return toggleSkillChip(actionEl.dataset.target || "", actionEl.dataset.container || "", actionEl.dataset.skillId || "");
     case "recommendation-feedback": return trackRecommendationFeedback(id, actionEl.dataset.feedback || "accepted", {source:actionEl.dataset.source || "smart_session_builder"});

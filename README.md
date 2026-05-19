@@ -1,31 +1,17 @@
-# Snooker Practice Log
+# Snooker Practice PWA v5.2.4
 
-## v5.3.3 — Focus Cockpit Layout Cache Fix
+## v5.2.4 — Focus Mode Numpad Alignment
 
-Build: 2026-05-19 10:59 CEST
-
-This release corrects the v5.3.2 packaging issue where `app.js` still imported `app-core.js?v=5.3.1`, so the browser could continue loading the old Focus Mode code even though the CSS/cache references showed v5.3.2. The static app header is also updated.
+Built from v5.2.2.
 
 ### Included
+- fixed Focus Mode score/attempts layout overlap
+- removed green highlight styling from the primary score box
+- removed green highlight styling from the PB box
+- aligned score, PB, stepper, and cockpit surfaces to the darker table-mode theme
+- preserved score-entry cockpit, numpad, swipe, long-press, and session logic
+- no analytics, storage, hydration, or session schema changes
 
-- Corrected `app.js` module import to v5.3.3.
-- Updated visible app header/build label.
-- Preserved the exact Focus Cockpit layout changes:
-  - 437px Focus Mode shell.
-  - 298px central scoring stack.
-  - compact operational header.
-  - dominant Current Break card.
-  - embedded 3x4 numpad.
-  - compressed attempts / time / venue telemetry strip.
-  - compact quality selector.
-  - floating Save button.
-  - bottom gesture footer.
-- Version/cache/module references aligned to v5.3.3.
-
-### Validation
-
-- JS syntax checks passed.
-- Duplicate-declaration checks passed.
-- Zip integrity check passed.
-
-No scoring, analytics, storage, hydration, or session schema changes.
+### Build
+- Version: v5.2.4
+- Build time: 2026-05-19 09:40 CEST
