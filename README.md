@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.4.3
+# Snooker Practice PWA v5.4.4
 
-## v5.4.3 — Smart Session Builder Language Pass
+## v5.4.4 — Advanced Analytics Language Pass
 
 Built from the working v5.4.2 insight language pass.
 
@@ -25,7 +25,7 @@ Built from the working v5.4.2 UI language foundation.
 - Technical model terminology remains available in Analytical mode.
 
 ### Integrity
-- Version: v5.4.3
+- Version: v5.4.4
 - Build timestamp: 2026-05-19 12:22 CEST
 - No analytics engine changes.
 - No storage schema changes.

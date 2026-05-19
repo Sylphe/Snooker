@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.4";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.4";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.4.3";
+} from "./utils.js?v=5.4.4";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.4.3";
+} from "./settings.js?v=5.4.4";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.4.3";
+} from "./analytics.js?v=5.4.4";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.4.3";
+} from "./bayesian.js?v=5.4.4";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.4.3";
+} from "./session.js?v=5.4.4";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.4.3";
+} from "./pressure.js?v=5.4.4";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.4.3";
+} from "./recommendations.js?v=5.4.4";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.4.3";
+} from "./store.js?v=5.4.4";
 
 
 
@@ -1022,7 +1022,7 @@ function changePointInsight(logs){
     <div class="context-row"><span>Overall state</span><strong>${htmlText(overall.label)}</strong><span>${htmlText(overall.probabilityPct !== undefined ? `${overall.probabilityPct}%` : (overall.evidence?.label || `n=${overall.n}`))}</span></div>
     <div class="adaptive-rationale">${htmlText(overall.detail)}</div>
     ${skillRows.length ? `<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Skill shifts:":"Skill-level shifts:")}</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(x.change.probabilityPct !== undefined ? `${x.change.probabilityPct}%` : changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
-    <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
+    <div class="adaptive-rationale">${htmlText(uiAdvancedText("Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed."))}</div>
   </div>`;
 }
 /* ===== end v5.2.0 Adaptive Session Periodization ===== */
@@ -1155,7 +1155,7 @@ function currentFormInsight(logs){
     <div class="adaptive-rationale">${htmlText(form.detail)}</div>
     ${form.confidenceMomentum?`<div class="context-row"><span>Confidence momentum</span><strong>${form.confidenceMomentum>=0?"+":""}${form.confidenceMomentum.toFixed(2)}</strong><span>recent reflection slope</span></div>`:""}
     ${rows.length?`<div class="adaptive-rationale"><strong>Skill-specific form:</strong></div>${rows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.form.detail)}</span></span><strong>${htmlText(x.form.label)}</strong><span>${x.form.index}/100</span></div>`).join("")}`:`<div class="muted">No reliable skill-specific form estimate yet.</div>`}
-    <div class="adaptive-rationale">Kalman-style current form separates estimated underlying form from noisy daily scores; fatigue and focus increase observation noise rather than automatically lowering baseline ability.</div>
+    <div class="adaptive-rationale">${htmlText(uiAdvancedText("Kalman-style current form separates estimated underlying form from noisy daily scores; fatigue and focus increase observation noise rather than automatically lowering baseline ability."))}</div>
   </div>`;
 }
 function currentFormAdjustmentForRoutine(routine, globalForm=estimateCurrentFormForLogs(data.logs||[])){
@@ -1256,8 +1256,8 @@ function targetCredibleIntervalInsight(logs){
     const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
     return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("targetCredibleIntervals"))}</strong>
       <div class="context-row"><span>${htmlText(uiLabel("expectedRange"))}</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
-      <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
-      <div class="adaptive-rationale">${htmlText(t.recommendation)} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
+      <div class="context-row"><span>${htmlText(uiLabel("shrinkageEstimate"))}</span><strong>${htmlText(expectedTxt)}</strong><span>${htmlText(getInsightLanguageSetting()==="friendly"?"consistency risk":"volatility")} ${htmlText(volatilityTxt)}</span></div>
+      <div class="adaptive-rationale">${htmlText(uiAdvancedText(t.recommendation))} ${htmlText(uiAdvancedText("Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice."))}</div>
     </div>`;
   }catch(err){
     console.warn("Target credible interval insight skipped", err);
@@ -1746,6 +1746,19 @@ const UI_LABELS = {
     drillSlots:"drill slots",
     targetDuration:"Target",
     loadedEstimate:"Planned",
+    advancedAnalytics:"Advanced Signals",
+    posteriorUncertainty:"Confidence range",
+    posteriorDraw:"Test draw",
+    thompsonSampling:"Exploration draw",
+    hierarchicalPriors:"Personalized baselines",
+    kalmanCurrentForm:"Current form tracker",
+    bayesianChangeProbability:"Shift likelihood",
+    credibleIntervalWidth:"Range width",
+    shrinkageEstimate:"Stabilized estimate",
+    observationNoise:"Daily noise",
+    betaPosterior:"Success estimate",
+    explorationBonus:"Explore boost",
+    priorSource:"Baseline source",
     feedbackTracked:"Feedback tracked",
     accepted:"accepted",
     skipped:"skipped",
@@ -1811,6 +1824,19 @@ const UI_LABELS = {
     drillSlots:"drill slots",
     targetDuration:"Target duration",
     loadedEstimate:"Loaded estimate",
+    advancedAnalytics:"Advanced Analytics",
+    posteriorUncertainty:"Posterior Uncertainty",
+    posteriorDraw:"Posterior Draw",
+    thompsonSampling:"Thompson Sampling",
+    hierarchicalPriors:"Hierarchical Bayesian Priors",
+    kalmanCurrentForm:"Kalman-Style Current Form",
+    bayesianChangeProbability:"Bayesian Change Probability",
+    credibleIntervalWidth:"Credible Interval Width",
+    shrinkageEstimate:"Shrinkage Estimate",
+    observationNoise:"Observation Noise",
+    betaPosterior:"Beta Posterior",
+    explorationBonus:"Exploration Bonus",
+    priorSource:"Prior Source",
     feedbackTracked:"Feedback tracked",
     accepted:"accepted",
     skipped:"skipped",
@@ -1824,7 +1850,12 @@ const UI_EXPLANATIONS = {
     targetCredibleIntervals:"Shows the score range you should reasonably expect before changing difficulty.",
     currentForm:"Separates today's form from your longer-term ability.",
     adaptivePeriodization:"Checks whether your week is balanced across learning, testing, recovery, and maintenance.",
-    maintenanceScheduler:"Flags skills that need a short refresh before they fade."
+    maintenanceScheduler:"Flags skills that need a short refresh before they fade.",
+    advancedAnalytics:"Shows the deeper model signals behind the coaching advice, using simpler language.",
+    thompsonSampling:"Lets the app occasionally test useful drills when the upside is uncertain.",
+    hierarchicalPriors:"Uses related skill history to set a fair starting baseline for low-sample drills.",
+    kalmanCurrentForm:"Tracks current playing form without overreacting to one noisy session.",
+    bayesianChangeProbability:"Estimates whether a recent shift looks real or just normal variation."
   },
   analytical: {
     insightLanguage:"Switches visible labels between coaching copy and technical analytics terminology.",
@@ -1832,7 +1863,12 @@ const UI_EXPLANATIONS = {
     targetCredibleIntervals:"Displays shrinkage-adjusted target ranges and uncertainty context.",
     currentForm:"Uses a guarded Kalman-style current-form estimate with observation noise adjustments.",
     adaptivePeriodization:"Compares recent block allocation with target periodization mix.",
-    maintenanceScheduler:"Uses skill exposure, recency, and fading signals to estimate maintenance need."
+    maintenanceScheduler:"Uses skill exposure, recency, and fading signals to estimate maintenance need.",
+    advancedAnalytics:"Technical language for Bayesian, Kalman, Thompson, prior, and posterior components.",
+    thompsonSampling:"Samples posterior upside to balance exploration and exploitation.",
+    hierarchicalPriors:"Initializes drill-level estimates from skill-family and global user priors.",
+    kalmanCurrentForm:"Uses a guarded Kalman-style filter where fatigue/focus affect observation noise.",
+    bayesianChangeProbability:"Uses Bayesian-style change-point probability scoring with legacy fallback."
   }
 };
 function normalizeInsightLanguage(value){
@@ -1853,7 +1889,7 @@ function uiExplain(key){
 }
 
 
-/* v5.4.3 Recommendation explanation wording layer */
+/* v5.4.4 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1887,7 +1923,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.4.3 Insight cards and stats language pass */
+/* v5.4.4 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -1901,6 +1937,82 @@ function uiNoDataMessage(context="view"){
     ? `No ${context} data yet. Complete a practice session to unlock coaching signals.`
     : `No data available for this ${context}. Log more observations to generate analytics.`;
 }
+function uiAdvancedTerm(term){
+  if (getInsightLanguageSetting() !== "friendly") return term;
+  const key = String(term || "").trim().toLowerCase();
+  const map = {
+    "bayesian practice optimization": uiLabel("smartPracticeBalance"),
+    "bayesian optimization": uiLabel("smartPracticeBalance"),
+    "thompson sampling": uiLabel("thompsonSampling"),
+    "posterior draw": uiLabel("posteriorDraw"),
+    "posterior uncertainty": uiLabel("posteriorUncertainty"),
+    "posterior confidence": uiLabel("signalConfidence"),
+    "posterior": uiLabel("betaPosterior"),
+    "credible interval": uiLabel("expectedRange"),
+    "credible intervals": uiLabel("expectedRange"),
+    "target credible interval": uiLabel("expectedRange"),
+    "hierarchical bayesian priors": uiLabel("hierarchicalPriors"),
+    "personalized prior": uiLabel("priorSource"),
+    "skill-family prior": uiLabel("priorSource"),
+    "generic beta(2,2) prior": "generic baseline",
+    "beta posterior": uiLabel("betaPosterior"),
+    "kalman-style current form": uiLabel("kalmanCurrentForm"),
+    "kalman-style": "form-tracking",
+    "bayesian change-point detection": uiLabel("performanceShifts"),
+    "bayesian probabilities": "shift likelihoods",
+    "change-point probability": uiLabel("bayesianChangeProbability"),
+    "posterior trend": "trend signal",
+    "uncertainty": uiLabel("posteriorUncertainty"),
+    "shrinkage": "stabilization",
+    "shrunk estimate": uiLabel("shrinkageEstimate"),
+    "observation noise": uiLabel("observationNoise"),
+    "volatility": "consistency risk",
+    "exploration bonus": uiLabel("explorationBonus")
+  };
+  return map[key] || term;
+}
+function uiAdvancedText(text){
+  if (getInsightLanguageSetting() !== "friendly") return String(text || "");
+  let out = String(text || "");
+  const replacements = [
+    [/Bayesian Practice Optimization/g, uiLabel("smartPracticeBalance")],
+    [/Bayesian optimization/g, uiLabel("smartPracticeBalance")],
+    [/Thompson Sampling/g, uiLabel("thompsonSampling")],
+    [/Thompson-style/g, "exploration-style"],
+    [/posterior draw/gi, uiLabel("posteriorDraw")],
+    [/posterior uncertainty/gi, uiLabel("posteriorUncertainty")],
+    [/posterior confidence/gi, uiLabel("signalConfidence")],
+    [/credible interval width/gi, uiLabel("credibleIntervalWidth")],
+    [/Target Credible Intervals v1/g, uiLabel("expectedRange")],
+    [/Target credible interval/g, uiLabel("expectedRange")],
+    [/credible interval/gi, uiLabel("expectedRange")],
+    [/Hierarchical Bayesian Priors/g, uiLabel("hierarchicalPriors")],
+    [/hierarchical priors/gi, uiLabel("hierarchicalPriors")],
+    [/Personalized prior/gi, uiLabel("priorSource")],
+    [/Skill-family prior/gi, uiLabel("priorSource")],
+    [/Generic Beta\(2,2\) prior/gi, "generic baseline"],
+    [/Beta\(2,2\)/g, "generic baseline"],
+    [/Beta posterior/gi, uiLabel("betaPosterior")],
+    [/Kalman-style current form/g, uiLabel("kalmanCurrentForm")],
+    [/Kalman-style/gi, "form-tracking"],
+    [/Bayesian Change-Point Detection/g, uiLabel("performanceShifts")],
+    [/Bayesian probabilities/g, "shift likelihoods"],
+    [/change-point scoring/gi, "shift scoring"],
+    [/change-point detection/gi, "shift detection"],
+    [/posterior trend/gi, "trend signal"],
+    [/uncertainty-aware/gi, "confidence-aware"],
+    [/uncertainty/gi, uiLabel("posteriorUncertainty")],
+    [/shrinkage-adjusted/gi, "stabilized"],
+    [/shrinkage/gi, "stabilization"],
+    [/shrunk estimate/gi, uiLabel("shrinkageEstimate")],
+    [/observation noise/gi, uiLabel("observationNoise")],
+    [/volatility/gi, "consistency risk"],
+    [/exploration bonus/gi, uiLabel("explorationBonus")],
+    [/exploration\/exploitation/gi, "testing vs reinforcing"]
+  ];
+  return replacements.reduce((acc,[pattern,repl]) => acc.replace(pattern, String(repl)), out);
+}
+
 function uiInsightLanguageHtml(html){
   if (getInsightLanguageSetting() !== "friendly") return html;
   const replacements = [
@@ -1920,6 +2032,17 @@ function uiInsightLanguageHtml(html){
     [/Dynamic Difficulty Adjustment v1/g, uiLabel("difficultyGuidance")],
     [/Dynamic difficulty/g, uiLabel("difficultyGuidance")],
     [/Bayesian Practice Optimization/g, uiLabel("smartPracticeBalance")],
+    [/Thompson Sampling/g, uiLabel("thompsonSampling")],
+    [/Posterior Uncertainty/g, uiLabel("posteriorUncertainty")],
+    [/Posterior Draw/g, uiLabel("posteriorDraw")],
+    [/Hierarchical Bayesian Priors/g, uiLabel("hierarchicalPriors")],
+    [/Kalman-style Current Form/g, uiLabel("kalmanCurrentForm")],
+    [/Bayesian Change Probability/g, uiLabel("bayesianChangeProbability")],
+    [/Credible Interval Width/g, uiLabel("credibleIntervalWidth")],
+    [/Shrinkage Estimate/g, uiLabel("shrinkageEstimate")],
+    [/Observation Noise/g, uiLabel("observationNoise")],
+    [/Beta Posterior/g, uiLabel("betaPosterior")],
+    [/Exploration Bonus/g, uiLabel("explorationBonus")],
     [/Weakness Concentration/g, uiLabel("mainWeakSpots")],
     [/Performance Stability/g, uiLabel("performanceStability")],
     [/Second-order analytics/g, uiLabel("secondOrderAnalytics")],
@@ -2408,8 +2531,8 @@ function personalizedPriorsInsight(){
       .filter(x => x.prior && x.prior.source !== "generic")
       .sort((a,b)=>Number(b.prior.attempts||0)-Number(a.prior.attempts||0))
       .slice(0,4);
-    if(!rows.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("personalizedPriors"))}</strong><div class="muted small">No skill-family priors yet. The app will use a generic Beta(2,2) fallback until more success-rate evidence exists.</div></div>`;
-    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("personalizedPriors"))}</strong><div class="muted small">New or low-sample drills inherit calibrated baselines from related skill history before drill-specific evidence takes over.</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name || "Exercise")}</span><strong>${htmlText(x.prior.source === "skill_family" ? "Skill prior" : "Global prior")}</strong><span>${htmlText(formatPercent(x.prior.mean))} baseline · ${numText(x.prior.attempts,"0")} attempts</span></div>`).join("")}</div>`;
+    if(!rows.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("personalizedPriors"))}</strong><div class="muted small">${htmlText(uiAdvancedText("No skill-family priors yet. The app will use a generic Beta(2,2) fallback until more success-rate evidence exists."))}</div></div>`;
+    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("personalizedPriors"))}</strong><div class="muted small">${htmlText(uiAdvancedText("New or low-sample drills inherit calibrated baselines from related skill history before drill-specific evidence takes over."))}</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name || "Exercise")}</span><strong>${htmlText(x.prior.source === "skill_family" ? "Skill prior" : "Global prior")}</strong><span>${htmlText(formatPercent(x.prior.mean))} baseline · ${numText(x.prior.attempts,"0")} attempts</span></div>`).join("")}</div>`;
   } catch(e) {
     logAppError?.(e, "personalizedPriorsInsight");
     return `<div class="insight-card watch"><strong>${htmlText(uiLabel("personalizedPriors"))}</strong><div class="muted small">Personalized prior insight unavailable for this scope.</div></div>`;
@@ -5105,7 +5228,7 @@ function bayesianOptimizationInsight(logs){
   try {
     const rows = rankRoutinesByMode("all", "balanced", getSmartRecommendationMode()).slice(0,3);
     if (!rows.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("bayesianOptimization"))}</strong><div class="muted small">No eligible routines yet. Add or log routines to activate uncertainty-aware ranking.</div></div>`;
-    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("bayesianOptimization"))}</strong><div class="muted small">Balances proven routines with controlled exploration. Exploration is reduced in recovery mode or when volatility is high.</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}</span><strong>${htmlText(x.bayesianOptimization?.label || "Balanced")}</strong><span>${htmlText((x.bayesianOptimization?.mode || "balance") + " · " + (x.bayesianOptimization?.evidence || "low evidence"))}</span></div>`).join("")}</div>`;
+    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("bayesianOptimization"))}</strong><div class="muted small">${htmlText(uiAdvancedText("Balances proven routines with controlled exploration. Exploration is reduced in recovery mode or when volatility is high."))}</div>${rows.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}</span><strong>${htmlText(x.bayesianOptimization?.label || "Balanced")}</strong><span>${htmlText((x.bayesianOptimization?.mode || "balance") + " · " + (x.bayesianOptimization?.evidence || "low evidence"))}</span></div>`).join("")}</div>`;
   } catch(e) {
     logAppError?.(e, "bayesianOptimizationInsight");
     return `<div class="insight-card watch"><strong>${htmlText(uiLabel("bayesianOptimization"))}</strong><div class="muted small">Optimization insight unavailable for this scope.</div></div>`;
@@ -8181,7 +8304,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.4");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
