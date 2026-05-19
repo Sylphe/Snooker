@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.14";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.14";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.15";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.15";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.14";
+} from "./utils.js?v=5.5.15";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.14";
+} from "./settings.js?v=5.5.15";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.14";
+} from "./analytics.js?v=5.5.15";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.14";
+} from "./bayesian.js?v=5.5.15";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.14";
+} from "./session.js?v=5.5.15";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.14";
+} from "./pressure.js?v=5.5.15";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.14";
+} from "./recommendations.js?v=5.5.15";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.14";
+} from "./store.js?v=5.5.15";
 
 
 
@@ -245,6 +245,48 @@ function allowRateLimitedOperation(key, maxOps=20, windowMs=60000, message="Too 
   operationRateLimits[key] = bucket;
   return true;
 }
+
+const HEAVY_ANALYTICS_LOG_LIMIT = 500;
+const HISTORY_RENDER_ROW_LIMIT = 150;
+let logsByRoutineCacheSignature = "";
+let logsByRoutineCache = null;
+function analyticsWindow(logs, limit = HEAVY_ANALYTICS_LOG_LIMIT) {
+  const arr = Array.isArray(logs) ? logs.filter(Boolean) : [];
+  return arr.length > limit ? arr.slice(-limit) : arr;
+}
+function logsSignature(logs) {
+  const arr = Array.isArray(logs) ? logs : [];
+  return `${arr.length}|${data?.updatedAt || ""}|${arr[0]?.id || ""}|${arr[arr.length - 1]?.id || ""}`;
+}
+function getLogsByRoutineMap(logs = data.logs || []) {
+  const arr = Array.isArray(logs) ? logs : [];
+  const sig = logsSignature(arr);
+  if (logsByRoutineCache && logsByRoutineCacheSignature === sig) return logsByRoutineCache;
+  const grouped = Object.create(null);
+  arr.forEach(log => {
+    const rid = String(log?.routineId || "");
+    if (!rid) return;
+    if (!grouped[rid]) grouped[rid] = [];
+    grouped[rid].push(log);
+  });
+  Object.keys(grouped).forEach(rid => grouped[rid].sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0)));
+  logsByRoutineCacheSignature = sig;
+  logsByRoutineCache = grouped;
+  return grouped;
+}
+function invalidateLogsByRoutineCache() {
+  logsByRoutineCacheSignature = "";
+  logsByRoutineCache = null;
+}
+function debounce(fn, delay = 150) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+const debouncedRenderAll = debounce(() => renderAll(), 150);
+const debouncedRenderStats = debounce(() => renderStats(), 150);
 
 function sanitizeTagToken(value, maxLen=32) {
   return String(value || "")
@@ -2483,6 +2525,7 @@ function saveData(options = {}) {
     return true;
   }
   data.updatedAt = new Date().toISOString();
+  invalidateLogsByRoutineCache();
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings.themeMode = getThemeModeSetting();
   data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
@@ -2968,8 +3011,8 @@ function renderRoutineSelects() {
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
 ["exerciseTypeFilter","exerciseFolderFilter","exerciseSearch","planTypeFilter","planFolderFilter"].forEach(id => {
-  safeOn(id, "input", renderAll);
-  safeOn(id, "change", renderAll);
+  safeOn(id, "input", debouncedRenderAll);
+  safeOn(id, "change", debouncedRenderAll);
 });
 
 function renderRoutineList() {
@@ -4648,7 +4691,7 @@ function getPeriodizationPhase() {
   const recentLoad = typeof trainingLoadByDay === "function" ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
   const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
-  const f = fatigueSlope(data.logs || []);
+  const f = fatigueSlope(analyticsWindow(data.logs || []));
   if ((prev7 && last7 > prev7 * 1.35) || (f && f.slope < -0.25)) return "deload";
 
   const upgrades = activeRoutines().some(r => targetUpgradeSuggestionForRoutine(r.id));
@@ -4796,7 +4839,7 @@ function adaptiveRoutineState(routineId) {
   const psi = performanceStabilityIndex(logs.slice(-10), 10);
   const drift = logs.length >= 6 ? performanceDrift(logs, Math.min(8, Math.max(5, Math.floor(logs.length/2)))) : null;
   const plateau = plateauDetector(logs, 6);
-  const fatigue = fatigueSlope(logs);
+  const fatigue = fatigueSlope(analyticsWindow(logs));
   const lastLog = logs.length ? logs[logs.length-1] : null;
   const days = lastLog ? daysSince(lastLog.createdAt) : 999;
   const upgrade = targetUpgradeSuggestionForRoutine(routineId);
@@ -5335,7 +5378,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
 
-  const fatigueAll = fatigueSlope(data.logs || []);
+  const fatigueAll = fatigueSlope(analyticsWindow(data.logs || []));
   const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
   const prev7 = recentLoad.slice(0,7).reduce((a,b)=>a+Number(b.time||0),0);
@@ -5709,7 +5752,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
 }
 function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
   const base = activeRoutines().map(r => {
-    const stats = routineStats(r.id);
+    const stats = routineStats(r.id, getLogsByRoutineMap(data.logs || []));
     return routineRecommendationProfile(r, stats, strategy, focusOverride);
   }).filter(x => recommendationMode(x.routine) !== "excluded");
   if (mode === "thompson") return base.sort((a,b)=>b.sampledValue-a.sampledValue);
@@ -5833,8 +5876,8 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
 safeOn("statsDateSelect", "change", renderStats);
 safeOn("statsPeriodSelect", "change", () => { safeCall("statsPeriod renderStats", renderStats); safeCall("statsPeriod renderPhaseOneInsights", renderPhaseOneInsights); });
-safeOn("rollingWindowInput", "input", renderStats);
-safeOn("benchmarkWindowInput", "input", renderStats);
+safeOn("rollingWindowInput", "input", debouncedRenderStats);
+safeOn("benchmarkWindowInput", "input", debouncedRenderStats);
 if ($("statsDetailMode")) {
   $("statsDetailMode").value = getStatsDetailMode();
   safeOn("statsDetailMode", "change", e => setStatsDetailMode(e.target.value));
@@ -6040,7 +6083,7 @@ function adjustedScoreForContext(log, model=buildContextNormalizationModel(data.
 }
 function routineContextNormalizationSignal(routine){
   try{
-    const logs=(data.logs||[]).filter(l=>String(l?.routineId)===String(routine?.id));
+    const logs=(getLogsByRoutineMap(data.logs||[])[String(routine?.id || "")] || []);
     if(logs.length<4) return {score:0,label:"context normalization: insufficient routine history",rawRecent:null,adjustedRecent:null,n:logs.length};
     const model=buildContextNormalizationModel(data.logs||[]);
     const recent=logs.slice().sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0)).slice(-Math.min(8, logs.length));
@@ -6150,20 +6193,20 @@ function renderPhaseOneInsights() {
     ${renderResidualInsights(logs)}
     ${renderPeakWindowInsight(logs)}
     ${renderContextEffects(logs)}
-    ${contextNormalizationInsight(logs)}
-    ${renderForecastInsight(logs)}
+    ${contextNormalizationInsight(analyticsWindow(logs))}
+    ${renderForecastInsight(analyticsWindow(logs))}
     ${reflectionPatternInsight(logs)}
     ${reflectionIntelligenceSummary(logs)}
     ${skillMapInsight(logs)}
     ${maintenanceSchedulerInsight(logs)}
     ${adaptiveSessionPeriodizationInsight(logs)}
     ${transferModelInsight(logs)}
-    ${changePointInsight(logs)}
-    ${currentFormInsight(logs)}
-    ${targetCredibleIntervalInsight(logs)}
-    ${dynamicDifficultyInsight(logs)}
+    ${changePointInsight(analyticsWindow(logs))}
+    ${currentFormInsight(analyticsWindow(logs))}
+    ${targetCredibleIntervalInsight(analyticsWindow(logs))}
+    ${dynamicDifficultyInsight(analyticsWindow(logs))}
     ${recommendationLearningInsight()}
-    ${bayesianOptimizationInsight(logs)}
+    ${bayesianOptimizationInsight(analyticsWindow(logs))}
     ${personalizedPriorsInsight()}
   </div>`;
   box.innerHTML = uiInsightLanguageHtml(html);
@@ -6597,6 +6640,7 @@ function renderStats() {
 
     let scopedLogs = getScopedStatsLogs();
     if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
+    const scopedAnalyticsLogs = analyticsWindow(scopedLogs);
     renderTableStats(scopedLogs);
 
     renderStatsScopeChips(scope, scopedLogs);
@@ -6606,21 +6650,21 @@ function renderStats() {
     } else if (statsMode === "trends") {
       html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
      } else if (statsMode === "graphs") {
-      html += renderStatsGraphs(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+      html += renderStatsGraphs(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "routines") {
       html += renderStatsRoutines(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "pressure") {
       html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "insights") {
-      html += renderStatsInsights(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+      html += renderStatsInsights(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "bayesian") {
-      html += renderStatsBayesianSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+      html += renderStatsBayesianSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "ab") {
       html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "counterfactual") {
-      html += renderStatsCounterfactualSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+      html += renderStatsCounterfactualSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "tournament") {
-      html += renderStatsTournamentSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+      html += renderStatsTournamentSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else {
       statsMode = "overview";
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
@@ -7099,7 +7143,7 @@ function renderPerformanceStability(logs) {
 }
 
 function renderFatigueSlope(logs) {
-  const f = fatigueSlope(logs);
+  const f = fatigueSlope(analyticsWindow(logs));
   if (!f) return `<div class="psi-card psi-watch"><strong>Stamina drop-off ${statHelpButton("fatigueSlope")}</strong><br>Not enough data/variation yet.</div>`;
   const cls = f.slope < -0.25 ? "psi-risk" : f.slope > 0.25 ? "psi-good" : "psi-watch";
   const direction = f.slope < -0.25 ? "fatigue drag" : f.slope > 0.25 ? "slow-start / improves later" : "flat";
@@ -7560,18 +7604,22 @@ function deleteLog(id) {
 
 function renderDateView(logs) {
   if (!logs.length) return "<p>No exercises logged for this view.</p>";
-  const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
+  const sourceLogs = Array.isArray(logs) ? logs : [];
+  const totalTime = sourceLogs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
   const types = Object.create(null);
-  logs.forEach(l => { types[l.category || "uncategorized"] = (types[l.category || "uncategorized"] || 0) + 1; });
-  const hit = targetHitRate(logs);
+  sourceLogs.forEach(l => { types[l.category || "uncategorized"] = (types[l.category || "uncategorized"] || 0) + 1; });
+  const hit = targetHitRate(sourceLogs);
+  const displayLogs = sourceLogs.length > HISTORY_RENDER_ROW_LIMIT ? sourceLogs.slice(-HISTORY_RENDER_ROW_LIMIT) : sourceLogs;
+  const rowLimitNote = sourceLogs.length > displayLogs.length ? `<div class="analytics-note muted">Showing latest ${displayLogs.length} of ${sourceLogs.length} logs in this table. Use filters or exports for full history.</div>` : "";
   return `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${sourceLogs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
-  ${progressiveStatsForLogs(logs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(logs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(logs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(logs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(logs).highestBreak || "N/A"}</span></div>` : ""}
-  ${renderTargetProfileSummary(logs)}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
+  ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
+  ${renderTargetProfileSummary(sourceLogs)}
+  ${rowLimitNote}
+  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${displayLogs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
 }
 function renderPracticeTodayCommand() {
   const box = $("practiceTodayCommand");
@@ -7614,7 +7662,7 @@ function renderToday() {
   const hit = targetHitRate(logs);
 
   $("todaySummary").innerHTML = `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${sourceLogs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
@@ -9194,9 +9242,10 @@ function tableStats(logs){
 }
 function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance ${statHelpButton("tableVenuePerformance")}</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
-function routineStats(routineId) {
+function routineStats(routineId, groupedLogs = null) {
   const routine = routineById(routineId);
-  const logs = data.logs.filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const logMap = groupedLogs || getLogsByRoutineMap(data.logs || []);
+  const logs = (logMap[String(routineId)] || []).slice();
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const hit = targetHitRate(logs);
   const recent = vals.length ? avg(vals.slice(-3)) : null;
@@ -9419,6 +9468,7 @@ function interfaceWriteSetting(storageKey, dataKey, value) {
     data.interfaceSettings = data.interfaceSettings || {};
     data.interfaceSettings[dataKey] = clean;
     data.updatedAt = new Date().toISOString();
+  invalidateLogsByRoutineCache();
     if (typeof saveCoreData === "function") saveCoreData("interface setting core save");
     else localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeCoreData(data)));
   } catch(e) { if (typeof logAppError === "function") logAppError(e, "interfaceWriteSetting main data"); }
