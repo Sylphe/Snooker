@@ -1,17 +1,25 @@
-# Snooker Practice PWA v5.2.4
+# Snooker Practice PWA v5.3.0
 
-## v5.2.4 — Focus Mode Numpad Alignment
+## v5.3.0 — Focus Mode Foundation Refactor
 
-Built from v5.2.2.
+Built from v5.2.4.
 
 ### Included
-- fixed Focus Mode score/attempts layout overlap
-- removed green highlight styling from the primary score box
-- removed green highlight styling from the PB box
-- aligned score, PB, stepper, and cockpit surfaces to the darker table-mode theme
-- preserved score-entry cockpit, numpad, swipe, long-press, and session logic
-- no analytics, storage, hydration, or session schema changes
+- new Focus Mode foundation for the v5.3 redesign branch
+- matte dark-green performance-instrument visual system
+- ultra-compact operational Focus Mode header
+- reduced borders, glows, and nested-card noise in Focus Mode
+- tighter Focus Mode spacing and typography hierarchy
+- score-entry cockpit remains the visual center without changing scoring behavior
+- compact telemetry-style metadata treatment for supporting fields
+- state-ready CSS scaffolding for future pre-shot / active-break / between-attempt / session-end layouts
+- no scoring, analytics, storage, hydration, or session schema changes
+
+### Validation
+- JS syntax checks passed
+- duplicate declaration checks passed
+- zip integrity check passed
 
 ### Build
-- Version: v5.2.4
-- Build time: 2026-05-19 09:40 CEST
+- Version: v5.3.0
+- Build time: 2026-05-19 10:13 CEST

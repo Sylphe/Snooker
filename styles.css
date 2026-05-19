@@ -4177,3 +4177,494 @@ body.session-focus-active #activeSession .focus-numpad-footer button:active{
   body.session-focus-active #activeSession .focus-numpad-footer{gap:6px!important;}
   body.session-focus-active #activeSession .focus-numpad-footer button{font-size:10.5px!important;}
 }
+
+/* v5.3.0 Focus Mode Foundation Refactor — dark performance-instrument shell */
+:root{
+  --focus-bg-0:#03120e;
+  --focus-bg-1:#071b15;
+  --focus-bg-2:#0b241c;
+  --focus-surface:rgba(13,34,28,.82);
+  --focus-surface-soft:rgba(20,43,36,.58);
+  --focus-surface-strong:rgba(26,55,45,.78);
+  --focus-line:rgba(210,232,221,.10);
+  --focus-line-soft:rgba(210,232,221,.055);
+  --focus-text:#f2f8f3;
+  --focus-muted:rgba(222,238,228,.62);
+  --focus-dim:rgba(222,238,228,.42);
+  --focus-emerald:#4fc879;
+  --focus-gold:#d7ad42;
+  --focus-danger:#b65a55;
+}
+
+body.session-focus-active{
+  background:
+    radial-gradient(circle at 35% 18%, rgba(42,92,68,.26), transparent 36%),
+    radial-gradient(circle at 70% 86%, rgba(10,48,34,.32), transparent 34%),
+    linear-gradient(180deg, var(--focus-bg-1), var(--focus-bg-0)) !important;
+  color:var(--focus-text)!important;
+}
+
+body.session-focus-active main,
+body.session-focus-active .panel.active{
+  background:transparent!important;
+}
+
+body.session-focus-active #activeSession{
+  max-width:720px!important;
+  margin:10px auto 18px!important;
+  padding:12px!important;
+  border:1px solid var(--focus-line)!important;
+  border-radius:24px!important;
+  background:
+    linear-gradient(180deg, rgba(18,43,35,.72), rgba(3,18,14,.84)),
+    radial-gradient(circle at 50% 0%, rgba(65,108,79,.16), transparent 42%)!important;
+  box-shadow:0 28px 72px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.035)!important;
+  overflow:hidden!important;
+}
+
+body.session-focus-active #activeSession .session-top{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:2px 4px 9px!important;
+  margin:0 0 10px!important;
+  border-bottom:1px solid var(--focus-line-soft)!important;
+  background:transparent!important;
+}
+
+body.session-focus-active #currentRoutineName{
+  margin:0!important;
+  font-size:17px!important;
+  line-height:1.05!important;
+  letter-spacing:.01em!important;
+  color:var(--focus-text)!important;
+  font-weight:800!important;
+}
+
+body.session-focus-active #currentRoutineMeta{
+  margin:4px 0 0!important;
+  font-size:10.5px!important;
+  line-height:1.3!important;
+  color:var(--focus-muted)!important;
+  letter-spacing:.08em!important;
+  text-transform:uppercase!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+body.session-focus-active #activeSession .timer{
+  font-size:26px!important;
+  font-weight:850!important;
+  letter-spacing:.02em!important;
+  color:var(--focus-text)!important;
+  font-variant-numeric:tabular-nums!important;
+  text-align:right!important;
+}
+
+body.session-focus-active #activeSession .timer-sub{
+  margin:3px 0 0!important;
+  color:var(--focus-emerald)!important;
+  font-size:10px!important;
+  line-height:1.1!important;
+  text-transform:uppercase!important;
+  letter-spacing:.12em!important;
+  text-align:right!important;
+}
+
+body.session-focus-active #routineDescriptionBox,
+body.session-focus-active #activeSession .description-box{
+  margin:0 0 8px!important;
+  padding:8px 10px!important;
+  border:0!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.035)!important;
+  color:var(--focus-muted)!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession .focus-timer-action-row{
+  display:flex!important;
+  gap:6px!important;
+  margin:0 0 8px!important;
+  padding:0!important;
+  justify-content:flex-end!important;
+  opacity:.82!important;
+}
+
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  min-height:32px!important;
+  height:32px!important;
+  padding:0 11px!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.055)!important;
+  color:var(--focus-muted)!important;
+  box-shadow:none!important;
+  font-size:10px!important;
+  letter-spacing:.07em!important;
+  text-transform:uppercase!important;
+}
+
+body.session-focus-active #activeSession #timerPauseBtn{
+  color:var(--focus-text)!important;
+  background:rgba(255,255,255,.09)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:stretch!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div,
+body.session-focus-active #activeSession #sessionExtraFields > div,
+body.session-focus-active #activeSession .live-performance-card,
+body.session-focus-active #activeSession #livePerformanceCard{
+  border:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row{
+  order:1!important;
+  min-height:148px!important;
+  padding:20px 16px 16px!important;
+  border-radius:22px!important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.05), transparent 48%)!important;
+  border:1px solid var(--focus-line-soft)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035), 0 16px 40px rgba(0,0,0,.22)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row label,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row label{
+  display:block!important;
+  margin:0 0 8px!important;
+  color:var(--focus-muted)!important;
+  font-size:11px!important;
+  letter-spacing:.12em!important;
+  text-align:center!important;
+  text-transform:uppercase!important;
+  font-weight:700!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input{
+  width:100%!important;
+  min-height:88px!important;
+  height:88px!important;
+  padding:0!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:var(--focus-text)!important;
+  font-size:78px!important;
+  line-height:1!important;
+  text-align:center!important;
+  font-weight:900!important;
+  letter-spacing:-.05em!important;
+  box-shadow:none!important;
+  text-shadow:0 10px 30px rgba(0,0,0,.38)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel){
+  min-height:unset!important;
+  padding:8px 10px!important;
+  border:0!important;
+  border-radius:15px!important;
+  background:rgba(255,255,255,.035)!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(58px,1fr)!important;
+  align-items:center!important;
+  column-gap:8px!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) label{
+  margin:0!important;
+  font-size:10px!important;
+  line-height:1.1!important;
+  letter-spacing:.11em!important;
+  text-transform:uppercase!important;
+  color:var(--focus-dim)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) input{
+  min-height:28px!important;
+  height:28px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:var(--focus-text)!important;
+  box-shadow:none!important;
+  font-size:19px!important;
+  text-align:right!important;
+  font-weight:800!important;
+}
+
+body.session-focus-active #activeSession .focus-score-cockpit,
+body.session-focus-active #activeSession .focus-numpad-panel{
+  order:2!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession .focus-cockpit-header{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  margin:0 0 6px!important;
+  padding:0 2px!important;
+  color:var(--focus-dim)!important;
+  letter-spacing:.10em!important;
+  text-transform:uppercase!important;
+  font-size:10px!important;
+}
+
+body.session-focus-active #activeSession .focus-cockpit-label{color:var(--focus-muted)!important;font-weight:800!important;}
+body.session-focus-active #activeSession .focus-cockpit-hint{color:var(--focus-dim)!important;font-size:9px!important;}
+
+body.session-focus-active #activeSession .focus-numpad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid button{
+  min-height:58px!important;
+  height:58px!important;
+  padding:0!important;
+  border:1px solid var(--focus-line-soft)!important;
+  border-radius:15px!important;
+  background:linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))!important;
+  color:var(--focus-text)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035), 0 10px 26px rgba(0,0,0,.14)!important;
+  font-size:28px!important;
+  font-weight:850!important;
+  line-height:1!important;
+  text-shadow:0 6px 18px rgba(0,0,0,.36)!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid button[data-numpad-action="enter"]{
+  background:linear-gradient(180deg, rgba(91,154,95,.92), rgba(46,104,63,.88))!important;
+  color:#f7fff8!important;
+  border:0!important;
+  box-shadow:0 14px 34px rgba(36,118,63,.28), inset 0 1px 0 rgba(255,255,255,.12)!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid button:active,
+body.session-focus-active #activeSession .focus-numpad-footer button:active{
+  transform:translateY(1px) scale(.99)!important;
+  filter:brightness(1.08)!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-footer{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:7px!important;
+  margin:8px 0 0!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-footer button{
+  min-height:35px!important;
+  height:35px!important;
+  padding:0 8px!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.045)!important;
+  color:var(--focus-muted)!important;
+  font-size:10.5px!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession #sessionExtraFields{
+  margin:9px 0 0!important;
+  padding:0!important;
+  display:grid!important;
+  gap:7px!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession #focusVenueBlock,
+body.session-focus-active #activeSession .focus-quality-block{
+  padding:9px 10px!important;
+  border:0!important;
+  border-radius:15px!important;
+  background:rgba(255,255,255,.035)!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession #focusVenueBlock label,
+body.session-focus-active #activeSession .focus-quality-block label{
+  margin:0 0 6px!important;
+  color:var(--focus-dim)!important;
+  font-size:10px!important;
+  letter-spacing:.12em!important;
+  text-transform:uppercase!important;
+}
+
+body.session-focus-active #activeSession #sessionVenueTable,
+body.session-focus-active #activeSession #sessionRating{
+  min-height:34px!important;
+  height:34px!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.05)!important;
+  color:var(--focus-text)!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession .quality-tile-row{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:5px!important;
+}
+
+body.session-focus-active #activeSession .quality-tile,
+body.session-focus-active #activeSession .reflection-rating-tile{
+  min-height:33px!important;
+  height:33px!important;
+  border:0!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.05)!important;
+  color:var(--focus-muted)!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession .quality-tile.active,
+body.session-focus-active #activeSession .reflection-rating-tile.active,
+body.session-focus-active #activeSession .quality-tile[aria-pressed="true"]{
+  background:rgba(79,200,121,.38)!important;
+  color:var(--focus-text)!important;
+}
+
+body.session-focus-active #activeSession .session-focus-optional{
+  display:none!important;
+}
+
+body.session-focus-active #activeSession .sticky-log-actions{
+  position:sticky!important;
+  bottom:8px!important;
+  z-index:12!important;
+  display:grid!important;
+  grid-template-columns:1fr auto!important;
+  gap:7px!important;
+  margin:10px 0 0!important;
+  padding:7px!important;
+  border:0!important;
+  border-radius:18px!important;
+  background:rgba(2,14,11,.72)!important;
+  backdrop-filter:blur(14px)!important;
+  box-shadow:0 -12px 32px rgba(0,0,0,.20)!important;
+}
+
+body.session-focus-active #activeSession #saveNextBtn{
+  min-height:45px!important;
+  height:45px!important;
+  border:0!important;
+  border-radius:15px!important;
+  background:linear-gradient(180deg, rgba(76,151,82,.95), rgba(40,107,63,.95))!important;
+  color:#f8fff8!important;
+  box-shadow:0 16px 34px rgba(30,112,61,.26)!important;
+  font-size:13px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.10em!important;
+  font-weight:850!important;
+}
+
+body.session-focus-active #activeSession #skipBtn,
+body.session-focus-active #activeSession #endFreeSessionBtn{
+  min-height:45px!important;
+  height:45px!important;
+  border:0!important;
+  border-radius:15px!important;
+  background:rgba(255,255,255,.045)!important;
+  color:var(--focus-muted)!important;
+  box-shadow:none!important;
+  font-size:11px!important;
+}
+
+body.session-focus-active #activeSession #endFreeSessionBtn{
+  color:#e6aaa4!important;
+  background:rgba(182,90,85,.12)!important;
+}
+
+body.session-focus-active #activeSession #livePerformanceCard,
+body.session-focus-active #activeSession .live-performance-card{
+  margin:0 0 8px!important;
+  padding:0!important;
+}
+
+body.session-focus-active #activeSession .live-perf{
+  border:0!important;
+  border-radius:16px!important;
+  background:rgba(255,255,255,.035)!important;
+  box-shadow:none!important;
+  padding:8px 10px!important;
+  color:var(--focus-muted)!important;
+}
+
+body.session-focus-active #activeSession .live-perf strong{
+  color:var(--focus-gold)!important;
+  font-weight:850!important;
+}
+
+/* Future v5.3 state scaffolding: classes can be toggled later without redesigning CSS. */
+body.session-focus-active #activeSession.focus-state-ready{}
+body.session-focus-active #activeSession.focus-state-active-break{}
+body.session-focus-active #activeSession.focus-state-between-attempts{}
+body.session-focus-active #activeSession.focus-state-session-end{}
+body.session-focus-active #activeSession.focus-state-active-break #sessionExtraFields,
+body.session-focus-active #activeSession.focus-state-active-break .focus-timer-action-row,
+body.session-focus-active #activeSession.focus-state-active-break .focus-numpad-footer{
+  opacity:.32!important;
+}
+body.session-focus-active #activeSession.focus-state-active-break #scoreInputs .focus-primary-score-row input{
+  font-size:94px!important;
+}
+
+@media (max-width:680px){
+  body.session-focus-active #activeSession{
+    width:calc(100vw - 18px)!important;
+    margin:7px auto 14px!important;
+    padding:10px!important;
+    border-radius:21px!important;
+  }
+  body.session-focus-active #currentRoutineName{font-size:15px!important;}
+  body.session-focus-active #currentRoutineMeta{font-size:9px!important;}
+  body.session-focus-active #activeSession .timer{font-size:22px!important;}
+  body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+  body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row{
+    min-height:132px!important;
+    padding:16px 12px 13px!important;
+  }
+  body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
+  body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input{
+    min-height:74px!important;
+    height:74px!important;
+    font-size:68px!important;
+  }
+  body.session-focus-active #activeSession .focus-numpad-grid{gap:6px!important;}
+  body.session-focus-active #activeSession .focus-numpad-grid button{
+    min-height:52px!important;
+    height:52px!important;
+    border-radius:14px!important;
+    font-size:25px!important;
+  }
+  body.session-focus-active #activeSession .sticky-log-actions{bottom:6px!important;}
+}
