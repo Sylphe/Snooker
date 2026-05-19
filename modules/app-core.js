@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.4.0";
+} from "./utils.js?v=5.4.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.4.0";
+} from "./settings.js?v=5.4.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.4.0";
+} from "./analytics.js?v=5.4.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.4.0";
+} from "./bayesian.js?v=5.4.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.4.0";
+} from "./session.js?v=5.4.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.4.0";
+} from "./pressure.js?v=5.4.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.4.0";
+} from "./recommendations.js?v=5.4.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.4.0";
+} from "./store.js?v=5.4.1";
 
 
 
@@ -1774,6 +1774,99 @@ function uiExplain(key){
   const mode = getInsightLanguageSetting();
   return (UI_EXPLANATIONS[mode] && UI_EXPLANATIONS[mode][key]) || (UI_EXPLANATIONS.analytical && UI_EXPLANATIONS.analytical[key]) || "";
 }
+
+
+/* v5.4.1 Recommendation explanation wording layer */
+const UI_RECOMMENDATION_COPY = {
+  friendly: {
+    logicTitle: "Why this is suggested",
+    nextFocusPrefix: "Try this next",
+    reasonLabel: "Coach view",
+    detailsLabel: "More detail",
+    noHistoryTitle: "Start with one logged session.",
+    noHistoryText: "Once you log a few drills, the app will suggest what to train next.",
+    noEligible: "No suitable recommendation yet. Log more active routines or check exercise eligibility.",
+    modeHeuristic: "Stable picks based on recent results, weak areas, and training balance.",
+    modeThompson: "Adds controlled exploration so useful but less-tested drills are not ignored.",
+    modeHybrid: "Blends reliable choices with a small amount of useful exploration.",
+    fallbackReason: "balanced rotation"
+  },
+  analytical: {
+    logicTitle: "Context-aware recommendation logic",
+    nextFocusPrefix: "Recommended next focus",
+    reasonLabel: "Reason",
+    detailsLabel: "Model detail",
+    noHistoryTitle: "Start logging exercises.",
+    noHistoryText: "Recommendation will use target hit rate, recent trend, training allocation, and recommendation mode once you have history.",
+    noEligible: "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.",
+    modeHeuristic: "Heuristic: stable ranking based on weakness, recency, undertraining, context, and True Skill signals.",
+    modeThompson: "Thompson Sampling: samples each drill's upside and naturally balances confirmed weaknesses with useful exploration.",
+    modeHybrid: "Hybrid: blends stable heuristic scoring, Thompson-style exploration, and Bayesian optimization guardrails so recommendations do not become too repetitive.",
+    fallbackReason: "balanced rotation"
+  }
+};
+function uiRecommendationCopy(key){
+  const mode = getInsightLanguageSetting();
+  return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
+}
+function recommendationModeSummaryForUI(mode) {
+  if (getInsightLanguageSetting() === "friendly") {
+    if (mode === "thompson") return uiRecommendationCopy("modeThompson");
+    if (mode === "hybrid") return uiRecommendationCopy("modeHybrid");
+    return uiRecommendationCopy("modeHeuristic");
+  }
+  return recommendationModeSummary(mode);
+}
+function friendlySelectionType(value){
+  const v = String(value || "").toLowerCase();
+  if (v.includes("exploration")) return "Explore";
+  if (v.includes("exploitation")) return "Reinforce";
+  if (v.includes("data")) return "Build evidence";
+  return value || "Balanced";
+}
+function friendlyEvidenceLabel(value){
+  const v = String(value || "").toLowerCase();
+  if (v.includes("strong")) return "Reliable signal";
+  if (v.includes("moderate")) return "Moderate signal";
+  if (v.includes("low") || v.includes("early")) return "Early signal";
+  return value || "Signal building";
+}
+function friendlyRecommendationReason(reason){
+  const raw = String(reason || "").trim();
+  const r = raw.toLowerCase();
+  if (!raw) return "";
+  if (r.includes("maintenance") || r.includes("decay") || r.includes("undertrained") || r.includes("low exposure")) return "Refresh this skill before it fades.";
+  if (r.includes("transfer") || r.includes("upstream") || r.includes("downstream")) return "This drill should carry over into other useful skills.";
+  if (r.includes("confidence") && (r.includes("low") || r.includes("risk") || r.includes("preserv"))) return "Good choice for rebuilding confidence without too much risk.";
+  if (r.includes("volatility") && r.includes("high")) return "Use with care: this drill can swing results sharply.";
+  if (r.includes("volatility")) return "Stable enough for today’s training state.";
+  if (r.includes("fatigue") || r.includes("energy")) return "Fits your current energy level.";
+  if (r.includes("recovery")) return "Selected to keep the session controlled and confidence-safe.";
+  if (r.includes("pressure")) return "Useful pressure test at the right point in the session.";
+  if (r.includes("target") || r.includes("difficulty") || r.includes("progression")) return "Difficulty looks ready for adjustment.";
+  if (r.includes("regression") || r.includes("simplify")) return "Make the drill easier until execution stabilizes.";
+  if (r.includes("post-recommendation") || r.includes("recommendation learning") || r.includes("completed recommendations")) return "Your previous feedback suggests this type of recommendation is useful.";
+  if (r.includes("context") || r.includes("table") || r.includes("time")) return "The current context supports this choice.";
+  if (r.includes("thompson") || r.includes("exploration") || r.includes("uncertainty")) return "Worth testing because the upside is still uncertain.";
+  if (r.includes("skill") || r.includes("weak")) return "Targets a current weak area.";
+  return raw;
+}
+function recommendationReasonListForUI(reasons, max=3){
+  const mode = getInsightLanguageSetting();
+  const source = Array.isArray(reasons) ? reasons : [];
+  const mapped = source.map(r => mode === "friendly" ? friendlyRecommendationReason(r) : String(r || "").trim()).filter(Boolean);
+  return [...new Set(mapped)].slice(0, max);
+}
+function primaryRecommendationAction(top){
+  if (!top) return "Train this next.";
+  if (getInsightLanguageSetting() !== "friendly") return null;
+  if (top.maintenanceFit && Number(top.maintenanceFit.score || 0) > 8) return "Refresh this before it fades.";
+  if (top.transferNeed && Number(top.transferNeed.score || 0) > 8) return "Use this as a high-carryover drill.";
+  if (top.selectionType === "exploration") return "Test this today with controlled volume.";
+  if (top.selectionType === "exploitation") return "Reinforce this because the signal is reliable.";
+  if ((top.volatilityProfile?.level || "") === "high") return "Use this carefully and keep the set short.";
+  return "Use this as the next focused block.";
+}
 function setInsightLanguageSetting(value){
   const clean = normalizeInsightLanguage(value);
   try { localStorage.setItem(INSIGHT_LANGUAGE_KEY, clean); } catch(e) {}
@@ -1964,9 +2057,13 @@ function loadData() {
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
-    notifyUser("Startup/migration issue detected. Stored data was not overwritten. Export Debug Info and Raw Local Data before making changes.", "warn");
     const fallback = raw ? safeParseData(raw) : null;
-    return fallback || structuredCloneSafe(defaultData);
+    if (fallback) {
+      console.warn("Startup migration warning suppressed: readable data was preserved and the app loaded from the existing payload.", e);
+      return fallback;
+    }
+    notifyUser("Startup/migration issue detected. Stored data could not be read. Export Debug Info and Raw Local Data before making changes.", "warn");
+    return structuredCloneSafe(defaultData);
   }
 }
 
@@ -4963,13 +5060,13 @@ function renderRecommendationLogicPanel(candidates, mode) {
   if (!rows.length) return "";
   const state = rows[0]?.stateMode || inferTrainingStateMode();
   return `<div class="recommendation-logic-panel">
-    <h4>Context-aware recommendation logic</h4>
-    <div class="adaptive-rationale"><strong>${escapeHtml(state.label)} mode:</strong> ${escapeHtml(state.reason)} · ${escapeHtml(recommendationModeSummary(mode))}</div>
+    <h4>${escapeHtml(uiRecommendationCopy("logicTitle"))}</h4>
+    <div class="adaptive-rationale"><strong>${escapeHtml(getInsightLanguageSetting() === "friendly" ? "Training state" : state.label + " mode")}:</strong> ${escapeHtml(getInsightLanguageSetting() === "friendly" ? friendlyRecommendationReason(state.reason) || state.reason : state.reason)} · ${escapeHtml(recommendationModeSummaryForUI(mode))}</div>
     <div class="recommendation-candidate-list">
       ${rows.map((x, idx)=>`<div class="context-row recommendation-candidate-row">
-        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(x.selectionType)} · ${escapeHtml(x.evidenceLabel)} · volatility ${escapeHtml(x.volatilityProfile?.level || "n/a")} · uncertainty ${x.uncertainty.toFixed(1)}</span></span>
+        <span><strong>${idx+1}. ${escapeHtml(x.routine.name)}</strong><br><span class="muted">${escapeHtml(getInsightLanguageSetting() === "friendly" ? friendlySelectionType(x.selectionType) : x.selectionType)} · ${escapeHtml(getInsightLanguageSetting() === "friendly" ? friendlyEvidenceLabel(x.evidenceLabel) : x.evidenceLabel)} · ${escapeHtml(getInsightLanguageSetting() === "friendly" ? "consistency risk" : "volatility")} ${escapeHtml(x.volatilityProfile?.level || "n/a")} · ${escapeHtml(getInsightLanguageSetting() === "friendly" ? "confidence" : "uncertainty")} ${x.uncertainty.toFixed(1)}</span></span>
         <strong>${(mode === "thompson" ? x.sampledValue : mode === "hybrid" ? x.hybridScore : x.score).toFixed(1)}</strong>
-        <span>${escapeHtml((x.reasons || []).slice(0,3).join(" · ") || "balanced rotation")}</span>
+        <span>${escapeHtml(recommendationReasonListForUI(x.reasons || [], 3).join(" · ") || uiRecommendationCopy("fallbackReason"))}</span>
       </div>`).join("")}
     </div>
   </div>`;
@@ -4981,7 +5078,7 @@ function renderSmartRecommendation() {
   const mode = getSmartRecommendationMode();
   if ($("smartRecommendationMode")) $("smartRecommendationMode").value = mode;
   if (!data.logs.length) {
-    box.innerHTML = `<strong>Start logging exercises.</strong><br>Recommendation will use target hit rate, recent trend, training allocation, and recommendation mode once you have history.<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
+    box.innerHTML = `<strong>${escapeHtml(uiRecommendationCopy("noHistoryTitle"))}</strong><br>${escapeHtml(uiRecommendationCopy("noHistoryText"))}<div class="row compact-action-row"><button type="button" class="secondary" data-action="quick-start-default-plan">Create quick-start plan</button></div>`;
     return;
   }
   const focus = $("orchestratorFocus")?.value || "all";
@@ -4993,7 +5090,7 @@ function renderSmartRecommendation() {
   const alloc = computeAllocation(recentLogs);
   const undertrained = alloc.sort((a,b)=>a.pct-b.pct)[0];
   if (!routine) {
-    box.innerHTML = "No eligible routine-level history yet. Check recommendation eligibility settings or log more active routines.";
+    box.innerHTML = escapeHtml(uiRecommendationCopy("noEligible"));
     return;
   }
   const bayesian = top.stats?.bayesian;
@@ -5003,20 +5100,24 @@ function renderSmartRecommendation() {
       <p>${htmlText(policy.instruction)}</p>
       <p class="muted">${htmlText(policy.detail)} ${htmlText(policy.coaching)}</p>
     </div>` : "";
-  box.innerHTML = `<strong>Recommended next focus:</strong> ${escapeHtml(routine.name)}<br>
-    <span class="badge">Mode: ${escapeHtml(mode === "thompson" ? "Thompson" : mode === "hybrid" ? "Hybrid" : "Heuristic")}</span>
-    <span class="badge">Type: ${escapeHtml(top.selectionType)}</span>
-    <span class="badge">Evidence: ${escapeHtml(top.evidenceLabel)}</span>
+  const friendlyMode = getInsightLanguageSetting() === "friendly";
+  const actionText = primaryRecommendationAction(top);
+  const reasonText = recommendationReasonListForUI(top.reasons || [], friendlyMode ? 3 : 5).join(" · ") || uiRecommendationCopy("fallbackReason");
+  box.innerHTML = `<strong>${escapeHtml(uiRecommendationCopy("nextFocusPrefix"))}:</strong> ${escapeHtml(routine.name)}<br>
+    ${friendlyMode && actionText ? `<div class="adaptive-rationale"><strong>${escapeHtml(actionText)}</strong><br><span class="muted">${escapeHtml(reasonText)}.</span></div>` : ""}
+    <span class="badge">${friendlyMode ? "Style" : "Mode"}: ${escapeHtml(mode === "thompson" ? (friendlyMode ? "Exploration" : "Thompson") : mode === "hybrid" ? "Hybrid" : (friendlyMode ? "Stable" : "Heuristic"))}</span>
+    <span class="badge">${friendlyMode ? "Use" : "Type"}: ${escapeHtml(friendlyMode ? friendlySelectionType(top.selectionType) : top.selectionType)}</span>
+    <span class="badge">${friendlyMode ? "Signal" : "Evidence"}: ${escapeHtml(friendlyMode ? friendlyEvidenceLabel(top.evidenceLabel) : top.evidenceLabel)}</span>
     <span class="badge">Hit rate: ${top.stats.hit === null ? "N/A" : top.stats.hit.toFixed(1)+"%"}</span>
     <span class="badge">Category: ${escapeHtml(routine.category || "uncategorized")}</span>
     <span class="badge">Skill: ${escapeHtml(skillLabel(getRoutineSkillMap(routine).primarySkill))}</span>
-    <span class="badge">Context: ${escapeHtml(top.stateMode?.label || inferTrainingStateMode().label)}</span>
-    <span class="badge">Volatility: ${escapeHtml(top.volatilityProfile?.level || "n/a")}</span>
-    <span class="badge">Transfer: ${Number(top.transferValue || routineTransferValue(routine))}/100</span>
-    <span class="badge">Learning: ${top.learningSignal?.score ? (top.learningSignal.score >= 0 ? "+" : "") + top.learningSignal.score.toFixed(1) : "new"}</span>
-    ${undertrained ? `<span class="badge">Undertrained area: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
-    ${policy ? `<span class="badge">True Skill action: ${htmlText(policy.badge)}</span>` : ""}
-    <p class="muted">Reason: ${(top.reasons || []).slice(0,5).map(escapeHtml).join(" · ") || "balanced rotation"}.</p>
+    <span class="badge">${friendlyMode ? "State" : "Context"}: ${escapeHtml(top.stateMode?.label || inferTrainingStateMode().label)}</span>
+    <span class="badge">${friendlyMode ? "Risk" : "Volatility"}: ${escapeHtml(top.volatilityProfile?.level || "n/a")}</span>
+    <span class="badge">${friendlyMode ? "Carryover" : "Transfer"}: ${Number(top.transferValue || routineTransferValue(routine))}/100</span>
+    <span class="badge">${friendlyMode ? "Past fit" : "Learning"}: ${top.learningSignal?.score ? (top.learningSignal.score >= 0 ? "+" : "") + top.learningSignal.score.toFixed(1) : "new"}</span>
+    ${undertrained ? `<span class="badge">${friendlyMode ? "Needs work" : "Undertrained area"}: ${escapeHtml(undertrained.cat)} (${undertrained.pct.toFixed(1)}%)</span>` : ""}
+    ${policy ? `<span class="badge">${friendlyMode ? "Skill action" : "True Skill action"}: ${htmlText(policy.badge)}</span>` : ""}
+    ${friendlyMode ? "" : `<p class="muted">${escapeHtml(uiRecommendationCopy("reasonLabel"))}: ${escapeHtml(reasonText)}.</p>`}
     ${renderFeedbackButtons(routine.id, "smart_recommendation")}
     ${policyHtml}
     ${renderRecommendationLogicPanel(candidates, mode)}
@@ -6096,6 +6197,27 @@ function fatigueCurve(logs) {
   return {first,last,deltaPct};
 }
 
+
+function coachingInsightForUI(item){
+  if (getInsightLanguageSetting() !== "friendly") return item;
+  const title = String(item?.title || "");
+  const text = String(item?.text || "");
+  const lower = (title + " " + text).toLowerCase();
+  if (lower.includes("prioritize")) return {title:title.replace(/^Prioritize/i, "Focus on"), text:text.replace("Allocate more volume here in the next session.", "Add one focused block next session.")};
+  if (lower.includes("high skill gap")) return {title:"Build consistency", text:"Your best scores are much higher than your average. Repeat the same setup until the baseline rises."};
+  if (lower.includes("low skill gap")) return {title:"Raise the challenge", text:"Your average is close to your best. Add a constraint if your target hit rate is already strong."};
+  if (lower.includes("fatigue")) return {title:"Protect your energy", text:"Late-session performance is dropping. Use shorter sets or more rest."};
+  if (lower.includes("slow-start")) return {title:"Warm up first", text:"You improve later in the session. Add a short unscored calibration block before logging."};
+  if (lower.includes("progressive overload")) return {title:"Make it harder", text:"Your hit rate is high. Increase the target slightly or add one constraint."};
+  if (lower.includes("regression")) return {title:"Make it easier", text:"The hit rate is low. Simplify the drill until execution stabilizes."};
+  if (lower.includes("plateau")) return {title:"Change the stimulus", text:"Performance has flattened. Change one constraint instead of repeating identical volume."};
+  if (lower.includes("overtraining") || lower.includes("low yield")) return {title:"Reduce low-yield volume", text:"Volume increased without matching improvement. Shorten the block or add more recovery."};
+  if (lower.includes("dynamic difficulty")) return {title:"Adjust difficulty", text:text.replace(/^.*?:\s*/, "")};
+  if (lower.includes("difficulty ladder")) return {title:"Use the next difficulty step", text};
+  if (lower.includes("maintain current")) return {title:"Keep the structure", text:"No strong bottleneck detected. Keep logging to strengthen the signal."};
+  return item;
+}
+
 function renderCoachingEngine(logs, rid=null) {
   if (!logs.length) return "";
   const vals = logs.map(l=>Number(l.normalizedScore||0));
@@ -6157,7 +6279,8 @@ function renderCoachingEngine(logs, rid=null) {
     insights.push({title:"Maintain current structure", text:"No strong bottleneck detected. Continue logging to improve signal quality."});
   }
 
-  return `<div class="coaching-box"><h3>Coaching insights</h3>${insights.slice(0,4).map(i=>`<div class="insight insight-compact"><strong>${escapeHtml(i.title)}</strong><span class="insight-subtitle">${escapeHtml(i.text)}</span></div>`).join("")}</div>`;
+  const viewInsights = insights.slice(0,4).map(coachingInsightForUI);
+  return `<div class="coaching-box"><h3>${escapeHtml(getInsightLanguageSetting() === "friendly" ? "Coaching plan" : "Coaching insights")}</h3>${viewInsights.map(i=>`<div class="insight insight-compact"><strong>${escapeHtml(i.title)}</strong><span class="insight-subtitle">${escapeHtml(i.text)}</span></div>`).join("")}</div>`;
 }
 
 
@@ -7902,7 +8025,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
