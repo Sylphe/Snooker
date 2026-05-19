@@ -1,3 +1,13 @@
+
+## v5.3.2 — Exact Focus Cockpit Layout
+
+Build: 2026-05-19 10:49 CEST
+
+- Recomputed Focus Mode around a 437px mobile shell and 298px scoring stack.
+- Added compact operational header, dominant Current Break card, embedded 3x4 numpad, compressed telemetry strip, quality selector, floating save button, and gesture footer.
+- Demoted legacy form fields, side controls, full-width venue/time fields, and sticky save row from the main Focus Mode viewport.
+- Preserved existing scoring, session, analytics, hydration, and storage logic.
+
 # Snooker Practice PWA v5.3.1
 
 ## v5.3.1 — Dominant Score Cockpit
