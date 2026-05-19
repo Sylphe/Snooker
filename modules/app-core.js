@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.5";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.5";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.6";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.6";
 import {
   uuid,
   structuredCloneSafe,
@@ -16,8 +16,10 @@ import {
   numText,
   numAttr,
   safeClassToken,
-  sortedBy
-} from "./utils.js?v=5.5.5";
+  sortedBy,
+  safeMax,
+  safeMin
+} from "./utils.js?v=5.5.6";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.5";
+} from "./settings.js?v=5.5.6";
 import {
   avg,
   stdDev,
@@ -57,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.5";
+} from "./analytics.js?v=5.5.6";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.5";
+} from "./bayesian.js?v=5.5.6";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.5";
+} from "./session.js?v=5.5.6";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.5";
+} from "./pressure.js?v=5.5.6";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.5";
+} from "./recommendations.js?v=5.5.6";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +109,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.5";
+} from "./store.js?v=5.5.6";
 
 
 
@@ -169,10 +171,10 @@ function serializeCoreData(d) {
   return core;
 }
 
-function saveCoreData(context="saveCoreData") {
-  if (storageReadOnlyMode) return false;
+function saveCoreData(context="saveCoreData", force=false) {
+  if (storageReadOnlyMode && !force) return false;
   try {
-    const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
+    const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context, force);
     if (!ok && indexedDBUnavailable) enterStorageReadOnlyMode(`${context} localStorage fallback failed`);
     return ok;
   } catch(e) {
@@ -1484,7 +1486,7 @@ function transferModelInsight(logs){
     }).sort((a,b)=>b.weaknessIndex-a.weaknessIndex).slice(0,3);
   return `<div class="insight-card watch"><strong>${htmlText(uiLabel("transferModel"))}</strong>
     <div class="adaptive-rationale">Indirect transfer signals are evidence-weighted. Low-sample relationships are shown, but dampened in recommendation scoring.</div>
-    ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span><br>${evidenceBadge(Math.max(...x.profile.topDownstream.slice(0,3).map(e=>Number(summary[e.skill]?.n||0)),0), "transfer basis")}</span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
+    ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span><br>${evidenceBadge(safeMax(x.profile.topDownstream.slice(0,3).map(e=>Number(summary[e.skill]?.n||0)), 0), "transfer basis")}</span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
     ${weakSkills.length?`<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Main constraints:":"Bottleneck severity:")}</strong> ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} — ${signalLabelFromScore(x.weaknessIndex)} (${htmlText(x.evidence.label.toLowerCase())})`).join(" · ")}</div>`:""}
   </div>`;
 }
@@ -2379,7 +2381,7 @@ function loadData() {
 
 function saveData(options = {}) {
   const opts = typeof options === "string" ? {render: options} : (options || {});
-  if (storageReadOnlyMode) {
+  if (storageReadOnlyMode && !opts.allowReadOnlyCleanup) {
     notifyUser("Storage is in read-only/export mode. Export a backup and free device storage before saving new changes.", "warn");
     renderAfterSave(opts.render || "all");
     return false;
@@ -2401,7 +2403,7 @@ function saveData(options = {}) {
   data.interfaceSettings.timerAutostartDelaySeconds = getTimerAutostartDelaySetting();
   data.interfaceSettings.wakeLock = getWakeLockSetting();
   ensureTablesDatabase?.();
-  const ok = saveCoreData("saveData core");
+  const ok = saveCoreData("saveData core", !!opts.allowReadOnlyCleanup);
   if (opts.idbSync !== "skip") scheduleIndexedDBSync("saveData indexedDB sync", !!opts.immediateIDB);
   if (ok) renderStorageWarning();
   const renderMode = opts.render || "all";
@@ -2999,7 +3001,7 @@ function deleteRoutine(id) {
     const now = new Date().toISOString();
     data.routines = (data.routines || []).map(r => r.id === id ? {...r, isDeleted: true, deletedAt: now} : r);
     data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
-    saveData();
+    saveData({allowReadOnlyCleanup:true});
   });
 }
 safeOn("saveRoutineBtn", "click", () => {
@@ -3174,7 +3176,7 @@ function loadPlanToBuilder(id) {
 function deletePlan(id) {
   return confirmDeleteAction("this training plan", () => {
     data.plans = data.plans.filter(p => p.id !== id);
-    saveData();
+    saveData({allowReadOnlyCleanup:true});
   });
 }
 
@@ -4120,9 +4122,9 @@ function anchorPerformanceSummary(logs) {
 
 function weekStart(dateLike) {
   const d = new Date(dateLike);
+  d.setHours(0,0,0,0);
   const day = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - day);
-  d.setHours(0,0,0,0);
   return d;
 }
 function trainingLoadByDay(days=14) {
@@ -4294,7 +4296,7 @@ function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenue
 function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
 function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name){ table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); (data.logs||[]).forEach(l=>{ if(l.tableId===id){ l.venueTable=name; l.venueTableSnapshot=name; }}); (data.sessions||[]).forEach(sess=>{ if(sess.tableId===id){ sess.venueTable=name; sess.venueTableSnapshot=name; }}); if(activeSession?.tableId===id){ activeSession.venueTable=name; activeSession.venueTableSnapshot=name; persistActiveSession(); }} data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
-function deleteTableDefinition(id){ const usedInLogs=(data.logs||[]).some(l=>l.tableId===id); const usedInSessions=(data.sessions||[]).some(sess=>sess.tableId===id); const usedInDraft=activeSession?.tableId===id; if(usedInLogs||usedInSessions||usedInDraft)return alert("This table is used by existing logs, sessions, or an active session. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
+function deleteTableDefinition(id){ const usedInLogs=(data.logs||[]).some(l=>l.tableId===id); const usedInSessions=(data.sessions||[]).some(sess=>sess.tableId===id); const usedInDraft=activeSession?.tableId===id; if(usedInLogs||usedInSessions||usedInDraft)return alert("This table is used by existing logs, sessions, or an active session. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData({allowReadOnlyCleanup:true}); }
 function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
 
 function clearSkillTagForm(){
@@ -5016,6 +5018,13 @@ function trackRecommendationFeedback(routineId, action, meta={}) {
     };
     newRowId = row.id;
     rows.push(row);
+    if (rows.length > 400) {
+      data.recommendationFeedback = rows
+        .slice()
+        .sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 300)
+        .sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    }
     message = action === "accepted" ? "Recommendation accepted." : "Recommendation skipped.";
   }
   const undo = () => {
@@ -5940,7 +5949,7 @@ function renderPhaseOneInsights() {
 function miniSparkline(values, width=110, height=30) {
   const vals = values.map(v=>Number(v||0)).filter(v=>Number.isFinite(v));
   if (vals.length < 2) return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="2" y="18" font-size="10" fill="#777">not enough data</text></svg>`;
-  const min = Math.min(...vals), max = Math.max(...vals);
+  const min = safeMin(vals, 0), max = safeMax(vals, 0);
   const range = max - min || 1;
   const pts = vals.map((v,i) => {
     const x = vals.length === 1 ? 0 : i * (width/(vals.length-1));
@@ -6218,7 +6227,7 @@ function renderSessionTrendChart(title, subtitle, rows, key, suffix = "", precis
     return `<div class="trend-chart-card"><h4>${htmlText(title)}</h4><p class="muted">Not enough session-level data yet.</p></div>`;
   }
   const width = 640, height = 230, padL = 42, padR = 18, padT = 18, padB = 44;
-  const minRaw = Math.min(...valid), maxRaw = Math.max(...valid);
+  const minRaw = safeMin(valid, 0), maxRaw = safeMax(valid, 0);
   const padY = Math.max(1, (maxRaw - minRaw) * 0.12);
   const minY = Math.max(0, minRaw - padY);
   const maxY = Math.min(key === "practiceMinutes" ? Math.max(maxRaw + padY, 10) : 100, maxRaw + padY);
@@ -6423,7 +6432,7 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
   const current = vals.length ? vals[vals.length-1] : null;
   const recentVals = vals.slice(-Math.max(2, Number(rollingWindow || 5)));
   const rolling = recentVals.length ? avg(recentVals) : null;
-  const best = vals.length ? Math.max(...vals) : null;
+  const best = vals.length ? safeMax(vals, null) : null;
   const hit = targetHitRate(ordered);
   const last = ordered[ordered.length-1];
   const days = last ? daysSince(last.createdAt) : null;
@@ -6638,7 +6647,7 @@ function sideImbalanceMetric(logs) {
 function skillGapIndex(logs) {
   if (logs.length < 2) return null;
   const vals = logs.map(l=>Number(l.normalizedScore||0));
-  return Math.max(...vals) - avg(vals);
+  return safeMax(vals, 0) - avg(vals);
 }
 
 function weaknessConcentration(logs) {
@@ -6912,7 +6921,7 @@ function metricsForLogs(logs) {
     avg: vals.length ? avg(vals) : null,
     hit,
     psi: psi ? psi.psi : null,
-    best: vals.length ? Math.max(...vals) : null
+    best: vals.length ? safeMax(vals, null) : null
   };
 }
 function deltaFmt(a,b, suffix="") {
@@ -7035,7 +7044,7 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
   if (!logs.length) return `<div class="empty-state"><h3>Routine progression</h3><p>No logs for this exercise yet. Log it once to start building a routine trend.</p><button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button></div>`;
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const last5 = vals.slice(-5);
-  const best = Math.max(...vals);
+  const best = safeMax(vals, 0);
   const latest = vals[vals.length - 1];
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
   const hit = targetHitRate(logs);
@@ -7239,7 +7248,7 @@ async function saveEditedLog(id, formEl) {
   data.logs = data.logs.map(log => log.id === id ? l : log);
   const persisted = await persistLogDelta(l, "saveEditedLog log put");
   if (!persisted && !indexedDBUnavailable) notifyUser("Edited log saved locally, but IndexedDB sync is pending.", "warn");
-  saveData({render:"logEdit", idbSync:"skip"});
+  saveData({render:"logEdit", idbSync:"skip", allowReadOnlyCleanup:true});
 }
 function makeRoutineSnapshotFromLog(l) {
   return {
@@ -7262,7 +7271,7 @@ function deleteLog(id) {
     data.logs = data.logs.filter(l => l.id !== id);
     purgePendingIndexedDBDelta("log", id);
     await deleteLogDelta(id, "deleteLog log delete");
-    saveData({render:"logEdit", idbSync:"skip"});
+    saveData({render:"logEdit", idbSync:"skip", allowReadOnlyCleanup:true});
   });
 }
 
@@ -7337,7 +7346,7 @@ function renderVolumeChart(buckets, metric, title) {
   if (!buckets.length) return `<div class="chart-wrap"><p class="muted">No data for chart.</p></div>`;
   const w=520,h=170,padL=38,padR=18,padT=16,padB=38;
   const values = buckets.map(b => metric === "count" ? b.count : b.time);
-  const maxV = Math.max(...values, 1);
+  const maxV = Math.max(safeMax(values, 1), 1);
   const barW = Math.max(8, Math.min(42, (w-padL-padR) / buckets.length * 0.62));
   const step = (w-padL-padR) / buckets.length;
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
@@ -7366,7 +7375,7 @@ function renderTrainingTimeInsightChart(logs, periodLabel="overall") {
   const total = vals.reduce((a,b)=>a+b,0);
   const sessionCount = rows.length;
   const avgMinutes = total / sessionCount;
-  const longest = Math.max(...vals);
+  const longest = safeMax(vals, 0);
   const trend = linearTrend(vals);
   const trendText = trend ? `${trend.slope >= 0 ? "+" : ""}${trend.slope.toFixed(1)} min/session` : "N/A";
   const w=520,h=190,padL=38,padR=20,padT=18,padB=40;
@@ -7422,7 +7431,7 @@ function renderCategoryChart(logs) {
   const totalTime = buckets.reduce((sum,b)=>sum + Number(b.time || 0), 0) || 1;
   const w=520,padL=112,padR=104,padT=14,padB=18,rowH=28;
   const h=Math.max(160, padT + padB + buckets.length * rowH);
-  const maxV = Math.max(...buckets.map(b=>b.time), 1);
+  const maxV = Math.max(safeMax(buckets.map(b=>b.time), 1), 1);
   const barMaxW = w-padL-padR;
   return `<div class="chart-wrap"><svg class="chart category-mix-chart" style="--chart-h:${h}px" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Training category mix">
     ${buckets.map((b,i) => {
@@ -7437,7 +7446,7 @@ function renderChart(logs) {
   if (logs.length < 2) return `<div class="chart-wrap"><p class="muted">Add at least two logs to display a progression curve.</p></div>`;
   const points = logs.map((l,i) => ({i, y: Number(l.normalizedScore || 0), label: localDateKey(l.createdAt)}));
   const w=520,h=160,padL=34,padR=12,padT=12,padB=30;
-  const minY=Math.min(...points.map(p=>p.y)), maxY=Math.max(...points.map(p=>p.y)), yRange=maxY===minY?1:maxY-minY;
+  const pointYs = points.map(p=>p.y); const minY=safeMin(pointYs, 0), maxY=safeMax(pointYs, 0), yRange=maxY===minY?1:maxY-minY;
   const xScale=i=>padL+(i/Math.max(1,points.length-1))*(w-padL-padR);
   const yScale=y=>padT+(maxY-y)/yRange*(h-padT-padB);
   const path=points.map((p,idx)=>`${idx===0?"M":"L"} ${xScale(p.i).toFixed(1)} ${yScale(p.y).toFixed(1)}`).join(" ");
@@ -7598,13 +7607,13 @@ function progressiveStatsForLogs(logs) {
   const pc = logs.filter(l => l.scoring === "progressive_completion");
   if (!pc.length) return null;
   const avgCompletion = avg(pc.map(l => Number(l.normalizedScore || 0)));
-  const bestAttempt = Math.max(...pc.map(l => {
+  const bestAttempt = safeMax(pc.map(l => {
     const raw = l.bestAttempt !== undefined && l.bestAttempt !== null && l.bestAttempt !== "" ? l.bestAttempt : l.score;
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
-  }));
+  }), 0);
   const completionCount = pc.filter(l => Number(l.completionCount || 0) > 0 || Number(l.normalizedScore || 0) >= 100).length;
-  const highestBreak = Math.max(0, ...pc.map(l => Number(l.highestBreak || 0)));
+  const highestBreak = Math.max(0, safeMax(pc.map(l => Number(l.highestBreak || 0)), 0));
   return {avgCompletion, bestAttempt, completionCount, highestBreak, count:pc.length};
 }
 
@@ -7759,8 +7768,8 @@ window.addEventListener("error", e => logAppError(e.error || e.message, "window.
 window.addEventListener("unhandledrejection", e => logAppError(e.reason || "Unhandled promise rejection", "unhandledrejection"));
 
 
-function safeStorageSet(key, value, context="safeStorageSet") {
-  if (storageReadOnlyMode) return false;
+function safeStorageSet(key, value, context="safeStorageSet", force=false) {
+  if (storageReadOnlyMode && !force) return false;
   try {
     localStorage.setItem(key, value);
     return true;
@@ -8866,7 +8875,21 @@ function interventionImpactSummary(logs=data.logs||[]){
   const b=metricsForLogs(before), a=metricsForLogs(after);
   return `<div class="intervention-card"><strong>Before / after intervention ${statHelpButton("interventionImpact")}: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
 }
-function tableStats(logs){const groups={}; logs.filter(l=>l.venueTable).forEach(l=>{groups[l.venueTable]||=[];groups[l.venueTable].push(l);}); return Object.entries(groups).map(([table,arr])=>{const vals=arr.map(l=>Number(l.normalizedScore||0)),hit=targetHitRate(arr); return {table,logs:arr.length,time:arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0),avg:vals.length?avg(vals):null,hit};}).sort((a,b)=>b.logs-a.logs);}
+function tableStats(logs){
+  const groups={};
+  (logs||[]).forEach(l=>{
+    const key = l.tableId || l.venueTable || l.venueTableSnapshot || "";
+    if(!key || key === "Not specified") return;
+    if(!groups[key]) groups[key] = {table:getTableName(l), logs:[]};
+    groups[key].logs.push(l);
+  });
+  return Object.values(groups).map(g=>{
+    const arr=g.logs;
+    const vals=arr.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
+    const hit=targetHitRate(arr);
+    return {table:g.table,logs:arr.length,time:arr.reduce((a,b)=>a+Number(b.timeMinutes||0),0),avg:vals.length?avg(vals):null,hit};
+  }).sort((a,b)=>b.logs-a.logs);
+}
 function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance ${statHelpButton("tableVenuePerformance")}</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
 function routineStats(routineId) {
@@ -9517,7 +9540,7 @@ function renderLivePerformanceCard(r){
   const allRoutineLogs = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   const recent = allRoutineLogs.slice(0,3);
   const pb = allRoutineLogs.map(l => Number(l.normalizedScore || 0)).filter(v => Number.isFinite(v));
-  const personalBest = pb.length ? Math.max(...pb) : null;
+  const personalBest = pb.length ? safeMax(pb, null) : null;
   const status = target && normalized >= stretch && stretch ? "green" : target && normalized >= target ? "green" : target && normalized >= target * 0.75 ? "yellow" : target ? "red" : "neutral";
   const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
   box.innerHTML = `<div class="live-perf ${safeClassToken(status, ["green","yellow","red","neutral"], "neutral")}">
@@ -10405,6 +10428,14 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 else bindMobilePracticeUX();
 
 window.addEventListener("storage", e => {
+  if (e.key === ACTIVE_SESSION_KEY && !e.newValue && activeSession) {
+    activeSession = null;
+    stopTimer();
+    $("activeSession")?.classList.add("hidden");
+    updateSessionFocusState();
+    renderAll();
+    return;
+  }
   if (e.key === STORAGE_KEY) {
     try {
       externalStorageSyncInProgress = true;

@@ -1,4 +1,17 @@
 // Pure inference utilities. No DOM access, no app state mutation.
+function safeMaxLocal(arr, fallback = null) {
+  if (!arr || !arr.length) return fallback;
+  let max = -Infinity;
+  let found = false;
+  for (const raw of arr) {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    if (value > max) max = value;
+    found = true;
+  }
+  return found ? max : fallback;
+}
+
 export function clampNumber(value, min = 0, max = 1, fallback = 0) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -135,7 +148,7 @@ export function bayesianChangePointEstimate(values = [], options = {}) {
   candidates.sort((a, b) => b.logLikelihood - a.logLikelihood);
   const best = candidates[0];
   const allLogs = [nullLog, ...candidates.map(c => c.logLikelihood)];
-  const maxLog = Math.max(...allLogs);
+  const maxLog = safeMaxLocal(allLogs, nullLog);
   const nullWeight = Math.exp(Math.max(-80, nullLog - maxLog));
   const splitWeights = candidates.map(c => Math.exp(Math.max(-80, c.logLikelihood - maxLog)));
   const totalWeight = nullWeight + splitWeights.reduce((a, b) => a + b, 0);

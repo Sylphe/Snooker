@@ -58,3 +58,30 @@ export function sortedBy(arr, comparator) {
 
 
 
+
+
+export function safeMax(arr, fallback = null) {
+  if (!arr || !arr.length) return fallback;
+  let max = -Infinity;
+  let found = false;
+  for (const raw of arr) {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    if (value > max) max = value;
+    found = true;
+  }
+  return found ? max : fallback;
+}
+
+export function safeMin(arr, fallback = null) {
+  if (!arr || !arr.length) return fallback;
+  let min = Infinity;
+  let found = false;
+  for (const raw of arr) {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    if (value < min) min = value;
+    found = true;
+  }
+  return found ? min : fallback;
+}
