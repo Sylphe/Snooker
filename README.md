@@ -1,4 +1,15 @@
-# Snooker Practice PWA v5.4.2
+# Snooker Practice PWA v5.4.3
+
+## v5.4.3 — Smart Session Builder Language Pass
+
+Built from the working v5.4.2 insight language pass.
+
+Included:
+- Friendly / Analytical wording applied to Smart Session Builder terminology.
+- Cognitive load, fatigue load, confidence risk, and switching labels now adapt to the selected Insight Language.
+- Session block names now use coaching language in Friendly mode while preserving analytical names in Analytical mode.
+- Recommendation mode and feedback tracking copy simplified in Friendly mode.
+- No analytics, storage, hydration, or session schema changes.
 
 ## v5.4.2 — Friendly / Analytical Recommendation Copy
 
@@ -14,8 +25,8 @@ Built from the working v5.4.2 UI language foundation.
 - Technical model terminology remains available in Analytical mode.
 
 ### Integrity
-- Version: v5.4.2
-- Build timestamp: 2026-05-19 12:10 CEST
+- Version: v5.4.3
+- Build timestamp: 2026-05-19 12:22 CEST
 - No analytics engine changes.
 - No storage schema changes.
 - No hydration/session changes.
@@ -25,7 +36,7 @@ Built from the working v5.4.2 UI language foundation.
 
 
 ## v5.4.2 — Insight Cards & Stats Language Pass
-Build: 2026-05-19 12:10 CEST
+Build: 2026-05-19 12:22 CEST
 
 - Applies Friendly / Analytical wording to insight cards and stats module titles.
 - Converts evidence terminology into coaching-style signal badges in Friendly mode.
