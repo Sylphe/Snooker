@@ -1,1 +1,1 @@
-export const APP_VERSION = "5.6.1-mobile-graph-scaling";
+export const APP_VERSION = "5.6.0-graph-visualization-foundation";
