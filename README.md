@@ -45,6 +45,11 @@ Build: 2026-05-19 12:22 CEST
 - No analytics, storage, hydration, or session schema changes.
 
 
+
+## v5.6.1 bootstrap fix 2
+
+Fixes a fatal ES module startup error introduced in v5.6.x: `app-core.js` imports both `APP_VERSION` and `APP_BUILD_TIMESTAMP`, but `modules/version.js` only exported `APP_VERSION`. Browsers reject the module before any app code runs, which prevents IndexedDB hydration, tab binding, and normal startup. This build restores `APP_BUILD_TIMESTAMP` and keeps the v5.6.1 graph/mobile scaling changes.
+
 ## v5.6.1 — Mobile Graph Scaling
 
 This release builds on the v5.6 graph foundation with a dedicated mobile scaling pass. It keeps the Graphs section grouped into Form, Consistency, Session Load, and Routine Progress, then improves phone usability through responsive chart heights, scroll-safe SVG containers on narrow screens, reduced axis clutter, tighter legends, better KPI stacking, improved card spacing, and mobile-specific label density. This prepares the graph layer for touch tooltips, rolling overlays, confidence bands, uncertainty overlays, transfer links, sparklines, momentum indicators, and pace overlays.

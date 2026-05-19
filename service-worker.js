@@ -1,4 +1,4 @@
-const CACHE_NAME = "snooker-practice-log-v5-6-1-mobile-graph-scaling";
+const CACHE_NAME = "snooker-practice-log-v5-6-1-mobile-graph-scaling-bootstrap-fixed-2";
 const ASSETS = [
   "./index.html?v=5.6.1",
   "./styles.css?v=5.6.1",
