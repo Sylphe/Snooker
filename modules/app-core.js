@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.5.0";
+} from "./utils.js?v=5.5.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.0";
+} from "./settings.js?v=5.5.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.0";
+} from "./analytics.js?v=5.5.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.0";
+} from "./bayesian.js?v=5.5.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.0";
+} from "./session.js?v=5.5.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.0";
+} from "./pressure.js?v=5.5.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.0";
+} from "./recommendations.js?v=5.5.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.0";
+} from "./store.js?v=5.5.1";
 
 
 
@@ -130,12 +130,14 @@ let indexedDBRetryNoticeShown = false;
 
 function serializeCoreData(d) {
   const core = structuredCloneSafe(d || {});
-  if (indexedDBUnavailable) {
+  if (indexedDBUnavailable || !indexedDBReady) {
     core.indexedDBStorage = {
       enabled: false,
       stores: [],
       migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
-      note: "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
+      note: indexedDBUnavailable
+        ? "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
+        : "IndexedDB is still hydrating; full data is preserved in localStorage until IndexedDB is confirmed ready."
     };
     return core;
   }
@@ -292,8 +294,8 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
     const idbStores = await idbGetStores([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE]);
     const idbLogs = idbStores[INDEXEDDB_LOG_STORE] || [];
     const idbSessions = idbStores[INDEXEDDB_SESSION_STORE] || [];
-    const logs = mergeById(mergeById(idbLogs, localLogs), pendingPreHydrationLogs).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
-    const sessions = mergeById(mergeById(idbSessions, localSessions), pendingPreHydrationSessions).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
+    const logs = mergeById(pendingPreHydrationLogs, mergeById(idbLogs, localLogs)).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+    const sessions = mergeById(pendingPreHydrationSessions, mergeById(idbSessions, localSessions)).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
     data.logs = logs;
     data.sessions = sessions;
     indexedDBReady = true;
@@ -332,8 +334,14 @@ async function bootstrapIndexedDBStorage() {
     indexedDBHydrating = false;
     try { logAppError(error, "bootstrapIndexedDBStorage hydrate"); } catch (_) { console.error(error); }
   }
+  const bootstrapLogsBefore = JSON.stringify(data.logs || []);
+  const bootstrapSessionsBefore = JSON.stringify(data.sessions || []);
   safeCall("bootstrap ensureTablesDatabase", () => ensureTablesDatabase?.());
   safeCall("bootstrap refreshReferenceNames", () => refreshReferenceNames?.());
+  if (bootstrapLogsBefore !== JSON.stringify(data.logs || []) || bootstrapSessionsBefore !== JSON.stringify(data.sessions || [])) {
+    scheduleIndexedDBSync("bootstrap memory migration sync", true);
+    saveCoreData("bootstrap memory migration core save");
+  }
   safeRenderAll("bootstrap renderAll");
 }
 
@@ -1889,7 +1897,7 @@ function uiExplain(key){
 }
 
 
-/* v5.5.0 Recommendation explanation wording layer */
+/* v5.5.1 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1923,7 +1931,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.5.0 Insight cards and stats language pass */
+/* v5.5.1 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -2302,6 +2310,9 @@ function loadData() {
     return parsed;
   } catch(e) {
     logAppError(e, "loadData");
+    if (raw) {
+      try { localStorage.setItem(STORAGE_KEY + ".corrupted_backup", raw); } catch(ex) { try { logAppError(ex, "loadData corrupted backup quarantine"); } catch(_) {} }
+    }
     const fallback = raw ? safeParseData(raw) : null;
     if (fallback) {
       console.warn("Startup migration warning suppressed: readable data was preserved and the app loaded from the existing payload.", e);
@@ -2962,7 +2973,7 @@ safeOn("saveRoutineBtn", "click", () => {
 
   data.routineSkillMap = data.routineSkillMap || {};
   data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
-  const historicalSkillLogsUpdated = $("routineEditId").value ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:true}) : 0;
+  const historicalSkillLogsUpdated = $("routineEditId").value ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:false}) : 0;
 
   if ($("routineEditId").value) {
     const oldRoutine = data.routines.find(r => r.id === routine.id);
@@ -3713,7 +3724,11 @@ async function requestFocusWakeLock() {
     wakeLockRequestInFlight = true;
     wakeLockSentinel = await navigator.wakeLock.request("screen");
     wakeLockSentinel.addEventListener?.("release", () => { wakeLockSentinel = null; });
-    if ($("timerState") && timerStartMs) $("timerState").textContent = "timer running · screen awake";
+    if (!timerStartMs && !timerAutostartDelayInterval) {
+      releaseFocusWakeLock();
+    } else if ($("timerState") && timerStartMs) {
+      $("timerState").textContent = "timer running · screen awake";
+    }
   } catch(e) {
     wakeLockSentinel = null;
     if (typeof logAppError === "function") logAppError(e, "requestFocusWakeLock");
@@ -7659,7 +7674,7 @@ async function exportFullBackup(reason="manual") {
       tables: (data.tables || []).length
     }
   };
-  await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
+  await exportFile(`snooker-practice-backup-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload), "application/json");
   renderBackupReminder();
   renderStorageDashboard();
 }
@@ -8335,7 +8350,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8552,12 +8567,18 @@ function normalizePersistedSessionDraft(s) {
   copy.completedLogs = Array.isArray(copy.completedLogs) ? copy.completedLogs : [];
   copy.index = Math.max(0, Number(copy.index || 0));
 
-  if (copy.index >= copy.routineIds.length) return null;
+  if (copy.index >= copy.routineIds.length) return copy.completedLogs.length > 0 ? copy : null;
 
   // If the stored current routine was deleted, move to the next still-existing routine.
   if (!routineById(copy.routineIds[copy.index])) {
     const nextIdx = copy.routineIds.findIndex((rid, idx) => idx >= copy.index && !!routineById(rid));
-    if (nextIdx < 0) return null;
+    if (nextIdx < 0) {
+      if (copy.completedLogs.length > 0) {
+        copy.index = copy.routineIds.length;
+        return copy;
+      }
+      return null;
+    }
     copy.index = nextIdx;
   }
   return copy;
@@ -9725,6 +9746,29 @@ function renderBayesianAnalyticsValidation() {
 
 
 let pressureSession = null;
+const PRESSURE_SESSION_DRAFT_KEY = "snookerPracticePWA.pressureDraft";
+function persistPressureSession() {
+  try {
+    if (pressureSession) localStorage.setItem(PRESSURE_SESSION_DRAFT_KEY, JSON.stringify(pressureSession));
+    else localStorage.removeItem(PRESSURE_SESSION_DRAFT_KEY);
+  } catch(e) { logAppError(e, "persistPressureSession"); }
+}
+function hydratePressureSessionDraft() {
+  if (pressureSession) return;
+  try {
+    const raw = localStorage.getItem(PRESSURE_SESSION_DRAFT_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.routineId) return;
+    pressureSession = parsed;
+    $("pressureSessionPanel")?.classList.remove("hidden");
+    updatePressurePanel();
+  } catch(e) {
+    logAppError(e, "hydratePressureSessionDraft");
+    try { localStorage.setItem(PRESSURE_SESSION_DRAFT_KEY + ".corrupted_backup", localStorage.getItem(PRESSURE_SESSION_DRAFT_KEY) || ""); } catch(_) {}
+    try { localStorage.removeItem(PRESSURE_SESSION_DRAFT_KEY); } catch(_) {}
+  }
+}
 
 function currentPressureRoutine() {
   const rid = $("pressureRoutineSelect")?.value || "";
@@ -9758,6 +9802,7 @@ function startPressureSession() {
 
   $("pressureSessionPanel")?.classList.remove("hidden");
   $("pressureCompletionNote")?.classList.add("hidden");
+  persistPressureSession();
   updatePressurePanel();
 }
 
@@ -9804,12 +9849,14 @@ function recordPressure(type) {
   if (!pressureSession) return;
   hapticFeedback(type === "miss" || type === "recovery_fail" ? "miss" : "tap");
   pressureSession = recordPressureEvent(pressureSession, type);
+  persistPressureSession();
   updatePressurePanel();
 }
 
 function undoPressure() {
   if (!pressureSession) return;
   pressureSession = undoPressureEvent(pressureSession);
+  persistPressureSession();
   updatePressurePanel();
   showTransientNotice("Last pressure input undone.", "ok");
 }
@@ -9927,6 +9974,7 @@ async function finishPressureSession() {
   saveData({render:"sessionLog", idbSync:"skip"});
 
   pressureSession = null;
+  persistPressureSession();
   $("pressureSessionPanel")?.classList.add("hidden");
   renderPressureRoutineOptions();
   renderSmartRecommendation();
@@ -9940,11 +9988,13 @@ function cancelPressureSession() {
   if (!pressureSession) return;
   if (!confirm("Cancel this pressure drill without saving?")) return;
   pressureSession = null;
+  persistPressureSession();
   $("pressureSessionPanel")?.classList.add("hidden");
 }
 
 function bindPressureOverlay() {
   renderPressureRoutineOptions();
+  hydratePressureSessionDraft();
   $("startPressureSessionBtn")?.addEventListener("click", startPressureSession);
   $("pressureMadeBtn")?.addEventListener("click", () => recordPressure("make"));
   $("pressureMissBtn")?.addEventListener("click", () => recordPressure("miss"));
@@ -10123,6 +10173,7 @@ window.addEventListener("storage", e => {
 window.addEventListener("beforeunload", () => {
   try {
     if (activeSession) persistActiveSession();
+    persistPressureSession();
     if (timerInterval) clearInterval(timerInterval);
     flushPendingIndexedDBSync("beforeunload flush");
   } catch(e) {}
@@ -10131,6 +10182,7 @@ window.addEventListener("visibilitychange", () => {
   try {
     if (document.visibilityState === "hidden") {
       if (activeSession) persistActiveSession();
+      persistPressureSession();
       flushPendingIndexedDBSync("visibilitychange hidden flush");
     }
   } catch(e) {}

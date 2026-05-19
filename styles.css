@@ -4178,7 +4178,7 @@ body.session-focus-active #activeSession .focus-numpad-footer button:active{
   body.session-focus-active #activeSession .focus-numpad-footer button{font-size:10.5px!important;}
 }
 
-/* v5.5.0 Stats UX Redesign — progressive disclosure and mobile-first analytics flow */
+/* v5.5.1 Stats UX Redesign — progressive disclosure and mobile-first analytics flow */
 .stats-flow-helper{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;margin:.75rem 0 .85rem;}
 .stats-flow-helper>div{border:1px solid var(--line);background:var(--surface-soft,rgba(16,43,34,.035));border-radius:14px;padding:.65rem .75rem;min-width:0;}
 .stats-flow-helper strong{display:block;font-size:.82rem;color:var(--primary);margin-bottom:.18rem;}

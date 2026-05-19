@@ -157,6 +157,7 @@ export function undoPressureEvent(session) {
     finalReps:session.finalReps,
     escalationStep:session.escalationStep
   });
+  initial.startedAt = session.startedAt || initial.startedAt;
   history.pop();
   return history.reduce((s, ev) => recordPressureEvent(s, ev.type), initial);
 }
