@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.5";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.5";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.5.4";
+} from "./utils.js?v=5.5.5";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.4";
+} from "./settings.js?v=5.5.5";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.4";
+} from "./analytics.js?v=5.5.5";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.4";
+} from "./bayesian.js?v=5.5.5";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.4";
+} from "./session.js?v=5.5.5";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.4";
+} from "./pressure.js?v=5.5.5";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.4";
+} from "./recommendations.js?v=5.5.5";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.4";
+} from "./store.js?v=5.5.5";
 
 
 
@@ -126,6 +126,23 @@ let pendingPostHydrationSaveOptions = null;
 let pendingFailedIndexedDBLogs = [];
 let pendingFailedIndexedDBSessions = [];
 let indexedDBRetryNoticeShown = false;
+let externalStorageSyncInProgress = false;
+let storageReadOnlyMode = false;
+let storageReadOnlyNoticeShown = false;
+
+function isQuotaError(error) {
+  return !!(error && (error.name === "QuotaExceededError" || String(error.message || "").toLowerCase().includes("quota")));
+}
+function enterStorageReadOnlyMode(context="storage") {
+  storageReadOnlyMode = true;
+  indexedDBUnavailable = true;
+  indexedDBHydrating = false;
+  if (!storageReadOnlyNoticeShown) {
+    storageReadOnlyNoticeShown = true;
+    notifyUser("Storage is full or unavailable. App is in read-only/export mode until space is freed or a backup is exported.", "warn");
+  }
+  try { logAppError(new Error("Storage read-only/export mode enabled"), context); } catch(_) {}
+}
 
 
 function serializeCoreData(d) {
@@ -153,10 +170,14 @@ function serializeCoreData(d) {
 }
 
 function saveCoreData(context="saveCoreData") {
+  if (storageReadOnlyMode) return false;
   try {
-    return safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
+    const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context);
+    if (!ok && indexedDBUnavailable) enterStorageReadOnlyMode(`${context} localStorage fallback failed`);
+    return ok;
   } catch(e) {
     logAppError(e, context);
+    if (isQuotaError(e) && indexedDBUnavailable) enterStorageReadOnlyMode(context);
     return false;
   }
 }
@@ -264,11 +285,12 @@ async function persistIndexedDBCollections(context="persistIndexedDBCollections"
     indexedDBHydrating = false;
     indexedDBUnavailable = true;
     logAppError(e, context);
+    if (isQuotaError(e)) enterStorageReadOnlyMode(`${context} IndexedDB quota failure`);
     return false;
   }
 }
 function scheduleIndexedDBSync(context="scheduleIndexedDBSync", immediate=false) {
-  if (indexedDBUnavailable) return;
+  if (storageReadOnlyMode || indexedDBUnavailable) return;
   clearTimeout(indexedDBSyncTimer);
   indexedDBSyncTimer = null;
   if (immediate) {
@@ -281,7 +303,7 @@ function scheduleIndexedDBSync(context="scheduleIndexedDBSync", immediate=false)
   }, 80);
 }
 function flushPendingIndexedDBSync(context="flushPendingIndexedDBSync") {
-  if (indexedDBUnavailable) return;
+  if (storageReadOnlyMode || indexedDBUnavailable) return;
   if (indexedDBSyncTimer) {
     clearTimeout(indexedDBSyncTimer);
     indexedDBSyncTimer = null;
@@ -294,8 +316,9 @@ function mergeById(primary, fallback) {
   (primary || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
   return [...map.values()];
 }
-async function hydrateIndexedDBData(retryAfterReset=false) {
-  if (indexedDBUnavailable) return false;
+async function hydrateIndexedDBData(retryAfterReset=false, options={}) {
+  const readOnlySync = !!options.readOnlySync || externalStorageSyncInProgress;
+  if (storageReadOnlyMode || indexedDBUnavailable) return false;
   try {
     const localLogs = Array.isArray(data.logs) ? data.logs : [];
     const localSessions = Array.isArray(data.sessions) ? data.sessions : [];
@@ -310,12 +333,14 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
     data.sessions = sessions;
     indexedDBReady = true;
     indexedDBHydrating = false;
-    if (localLogs.length || localSessions.length || logs.length !== idbLogs.length || sessions.length !== idbSessions.length) {
+    if (!readOnlySync && (localLogs.length || localSessions.length || logs.length !== idbLogs.length || sessions.length !== idbSessions.length)) {
       await persistIndexedDBCollections("hydrateIndexedDBData migration write");
-      localStorage.setItem(INDEXEDDB_MIGRATION_KEY, new Date().toISOString());
+      try { localStorage.setItem(INDEXEDDB_MIGRATION_KEY, new Date().toISOString()); } catch(e) { if (isQuotaError(e)) enterStorageReadOnlyMode("hydrateIndexedDBData migration marker"); else logAppError(e, "hydrateIndexedDBData migration marker"); }
     }
-    saveCoreData("hydrateIndexedDBData core save");
-    flushPostHydrationSaveQueue();
+    if (!readOnlySync) {
+      saveCoreData("hydrateIndexedDBData core save");
+      flushPostHydrationSaveQueue();
+    }
     return true;
   } catch(e) {
     logAppError(e, retryAfterReset ? "hydrateIndexedDBData retry failed" : "hydrateIndexedDBData");
@@ -325,7 +350,7 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
         indexedDBReady = false;
         indexedDBHydrating = true;
         indexedDBUnavailable = false;
-        return await hydrateIndexedDBData(true);
+        return await hydrateIndexedDBData(true, options);
       } catch(resetError) {
         logAppError(resetError, "hydrateIndexedDBData reset database");
       }
@@ -333,6 +358,8 @@ async function hydrateIndexedDBData(retryAfterReset=false) {
     indexedDBUnavailable = true;
     indexedDBHydrating = false;
     notifyUser("IndexedDB could not initialize. Using localStorage fallback for this session; export a backup before adding many logs.", "warn");
+    const fallbackOk = saveCoreData("hydrateIndexedDBData fallback core save");
+    if (!fallbackOk) enterStorageReadOnlyMode("hydrateIndexedDBData fallback failed");
     return false;
   }
 }
@@ -1924,7 +1951,7 @@ function uiExplain(key){
 }
 
 
-/* v5.5.4 Recommendation explanation wording layer */
+/* v5.5.5 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1958,7 +1985,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.5.4 Insight cards and stats language pass */
+/* v5.5.5 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -2352,6 +2379,11 @@ function loadData() {
 
 function saveData(options = {}) {
   const opts = typeof options === "string" ? {render: options} : (options || {});
+  if (storageReadOnlyMode) {
+    notifyUser("Storage is in read-only/export mode. Export a backup and free device storage before saving new changes.", "warn");
+    renderAfterSave(opts.render || "all");
+    return false;
+  }
   if (!indexedDBReady && !indexedDBUnavailable) {
     console.warn("saveData queued until IndexedDB hydration completes.");
     queuePreHydrationState(opts);
@@ -7470,6 +7502,16 @@ function validateBackupShape(candidate) {
 safeOn("importJsonInput", "change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  const maxBackupBytes = 25 * 1024 * 1024;
+  const lowerName = String(file.name || "").toLowerCase();
+  if (file.size > maxBackupBytes) {
+    e.target.value = "";
+    return alert("File is too large. Maximum backup size is 25MB.");
+  }
+  if (!lowerName.endsWith(".json") && file.type !== "application/json") {
+    e.target.value = "";
+    return alert("Invalid file type. Please select a .json backup file.");
+  }
   try {
     const raw = JSON.parse(await file.text());
     const precheck = validateBackupShape(raw);
@@ -7490,7 +7532,10 @@ safeOn("importJsonInput", "change", async (e) => {
       $("pressureSessionPanel")?.classList.add("hidden");
     }
     data = imported;
-    await persistIndexedDBCollections("backup import indexedDB replace");
+    storageReadOnlyMode = false;
+    indexedDBUnavailable = false;
+    const idbOk = await persistIndexedDBCollections("backup import indexedDB replace");
+    if (!idbOk && storageReadOnlyMode) return alert("Import loaded in memory, but device storage is full. Export a backup or free space before continuing.");
     saveData({idbSync:"skip"});
     alert("Backup imported.");
   } catch (err) {
@@ -7715,13 +7760,15 @@ window.addEventListener("unhandledrejection", e => logAppError(e.reason || "Unha
 
 
 function safeStorageSet(key, value, context="safeStorageSet") {
+  if (storageReadOnlyMode) return false;
   try {
     localStorage.setItem(key, value);
     return true;
   } catch(e) {
     logAppError(e, context);
-    if (e && (e.name === "QuotaExceededError" || String(e.message || "").toLowerCase().includes("quota"))) {
+    if (isQuotaError(e)) {
       notifyUser("Storage appears full. Export JSON Backup and Raw Local Data before continuing.", "warn");
+      if (key === STORAGE_KEY) enterStorageReadOnlyMode(context);
     } else {
       notifyUser("Could not save local data. Export a backup/debug file before continuing.", "warn");
     }
@@ -8511,8 +8558,17 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.4");
+      const reg = await navigator.serviceWorker.register(`service-worker.js?v=${encodeURIComponent(APP_VERSION)}`);
       if (reg && reg.update) reg.update();
+      const swVersionKey = "snookerPracticePWA.swVersion";
+      const lastVersion = localStorage.getItem(swVersionKey);
+      if (lastVersion && lastVersion !== APP_VERSION) {
+        localStorage.setItem(swVersionKey, APP_VERSION);
+        await reg.unregister();
+        window.location.reload();
+        return;
+      }
+      localStorage.setItem(swVersionKey, APP_VERSION);
     } catch(e) {
       console.warn("Service worker registration failed", e);
     }
@@ -10351,9 +10407,14 @@ else bindMobilePracticeUX();
 window.addEventListener("storage", e => {
   if (e.key === STORAGE_KEY) {
     try {
+      externalStorageSyncInProgress = true;
       data = loadData();
-      hydrateIndexedDBData().then(() => { ensureTablesDatabase?.(); renderAll(); });
+      hydrateIndexedDBData(false, {readOnlySync:true})
+        .then(() => { ensureTablesDatabase?.(); renderAll(); })
+        .catch(err => logAppError(err, "storage sync hydrate"))
+        .finally(() => { externalStorageSyncInProgress = false; });
     } catch(err) {
+      externalStorageSyncInProgress = false;
       logAppError(err, "storage sync");
     }
   }
