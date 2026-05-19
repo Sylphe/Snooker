@@ -1,23 +1,19 @@
-# Snooker Practice PWA v5.1.2
+# Snooker Practice PWA v5.2.0
 
-## v5.1.2 — Very Compact Display Density
+## v5.2.0 — Focus Mode Polish v2
 
-Built from the working v5.1.1 theme-consistency release. This release adds a fourth display-density option for maximum information density across the app while preserving the existing Comfortable and Compact modes.
+Built from v5.1.2.
 
 ### Included
-- Added a new **Very compact** display-density option under Settings / Data → Interface.
-- Reduced whitespace, gutters, paddings, margins, and card spacing when Very compact mode is active.
-- Reduced button, list-item, card, table, chart, KPI, and navigation heights.
-- Applied denser typography and smaller metadata/badge treatments.
-- Preserved the existing theme-control consistency from v5.1.1.
-- No analytics, storage, hydration, recommendation, or session-schema changes.
+- Focus Mode high-contrast table-mode styling.
+- Faster table-side score entry with stronger readonly input workflow.
+- Auto-targeted score numpad for the active score field.
+- Accelerated long-press steppers.
+- Haptic-like visual feedback for score changes.
+- Swipe-left gesture to save and move to the next drill in Focus Mode.
+- Calmer Focus Mode surfaces, stronger primary action hierarchy, and improved mobile rhythm.
 
 ### Build
-- Version: v5.1.2
-- Build timestamp: 2026-05-19 08:32 CEST
-- Source base: v5.1.1 theme control consistency
-
-### Validation
-- JavaScript syntax checks passed.
-- Duplicate declaration checks passed.
-- Zip integrity check passed.
+- Version: v5.2.0
+- Build timestamp: 2026-05-19 08:41 CEST
+- No analytics, storage, hydration, or session schema changes.

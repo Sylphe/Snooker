@@ -3389,3 +3389,185 @@ body[data-density="very-compact"] .app-toast{padding:6px 8px;border-radius:9px;f
   body[data-density="very-compact"] button,
   body[data-density="very-compact"] .file-btn{min-height:28px;font-size:10.5px;padding:5px 6px;}
 }
+
+/* v5.2.0 Focus Mode polish v2 — calm, fast, table-side entry */
+body.session-focus-active{
+  --focus-felt:#071b14;
+  --focus-felt-2:#0b241a;
+  --focus-surface:rgba(10,28,21,.96);
+  --focus-surface-2:rgba(14,38,29,.94);
+  --focus-line:rgba(167,243,208,.16);
+  --focus-glow:rgba(52,211,153,.24);
+  background:radial-gradient(circle at 50% 0%, rgba(34,197,94,.13), transparent 28%), linear-gradient(180deg,#06120e,#071713 70%,#050b09)!important;
+  color:#ecfdf5!important;
+  overscroll-behavior-y:contain;
+}
+body.session-focus-active main{background:transparent!important;}
+body.session-focus-active #activeSession{
+  background:linear-gradient(180deg,var(--focus-surface),rgba(7,20,15,.98))!important;
+  border:1px solid var(--focus-line)!important;
+  box-shadow:0 18px 45px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.04)!important;
+}
+body.session-focus-active #activeSession .session-top{
+  background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(8,47,73,.08))!important;
+  border:1px solid var(--focus-line)!important;
+  border-radius:16px!important;
+  padding:9px 10px!important;
+}
+body.session-focus-active #currentRoutineName{letter-spacing:-.02em;color:#f0fdf4!important;}
+body.session-focus-active #currentRoutineMeta,
+body.session-focus-active .timer-sub,
+body.session-focus-active .muted{color:rgba(209,250,229,.68)!important;}
+body.session-focus-active .timer{
+  color:#bbf7d0!important;
+  text-shadow:0 0 18px rgba(34,197,94,.28)!important;
+  font-variant-numeric:tabular-nums;
+}
+body.session-focus-active #scoreInputs{
+  background:transparent!important;
+  border:0!important;
+  gap:7px!important;
+}
+body.session-focus-active .focus-score-inline-row{
+  position:relative;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:8px!important;
+  border-radius:14px!important;
+  background:var(--focus-surface-2)!important;
+  border:1px solid rgba(167,243,208,.12)!important;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease,box-shadow .16s ease;
+}
+body.session-focus-active .focus-score-inline-row.focus-numpad-active-row{
+  border-color:rgba(52,211,153,.55)!important;
+  box-shadow:0 0 0 1px rgba(52,211,153,.12), 0 12px 26px rgba(0,0,0,.24)!important;
+  background:linear-gradient(180deg,rgba(16,185,129,.16),rgba(12,32,24,.96))!important;
+}
+body.session-focus-active .focus-score-inline-row label{
+  margin:0 0 4px!important;
+  color:rgba(220,252,231,.72)!important;
+  font-size:10px!important;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+body.session-focus-active .focus-score-inline-row input,
+body.session-focus-active #scoreInputs input.focus-readonly-input{
+  min-height:44px!important;
+  height:44px!important;
+  font-size:23px!important;
+  font-weight:800!important;
+  text-align:left!important;
+  color:#f7fee7!important;
+  background:rgba(2,6,23,.32)!important;
+  border:1px solid rgba(167,243,208,.13)!important;
+  border-radius:12px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important;
+  caret-color:transparent!important;
+}
+body.session-focus-active .focus-inline-stepper{
+  display:grid!important;
+  grid-template-columns:44px 44px!important;
+  gap:6px!important;
+  align-self:end!important;
+}
+body.session-focus-active .focus-inline-stepper button,
+body.session-focus-active .focus-numpad-grid button{
+  min-height:44px!important;
+  border-radius:13px!important;
+  color:#ecfdf5!important;
+  background:linear-gradient(180deg,rgba(15,118,110,.32),rgba(6,78,59,.28))!important;
+  border:1px solid rgba(167,243,208,.16)!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.22)!important;
+  touch-action:manipulation;
+  user-select:none;
+}
+body.session-focus-active .focus-inline-stepper button:active,
+body.session-focus-active .focus-inline-stepper button.focus-hold-active,
+body.session-focus-active .focus-numpad-grid button:active{
+  transform:translateY(1px) scale(.985);
+  background:linear-gradient(180deg,rgba(34,197,94,.36),rgba(13,148,136,.28))!important;
+  border-color:rgba(134,239,172,.42)!important;
+}
+body.session-focus-active .focus-numpad-panel{
+  position:sticky;
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 76px);
+  z-index:8;
+  margin-top:8px!important;
+  padding:8px!important;
+  border-radius:18px!important;
+  background:rgba(3,12,9,.92)!important;
+  border:1px solid rgba(167,243,208,.16)!important;
+  box-shadow:0 -6px 28px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.04)!important;
+  backdrop-filter:blur(12px);
+}
+body.session-focus-active .focus-numpad-title{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin:0 0 6px!important;
+  color:#bbf7d0!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  letter-spacing:.04em!important;
+  text-transform:uppercase;
+}
+body.session-focus-active .focus-numpad-title small{
+  color:rgba(209,250,229,.55)!important;
+  font-size:10px!important;
+  font-weight:600!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+body.session-focus-active .focus-numpad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:6px!important;
+}
+body.session-focus-active .focus-numpad-grid button{
+  min-height:42px!important;
+  font-size:17px!important;
+  font-weight:800!important;
+}
+body.session-focus-active .sticky-log-actions{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:8px!important;
+  padding:8px!important;
+  background:rgba(3,12,9,.92)!important;
+  border:1px solid rgba(167,243,208,.16)!important;
+  box-shadow:0 -12px 32px rgba(0,0,0,.42)!important;
+  backdrop-filter:blur(14px);
+}
+body.session-focus-active #saveNextBtn{
+  min-height:48px!important;
+  font-weight:900!important;
+  border-radius:14px!important;
+  background:linear-gradient(135deg,#22c55e,#10b981)!important;
+  color:#04130d!important;
+  box-shadow:0 12px 28px rgba(16,185,129,.28)!important;
+}
+body.session-focus-active #skipBtn,
+body.session-focus-active #completeSessionBtn{
+  min-height:48px!important;
+  min-width:64px!important;
+  border-radius:14px!important;
+  color:rgba(236,253,245,.82)!important;
+  background:rgba(15,23,42,.44)!important;
+  border-color:rgba(167,243,208,.13)!important;
+}
+body.session-focus-active .focus-card-pulse{animation:focusCardPulse .22s ease-out;}
+body.session-focus-active .focus-score-pulse{animation:focusScorePulse .2s ease-out;}
+@keyframes focusCardPulse{0%{box-shadow:0 0 0 rgba(52,211,153,0)}50%{box-shadow:0 0 0 4px rgba(52,211,153,.15),0 18px 45px rgba(0,0,0,.38)}100%{box-shadow:0 18px 45px rgba(0,0,0,.38)}}
+@keyframes focusScorePulse{0%{transform:scale(1)}50%{transform:scale(1.025);border-color:rgba(134,239,172,.55)}100%{transform:scale(1)}}
+@media(max-width:760px){
+  body.session-focus-active #activeSession{padding:10px!important;border-radius:0!important;}
+  body.session-focus-active .focus-score-inline-row{padding:7px!important;gap:6px!important;}
+  body.session-focus-active .focus-score-inline-row input,
+  body.session-focus-active #scoreInputs input.focus-readonly-input{height:42px!important;min-height:42px!important;font-size:21px!important;}
+  body.session-focus-active .focus-inline-stepper{grid-template-columns:42px 42px!important;gap:5px!important;}
+  body.session-focus-active .focus-inline-stepper button{min-height:42px!important;}
+  body.session-focus-active .focus-numpad-panel{bottom:calc(env(safe-area-inset-bottom, 0px) + 68px);}
+}

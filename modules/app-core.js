@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.1.2";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.1.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.2.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.2.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.1.2";
+} from "./utils.js?v=5.2.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.1.2";
+} from "./settings.js?v=5.2.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.1.2";
+} from "./analytics.js?v=5.2.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.1.2";
+} from "./bayesian.js?v=5.2.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.1.2";
+} from "./session.js?v=5.2.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.1.2";
+} from "./pressure.js?v=5.2.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.1.2";
+} from "./recommendations.js?v=5.2.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.1.2";
+} from "./store.js?v=5.2.0";
 
 
 
@@ -730,7 +730,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v5.1.2 Adaptive Session Periodization ===== */
+/* ===== v5.2.0 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -826,10 +826,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.2 Adaptive Session Periodization ===== */
+/* ===== end v5.2.0 Adaptive Session Periodization ===== */
 
 
-/* ===== v5.1.2 Adaptive Session Periodization ===== */
+/* ===== v5.2.0 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -935,9 +935,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.2 Adaptive Session Periodization ===== */
+/* ===== end v5.2.0 Adaptive Session Periodization ===== */
 
-/* ===== v5.1.2 Adaptive Session Periodization ===== */
+/* ===== v5.2.0 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -1024,7 +1024,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v5.1.2 Adaptive Session Periodization ===== */
+/* ===== end v5.2.0 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -1549,12 +1549,20 @@ let timerAutostartDelayEndsAt = null;
 let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
+let focusStepHoldAccelerationTimer = null;
+let focusSwipeStartX = 0;
+let focusSwipeStartY = 0;
+let focusSwipeStartTime = 0;
+let focusSwipeArmed = false;
 
 function cancelFocusStepHold() {
   if (focusStepHoldStartTimer) clearTimeout(focusStepHoldStartTimer);
   if (focusStepHoldRepeatTimer) clearInterval(focusStepHoldRepeatTimer);
+  if (focusStepHoldAccelerationTimer) clearTimeout(focusStepHoldAccelerationTimer);
+  document.querySelectorAll?.(".focus-hold-active").forEach(el => el.classList.remove("focus-hold-active"));
   focusStepHoldStartTimer = null;
   focusStepHoldRepeatTimer = null;
+  focusStepHoldAccelerationTimer = null;
 }
 
 function normalizeFocusNumpadTarget(id) {
@@ -1566,6 +1574,25 @@ function setFocusNumpadTarget(id) {
   focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
   document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${CSS.escape(focusNumpadTargetId)}`)));
 }
+
+function focusModeFlash(selectorOrEl, className = "focus-control-pulse") {
+  try {
+    const el = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : selectorOrEl;
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    setTimeout(() => el.classList.remove(className), 220);
+  } catch(e) {}
+}
+
+function focusModeScoreFeedback(inputId) {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const el = $(normalizeFocusNumpadTarget(inputId || focusNumpadTargetId));
+  if (el) focusModeFlash(el, "focus-score-pulse");
+  focusModeFlash($("activeSession"), "focus-card-pulse");
+}
+
 
 function applyFocusModeInputLocks() {
   if (!document.body?.classList.contains("session-focus-active")) return;
@@ -1591,7 +1618,7 @@ function renderFocusNumpad(r) {
   focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
   const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","Clear"];
   box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel" aria-label="Focus mode score numpad">
-    <div class="focus-numpad-title">Tap field, then enter score</div>
+    <div class="focus-numpad-title"><span>Score pad</span><small>Tap a score field or use ± controls</small></div>
     <div class="focus-numpad-grid">${buttons.map(label => {
       const action = label === "⌫" ? "backspace" : label === "Clear" ? "clear" : "digit";
       const value = action === "digit" ? label : "";
@@ -1610,6 +1637,7 @@ function handleFocusNumpad(action, value) {
   el.value = current;
   el.dispatchEvent(new Event("input", {bubbles:true}));
   setFocusNumpadTarget(el.id);
+  focusModeScoreFeedback(el.id);
   refreshCurrentRoutineLivePerformance();
 }
 let wakeLockSentinel = null;
@@ -2174,7 +2202,7 @@ function activateTab(tabId) {
     if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
   });
   if (tabId === "plans") {
-    // v5.1.2: Plans is now treated as a Library sub-area in the mobile IA.
+    // v5.2.0: Plans is now treated as a Library sub-area in the mobile IA.
     document.querySelectorAll('.mobile-nav-btn[data-tab="templates"]').forEach(b => b.classList.add("active"));
   }
   panel.classList.add("active");
@@ -2829,6 +2857,8 @@ function adjustNumericInputValue(inputId, delta) {
   const decimals = step && !Number.isInteger(step) ? 2 : 0;
   el.value = decimals ? String(Math.round(next * 100) / 100) : String(Math.round(next));
   el.dispatchEvent(new Event("input", {bubbles:true}));
+  setFocusNumpadTarget(inputId);
+  focusModeScoreFeedback(inputId);
 }
 
 
@@ -3165,6 +3195,39 @@ function hapticFeedback(kind="tap") {
     navigator.vibrate(pattern);
   } catch(e) {}
 }
+
+function isFocusSwipeIgnoredTarget(target) {
+  return !!(target instanceof Element && target.closest?.("button,input,select,textarea,a,[data-action],.focus-numpad-panel,.focus-inline-stepper,.score-chip-grid"));
+}
+
+function handleFocusSwipeStart(event) {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  if (!activeSession || isFocusSwipeIgnoredTarget(event.target)) return;
+  const point = event.touches?.[0] || event;
+  focusSwipeStartX = Number(point.clientX || 0);
+  focusSwipeStartY = Number(point.clientY || 0);
+  focusSwipeStartTime = Date.now();
+  focusSwipeArmed = true;
+}
+
+function handleFocusSwipeEnd(event) {
+  if (!focusSwipeArmed || !document.body?.classList.contains("session-focus-active")) return;
+  focusSwipeArmed = false;
+  const changed = event.changedTouches?.[0] || event;
+  const dx = Number(changed.clientX || 0) - focusSwipeStartX;
+  const dy = Number(changed.clientY || 0) - focusSwipeStartY;
+  const elapsed = Date.now() - focusSwipeStartTime;
+  if (elapsed > 900 || Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+  if (dx < 0) {
+    hapticFeedback("save");
+    showTransientNotice("Swipe detected — saving current drill.", "ok");
+    saveCurrentRoutine();
+  } else {
+    hapticFeedback("tap");
+    showTransientNotice("Swipe left to save and move next.", "info");
+  }
+}
+
 async function requestFocusWakeLock() {
   if (wakeLockRequestInFlight || wakeLockSentinel || getWakeLockSetting() !== "on") return;
   if (!document.body?.classList.contains("session-focus-active")) return;
@@ -7705,7 +7768,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.1.2");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.2.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8520,8 +8583,8 @@ function handleDelegatedUIAction(event) {
     case "delete-table": return deleteTableDefinition(id);
     case "open-log-edit": return openLogEditModal(id);
     case "delete-log": return deleteLog(id);
-    case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); return refreshCurrentRoutineLivePerformance();
-    case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); focusModeScoreFeedback("scoreValue"); return refreshCurrentRoutineLivePerformance();
+    case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); focusModeScoreFeedback("scoreValue"); return refreshCurrentRoutineLivePerformance();
     case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
     case "focus-numpad": hapticFeedback("tap"); return handleFocusNumpad(actionEl.dataset.numpadAction || "digit", actionEl.dataset.value || "");
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
@@ -8551,14 +8614,28 @@ document.addEventListener("pointerdown", function(event) {
   cancelFocusStepHold();
   const target = btn.dataset.target || "scoreValue";
   const delta = Number(btn.dataset.delta || 0);
+  btn.classList.add("focus-hold-active");
   focusStepHoldStartTimer = setTimeout(() => {
     focusStepHoldRepeatTimer = setInterval(() => {
       adjustNumericInputValue(target, delta);
       refreshCurrentRoutineLivePerformance();
-    }, 90);
-  }, 350);
+    }, 95);
+    focusStepHoldAccelerationTimer = setTimeout(() => {
+      if (focusStepHoldRepeatTimer) clearInterval(focusStepHoldRepeatTimer);
+      focusStepHoldRepeatTimer = setInterval(() => {
+        adjustNumericInputValue(target, Math.sign(delta || 1) * Math.max(1, Math.abs(delta) * 3));
+        refreshCurrentRoutineLivePerformance();
+      }, 75);
+    }, 850);
+  }, 300);
 }, {passive:true});
-["pointerup","pointercancel","pointerleave","blur"].forEach(evt => document.addEventListener(evt, cancelFocusStepHold, {passive:true}));
+["pointerup","pointercancel","pointerleave","blur"].forEach(evt => document.addEventListener(evt, event => {
+  const btn = event.target instanceof Element ? event.target.closest?.('[data-action="focus-step"]') : null;
+  btn?.classList?.remove("focus-hold-active");
+  cancelFocusStepHold();
+}, {passive:true}));
+document.addEventListener("touchstart", handleFocusSwipeStart, {passive:true});
+document.addEventListener("touchend", handleFocusSwipeEnd, {passive:true});
 
 safeOn("saveSkillTagBtn", "click", saveSkillTagFromForm);
 safeOn("clearSkillTagFormBtn", "click", () => { clearSkillTagForm(); renderSkillManager(); });
