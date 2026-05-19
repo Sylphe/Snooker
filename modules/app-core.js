@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.9";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.9";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.10";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.10";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.9";
+} from "./utils.js?v=5.5.10";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.9";
+} from "./settings.js?v=5.5.10";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.9";
+} from "./analytics.js?v=5.5.10";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.9";
+} from "./bayesian.js?v=5.5.10";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.9";
+} from "./session.js?v=5.5.10";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.9";
+} from "./pressure.js?v=5.5.10";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.9";
+} from "./recommendations.js?v=5.5.10";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.9";
+} from "./store.js?v=5.5.10";
 
 
 
@@ -538,7 +538,7 @@ function currentSkillLibrary(options={}){
   return options.includeArchived === false ? skillLibraryCacheActive : skillLibraryCacheAll;
 }
 function skillAliasMap(){
-  const map = {};
+  const map = Object.create(null);
   currentSkillLibrary({includeArchived:true}).forEach(skill => {
     [skill.id, skill.label, ...(skill.aliases || [])].forEach(value => {
       const key = canonicalSkillKey(value);
@@ -567,7 +567,7 @@ function renderPrimarySkillOptions(selectedValue=""){
   const select = $("routinePrimarySkill");
   if(!select) return;
   const selected = normalizeSkillId(selectedValue || select.value || "cueing");
-  const groups = {};
+  const groups = Object.create(null);
   currentSkillLibrary({includeArchived:false}).forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
   select.innerHTML = Object.entries(groups).map(([group, skills]) => `<optgroup label="${attrText(group)}">${skills.map(skill => `<option value="${attrText(skill.id)}">${htmlText(skill.label)}</option>`).join("")}</optgroup>`).join("");
   select.value = currentSkillLibrary({includeArchived:true}).some(s=>s.id===selected) ? selected : "cueing";
@@ -577,7 +577,7 @@ function renderSkillChipGroup(containerId, hiddenInputId, selectedValues){
   if(!box) return;
   const selected = new Set(normalizeSkillList(selectedValues));
   setSkillHiddenValue(hiddenInputId, [...selected]);
-  const groups = {};
+  const groups = Object.create(null);
   currentSkillLibrary({includeArchived:false}).forEach(skill => { (groups[skill.group] = groups[skill.group] || []).push(skill); });
   box.innerHTML = Object.entries(groups).map(([group, skills]) => `
     <div class="skill-chip-section">
@@ -1779,6 +1779,7 @@ function handleFocusNumpad(action, value) {
 }
 let wakeLockSentinel = null;
 let wakeLockRequestInFlight = false;
+let wakeLockPermanentlyFailed = false;
 let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
 const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
@@ -2352,7 +2353,7 @@ function migrateData(d) {
   });
   // Lightweight session layer: rebuild missing session records from logs
   const existingSessionIds = new Set((d.sessions || []).map(s => s.id));
-  const grouped = {};
+  const grouped = Object.create(null);
   d.logs.forEach(l => {
     if (!l.sessionId) return;
     if (!grouped[l.sessionId]) grouped[l.sessionId] = [];
@@ -2919,7 +2920,7 @@ function renderRoutineList() {
   const routines = visibleRoutines($("exerciseTypeFilter").value || "all", $("exerciseFolderFilter").value || "all", $("exerciseSearch").value || "");
   if (!routines.length) { $("routineList").innerHTML = "<p>No exercises match the current filters.</p>"; return; }
 
-  const grouped = {};
+  const grouped = Object.create(null);
   routines.forEach(r => {
     const f = r.folder || "Unfiled", s = r.subfolder || "General";
     if (!grouped[f]) grouped[f] = {};
@@ -3061,8 +3062,17 @@ function duplicateRoutine(id) {
 function deleteRoutine(id) {
   return confirmDeleteAction("this exercise template", () => {
     const now = new Date().toISOString();
-    data.routines = (data.routines || []).map(r => r.id === id ? {...r, isDeleted: true, deletedAt: now} : r);
-    data.plans = data.plans.map(p => ({...p, routineIds: p.routineIds.filter(rid => rid !== id)}));
+    const hasLogs = (data.logs || []).some(l => l.routineId === id);
+    const hasSessions = (data.sessions || []).some(s => (s.routineIds || []).includes(id) || (s.logIds || []).some(logId => (data.logs || []).some(l => l.id === logId && l.routineId === id)));
+    const hasPlans = (data.plans || []).some(p => (p.routineIds || []).includes(id));
+    const hasActiveDraft = !!(activeSession?.routineIds || []).includes(id);
+    if (!hasLogs && !hasSessions && !hasPlans && !hasActiveDraft) {
+      data.routines = (data.routines || []).filter(r => r.id !== id);
+      if (data.routineSkillMap) delete data.routineSkillMap[id];
+    } else {
+      data.routines = (data.routines || []).map(r => r.id === id ? {...r, isDeleted: true, deletedAt: now} : r);
+      data.plans = (data.plans || []).map(p => ({...p, routineIds: (p.routineIds || []).filter(rid => rid !== id)}));
+    }
     saveData({allowReadOnlyCleanup:true});
   });
 }
@@ -3302,7 +3312,7 @@ function renderQuickResumeBanner() {
   const routine = last ? routineById(last.routineId) : null;
   if (!last || !routine) { box.classList.add("hidden"); box.innerHTML = ""; return; }
   const collapsed = isQuickResumeCollapsed();
-  const when = last.createdAt ? new Date(last.createdAt).toLocaleDateString() : "last time";
+  const when = last.createdAt ? safeDateString(last.createdAt) : "last time";
   box.classList.remove("hidden");
   box.classList.toggle("collapsed", collapsed);
   const detailHtml = collapsed ? "" : `<p><strong>${htmlText(routine.name)}</strong> · last played ${htmlText(when)}${last.venueTable || last.venueTableSnapshot ? ` · ${htmlText(last.venueTable || last.venueTableSnapshot)}` : ""}</p>`;
@@ -3891,7 +3901,9 @@ function handleFocusSwipeStart(event) {
   if (!document.body?.classList.contains("session-focus-active")) return;
   if (!activeSession || isFocusSwipeIgnoredTarget(event.target)) return;
   const point = event.touches?.[0] || event;
-  focusSwipeStartX = Number(point.clientX || 0);
+  const x = Number(point.clientX || 0);
+  if (x < 35 || x > window.innerWidth - 35) return;
+  focusSwipeStartX = x;
   focusSwipeStartY = Number(point.clientY || 0);
   focusSwipeStartTime = Date.now();
   focusSwipeArmed = true;
@@ -3916,7 +3928,7 @@ function handleFocusSwipeEnd(event) {
 }
 
 async function requestFocusWakeLock() {
-  if (wakeLockRequestInFlight || wakeLockSentinel || getWakeLockSetting() !== "on") return;
+  if (wakeLockPermanentlyFailed || wakeLockRequestInFlight || wakeLockSentinel || getWakeLockSetting() !== "on") return;
   if (!document.body?.classList.contains("session-focus-active")) return;
   if (!timerStartMs && !timerAutostartDelayInterval) return;
   if (!("wakeLock" in navigator)) return;
@@ -3931,7 +3943,8 @@ async function requestFocusWakeLock() {
     }
   } catch(e) {
     wakeLockSentinel = null;
-    if (typeof logAppError === "function") logAppError(e, "requestFocusWakeLock");
+    wakeLockPermanentlyFailed = true;
+    console.warn("WakeLock request rejected; disabling wake lock retries for this session.", e);
   } finally {
     wakeLockRequestInFlight = false;
   }
@@ -6258,7 +6271,7 @@ function shortSessionDateLabel(value) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+  return safeDateString(d, { day: "2-digit", month: "short" });
 }
 
 function buildSessionKpiSeries(logs) {
@@ -6290,7 +6303,7 @@ function buildSessionKpiSeries(logs) {
     return {
       index: idx + 1,
       label: `S${idx + 1}${shortSessionDateLabel(session.createdAt) ? " · " + shortSessionDateLabel(session.createdAt) : ""}`,
-      date: session.createdAt ? new Date(session.createdAt).toLocaleDateString() : `Session ${idx + 1}`,
+      date: session.createdAt ? safeDateString(session.createdAt) : `Session ${idx + 1}`,
       logCount: arr.length,
       avgScore,
       targetHitRate: targetHitRate(arr),
@@ -6558,7 +6571,7 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
       <div class="overview-kpi"><span>${kpiTitle("Evidence", "kpiEvidence")}</span><div class="value">${htmlText(evidence)}</div><small>Uses effective attempts for per-side drills.</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Best score", "bestScore")}</span><div class="value">${best === null ? "N/A" : best.toFixed(1)}</div><small>Best normalized result in scope.</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Plateau state", "plateau")}</span><div class="value">${htmlText(plateau.label)}</div><small>${htmlText(plateau.detail)}</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Last trained", "kpiLastTrained")}</span><div class="value">${days === null ? "N/A" : days+"d"}</div><small>${last ? htmlText(new Date(last.createdAt).toLocaleDateString()) : "No date"}</small></div>
+      <div class="overview-kpi"><span>${kpiTitle("Last trained", "kpiLastTrained")}</span><div class="value">${days === null ? "N/A" : days+"d"}</div><small>${last ? htmlText(safeDateString(last.createdAt)) : "No date"}</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Pressure", "kpiPressure")}</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs"}</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Side balance", "kpiSideBalance")}</span><div class="value">${side ? htmlText(side.label) : "N/A"}</div><small>${side ? htmlText(side.detail) : "No left/right logs"}</small></div>
     </div>
@@ -6894,7 +6907,7 @@ function exerciseTransferEffect(allLogs, targetRid) {
   if (targetLogs.length < 4) return null;
   const targetRoutine = routineById(targetRid);
   const targetCategory = targetRoutine?.category;
-  const candidates = {};
+  const candidates = Object.create(null);
   allLogs.forEach(l => {
     if (l.routineId !== targetRid && l.category && l.category !== targetCategory) {
       const day = localDateKey(l.createdAt);
@@ -6903,7 +6916,7 @@ function exerciseTransferEffect(allLogs, targetRid) {
       candidates[l.category][day].push(Number(l.normalizedScore||0));
     }
   });
-  const targetByDay = {};
+  const targetByDay = Object.create(null);
   targetLogs.forEach(l => {
     const day = localDateKey(l.createdAt);
     if (!targetByDay[day]) targetByDay[day] = [];
@@ -6930,7 +6943,8 @@ function performanceStabilityIndex(logs, windowSize=10) {
   if (vals.length < 3) return null;
   const recent = vals.slice(-windowSize);
   const mean = avg(recent);
-  const cv = mean ? stdDev(recent) / Math.abs(mean) : 0;
+  let cv = mean ? stdDev(recent) / Math.max(0.1, Math.abs(mean)) : 0;
+  cv = Number.isFinite(cv) ? Math.min(3, Math.max(0, cv)) : 3;
   const hitSeries = logs.slice(-windowSize).map(l => {
     const p = l.performance || "N/A";
     return (p === "On Target" || p === "Above Target") ? 1 : 0;
@@ -7092,7 +7106,7 @@ function targetHitRateCurrentTarget(logs) {
   return hits / evaluated.length * 100;
 }
 function renderTargetProfileSummary(logs) {
-  const groups = {};
+  const groups = Object.create(null);
   logs.forEach(l => {
     const label = getTargetProfileLabel(l);
     if (!groups[label]) groups[label] = [];
@@ -7154,7 +7168,7 @@ function renderExerciseProgression(logs, rollingWindow=5, benchmarkWindow=10) {
 }
 
 function renderDateLogRow(l) {
-  return `<tr data-log-row-id="${attrText(l.id)}"><td>${new Date(l.createdAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
+  return `<tr data-log-row-id="${attrText(l.id)}"><td>${safeTimeString(l.createdAt, {hour:"2-digit", minute:"2-digit"})}</td><td>${escapeHtml(getPlanName(l))}</td><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
 }
 function renderSessionLogRow(l) {
   return `<tr data-log-row-id="${attrText(l.id)}"><td>${escapeHtml(getRoutineName(l))}</td><td>${escapeHtml(l.category || "")}</td><td>${displayScore(l)}</td><td>${escapeHtml(l.performance || "N/A")}</td><td>${escapeHtml(getTargetProfileLabel(l))}</td><td>${formatDurationHuman(l.timeMinutes)}</td><td><button class="secondary" data-action="open-log-edit" data-id="${attrText(l.id)}">Edit</button> <button class="danger" data-action="delete-log" data-id="${attrText(l.id)}">Delete</button></td></tr>`;
@@ -7183,6 +7197,18 @@ function toDateTimeLocal(iso) {
   const d = new Date(iso);
   const pad = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function safeDateString(value, options) {
+  if (!value) return "Unknown date";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "Invalid date";
+  return d.toLocaleDateString(undefined, options);
+}
+function safeTimeString(value, options) {
+  if (!value) return "Unknown time";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "Invalid time";
+  return d.toLocaleTimeString(undefined, options);
 }
 function openLogEditModal(id) {
   const log = (data.logs || []).find(l => l.id === id);
@@ -7375,7 +7401,7 @@ function deleteLog(id) {
 function renderDateView(logs) {
   if (!logs.length) return "<p>No exercises logged for this view.</p>";
   const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
-  const types = {};
+  const types = Object.create(null);
   logs.forEach(l => { types[l.category || "uncategorized"] = (types[l.category || "uncategorized"] || 0) + 1; });
   const hit = targetHitRate(logs);
   return `<div class="stats-grid">
@@ -8983,7 +9009,7 @@ function interventionImpactSummary(logs=data.logs||[]){
   return `<div class="intervention-card"><strong>Before / after intervention ${statHelpButton("interventionImpact")}: ${escapeHtml(last.sessionIntervention)}</strong><div class="reflection-row">Avg performance: ${b.avg===null?"N/A":b.avg.toFixed(1)} before → ${a.avg===null?"N/A":a.avg.toFixed(1)} after (${deltaFmt(a.avg,b.avg)}).</div><div class="reflection-row">Hit rate: ${b.hit===null?"N/A":b.hit.toFixed(1)+"%"} before → ${a.hit===null?"N/A":a.hit.toFixed(1)+"%"} after.</div></div>`;
 }
 function tableStats(logs){
-  const groups={};
+  const groups=Object.create(null);
   (logs||[]).forEach(l=>{
     const key = l.tableId || l.venueTable || l.venueTableSnapshot || "";
     if(!key || key === "Not specified") return;
@@ -10701,34 +10727,40 @@ function evaluateRoutinePriority(routine, logs, context={}){
 
 function runDataQualityAudit(){
   const results = [];
+  const MAX_STORED_AUDIT_ISSUES = 500;
+  const addIssue = issue => { if (results.length < MAX_STORED_AUDIT_ISSUES) results.push(issue); };
   try{
     const logs = Array.isArray(data?.logs) ? data.logs : [];
     const routines = Array.isArray(data?.routines) ? data.routines : [];
     const plans = Array.isArray(data?.plans) ? data.plans : [];
     const routineIds = new Set(routines.map(r=>r.id));
     const activeRoutineIds = new Set(routines.filter(r=>!r.isDeleted).map(r=>r.id));
+    let missingTableCount = 0;
 
     logs.forEach((log, idx)=>{
       const row = idx + 1;
       if(log.routineId && !routineIds.has(log.routineId)){
-        results.push({severity:"high", type:"orphan_log", message:`Log ${row} references a routine ID that no longer exists.`});
+        addIssue({severity:"high", type:"orphan_log", message:`Log ${row} references a routine ID that no longer exists.`});
       }
       if(log.routineId && routineIds.has(log.routineId) && !activeRoutineIds.has(log.routineId)){
-        results.push({severity:"medium", type:"deleted_routine_log", message:`Log ${row} references a soft-deleted routine. This is usually acceptable historical data.`});
+        addIssue({severity:"medium", type:"deleted_routine_log", message:`Log ${row} references a soft-deleted routine. This is usually acceptable historical data.`});
       }
       const signal = derivePerformanceSignal(log, routines.find(r=>r.id===log.routineId));
       signal.dataQualityFlags.forEach(flag=>{
-        results.push({severity: flag.includes("exceeds") || flag === "negative_values" ? "high" : "medium", type:flag, message:`Log ${row}: ${flag.replaceAll("_"," ")}.`});
+        addIssue({severity: flag.includes("exceeds") || flag === "negative_values" ? "high" : "medium", type:flag, message:`Log ${row}: ${flag.replaceAll("_"," ")}.`});
       });
       if(!log.tableId && !log.venueTable){
-        results.push({severity:"low", type:"missing_table", message:`Log ${row} has no table/venue context.`});
+        missingTableCount += 1;
       }
     });
+    if (missingTableCount) {
+      addIssue({severity:"low", type:"missing_table", message:`${missingTableCount} log(s) have no table/venue context. This is optional, but limits table-specific analytics.`});
+    }
 
     plans.forEach((plan)=>{
       (plan.routineIds || []).forEach(rid=>{
         if(!routineIds.has(rid)){
-          results.push({severity:"high", type:"orphan_plan_reference", message:`Plan "${plan.name || "Unnamed"}" references a missing routine.`});
+          addIssue({severity:"high", type:"orphan_plan_reference", message:`Plan "${plan.name || "Unnamed"}" references a missing routine.`});
         }
       });
     });
@@ -10740,11 +10772,14 @@ function runDataQualityAudit(){
       nameMap.set(key, (nameMap.get(key)||0)+1);
     });
     nameMap.forEach((count,name)=>{
-      if(count > 1) results.push({severity:"low", type:"duplicate_routine_name", message:`Duplicate active routine name: "${name}".`});
+      if(count > 1) addIssue({severity:"low", type:"duplicate_routine_name", message:`Duplicate active routine name: "${name}".`});
     });
+    if (results.length >= MAX_STORED_AUDIT_ISSUES) {
+      results.push({severity:"medium", type:"audit_truncated", message:`Audit stopped storing individual rows after ${MAX_STORED_AUDIT_ISSUES} issues to protect browser memory.`});
+    }
 
   }catch(err){
-    results.push({severity:"high", type:"audit_error", message:`Audit failed: ${err.message || err}`});
+    addIssue({severity:"high", type:"audit_error", message:`Audit failed: ${err.message || err}`});
   }
   return results;
 }
@@ -10753,19 +10788,23 @@ function renderDataQualityAudit(){
   const host = document.getElementById("dataQualityAuditBox");
   if(!host) return;
   const issues = runDataQualityAudit();
-  const counts = issues.reduce((a,i)=>{ a[i.severity]=(a[i.severity]||0)+1; return a; }, {});
+  const counts = issues.reduce((a,i)=>{ a[i.severity]=(a[i.severity]||0)+1; return a; }, Object.create(null));
   if(!issues.length){
     host.innerHTML = '<div class="analytics-note">No integrity issues detected.</div>';
     return;
   }
+  const displayLimit = 50;
+  const visible = issues.slice(0, displayLimit);
+  const hiddenCount = Math.max(0, issues.length - visible.length);
   host.innerHTML =
     `<div class="analytics-note"><strong>${issues.length} issue(s) found</strong> · High: ${counts.high||0} · Medium: ${counts.medium||0} · Low: ${counts.low||0}</div>` +
-    issues.map(i=>`
-      <div class="dq-item dq-${i.severity}">
-        <strong>${i.type.replaceAll("_"," ")}</strong><br/>
-        <span class="small">${i.message}</span>
+    visible.map(i=>`
+      <div class="dq-item dq-${escapeHtml(i.severity)}">
+        <strong>${escapeHtml(String(i.type || "issue").replaceAll("_"," "))}</strong><br/>
+        <span class="small">${escapeHtml(i.message || "")}</span>
       </div>
-    `).join('');
+    `).join('') +
+    (hiddenCount ? `<div class="analytics-note muted">${hiddenCount} additional issue(s) are not rendered to keep the audit responsive.</div>` : '');
 }
 /* ===== end v4.30.0 Transfer Model v1 ===== */
 

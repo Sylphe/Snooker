@@ -187,7 +187,7 @@ export function computeRoutineAllocationBalance(logs, routines, options = {}) {
     mental: 0.10
   };
 
-  const totals = {};
+  const totals = Object.create(null);
   let totalLogs = 0;
 
   (logs || []).forEach(l => {
