@@ -1573,6 +1573,13 @@ function normalizeFocusNumpadTarget(id) {
 function setFocusNumpadTarget(id) {
   focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
   document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${CSS.escape(focusNumpadTargetId)}`)));
+  const panel = document.querySelector(".focus-score-cockpit");
+  if (panel) {
+    const row = $(focusNumpadTargetId)?.closest("div");
+    const label = row?.querySelector("label")?.textContent?.trim() || "Score";
+    const labelEl = panel.querySelector(".focus-cockpit-label");
+    if (labelEl) labelEl.textContent = label;
+  }
 }
 
 function focusModeFlash(selectorOrEl, className = "focus-control-pulse") {
@@ -1616,11 +1623,18 @@ function renderFocusNumpad(r) {
   const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","bestAttemptValue","completionCountValue","highestBreakValue"].filter(id => $(id));
   if (!candidates.length) return;
   focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
-  const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","Clear"];
-  box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel" aria-label="Focus mode score numpad">
-    <div class="focus-numpad-title"><span>Score pad</span><small>Tap a score field or use ± controls</small></div>
+  const targetLabel = (() => {
+    const row = $(focusNumpadTargetId)?.closest("div");
+    return row?.querySelector("label")?.textContent?.trim() || "Score";
+  })();
+  const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
+  box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel focus-score-cockpit" aria-label="Focus mode score cockpit">
+    <div class="focus-cockpit-header">
+      <span class="focus-cockpit-label">${htmlText(targetLabel)}</span>
+      <span class="focus-cockpit-hint">tap score · ✓ saves</span>
+    </div>
     <div class="focus-numpad-grid">${buttons.map(label => {
-      const action = label === "⌫" ? "backspace" : label === "Clear" ? "clear" : "digit";
+      const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : "digit";
       const value = action === "digit" ? label : "";
       return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
     }).join("")}</div>
@@ -1630,6 +1644,11 @@ function renderFocusNumpad(r) {
 function handleFocusNumpad(action, value) {
   const el = $(normalizeFocusNumpadTarget(focusNumpadTargetId));
   if (!el) return;
+  if (action === "enter") {
+    focusModeFlash($("saveNextBtn"), "focus-control-pulse");
+    saveCurrentRoutine();
+    return;
+  }
   let current = String(el.value || "");
   if (action === "clear") current = "";
   else if (action === "backspace") current = current.slice(0, -1);

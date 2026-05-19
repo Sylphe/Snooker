@@ -1,21 +1,18 @@
-# Snooker Practice PWA v5.2.1
+# Snooker Practice PWA v5.2.2
 
-## v5.2.1 — Focus Mode Visual Hierarchy Cleanup
+## v5.2.2 — Focus Mode Score-Entry Cockpit
 
-Built from v5.2.0.
+Built from v5.2.1.
 
 ### Included
-- Compressed single-row operational Focus Mode top bar.
-- Reduced nested borders, card outlines, glow, and visual noise in Focus Mode.
-- Calmer matte dark-green table-side surfaces.
-- Compact metadata treatment for routine/session context.
-- Tighter typography hierarchy with dim labels and stronger values.
-- Score-entry zone visually prioritized over secondary controls.
-- Smaller secondary timer and session controls.
-- Gold accent reserved mainly for performance/progress emphasis.
-- Existing scoring, numpad, steppers, swipe gesture, and session logic preserved.
+- score-entry cockpit layout for Focus Mode
+- central 3x4 score numpad with ✓ save action
+- larger primary score display
+- reduced side-control visual weight
+- active target label on the numpad
+- existing long-press, swipe, readonly input and session logic preserved
+- no analytics, storage, hydration, or session schema changes
 
 ### Build
-- Version: v5.2.1
-- Build timestamp: 2026-05-19 09:18 CEST
-- No analytics, storage, hydration, or session schema changes.
+- Version: v5.2.2
+- Build time: 2026-05-19 09:24 CEST
