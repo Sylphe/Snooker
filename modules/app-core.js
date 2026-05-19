@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.10";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.10";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.11";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.11";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.10";
+} from "./utils.js?v=5.5.11";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.10";
+} from "./settings.js?v=5.5.11";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.10";
+} from "./analytics.js?v=5.5.11";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.10";
+} from "./bayesian.js?v=5.5.11";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.10";
+} from "./session.js?v=5.5.11";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.10";
+} from "./pressure.js?v=5.5.11";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.10";
+} from "./recommendations.js?v=5.5.11";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.10";
+} from "./store.js?v=5.5.11";
 
 
 
@@ -2819,6 +2819,20 @@ function activateTab(tabId) {
 
 document.querySelectorAll(".tab, .mobile-nav-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
+function applyAriaLabelCleanup() {
+  try {
+    document.querySelectorAll("button:not([aria-label])").forEach(btn => {
+      const text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+      const title = (btn.getAttribute("title") || "").trim();
+      const action = (btn.dataset?.action || "").replace(/[-_]+/g, " ").trim();
+      const label = title || (text && text.length <= 80 ? text : "") || action;
+      if (label) btn.setAttribute("aria-label", label);
+    });
+  } catch(e) {
+    logAppError?.(e, "applyAriaLabelCleanup");
+  }
+}
+
 function renderAll() {
   const renderSteps = [
     ["renderRoutineSelects", renderRoutineSelects],
@@ -2855,7 +2869,8 @@ function renderAll() {
     ["restoreTemplatesMainTab", restoreTemplatesMainTab],
     ["restoreDataMainTab", restoreDataMainTab],
     ["updateSessionFocusState", updateSessionFocusState],
-    ["ensureRoutinePickerButtons", () => { if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons(); }]
+    ["ensureRoutinePickerButtons", () => { if (typeof ensureRoutinePickerButtons === "function") ensureRoutinePickerButtons(); }],
+    ["applyAriaLabelCleanup", applyAriaLabelCleanup]
   ];
   if (typeof requestAnimationFrame !== "function") {
     renderSteps.forEach(([label, fn]) => safeCall(label, fn));

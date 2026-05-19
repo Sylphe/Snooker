@@ -14,6 +14,31 @@ function closeDb(db) {
   try { db?.close?.(); } finally { if (activeDb === db) activeDb = null; }
 }
 
+function safeAbortTransaction(tx) {
+  try { if (tx && tx.readyState !== "done") tx.abort(); } catch(_) {}
+}
+
+function rejectOnceFactory(reject) {
+  let settled = false;
+  return error => {
+    if (settled) return;
+    settled = true;
+    reject(error);
+  };
+}
+
+const SCHEMA_MIGRATIONS = {
+  1(db) { ensureObjectStores(db); },
+  2(db) { ensureObjectStores(db); }
+};
+
+function runSchemaMigrations(db, oldVersion, newVersion) {
+  ensureObjectStores(db);
+  for (let version = Math.max(1, Number(oldVersion || 0) + 1); version <= Number(newVersion || INDEXEDDB_VERSION); version += 1) {
+    try { SCHEMA_MIGRATIONS[version]?.(db); } catch(error) { console.warn("IndexedDB schema migration skipped", version, error); }
+  }
+}
+
 function ensureObjectStores(db) {
   if (!db.objectStoreNames.contains(INDEXEDDB_LOG_STORE)) {
     const logs = db.createObjectStore(INDEXEDDB_LOG_STORE, {keyPath:"id"});
@@ -35,8 +60,8 @@ export function openSnookerDB() {
       return resolve(activeDb);
     }
     const req = indexedDB.open(INDEXEDDB_NAME, INDEXEDDB_VERSION);
-    req.onupgradeneeded = () => {
-      ensureObjectStores(req.result);
+    req.onupgradeneeded = (event) => {
+      runSchemaMigrations(req.result, event.oldVersion, event.newVersion || INDEXEDDB_VERSION);
     };
     req.onsuccess = () => {
       const db = rememberDb(req.result);
@@ -55,16 +80,17 @@ export function openSnookerDB() {
 export function idbGetAll(storeName) {
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
     let tx;
+    const rejectOnce = rejectOnceFactory(reject);
     try {
       tx = db.transaction(storeName, "readonly");
       const req = tx.objectStore(storeName).getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => {};
-      tx.onerror = () => { reject(tx.error); };
+      req.onerror = () => { safeAbortTransaction(tx); rejectOnce(req.error || new Error("IndexedDB getAll failed.")); };
+      tx.onerror = () => { rejectOnce(tx.error || new Error("IndexedDB read transaction failed.")); };
+      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB read transaction aborted.")); };
     } catch(e) {
       closeDb(db);
-      reject(e);
+      rejectOnce(e);
     }
   }));
 }
@@ -98,12 +124,16 @@ export function idbGetStores(storeNames) {
           }
         };
       });
-      tx.oncomplete = () => {};
       tx.onerror = () => {
-        closeDb(db);
         if (!settled) {
           settled = true;
-          reject(tx.error);
+          reject(tx.error || new Error("IndexedDB multi-store read failed."));
+        }
+      };
+      tx.onabort = () => {
+        if (!settled) {
+          settled = true;
+          reject(tx.error || new Error("IndexedDB multi-store read aborted."));
         }
       };
     } catch(e) {
@@ -116,16 +146,19 @@ export function idbGetStores(storeNames) {
 export function idbReplaceAll(storeName, rows) {
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
     let tx;
+    const rejectOnce = rejectOnceFactory(reject);
     try {
       tx = db.transaction(storeName, "readwrite");
       const store = tx.objectStore(storeName);
       store.clear();
       (rows || []).forEach(row => { if (row && row.id) store.put(row); });
       tx.oncomplete = () => { resolve(true); };
-      tx.onerror = () => { reject(tx.error); };
+      tx.onerror = () => { safeAbortTransaction(tx); rejectOnce(tx.error || new Error("IndexedDB replaceAll failed.")); };
+      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB replaceAll aborted.")); };
     } catch(e) {
+      safeAbortTransaction(tx);
       closeDb(db);
-      reject(e);
+      rejectOnce(e);
     }
   }));
 }
@@ -134,14 +167,17 @@ export function idbPut(storeName, item) {
   if (!item || !item.id) return Promise.resolve(false);
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
     let tx;
+    const rejectOnce = rejectOnceFactory(reject);
     try {
       tx = db.transaction(storeName, "readwrite");
       tx.objectStore(storeName).put(item);
       tx.oncomplete = () => { resolve(true); };
-      tx.onerror = () => { reject(tx.error); };
+      tx.onerror = () => { safeAbortTransaction(tx); rejectOnce(tx.error || new Error("IndexedDB put failed.")); };
+      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB put aborted.")); };
     } catch(e) {
+      safeAbortTransaction(tx);
       closeDb(db);
-      reject(e);
+      rejectOnce(e);
     }
   }));
 }
@@ -150,8 +186,9 @@ export function idbPut(storeName, item) {
 
 export function idbReplaceStores(logRows = [], sessionRows = []) {
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    let tx;
     try {
-      const tx = db.transaction([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite");
+      tx = db.transaction([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite");
       const logStore = tx.objectStore(INDEXEDDB_LOG_STORE);
       const sessionStore = tx.objectStore(INDEXEDDB_SESSION_STORE);
       logStore.clear();
@@ -159,9 +196,10 @@ export function idbReplaceStores(logRows = [], sessionRows = []) {
       (logRows || []).forEach(row => { if (row && row.id) logStore.put(row); });
       (sessionRows || []).forEach(row => { if (row && row.id) sessionStore.put(row); });
       tx.oncomplete = () => resolve(true);
-      tx.onerror = () => reject(tx.error || new Error("IndexedDB atomic replace failed."));
+      tx.onerror = () => { safeAbortTransaction(tx); reject(tx.error || new Error("IndexedDB atomic replace failed.")); };
       tx.onabort = () => reject(tx.error || new Error("IndexedDB atomic replace aborted."));
     } catch(e) {
+      safeAbortTransaction(tx);
       closeDb(db);
       reject(e);
     }
@@ -173,11 +211,12 @@ export function idbPutBundle(logs = [], sessions = []) {
   const sessionRows = (Array.isArray(sessions) ? sessions : [sessions]).filter(row => row && row.id);
   if (!logRows.length && !sessionRows.length) return Promise.resolve(true);
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    let tx;
     try {
       const storeNames = [];
       if (logRows.length) storeNames.push(INDEXEDDB_LOG_STORE);
       if (sessionRows.length) storeNames.push(INDEXEDDB_SESSION_STORE);
-      const tx = db.transaction(storeNames, "readwrite");
+      tx = db.transaction(storeNames, "readwrite");
       if (logRows.length) {
         const logStore = tx.objectStore(INDEXEDDB_LOG_STORE);
         logRows.forEach(row => logStore.put(row));
@@ -187,9 +226,10 @@ export function idbPutBundle(logs = [], sessions = []) {
         sessionRows.forEach(row => sessionStore.put(row));
       }
       tx.oncomplete = () => resolve(true);
-      tx.onerror = () => reject(tx.error || new Error("IndexedDB bundle write failed."));
+      tx.onerror = () => { safeAbortTransaction(tx); reject(tx.error || new Error("IndexedDB bundle write failed.")); };
       tx.onabort = () => reject(tx.error || new Error("IndexedDB bundle write aborted."));
     } catch(e) {
+      safeAbortTransaction(tx);
       closeDb(db);
       reject(e);
     }
@@ -200,14 +240,17 @@ export function idbDelete(storeName, id) {
   if (!id) return Promise.resolve(false);
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
     let tx;
+    const rejectOnce = rejectOnceFactory(reject);
     try {
       tx = db.transaction(storeName, "readwrite");
       tx.objectStore(storeName).delete(id);
       tx.oncomplete = () => { resolve(true); };
-      tx.onerror = () => { reject(tx.error); };
+      tx.onerror = () => { safeAbortTransaction(tx); rejectOnce(tx.error || new Error("IndexedDB delete failed.")); };
+      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB delete aborted.")); };
     } catch(e) {
+      safeAbortTransaction(tx);
       closeDb(db);
-      reject(e);
+      rejectOnce(e);
     }
   }));
 }

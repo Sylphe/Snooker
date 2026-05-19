@@ -1,3 +1,5 @@
+export const RECOMMENDATION_EXCLUDED_SCORE = -1000000;
+
 export function recommendationMode(routine) {
   return ["active", "occasional", "excluded"].includes(routine?.recommendationMode) ? routine.recommendationMode : "active";
 }
@@ -31,7 +33,7 @@ export function applyRecommendationCap(score, routine) {
 }
 
 export function recommendationScoreFloor(routine) {
-  return recommendationMode(routine) === "excluded" ? -999 : 0;
+  return recommendationMode(routine) === "excluded" ? RECOMMENDATION_EXCLUDED_SCORE : 0;
 }
 
 
@@ -57,7 +59,7 @@ export function adaptiveActionForState(state) {
 export function scoreAdaptivePriority(state, goal="auto", undertrainedBonus=0) {
   let score = 0;
   const r = state.routine;
-  if (!r) return -999;
+  if (!r) return RECOMMENDATION_EXCLUDED_SCORE;
   if (r.isAnchor) score += 18;
   if (state.hit !== null) score += Math.max(0, 75 - state.hit) * 0.4;
   if (state.psi && state.psi.psi < 70) score += (70 - state.psi.psi) * 0.35;
@@ -79,7 +81,7 @@ export function scoreAdaptivePriority(state, goal="auto", undertrainedBonus=0) {
 }
 
 export function scoreMixedStrategyRoutine({routine, stats, strategy, days, undertrainedBonus}) {
-  if (recommendationMode(routine) === "excluded") return -999;
+  if (recommendationMode(routine) === "excluded") return RECOMMENDATION_EXCLUDED_SCORE;
   let score = Number(stats?.score || 0);
   const cappedDays = cappedRecencyDays(days, routine);
   const undertraining = Number(undertrainedBonus || 0) * recommendationUndertrainingMultiplier(routine);

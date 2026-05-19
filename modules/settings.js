@@ -58,14 +58,24 @@ export function resolveThemeMode(mode) {
 export function applyThemeToDocument(mode) {
   const storedMode = normalizeInterfaceThemeMode(mode);
   const actualTheme = resolveThemeMode(storedMode);
-  [document.documentElement, document.body].filter(Boolean).forEach(el => {
+  const applyTo = el => {
+    if (!el) return;
     el.classList.remove("theme-system", "theme-light", "theme-dark", "theme-contrast");
     el.classList.add("theme-" + storedMode);
     el.setAttribute("data-theme-mode", storedMode);
     el.setAttribute("data-theme", actualTheme);
-  });
+  };
+  applyTo(document.documentElement);
+  applyTo(document.body);
   const meta = document.getElementById("themeColorMeta") || document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", actualTheme === "contrast" ? "#000000" : actualTheme === "dark" ? "#07110d" : "#102b22");
+  if (meta) {
+    let color = actualTheme === "contrast" ? "#000000" : actualTheme === "dark" ? "#07110d" : "#102b22";
+    try {
+      const computed = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
+      if (computed) color = computed;
+    } catch(_) {}
+    meta.setAttribute("content", color);
+  }
   return {mode: storedMode, actualTheme};
 }
 

@@ -34,5 +34,13 @@
       "url": "./index.html#stats",
       "description": "Open stats overview"
     }
-  ]
+  ],
+  "categories": [
+    "sports",
+    "productivity",
+    "health_and_fitness"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

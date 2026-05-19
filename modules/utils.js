@@ -1,6 +1,22 @@
+let __uuidCounter = 0;
+
 export function uuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10);
+  __uuidCounter = (__uuidCounter + 1) % 1296;
+  const timePart = Date.now().toString(36);
+  const counterPart = __uuidCounter.toString(36).padStart(2, "0");
+  let entropyPart = "";
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      entropyPart = Array.from(bytes, b => b.toString(36).padStart(2, "0")).join("").slice(0, 12);
+    }
+  } catch(_) { entropyPart = ""; }
+  if (!entropyPart) {
+    entropyPart = Math.random().toString(36).slice(2).padEnd(12, "0").slice(0, 12);
+  }
+  return `id-${timePart}-${entropyPart}-${counterPart}`;
 }
 
 export function structuredCloneSafe(obj) {
@@ -48,8 +64,9 @@ export function numAttr(value, fallback="") {
   return escapeAttr(numText(value, fallback));
 }
 
-export function safeClassToken(value, allowed, fallback="") {
-  return allowed.includes(value) ? value : fallback;
+export function safeClassToken(value, allowed, fallback="neutral") {
+  const safeFallback = String(fallback || "neutral").replace(/[^a-zA-Z0-9_-]/g, "");
+  return Array.isArray(allowed) && allowed.includes(value) ? value : (safeFallback || "neutral");
 }
 
 export function sortedBy(arr, comparator) {

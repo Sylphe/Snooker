@@ -245,24 +245,37 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
   const processNoiseBase = Math.max(0.25, Number(options.processNoise) || 2.2);
   const baseObservationNoise = Math.max(9, Math.pow(Number(options.observationNoise) || 11, 2));
   const trajectory = [];
+  let lastValidX = Number.isFinite(x) ? x : 50;
+  let lastValidP = Number.isFinite(P) ? P : 144;
 
   rows.forEach(row => {
     const fatiguePenalty = Number.isFinite(row.fatigue) ? Math.max(0, row.fatigue - 3) * 0.28 : 0;
     const focusNoise = Number.isFinite(row.focus) ? Math.max(0, 3 - row.focus) * 0.22 : 0;
     const confidenceNoise = Number.isFinite(row.confidence) ? Math.max(0, 3 - row.confidence) * 0.16 : 0;
-    const contextNoiseMultiplier = 1 + fatiguePenalty + focusNoise + confidenceNoise;
-    const gapInflation = Math.min(5, row.daysGap || 0) * processNoiseBase;
-    P = P + processNoiseBase + gapInflation;
-    const R = baseObservationNoise * contextNoiseMultiplier;
-    const K = P / (P + R);
-    x = x + K * (row.score - x);
+    const contextNoiseMultiplier = Math.max(0.25, 1 + fatiguePenalty + focusNoise + confidenceNoise);
+    const gapInflation = Math.min(5, Math.max(0, row.daysGap || 0)) * processNoiseBase;
+    P = Number.isFinite(P) ? P + processNoiseBase + gapInflation : lastValidP + processNoiseBase + gapInflation;
+    const R = Math.max(0.0001, baseObservationNoise * contextNoiseMultiplier);
+    const denominator = P + R;
+    const K = Number.isFinite(denominator) && denominator > 0 ? P / denominator : 0;
+    const score = Number.isFinite(row.score) ? row.score : lastValidX;
+    x = (Number.isFinite(x) ? x : lastValidX) + K * (score - (Number.isFinite(x) ? x : lastValidX));
     P = Math.max(4, (1 - K) * P);
-    trajectory.push({state: x, uncertainty: Math.sqrt(Math.max(P, 0)), gain: K, observationNoise: Math.sqrt(R), score: row.score});
+    if (!Number.isFinite(x) || !Number.isFinite(P)) {
+      x = lastValidX;
+      P = lastValidP;
+    } else {
+      lastValidX = x;
+      lastValidP = P;
+    }
+    const uncertainty = Math.sqrt(Math.max(Number.isFinite(P) ? P : lastValidP, 0));
+    const observationNoise = Math.sqrt(Math.max(Number.isFinite(R) ? R : baseObservationNoise, 0));
+    trajectory.push({state: x, uncertainty, gain: Number.isFinite(K) ? K : 0, observationNoise, score});
   });
 
-  const current = trajectory.length ? trajectory[trajectory.length - 1].state : x;
-  const uncertainty = trajectory.length ? trajectory[trajectory.length - 1].uncertainty : Math.sqrt(P);
-  const observationNoise = trajectory.length ? trajectory[trajectory.length - 1].observationNoise : Math.sqrt(baseObservationNoise);
+  const current = Number.isFinite(trajectory.length ? trajectory[trajectory.length - 1].state : x) ? (trajectory.length ? trajectory[trajectory.length - 1].state : x) : lastValidX;
+  const uncertainty = Number.isFinite(trajectory.length ? trajectory[trajectory.length - 1].uncertainty : Math.sqrt(P)) ? (trajectory.length ? trajectory[trajectory.length - 1].uncertainty : Math.sqrt(P)) : Math.sqrt(lastValidP);
+  const observationNoise = Number.isFinite(trajectory.length ? trajectory[trajectory.length - 1].observationNoise : Math.sqrt(baseObservationNoise)) ? (trajectory.length ? trajectory[trajectory.length - 1].observationNoise : Math.sqrt(baseObservationNoise)) : Math.sqrt(baseObservationNoise);
   const baselineWindow = Math.max(4, Math.min(12, Math.floor(trajectory.length * 0.45)));
   const baselineStates = trajectory.slice(0, Math.max(1, trajectory.length - baselineWindow)).map(t => t.state);
   const baseline = baselineStates.length ? baselineStates.reduce((a,b)=>a+b,0) / baselineStates.length : allScores.reduce((a,b)=>a+b,0) / allScores.length;
