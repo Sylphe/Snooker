@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.5.0";
+} from "./utils.js?v=5.6.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.0";
+} from "./settings.js?v=5.6.1";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.0";
+} from "./analytics.js?v=5.6.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.0";
+} from "./bayesian.js?v=5.6.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.0";
+} from "./session.js?v=5.6.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.0";
+} from "./pressure.js?v=5.6.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.0";
+} from "./recommendations.js?v=5.6.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.0";
+} from "./store.js?v=5.6.1";
 
 
 
@@ -6087,24 +6087,27 @@ function renderSessionTrendChart(title, subtitle, rows, key, suffix = "", precis
   return `<div class="trend-chart-card">
     <div class="trend-chart-head"><div><h4>${htmlText(title)}</h4><p class="muted">${htmlText(subtitle)}</p></div><div class="trend-chart-kpi"><strong>${last.toFixed(precision)}${suffix}</strong><span>${direction} · ${delta >= 0 ? "+" : ""}${delta.toFixed(precision)}${suffix}</span></div></div>
     <div class="chart-mobile-context"><span>Latest: ${htmlText(latestContext)}</span><span>From ${htmlText(firstLabel)} to ${htmlText(lastLabel)}</span></div>
-    <svg class="session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attrText(title)} trend over sessions and dates">
-      <line class="gridline" x1="${padL}" y1="${yFor(minY).toFixed(1)}" x2="${width-padR}" y2="${yFor(minY).toFixed(1)}"></line>
-      <line class="gridline" x1="${padL}" y1="${yFor((minY+maxY)/2).toFixed(1)}" x2="${width-padR}" y2="${yFor((minY+maxY)/2).toFixed(1)}"></line>
-      <line class="gridline" x1="${padL}" y1="${yFor(maxY).toFixed(1)}" x2="${width-padR}" y2="${yFor(maxY).toFixed(1)}"></line>
-      ${yTicks}
-      <text x="${padL}" y="${height-8}" class="axis-label">${htmlText(firstLabel)}</text>
-      ${midTick}
-      <text x="${width-padR-88}" y="${height-8}" class="axis-label axis-label-end">${htmlText(lastLabel)}</text>
-      ${trendLine}
-      <polyline class="metric-line" points="${points}"></polyline>
-      ${pointMarkers}
-    </svg>
+    <div class="graph-legend-strip" aria-hidden="true"><span><i class="legend-dot legend-dot-metric"></i>Session value</span><span><i class="legend-line legend-line-trend"></i>Trend</span></div>
+    <div class="graph-chart-scroll">
+      <svg class="session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attrText(title)} trend over sessions and dates" preserveAspectRatio="xMidYMid meet">
+        <line class="gridline" x1="${padL}" y1="${yFor(minY).toFixed(1)}" x2="${width-padR}" y2="${yFor(minY).toFixed(1)}"></line>
+        <line class="gridline" x1="${padL}" y1="${yFor((minY+maxY)/2).toFixed(1)}" x2="${width-padR}" y2="${yFor((minY+maxY)/2).toFixed(1)}"></line>
+        <line class="gridline" x1="${padL}" y1="${yFor(maxY).toFixed(1)}" x2="${width-padR}" y2="${yFor(maxY).toFixed(1)}"></line>
+        ${yTicks}
+        <text x="${padL}" y="${height-8}" class="axis-label axis-label-start">${htmlText(firstLabel)}</text>
+        ${midTick}
+        <text x="${width-padR-88}" y="${height-8}" class="axis-label axis-label-end">${htmlText(lastLabel)}</text>
+        ${trendLine}
+        <polyline class="metric-line" points="${points}"></polyline>
+        ${pointMarkers}
+      </svg>
+    </div>
   </div>`;
 }
 
 function renderGraphSection(title, subtitle, bodyHtml, open = true, variant = "standard") {
   const safeBody = bodyHtml || `<p class="muted">No graph data available for this section.</p>`;
-  return `<details class="graph-section graph-section-${htmlText(variant)}" ${open ? "open" : ""}>
+  return `<details class="graph-section graph-section-${safeClassToken(variant)}" ${open ? "open" : ""}>
     <summary><span><strong>${htmlText(title)}</strong><small>${htmlText(subtitle || "")}</small></span><span class="graph-section-chevron">›</span></summary>
     <div class="graph-section-body">${safeBody}</div>
   </details>`;
@@ -6147,13 +6150,13 @@ function renderStatsGraphs(logs, { range }) {
   return `<h3>Graphs — ${escapeHtml(range.label)}</h3>
     <div class="graph-dashboard-shell">
       <div class="graph-dashboard-header">
-        <div><span class="stats-tier-pill">v5.6 foundation</span><h4>Visual performance map</h4><p>Session-adjusted graph hierarchy. Each point represents one training session, so calendar gaps do not distort the progression view.</p></div>
+        <div><span class="stats-tier-pill">v5.6.1 mobile graphs</span><h4>Visual performance map</h4><p>Session-adjusted graph hierarchy. Each point represents one training session, so calendar gaps do not distort the progression view.</p></div>
       </div>
       ${renderGraphFoundationSummary(rows, logs)}
       ${renderGraphSection("Form", "Primary performance trend and target conversion", formGraphs, true, "primary")}
       ${renderGraphSection("Consistency", "Stability, volatility, and left/right balance", consistencyGraphs, true, "secondary")}
       ${renderGraphSection("Session load", "Practice volume and pressure-mode signal", sessionLoadGraphs, false, "secondary")}
-      ${renderGraphSection("Routine progress", "Exercise-level progression remains available in the Routines section to avoid duplicating the same chart stack here.", `<div class="analytics-note"><strong>Use the Routines tab for drill-specific progression.</strong> v5.6.0 separates graph families so this page stays readable on mobile. Later v5.6.x releases can add sparklines and transfer links into this section.</div>`, false, "tertiary")}
+      ${renderGraphSection("Routine progress", "Exercise-level progression remains available in the Routines section to avoid duplicating the same chart stack here.", `<div class="analytics-note"><strong>Use the Routines tab for drill-specific progression.</strong> v5.6.1 keeps graph families separated and mobile-scaled so this page stays readable on mobile. Later v5.6.x releases can add sparklines and transfer links into this section.</div>`, false, "tertiary")}
     </div>`;
 }
 
@@ -8374,7 +8377,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.6.1");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
