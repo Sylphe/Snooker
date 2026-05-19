@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.8";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.9";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.9";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.8";
+} from "./utils.js?v=5.5.9";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.8";
+} from "./settings.js?v=5.5.9";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.8";
+} from "./analytics.js?v=5.5.9";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.8";
+} from "./bayesian.js?v=5.5.9";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.8";
+} from "./session.js?v=5.5.9";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.8";
+} from "./pressure.js?v=5.5.9";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.8";
+} from "./recommendations.js?v=5.5.9";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,9 +107,11 @@ import {
   idbGetStores,
   idbDeleteDatabase,
   idbReplaceAll,
+  idbReplaceStores,
   idbPut,
+  idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.8";
+} from "./store.js?v=5.5.9";
 
 
 
@@ -131,6 +133,11 @@ let indexedDBRetryNoticeShown = false;
 let externalStorageSyncInProgress = false;
 let storageReadOnlyMode = false;
 let storageReadOnlyNoticeShown = false;
+let proactiveStorageNoticeShown = false;
+const LOCALSTORAGE_WARN_BYTES = 3.5 * 1024 * 1024;
+const LOCALSTORAGE_HARD_STOP_BYTES = 4.5 * 1024 * 1024;
+const MAX_TIMER_ELAPSED_MS = 24 * 60 * 60 * 1000;
+const MAX_SINGLE_DRILL_MINUTES = 240;
 
 function isQuotaError(error) {
   return !!(error && (error.name === "QuotaExceededError" || String(error.message || "").toLowerCase().includes("quota")));
@@ -171,10 +178,29 @@ function serializeCoreData(d) {
   return core;
 }
 
+function estimateSerializedBytes(value) {
+  try { return new Blob([String(value ?? "")]).size; }
+  catch(e) { return String(value ?? "").length; }
+}
+function warnIfCoreStorageLarge(serialized, context="saveCoreData") {
+  const bytes = estimateSerializedBytes(serialized);
+  if (bytes >= LOCALSTORAGE_WARN_BYTES && !proactiveStorageNoticeShown) {
+    proactiveStorageNoticeShown = true;
+    notifyUser(`Storage warning: local core data is ${formatStorageBytes(bytes)}. Export a backup soon.`, "warn");
+  }
+  if (indexedDBUnavailable && bytes >= LOCALSTORAGE_HARD_STOP_BYTES) {
+    notifyUser(`Storage limit risk: local fallback data is ${formatStorageBytes(bytes)}. Export backup or free space before saving more.`, "warn");
+    enterStorageReadOnlyMode(`${context} proactive localStorage hard stop`);
+    return false;
+  }
+  return true;
+}
 function saveCoreData(context="saveCoreData", force=false) {
   if (storageReadOnlyMode && !force) return false;
   try {
-    const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(serializeCoreData(data)), context, force);
+    const serialized = JSON.stringify(serializeCoreData(data));
+    if (!force && !warnIfCoreStorageLarge(serialized, context)) return false;
+    const ok = safeStorageSet(STORAGE_KEY, serialized, context, force);
     if (!ok && indexedDBUnavailable) enterStorageReadOnlyMode(`${context} localStorage fallback failed`);
     return ok;
   } catch(e) {
@@ -268,6 +294,24 @@ function persistSessionDelta(session, context="persistSessionDelta") {
     .then(() => { flushFailedIndexedDBDeltas("persistSessionDelta retry"); return true; })
     .catch(e => { logAppError(e, context); queueFailedSessionDelta(session); return false; });
 }
+function persistLogSessionBundle(logs = [], sessions = [], context="persistLogSessionBundle") {
+  const logRows = (Array.isArray(logs) ? logs : [logs]).filter(row => row && row.id);
+  const sessionRows = (Array.isArray(sessions) ? sessions : [sessions]).filter(row => row && row.id);
+  if (indexedDBUnavailable || (!logRows.length && !sessionRows.length)) return Promise.resolve(false);
+  if (!indexedDBReady) {
+    if (logRows.length) pendingPreHydrationLogs = mergeById(logRows, pendingPreHydrationLogs);
+    if (sessionRows.length) pendingPreHydrationSessions = mergeById(sessionRows, pendingPreHydrationSessions);
+    return Promise.resolve(true);
+  }
+  return idbPutBundle(logRows, sessionRows)
+    .then(() => { flushFailedIndexedDBDeltas("persistLogSessionBundle retry"); return true; })
+    .catch(e => {
+      logAppError(e, context);
+      logRows.forEach(queueFailedLogDelta);
+      sessionRows.forEach(queueFailedSessionDelta);
+      return false;
+    });
+}
 function deleteLogDelta(id, context="deleteLogDelta") {
   if (indexedDBUnavailable || !id) return Promise.resolve(false);
   return idbDelete(INDEXEDDB_LOG_STORE, id).catch(e => { logAppError(e, context); return false; });
@@ -275,8 +319,11 @@ function deleteLogDelta(id, context="deleteLogDelta") {
 async function persistIndexedDBCollections(context="persistIndexedDBCollections") {
   if (indexedDBUnavailable) return false;
   try {
-    await idbReplaceAll(INDEXEDDB_LOG_STORE, data.logs || []);
-    await idbReplaceAll(INDEXEDDB_SESSION_STORE, data.sessions || []);
+    if (typeof idbReplaceStores === "function") await idbReplaceStores(data.logs || [], data.sessions || []);
+    else {
+      await idbReplaceAll(INDEXEDDB_LOG_STORE, data.logs || []);
+      await idbReplaceAll(INDEXEDDB_SESSION_STORE, data.sessions || []);
+    }
     indexedDBReady = true;
     indexedDBHydrating = false;
     pendingFailedIndexedDBLogs = [];
@@ -3606,13 +3653,20 @@ async function saveCurrentRoutine() {
   let rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
   let score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
   let attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
-  const manualTime = Number($("manualTimeValue")?.value || 0);
+  const manualTimeRaw = $("manualTimeValue")?.value;
+  const manualTime = manualTimeRaw === "" || manualTimeRaw === undefined || manualTimeRaw === null ? null : Number(manualTimeRaw);
   let timerMinutes = getElapsedMinutes();
-  if (timerMinutes > 240) {
-    timerMinutes = 240;
+  if (timerMinutes > MAX_SINGLE_DRILL_MINUTES) {
+    timerMinutes = MAX_SINGLE_DRILL_MINUTES;
     notifyUser?.("Timer exceeded 4 hours. Duration capped to 240 minutes.", "info");
   }
-  const timeMinutes = manualTime || timerMinutes || Number(r.duration || 0);
+  let timeMinutes = Number(r.duration || 0);
+  if (manualTime !== null && Number.isFinite(manualTime)) timeMinutes = manualTime;
+  else if (timerMinutes > 0) timeMinutes = timerMinutes;
+  if (timeMinutes > MAX_SINGLE_DRILL_MINUTES) {
+    timeMinutes = MAX_SINGLE_DRILL_MINUTES;
+    notifyUser?.("Exercise duration capped to 240 minutes to protect analytics.", "info");
+  }
   if (Number.isNaN(attempts) || attempts < 0) return validationNotice("Attempts must be zero or greater.");
   if (r.scoring === "success_rate" && attempts <= 0) return validationNotice("Enter attempts.");
   if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return validationNotice("Enter valid left and right side scores.");
@@ -7238,6 +7292,10 @@ async function saveEditedLog(id, formEl) {
   }
   l.timeMinutes = Number(field("edit-time")?.value || 0);
   if (Number.isNaN(l.timeMinutes) || l.timeMinutes < 0) return validationNotice("Time cannot be negative.");
+  if (l.timeMinutes > MAX_SINGLE_DRILL_MINUTES) {
+    l.timeMinutes = MAX_SINGLE_DRILL_MINUTES;
+    notifyUser?.("Edited duration capped to 240 minutes to protect analytics.", "info");
+  }
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
@@ -10287,8 +10345,7 @@ async function finishPressureSession() {
   updateRecommendationCompletionFromLog(log);
   data.logs.push(log);
   data.sessions.push(syntheticSession);
-  await persistLogDelta(log, "finishPressureSession log put");
-  await persistSessionDelta(syntheticSession, "finishPressureSession synthetic session put");
+  await persistLogSessionBundle([log], [syntheticSession], "finishPressureSession atomic pressure bundle");
   saveData({render:"sessionLog", idbSync:"skip"});
 
   persistPressureSession();

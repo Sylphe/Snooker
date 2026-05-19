@@ -146,6 +146,56 @@ export function idbPut(storeName, item) {
   }));
 }
 
+
+
+export function idbReplaceStores(logRows = [], sessionRows = []) {
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite");
+      const logStore = tx.objectStore(INDEXEDDB_LOG_STORE);
+      const sessionStore = tx.objectStore(INDEXEDDB_SESSION_STORE);
+      logStore.clear();
+      sessionStore.clear();
+      (logRows || []).forEach(row => { if (row && row.id) logStore.put(row); });
+      (sessionRows || []).forEach(row => { if (row && row.id) sessionStore.put(row); });
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error || new Error("IndexedDB atomic replace failed."));
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB atomic replace aborted."));
+    } catch(e) {
+      closeDb(db);
+      reject(e);
+    }
+  }));
+}
+
+export function idbPutBundle(logs = [], sessions = []) {
+  const logRows = (Array.isArray(logs) ? logs : [logs]).filter(row => row && row.id);
+  const sessionRows = (Array.isArray(sessions) ? sessions : [sessions]).filter(row => row && row.id);
+  if (!logRows.length && !sessionRows.length) return Promise.resolve(true);
+  return openSnookerDB().then(db => new Promise((resolve, reject) => {
+    try {
+      const storeNames = [];
+      if (logRows.length) storeNames.push(INDEXEDDB_LOG_STORE);
+      if (sessionRows.length) storeNames.push(INDEXEDDB_SESSION_STORE);
+      const tx = db.transaction(storeNames, "readwrite");
+      if (logRows.length) {
+        const logStore = tx.objectStore(INDEXEDDB_LOG_STORE);
+        logRows.forEach(row => logStore.put(row));
+      }
+      if (sessionRows.length) {
+        const sessionStore = tx.objectStore(INDEXEDDB_SESSION_STORE);
+        sessionRows.forEach(row => sessionStore.put(row));
+      }
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error || new Error("IndexedDB bundle write failed."));
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB bundle write aborted."));
+    } catch(e) {
+      closeDb(db);
+      reject(e);
+    }
+  }));
+}
+
 export function idbDelete(storeName, id) {
   if (!id) return Promise.resolve(false);
   return openSnookerDB().then(db => new Promise((resolve, reject) => {

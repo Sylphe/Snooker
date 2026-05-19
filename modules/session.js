@@ -7,10 +7,17 @@ export function makeTimerState(timerStartMs, elapsedBeforeStartMs) {
   };
 }
 
+const MAX_TIMER_ELAPSED_MS = 24 * 60 * 60 * 1000;
+
 export function elapsedMsFromState(timerStartMs, elapsedBeforeStartMs, now = Date.now()) {
-  const base = Math.max(0, Number(elapsedBeforeStartMs || 0));
-  const currentRun = timerStartMs ? Math.max(0, Number(now || 0) - Number(timerStartMs)) : 0;
-  return base + currentRun;
+  const baseRaw = Number(elapsedBeforeStartMs || 0);
+  const startRaw = Number(timerStartMs || 0);
+  const nowRaw = Number(now || 0);
+  const base = Number.isFinite(baseRaw) ? Math.max(0, baseRaw) : 0;
+  const currentRun = startRaw && Number.isFinite(startRaw) && Number.isFinite(nowRaw)
+    ? Math.max(0, nowRaw - startRaw)
+    : 0;
+  return Math.min(MAX_TIMER_ELAPSED_MS, Math.max(0, base + currentRun));
 }
 
 export function elapsedMinutesFromState(timerStartMs, elapsedBeforeStartMs) {
