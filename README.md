@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.2.3
+# Snooker Practice PWA v5.2.4
 
-## v5.2.3 — Focus Mode Cockpit Theme Fix
+## v5.2.4 — Focus Mode Numpad Alignment
 
 Built from v5.2.2.
 
@@ -13,5 +13,5 @@ Built from v5.2.2.
 - no analytics, storage, hydration, or session schema changes
 
 ### Build
-- Version: v5.2.3
+- Version: v5.2.4
 - Build time: 2026-05-19 09:40 CEST

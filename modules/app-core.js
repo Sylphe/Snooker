@@ -1638,6 +1638,10 @@ function renderFocusNumpad(r) {
       const value = action === "digit" ? label : "";
       return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
     }).join("")}</div>
+    <div class="focus-numpad-footer">
+      <button type="button" class="secondary" data-action="same-as-last">Same time</button>
+      <button type="button" class="secondary" data-action="repeat-last-score-setup">Repeat last setup</button>
+    </div>
   </div>`);
 }
 
@@ -2902,6 +2906,11 @@ function fillSameAsLastTime() {
 function renderQuickScoreControls(r) {
   const box = $("quickScoreControls");
   if (!box) return;
+  if (document.body?.classList.contains("session-focus-active")) {
+    box.innerHTML = "";
+    box.classList.add("hidden");
+    return;
+  }
   box.classList.remove("hidden");
   const autoMacros = getQuickLogAutoAdvanceSetting() !== "off";
   if (routineUsesSideSplit(r)) {

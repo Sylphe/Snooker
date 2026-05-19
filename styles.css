@@ -4095,3 +4095,85 @@ body.session-focus-active #activeSession .focus-score-pulse{
     margin-bottom:4px!important;
   }
 }
+
+/* v5.2.4 Focus Mode cockpit realignment — numpad owns score actions */
+body.session-focus-active #activeSession #quickScoreControls{
+  display:none!important;
+}
+body.session-focus-active #activeSession .focus-inline-stepper{
+  display:none!important;
+}
+body.session-focus-active #activeSession #scoreInputs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:stretch!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div{
+  min-width:0!important;
+  margin:0!important;
+}
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row,
+body.session-focus-active #activeSession #scoreInputs .focus-numpad-panel{
+  grid-column:1 / -1!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel){
+  padding:8px 9px!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.032)!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) label{
+  font-size:9.5px!important;
+  line-height:1!important;
+  margin:0 0 4px!important;
+  color:rgba(218,226,220,.50)!important;
+  letter-spacing:.08em!important;
+  text-transform:uppercase!important;
+}
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) input{
+  height:32px!important;
+  min-height:32px!important;
+  padding:0 4px!important;
+  text-align:center!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:rgba(245,248,242,.94)!important;
+  font-size:18px!important;
+  font-weight:800!important;
+}
+body.session-focus-active #activeSession .focus-score-cockpit{
+  grid-column:1 / -1!important;
+  margin:0!important;
+  padding:9px!important;
+}
+body.session-focus-active #activeSession .focus-numpad-footer{
+  display:grid!important;
+  grid-template-columns:1fr 1fr;
+  gap:7px!important;
+  margin-top:8px!important;
+}
+body.session-focus-active #activeSession .focus-numpad-footer button{
+  min-height:38px!important;
+  height:38px!important;
+  border:0!important;
+  border-radius:13px!important;
+  background:rgba(255,255,255,.045)!important;
+  color:rgba(225,238,230,.86)!important;
+  font-size:11px!important;
+  font-weight:750!important;
+  box-shadow:none!important;
+}
+body.session-focus-active #activeSession .focus-numpad-footer button:active{
+  background:rgba(241,211,122,.16)!important;
+  transform:translateY(1px);
+}
+@media(max-width:420px){
+  body.session-focus-active #activeSession #scoreInputs{gap:6px!important;}
+  body.session-focus-active #activeSession .focus-numpad-grid{gap:6px!important;}
+  body.session-focus-active #activeSession .focus-numpad-footer{gap:6px!important;}
+  body.session-focus-active #activeSession .focus-numpad-footer button{font-size:10.5px!important;}
+}
