@@ -48,3 +48,7 @@ Build: 2026-05-19 12:22 CEST
 ## v5.5.0 — Stats UX Redesign
 
 This release reorganizes the Stats tab into a progressive workflow: Core, Advanced, and Research. It adds scope chips, a section-purpose header, collapsible advanced filters, collapsed diagnostics in the overview, and mobile-first stats grouping to reduce analytics overload while preserving the full analytical stack.
+
+
+### v5.5.0 maintenance correction
+- Removed the redundant Core / Advanced / Research explanatory strip below the Stats navigation. The Stats tab now has one navigation hierarchy only, followed by active scope chips, filters, and the selected analytics content.
