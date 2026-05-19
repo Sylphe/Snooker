@@ -1,18 +1,17 @@
-# Snooker Practice PWA v5.2.2
+# Snooker Practice PWA v5.2.3
 
-## v5.2.2 — Focus Mode Score-Entry Cockpit
+## v5.2.3 — Focus Mode Cockpit Theme Fix
 
-Built from v5.2.1.
+Built from v5.2.2.
 
 ### Included
-- score-entry cockpit layout for Focus Mode
-- central 3x4 score numpad with ✓ save action
-- larger primary score display
-- reduced side-control visual weight
-- active target label on the numpad
-- existing long-press, swipe, readonly input and session logic preserved
+- fixed Focus Mode score/attempts layout overlap
+- removed green highlight styling from the primary score box
+- removed green highlight styling from the PB box
+- aligned score, PB, stepper, and cockpit surfaces to the darker table-mode theme
+- preserved score-entry cockpit, numpad, swipe, long-press, and session logic
 - no analytics, storage, hydration, or session schema changes
 
 ### Build
-- Version: v5.2.2
-- Build time: 2026-05-19 09:24 CEST
+- Version: v5.2.3
+- Build time: 2026-05-19 09:40 CEST
