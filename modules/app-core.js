@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.4.1";
+} from "./utils.js?v=5.4.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.4.1";
+} from "./settings.js?v=5.4.2";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.4.1";
+} from "./analytics.js?v=5.4.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.4.1";
+} from "./bayesian.js?v=5.4.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.4.1";
+} from "./session.js?v=5.4.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.4.1";
+} from "./pressure.js?v=5.4.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.4.1";
+} from "./recommendations.js?v=5.4.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.4.1";
+} from "./store.js?v=5.4.2";
 
 
 
@@ -683,7 +683,8 @@ function evidenceStrength(n=0){
 function evidenceBadge(n=0, extra=""){
   const e = evidenceStrength(n);
   const suffix = extra ? ` · ${htmlText(extra)}` : "";
-  return `<span class="evidence-badge evidence-${attrText(e.level)}">${htmlText(e.label)} · n=${Number(n||0)}${suffix}</span>`;
+  const label = getInsightLanguageSetting() === "friendly" ? uiSignalLabel(e) : e.label;
+  return `<span class="evidence-badge evidence-${attrText(e.level)}">${htmlText(label)} · n=${Number(n||0)}${suffix}</span>`;
 }
 function dampenByEvidence(value, n=0){
   const v = Number(value || 0);
@@ -820,7 +821,7 @@ function maintenanceSchedulerInsight(logs){
     const rows = (summary.rows || []).filter(r => r.score >= 10).slice(0,4);
     const routines = activeRoutines().map(r => ({routine:r, fit:maintenanceFitForRoutine(r, summary)})).filter(x => x.fit.score > 0).sort((a,b)=>b.fit.score-a.fit.score).slice(0,3);
     if(!rows.length) return `<div class="insight-card good"><strong>${htmlText(uiLabel("maintenanceScheduler"))}</strong><div class="muted small">No material skill-decay signal in this scope. Keep rotating core skills.</div></div>`;
-    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("maintenanceScheduler"))}</strong><div class="muted small">Detects undertrained or fading skills before the decline becomes obvious. Scores are evidence-weighted and should be treated as scheduling prompts.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(skillLabel(r.skill))}<br><span class="muted">${htmlText(r.reasons.join(" · "))}</span></span><strong>${htmlText(r.label)}</strong><span>${Number(r.score || 0).toFixed(1)}</span></div>`).join("")}${routines.length ? `<div class="adaptive-rationale"><strong>Suggested maintenance blocks:</strong> ${routines.map(x=>htmlText(x.routine.name)).join(" · ")}</div>` : ""}</div>`;
+    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("maintenanceScheduler"))}</strong><div class="muted small">Detects undertrained or fading skills before the decline becomes obvious. Scores are evidence-weighted and should be treated as scheduling prompts.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(skillLabel(r.skill))}<br><span class="muted">${htmlText(r.reasons.join(" · "))}</span></span><strong>${htmlText(r.label)}</strong><span>${Number(r.score || 0).toFixed(1)}</span></div>`).join("")}${routines.length ? `<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Refresh blocks:":"Suggested maintenance blocks:")}</strong> ${routines.map(x=>htmlText(x.routine.name)).join(" · ")}</div>` : ""}</div>`;
   }catch(e){
     logAppError?.(e, "maintenanceSchedulerInsight");
     return `<div class="insight-card watch"><strong>${htmlText(uiLabel("maintenanceScheduler"))}</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
@@ -929,7 +930,7 @@ function adaptiveSessionPeriodizationInsight(logs){
     const rows = (summary.rows || []).slice().sort((a,b)=>b.need-a.need).slice(0,5);
     if(!summary.recentLogs) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("adaptivePeriodization"))}</strong><div class="muted small">No recent logs in the 7-day window. Next week should start with acquisition and calibration blocks before pressure work.</div></div>`;
     const theme = periodizationBlockLabel(summary.weeklyTheme);
-    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("adaptivePeriodization"))}</strong><div class="muted small">Week-level balance across acquisition, consolidation, pressure, recovery, and maintenance. Current weekly theme: ${htmlText(theme)}.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(r.label)}<br><span class="muted">actual ${(r.actual*100).toFixed(0)}% · target ${(r.target*100).toFixed(0)}%</span></span><strong>${htmlText(r.state === "underweighted" ? "Add" : r.state === "overweighted" ? "Reduce" : "Balanced")}</strong><span>${htmlText(r.minutes ? `${Math.round(r.minutes)}m` : `${r.count} logs`)}</span></div>`).join("")}${summary.topNeeds.length ? `<div class="adaptive-rationale"><strong>Next-session bias:</strong> ${summary.topNeeds.map(r=>htmlText(r.label)).join(" · ")}</div>` : `<div class="adaptive-rationale">Weekly training mix is broadly balanced. Use recommendations for skill-specific prioritization.</div>`}</div>`;
+    return `<div class="insight-card watch"><strong>${htmlText(uiLabel("adaptivePeriodization"))}</strong><div class="muted small">Week-level balance across acquisition, consolidation, pressure, recovery, and maintenance. Current weekly theme: ${htmlText(theme)}.</div>${rows.map(r=>`<div class="context-row"><span>${htmlText(r.label)}<br><span class="muted">actual ${(r.actual*100).toFixed(0)}% · target ${(r.target*100).toFixed(0)}%</span></span><strong>${htmlText(r.state === "underweighted" ? "Add" : r.state === "overweighted" ? "Reduce" : "Balanced")}</strong><span>${htmlText(r.minutes ? `${Math.round(r.minutes)}m` : `${r.count} logs`)}</span></div>`).join("")}${summary.topNeeds.length ? `<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Next session should lean toward:":"Next-session bias:")}</strong> ${summary.topNeeds.map(r=>htmlText(r.label)).join(" · ")}</div>` : `<div class="adaptive-rationale">Weekly training mix is broadly balanced. Use recommendations for skill-specific prioritization.</div>`}</div>`;
   }catch(e){
     logAppError?.(e, "adaptiveSessionPeriodizationInsight");
     return `<div class="insight-card watch"><strong>${htmlText(uiLabel("adaptivePeriodization"))}</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
@@ -1020,7 +1021,7 @@ function changePointInsight(logs){
   return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("bayesianChangePoint"))}</strong>
     <div class="context-row"><span>Overall state</span><strong>${htmlText(overall.label)}</strong><span>${htmlText(overall.probabilityPct !== undefined ? `${overall.probabilityPct}%` : (overall.evidence?.label || `n=${overall.n}`))}</span></div>
     <div class="adaptive-rationale">${htmlText(overall.detail)}</div>
-    ${skillRows.length ? `<div class="adaptive-rationale"><strong>Skill-level shifts:</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(x.change.probabilityPct !== undefined ? `${x.change.probabilityPct}%` : changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
+    ${skillRows.length ? `<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Skill shifts:":"Skill-level shifts:")}</strong></div>${skillRows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.change.detail)}</span></span><strong>${htmlText(x.change.label)}</strong><span>${htmlText(x.change.probabilityPct !== undefined ? `${x.change.probabilityPct}%` : changePointSeverityLabel(x.change.effect))}</span></div>`).join("")}` : `<div class="muted">No reliable skill-level change points yet.</div>`}
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
@@ -1150,7 +1151,7 @@ function currentFormInsight(logs){
   const rows=skillCurrentFormRows(logs||[]);
   const cls=form.state==="positive"?"good":form.state==="negative"?"risk":"watch";
   return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("currentForm"))}</strong>
-    <div class="context-row"><span>Current form</span><strong>${htmlText(form.label)}</strong><span>${form.index===null?"N/A":form.index+"/100"}</span></div>
+    <div class="context-row"><span>${htmlText(uiLabel("currentForm"))}</span><strong>${htmlText(form.label)}</strong><span>${form.index===null?"N/A":form.index+"/100"}</span></div>
     <div class="adaptive-rationale">${htmlText(form.detail)}</div>
     ${form.confidenceMomentum?`<div class="context-row"><span>Confidence momentum</span><strong>${form.confidenceMomentum>=0?"+":""}${form.confidenceMomentum.toFixed(2)}</strong><span>recent reflection slope</span></div>`:""}
     ${rows.length?`<div class="adaptive-rationale"><strong>Skill-specific form:</strong></div>${rows.map(x=>`<div class="context-row"><span>${htmlText(skillLabel(x.skill))}<br><span class="muted">${htmlText(x.form.detail)}</span></span><strong>${htmlText(x.form.label)}</strong><span>${x.form.index}/100</span></div>`).join("")}`:`<div class="muted">No reliable skill-specific form estimate yet.</div>`}
@@ -1254,7 +1255,7 @@ function targetCredibleIntervalInsight(logs){
     const expectedTxt=Number.isFinite(t.expected)?t.expected.toFixed(1):"N/A";
     const volatilityTxt=Number.isFinite(t.volatility)?t.volatility.toFixed(1):"N/A";
     return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("targetCredibleIntervals"))}</strong>
-      <div class="context-row"><span>Expected range</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
+      <div class="context-row"><span>${htmlText(uiLabel("expectedRange"))}</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
       <div class="context-row"><span>Shrunk estimate</span><strong>${htmlText(expectedTxt)}</strong><span>volatility ${htmlText(volatilityTxt)}</span></div>
       <div class="adaptive-rationale">${htmlText(t.recommendation)} Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice.</div>
     </div>`;
@@ -1376,8 +1377,8 @@ function dynamicDifficultyInsight(logs){
     const lower=d.range?.lower, upper=d.range?.upper;
     const rangeTxt=Number.isFinite(Number(lower))&&Number.isFinite(Number(upper))?`${Number(lower).toFixed(0)}–${Number(upper).toFixed(0)}`:"N/A";
     return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("dynamicDifficulty"))}</strong>
-      <div class="context-row"><span>Recommended action</span><strong>${htmlText(d.label)}</strong><span>${htmlText(d.action)}</span></div>
-      <div class="context-row"><span>Hit-rate / target range</span><strong>${htmlText(hitTxt)}</strong><span>${htmlText(rangeTxt)} · ${htmlText(d.evidence?.label||"low evidence")}</span></div>
+      <div class="context-row"><span>${htmlText(getInsightLanguageSetting()==="friendly"?"What to do":"Recommended action")}</span><strong>${htmlText(d.label)}</strong><span>${htmlText(d.action)}</span></div>
+      <div class="context-row"><span>${htmlText(getInsightLanguageSetting()==="friendly"?"Hit-rate / expected range":"Hit-rate / target range")}</span><strong>${htmlText(hitTxt)}</strong><span>${htmlText(rangeTxt)} · ${htmlText(d.evidence?.label||"low evidence")}</span></div>
       <div class="adaptive-rationale">${htmlText(d.reason)} Target changes are one-step only: increase target, add pressure, or simplify setup, but not several changes at once.</div>
       ${d.constraints?.length?`<div class="adaptive-rationale"><strong>Suggested constraint:</strong> ${d.constraints.slice(0,3).map(htmlText).join(" · ")}</div>`:""}
     </div>`;
@@ -1431,7 +1432,7 @@ function transferModelInsight(logs){
   return `<div class="insight-card watch"><strong>${htmlText(uiLabel("transferModel"))}</strong>
     <div class="adaptive-rationale">Indirect transfer signals are evidence-weighted. Low-sample relationships are shown, but dampened in recommendation scoring.</div>
     ${upstream.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(transferAwareReasonText(x.routine, x))}</span><br>${evidenceBadge(Math.max(...x.profile.topDownstream.slice(0,3).map(e=>Number(summary[e.skill]?.n||0)),0), "transfer basis")}</span><strong>${Number(x.score || 0).toFixed(1)}</strong></div>`).join("")}
-    ${weakSkills.length?`<div class="adaptive-rationale"><strong>Bottleneck severity:</strong> ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} — ${signalLabelFromScore(x.weaknessIndex)} (${htmlText(x.evidence.label.toLowerCase())})`).join(" · ")}</div>`:""}
+    ${weakSkills.length?`<div class="adaptive-rationale"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Main constraints:":"Bottleneck severity:")}</strong> ${weakSkills.map(x=>`${htmlText(skillLabel(x.skill))} — ${signalLabelFromScore(x.weaknessIndex)} (${htmlText(x.evidence.label.toLowerCase())})`).join(" · ")}</div>`:""}
   </div>`;
 }
 
@@ -1460,7 +1461,7 @@ function reflectionIntelligenceSummary(logs){
   const scoped=new Set((logs||[]).map(l=>l.sessionId).filter(Boolean));
   const scopedSessionCount = scoped.size;
   const sessions=(data.sessions||[]).filter(s=>scoped.has(s.id)&&s.reflection);
-  if(!sessions.length) return `<div class="insight-card watch"><strong>Reflection intelligence</strong><div class="muted">No structured reflection ratings in this scope yet.</div><div class="adaptive-rationale">Coverage: 0 / ${scopedSessionCount || 0} sessions.</div></div>`;
+  if(!sessions.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("sessionFeel"))}</strong><div class="muted">No structured reflection ratings in this scope yet.</div><div class="adaptive-rationale">Coverage: 0 / ${scopedSessionCount || 0} sessions.</div></div>`;
   const classified=sessions.map(s=>({session:s,...classifyReflectionPerformance(s)}));
   const fatigue=classified.map(x=>x.fatigue).filter(Number.isFinite);
   const quality=classified.map(x=>x.subjectiveQuality).filter(Number.isFinite);
@@ -1469,7 +1470,7 @@ function reflectionIntelligenceSummary(logs){
   const divBad=classified.filter(x=>x.flags.includes("bad_score_good_feel")).length;
   const fatigueRisk=classified.filter(x=>x.flags.includes("fatigue_risk")).length;
   const coverage = scopedSessionCount ? `${sessions.length} / ${scopedSessionCount}` : `${sessions.length}`;
-  return `<div class="insight-card watch"><strong>Reflection intelligence</strong>
+  return `<div class="insight-card watch"><strong>${htmlText(uiLabel("sessionFeel"))}</strong>
     <div class="context-row"><span>Reflection coverage</span><strong>${coverage}</strong><span>${evidenceStrength(sessions.length).label}</span></div>
     <div class="context-row"><span>Avg subjective quality</span><strong>${quality.length?avg(quality).toFixed(1)+"/5":"N/A"}</strong><span>${quality.length}/${sessions.length} rated</span></div>
     <div class="context-row"><span>Avg fatigue</span><strong>${fatigue.length?avg(fatigue).toFixed(1)+"/5":"N/A"}</strong><span>${fatigueRisk} high-fatigue flags</span></div>
@@ -1488,9 +1489,9 @@ function skillMapInsight(logs){
     counts[primary]=(counts[primary]||0)+mins;
   });
   const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  if(!rows.length) return `<div class="insight-card watch"><strong>Skill map</strong><div class="muted">No skill-mapped logs in this scope yet.</div></div>`;
+  if(!rows.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("skillMix"))}</strong><div class="muted">No skill-mapped logs in this scope yet.</div></div>`;
   const total=rows.reduce((a,b)=>a+b[1],0);
-  return `<div class="insight-card watch"><strong>Skill map</strong>${rows.map(([k,v])=>`<div class="context-row"><span>${htmlText(skillLabel(k))}</span><strong>${total?((v/total)*100).toFixed(0):0}%</strong><span>${Math.round(v)} min-weighted</span></div>`).join("")}<div class="adaptive-rationale">Primary routine skills now provide the semantic layer for recommendation reasons and later transfer modelling.</div></div>`;
+  return `<div class="insight-card watch"><strong>${htmlText(uiLabel("skillMix"))}</strong>${rows.map(([k,v])=>`<div class="context-row"><span>${htmlText(skillLabel(k))}</span><strong>${total?((v/total)*100).toFixed(0):0}%</strong><span>${Math.round(v)} min-weighted</span></div>`).join("")}<div class="adaptive-rationale">Primary routine skills now provide the semantic layer for recommendation reasons and later transfer modelling.</div></div>`;
 }
 
 const defaultData = {
@@ -1710,7 +1711,24 @@ const UI_LABELS = {
     tournamentPrep:"Tournament Preparation",
     abComparison:"A/B Comparison",
     drillComparison:"Drill Comparison",
-    recommendationLearning:"What Works For You"
+    recommendationLearning:"What Works For You",
+    trainingPatterns:"Training Patterns",
+    aboveBelowExpectation:"Above / Below Expectation",
+    bestPerformanceWindow:"Best Performance Window",
+    tableTimeEffects:"Table & Time Effects",
+    sessionFeel:"Session Feel",
+    reflectionPatterns:"Session Themes",
+    skillMix:"Skill Mix",
+    performanceShifts:"Performance Shifts",
+    expectedRange:"Expected Range",
+    smartPracticeBalance:"Smart Practice Balance",
+    difficultyGuidance:"Difficulty Guidance",
+    mainWeakSpots:"Main Weak Spots",
+    consistencyRisk:"Consistency Risk",
+    tooEarly:"Too early",
+    earlySignal:"Early signal",
+    moderateSignal:"Moderate signal",
+    strongSignal:"Strong signal"
   },
   analytical: {
     maintenanceScheduler:"Skill Decay & Maintenance Scheduler",
@@ -1737,7 +1755,24 @@ const UI_LABELS = {
     tournamentPrep:"Tournament Preparation",
     abComparison:"A/B Comparison",
     drillComparison:"Drill Comparison",
-    recommendationLearning:"Recommendation Learning v2"
+    recommendationLearning:"Recommendation Learning v2",
+    trainingPatterns:"Phase 1 Training Insights",
+    aboveBelowExpectation:"Expected vs Actual Residuals",
+    bestPerformanceWindow:"Session Peak Window",
+    tableTimeEffects:"Context Effects",
+    sessionFeel:"Reflection Intelligence",
+    reflectionPatterns:"Reflection Patterns",
+    skillMix:"Skill Map",
+    performanceShifts:"Bayesian Change-Point Detection",
+    expectedRange:"Target Credible Interval",
+    smartPracticeBalance:"Bayesian Practice Optimization",
+    difficultyGuidance:"Dynamic Difficulty Adjustment",
+    mainWeakSpots:"Weakness Concentration",
+    consistencyRisk:"Volatility Profile",
+    tooEarly:"Insufficient evidence",
+    earlySignal:"Low evidence",
+    moderateSignal:"Moderate evidence",
+    strongSignal:"Strong evidence"
   }
 };
 const UI_EXPLANATIONS = {
@@ -1776,7 +1811,7 @@ function uiExplain(key){
 }
 
 
-/* v5.4.1 Recommendation explanation wording layer */
+/* v5.4.2 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1808,6 +1843,51 @@ const UI_RECOMMENDATION_COPY = {
 function uiRecommendationCopy(key){
   const mode = getInsightLanguageSetting();
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
+}
+
+/* v5.4.2 Insight cards and stats language pass */
+function uiSignalLabel(evidence){
+  const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
+  if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
+  if (level.includes("strong") || level.includes("reliable")) return uiLabel("strongSignal");
+  if (level.includes("moderate")) return uiLabel("moderateSignal");
+  if (level.includes("low") || level.includes("weak") || level.includes("early")) return uiLabel("earlySignal");
+  return uiLabel("tooEarly");
+}
+function uiNoDataMessage(context="view"){
+  return getInsightLanguageSetting() === "friendly"
+    ? `No ${context} data yet. Complete a practice session to unlock coaching signals.`
+    : `No data available for this ${context}. Log more observations to generate analytics.`;
+}
+function uiInsightLanguageHtml(html){
+  if (getInsightLanguageSetting() !== "friendly") return html;
+  const replacements = [
+    [/Phase 1 Training Insights/g, uiLabel("trainingPatterns")],
+    [/Expected vs actual residuals/g, uiLabel("aboveBelowExpectation")],
+    [/Expected vs actual/g, uiLabel("aboveBelowExpectation")],
+    [/Session peak window/g, uiLabel("bestPerformanceWindow")],
+    [/Peak window/g, uiLabel("bestPerformanceWindow")],
+    [/Context effects/g, uiLabel("tableTimeEffects")],
+    [/Reflection intelligence/g, uiLabel("sessionFeel")],
+    [/Reflection patterns/g, uiLabel("reflectionPatterns")],
+    [/Skill map/g, uiLabel("skillMix")],
+    [/Bayesian Change-Point Detection/g, uiLabel("performanceShifts")],
+    [/Change-point/g, uiLabel("performanceShifts")],
+    [/Target Credible Intervals v1/g, uiLabel("expectedRange")],
+    [/Target credible interval/g, uiLabel("expectedRange")],
+    [/Dynamic Difficulty Adjustment v1/g, uiLabel("difficultyGuidance")],
+    [/Dynamic difficulty/g, uiLabel("difficultyGuidance")],
+    [/Bayesian Practice Optimization/g, uiLabel("smartPracticeBalance")],
+    [/Weakness Concentration/g, uiLabel("mainWeakSpots")],
+    [/Performance Stability/g, uiLabel("performanceStability")],
+    [/Second-order analytics/g, uiLabel("secondOrderAnalytics")],
+    [/Evidence Strength/g, uiLabel("signalConfidence")],
+    [/low evidence/gi, uiLabel("earlySignal")],
+    [/moderate evidence/gi, uiLabel("moderateSignal")],
+    [/strong evidence/gi, uiLabel("strongSignal")],
+    [/insufficient evidence/gi, uiLabel("tooEarly")]
+  ];
+  return replacements.reduce((acc,[pattern,repl]) => acc.replace(pattern, htmlText(repl)), html);
 }
 function recommendationModeSummaryForUI(mode) {
   if (getInsightLanguageSetting() === "friendly") {
@@ -5473,10 +5553,10 @@ function renderPhaseOneInsights() {
   const scope = getStatsScope();
   const logs = getScopedStatsLogs();
   if (!logs.length) {
-    box.innerHTML = `<div class="insight-card watch">No logs available for selected scope${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
+    box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
-  box.innerHTML = `<div class="insight-grid">
+  const html = `<div class="insight-grid">
     ${renderResidualInsights(logs)}
     ${renderPeakWindowInsight(logs)}
     ${renderContextEffects(logs)}
@@ -5496,6 +5576,7 @@ function renderPhaseOneInsights() {
     ${bayesianOptimizationInsight(logs)}
     ${personalizedPriorsInsight()}
   </div>`;
+  box.innerHTML = uiInsightLanguageHtml(html);
 }
 
 
@@ -5591,10 +5672,12 @@ function renderStatsScopeChips(scope, logs) {
 }
 
 function statsModule(title, subtitle, bodyHtml, open = false) {
-  const content = bodyHtml || `<p class="muted">No data available for this module in the current scope.</p>`;
+  const titleText = uiInsightLanguageHtml(htmlText(title));
+  const subtitleText = subtitle ? uiInsightLanguageHtml(htmlText(subtitle)) : "";
+  const content = bodyHtml || `<p class="muted">${htmlText(uiNoDataMessage("module"))}</p>`;
   return `<details class="advanced-stats-module" ${open ? "open" : ""}>
-    <summary><span><strong>${htmlText(title)}</strong>${subtitle ? `<small>${htmlText(subtitle)}</small>` : ""}</span><span class="advanced-module-chevron">›</span></summary>
-    <div class="advanced-module-body">${content}</div>
+    <summary><span><strong>${titleText}</strong>${subtitle ? `<small>${subtitleText}</small>` : ""}</span><span class="advanced-module-chevron">›</span></summary>
+    <div class="advanced-module-body">${uiInsightLanguageHtml(content)}</div>
   </details>`;
 }
 
@@ -5631,9 +5714,10 @@ function renderAdvancedStatsModules(logs, { period, rid, range, rollingWindow, b
 
 
 function renderStatsEmptySection(title, range) {
+  const friendlyTitle = getInsightLanguageSetting() === "friendly" ? uiInsightLanguageHtml(escapeHtml(title)) : escapeHtml(title);
   return `<div class="empty-state">
-    <h3>${escapeHtml(title)} — ${escapeHtml(range.label)}</h3>
-    <p>No data yet for this view. Complete a practice session to generate trends and coaching insights.</p>
+    <h3>${friendlyTitle} — ${escapeHtml(range.label)}</h3>
+    <p>${htmlText(uiNoDataMessage("stats"))}</p>
     <button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button>
   </div>`;
 }
@@ -8025,7 +8109,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8146,7 +8230,7 @@ function recommendationContextSignal(routineId) {
 function reflectionPatternInsight(logs) {
   const scopedSessionIds = new Set(logs.map(l => l.sessionId).filter(Boolean));
   const sessions = (data.sessions || []).filter(s => scopedSessionIds.has(s.id) && s.reflection);
-  if (!sessions.length) return `<div class="insight-card watch"><strong>Reflection patterns</strong><div class="muted">No post-session reflection data in the current scope yet.</div></div>`;
+  if (!sessions.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("reflectionPatterns"))}</strong><div class="muted">No post-session reflection data in the current scope yet.</div></div>`;
   const counts = {};
   sessions.forEach(s => {
     const ref = s.reflection || {};
@@ -8154,8 +8238,8 @@ function reflectionPatternInsight(logs) {
     if (ref.limiter) counts[`Limiter: ${ref.limiter}`] = (counts[`Limiter: ${ref.limiter}`] || 0) + 1;
   });
   const rows = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  if (!rows.length) return `<div class="insight-card watch"><strong>Reflection patterns</strong><div class="muted">Reflections exist, but no structured focus/limiter fields are populated yet.</div></div>`;
-  return `<div class="insight-card watch"><strong>Reflection patterns ${statHelpButton("reflectionPatterns")}</strong>${rows.map(([k,n])=>`<div class="context-row"><span>${escapeHtml(k)}</span><strong>${n}</strong><span>session${n===1?"":"s"}</span></div>`).join("")}<div class="adaptive-rationale">Recurring focus/limiter themes now influence drill recommendations when linked to session logs.</div></div>`;
+  if (!rows.length) return `<div class="insight-card watch"><strong>${htmlText(uiLabel("reflectionPatterns"))}</strong><div class="muted">Reflections exist, but no structured focus/limiter fields are populated yet.</div></div>`;
+  return `<div class="insight-card watch"><strong>${htmlText(uiLabel("reflectionPatterns"))} ${statHelpButton("reflectionPatterns")}</strong>${rows.map(([k,n])=>`<div class="context-row"><span>${escapeHtml(k)}</span><strong>${n}</strong><span>session${n===1?"":"s"}</span></div>`).join("")}<div class="adaptive-rationale">Recurring focus/limiter themes now influence drill recommendations when linked to session logs.</div></div>`;
 }
 
 function getRoutinePriorityReasons(item){
