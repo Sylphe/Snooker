@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.11";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.11";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.13";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.13";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.11";
+} from "./utils.js?v=5.5.13";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.11";
+} from "./settings.js?v=5.5.13";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.11";
+} from "./analytics.js?v=5.5.13";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.11";
+} from "./bayesian.js?v=5.5.13";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.11";
+} from "./session.js?v=5.5.13";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.11";
+} from "./pressure.js?v=5.5.13";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.11";
+} from "./recommendations.js?v=5.5.13";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.11";
+} from "./store.js?v=5.5.13";
 
 
 
@@ -131,6 +131,7 @@ let pendingFailedIndexedDBLogs = [];
 let pendingFailedIndexedDBSessions = [];
 let indexedDBRetryNoticeShown = false;
 let externalStorageSyncInProgress = false;
+let pendingExternalStorageSyncAfterSession = false;
 let storageReadOnlyMode = false;
 let storageReadOnlyNoticeShown = false;
 let proactiveStorageNoticeShown = false;
@@ -230,6 +231,26 @@ function notifyUser(message, tone="info") {
   else console.warn(message);
 }
 function validationNotice(message) { notifyUser(message, "warn"); return false; }
+function sanitizeTagToken(value, maxLen=32) {
+  return String(value || "")
+    .replace(/[\x00-\x1F\x7F]/g, "")
+    .trim()
+    .slice(0, maxLen);
+}
+function roundStoredMinutes(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+function validRoutineIds(ids) {
+  const active = new Set(activeRoutines().map(r => r.id));
+  return (ids || []).filter(id => active.has(id));
+}
+function localDateFromKey(value) {
+  const m = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 function queueFailedLogDelta(log) {
   if (!log || !log.id) return;
   pendingFailedIndexedDBLogs = mergeById([log], pendingFailedIndexedDBLogs);
@@ -494,13 +515,15 @@ function activeTemplatesPanelName(){
   return active?.dataset?.templatesPanel || null;
 }
 function canonicalSkillKey(value){
-  return String(value || "")
+  const cleaned = String(value || "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "_")
-    .replace(/^_+|_+$/g, "");
+    .replace(/[^\p{L}\p{N}_-]+/gu, "_")
+    .replace(/_{2,}/g, "_")
+    .replace(/^[_-]+|[_-]+$/g, "");
+  return cleaned || "custom_skill";
 }
 function skillIdFromLabel(label){ return canonicalSkillKey(label || "custom_skill"); }
 function normalizeSkillRecord(skill){
@@ -1316,9 +1339,11 @@ function targetCredibleIntervalForLogs(logs, options={}){
   const expected=(posteriorMean*0.55 + recentMean*0.45);
   const uncertainty=(volatility/Math.sqrt(Math.max(1,n))) + (18*shrinkWeight);
   const intervalRadius=Math.max(5, Math.min(28, uncertainty*1.28));
-  const lower=clampNumber(expected-intervalRadius,0,100);
-  const upper=clampNumber(expected+intervalRadius,0,100);
-  const width=upper-lower;
+  const rawLower = expected - intervalRadius;
+  const rawUpper = expected + intervalRadius;
+  const width = Math.max(0, rawUpper - rawLower);
+  const lower=clampNumber(rawLower,0,100);
+  const upper=clampNumber(rawUpper,0,100);
   let state="stable", label="Stable target range", recommendation="Keep the target stable and collect more evidence.";
   if(n<5){ state="early"; label="Early target estimate"; recommendation="Do not increase difficulty yet; use this as a rough calibration range."; }
   else if(width>28){ state="wide"; label="Wide uncertainty"; recommendation="Avoid aggressive target changes until volatility narrows."; }
@@ -2778,6 +2803,7 @@ function classifyPerformance(log, routine) {
 
 function localDateKey(dateLike = new Date()) {
   const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 function sameDate(log, dateKey) { return localDateKey(log.createdAt) === dateKey; }
@@ -3186,6 +3212,7 @@ safeOn("addRoutineToPlanBtn", "click", () => {
   renderPlanBuilder();
 });
 function renderPlanBuilder() {
+  planDraft = validRoutineIds(planDraft);
   $("planBuilderList").innerHTML = planDraft.map((id, i) => {
     const r = routineById(id);
     return `<div class="item">
@@ -3233,7 +3260,8 @@ function randomizePlan(append) {
 safeOn("savePlanBtn", "click", () => {
   const name = $("planName").value.trim();
   if (!name) return alert("Enter a plan name.");
-  if (!planDraft.length) return alert("Add at least one routine.");
+  planDraft = validRoutineIds(planDraft);
+  if (!planDraft.length) return alert("Add at least one valid active routine.");
   data.plans.push({id: uuid(), name, routineIds: [...planDraft], createdAt: new Date().toISOString()});
   $("planName").value = "";
   planDraft = [];
@@ -3373,6 +3401,7 @@ safeOn("resetSessionBtn", "click", () => {
   if (hasActiveProgress && !window.confirm("Reset the active session? Unsaved exercise progress will be lost.")) return;
   activeSession = null;
   clearPersistedActiveSession();
+  runDeferredExternalStorageSyncIfSafe();
   stopTimer();
   resetTimerState();
   $("activeSession").classList.add("hidden");
@@ -3493,7 +3522,7 @@ function renderScoreInputs(r) {
   ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
     const el = $(id);
     if (el) {
-      el.addEventListener("keydown", e => { if (e.key === "Enter") saveCurrentRoutine(); });
+      el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); saveCurrentRoutine(); } });
       el.addEventListener("input", () => renderLivePerformanceCard(r));
     }
   });
@@ -3692,6 +3721,7 @@ async function saveCurrentRoutine() {
     timeMinutes = MAX_SINGLE_DRILL_MINUTES;
     notifyUser?.("Exercise duration capped to 240 minutes to protect analytics.", "info");
   }
+  timeMinutes = roundStoredMinutes(timeMinutes);
   if (Number.isNaN(attempts) || attempts < 0) return validationNotice("Attempts must be zero or greater.");
   if (r.scoring === "success_rate" && attempts <= 0) return validationNotice("Enter attempts.");
   if (sideSplitEnabled && (Number.isNaN(leftSideScore) || Number.isNaN(rightSideScore))) return validationNotice("Enter valid left and right side scores.");
@@ -3831,6 +3861,7 @@ async function completeSession() {
   if (!logs.length) {
     activeSession = null;
     clearPersistedActiveSession();
+    runDeferredExternalStorageSyncIfSafe();
     resetTimerState();
     $("sessionSummary")?.classList.add("hidden");
     showTransientNotice?.("Session discarded — no exercises were logged.", "info");
@@ -3865,6 +3896,7 @@ async function completeSession() {
   if (activeSession) activeSession.timerState = null;
   activeSession = null;
   clearPersistedActiveSession();
+  runDeferredExternalStorageSyncIfSafe();
   updateSessionFocusState?.();
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   $("practice")?.classList.add("active");
@@ -4136,7 +4168,7 @@ function targetHitRate(logs) {
   return targetLogs.filter(l => l.performance === "On Target" || l.performance === "Above Target").length / targetLogs.length * 100;
 }
 function streaks(logs) {
-  const dates = [...new Set(logs.map(l => localDateKey(l.createdAt)))].sort();
+  const dates = [...new Set((logs || []).map(l => localDateKey(l.createdAt)).filter(Boolean))].sort();
   if (!dates.length) return {current:0, best:0};
   let best=1, current=1, run=1;
   for (let i=1;i<dates.length;i++) {
@@ -4798,10 +4830,11 @@ function routineTransferValue(routine) {
   const map = getRoutineSkillMap(routine);
   let value = 50;
   const primary = map.primarySkill || "";
-  const secondaries = new Set(map.secondarySkills || []);
-  const transfers = new Set(map.transferTags || []);
-  if (["cueing","cue_ball_control","cue_ball_speed","pace_control","long_potting","safety","break_building","positional_play"].includes(primary)) value += 18;
-  if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].includes(primary)) value += 10;
+  const secondaries = new Set((map.secondarySkills || []).filter(skill => skill && skill !== primary));
+  const transfers = new Set((map.transferTags || []).filter(skill => skill && skill !== primary && !secondaries.has(skill)));
+  const uniqueSkills = new Set([primary, ...secondaries, ...transfers].filter(Boolean));
+  if (["cueing","cue_ball_control","cue_ball_speed","pace_control","long_potting","safety","break_building","positional_play"].some(skill => uniqueSkills.has(skill))) value += 18;
+  if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].some(skill => uniqueSkills.has(skill))) value += 10;
   value += Math.min(14, secondaries.size * 3);
   value += Math.min(10, transfers.size * 3);
   const graph = routineGraphTransferProfile(routine);
@@ -5338,7 +5371,7 @@ function renderAdaptiveSession() {
   const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
   const strictness = $("adaptiveStrictness")?.value || "normal";
   const plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
-  adaptivePlanDraft = [...plan.routineIds];
+  adaptivePlanDraft = validRoutineIds(plan.routineIds);
 
   const mode = getSmartRecommendationMode();
   const usage = plan.budgetUsage || {cognitive:0,fatigue:0,confidence:0,switches:0};
@@ -5370,12 +5403,16 @@ function renderAdaptiveSession() {
     </div>`; }).join("")}
   </div>`).join("");
 
-  $("adaptiveEngineOutput").innerHTML = html || "No routines available for the Smart Session Builder.";
+  const adaptiveHost = $("adaptiveEngineOutput");
+  if (adaptiveHost) {
+    adaptiveHost.innerHTML = "";
+    adaptiveHost.innerHTML = html || "No routines available for the Smart Session Builder.";
+  }
 }
 
 function loadAdaptiveSessionIntoPlanBuilder() {
   if (!adaptivePlanDraft.length) return showTransientNotice("Build a smart session first.", "warn");
-  planDraft = [...adaptivePlanDraft];
+  planDraft = validRoutineIds(adaptivePlanDraft);
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
 }
@@ -5399,6 +5436,9 @@ function showTransientNotice(message, tone="info", action=null) {
     el.className = "app-toast";
     document.body.appendChild(el);
   }
+  el.setAttribute("role", tone === "warn" ? "alert" : "status");
+  el.setAttribute("aria-live", tone === "warn" ? "assertive" : "polite");
+  el.setAttribute("aria-atomic", "true");
   el.className = `app-toast ${tone === "ok" ? "ok" : tone === "warn" ? "warn" : ""}`;
   el.innerHTML = `<span>${escapeHtml(message)}</span>${action && typeof action.handler === "function" ? `<button type="button" class="toast-undo-btn">${escapeHtml(action.label || "Undo")}</button>` : ""}`;
   const btn = el.querySelector(".toast-undo-btn");
@@ -5714,6 +5754,10 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 ["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener("change", renderABComparison);
+});
+
+["adaptiveGoal","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode"].forEach(id => {
+  safeOn(id, "change", () => { if ($("adaptiveEngineOutput")) renderAdaptiveSession(); });
 });
 
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
@@ -6064,8 +6108,9 @@ function miniSparkline(values, width=110, height=30) {
   const pts = vals.map((v,i) => {
     const x = vals.length === 1 ? 0 : i * (width/(vals.length-1));
     const y = height - ((v-min)/range)*height;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
+    return Number.isFinite(x) && Number.isFinite(y) ? `${x.toFixed(1)},${y.toFixed(1)}` : "";
+  }).filter(Boolean).join(" ");
+  if (!pts) return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="2" y="18" font-size="10" fill="#777">no data</text></svg>`;
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
     <polyline fill="none" stroke="currentColor" stroke-width="2" points="${pts}"></polyline>
   </svg>`;
@@ -6510,6 +6555,7 @@ function renderStats() {
       statsMode = "overview";
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
     }
+    output.innerHTML = "";
     output.innerHTML = html;
     toggleStatsStandalonePanels();
     try { renderBayesianAnalyticsValidation?.(); } catch(e) { logAppError(e, "renderStats bayesian side panels"); }
@@ -7022,8 +7068,8 @@ function renderDifficultyLadder(logs) {
   return `<div class="ladder-action"><strong>Difficulty ladder ${statHelpButton("difficultyLadder")}:</strong> ${escapeHtml(rec.text)}</div>`;
 }
 
-function dateFromKey(key) {
-  return new Date(key + "T00:00:00");
+function dateFromKey(value) {
+  return localDateFromKey(value) || new Date(value);
 }
 function metricsForLogs(logs) {
   const vals = logs.map(l=>Number(l.normalizedScore||0));
@@ -7244,7 +7290,30 @@ function openLogEditModal(id) {
   }
   modal.classList.remove("hidden");
   document.body?.classList?.add("modal-open");
+  bindModalFocusTrap(modal);
   setTimeout(() => body.querySelector("input,select,textarea")?.focus(), 80);
+}
+let activeModalFocusTrap = null;
+function bindModalFocusTrap(modal) {
+  if (!modal || modal.dataset.focusTrapBound === "1") return;
+  const handler = event => {
+    if (event.key !== "Tab" || modal.classList.contains("hidden")) return;
+    const focusable = Array.from(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  };
+  modal.addEventListener("keydown", handler);
+  modal.dataset.focusTrapBound = "1";
+  activeModalFocusTrap = handler;
+}
+function unbindModalFocusTrap(modal) {
+  if (!modal || !activeModalFocusTrap) return;
+  modal.removeEventListener("keydown", activeModalFocusTrap);
+  modal.dataset.focusTrapBound = "";
+  activeModalFocusTrap = null;
 }
 function closeLogEditModal(event) {
   if (event && event.target && event.target.id !== "logEditModal") return;
@@ -7252,6 +7321,7 @@ function closeLogEditModal(event) {
   if (!modal) return;
   modal.classList.add("hidden");
   document.body?.classList?.remove("modal-open");
+  unbindModalFocusTrap(modal);
   modal.dataset.logId = "";
   const body = $("logEditModalBody");
   if (body) body.innerHTML = "";
@@ -7337,6 +7407,7 @@ async function saveEditedLog(id, formEl) {
     l.timeMinutes = MAX_SINGLE_DRILL_MINUTES;
     notifyUser?.("Edited duration capped to 240 minutes to protect analytics.", "info");
   }
+  l.timeMinutes = roundStoredMinutes(l.timeMinutes);
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
@@ -7373,6 +7444,9 @@ async function saveEditedLog(id, formEl) {
     l.tableId = venue.value || "";
     l.venueTable = getTableName(l.tableId);
     l.venueTableSnapshot = getTableName(l.tableId);
+  }
+  if (l.targetProfileId && routine?.targetHistory && !routine.targetHistory.some(p => p.id === l.targetProfileId)) {
+    l.targetProfileId = "";
   }
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
@@ -7731,16 +7805,16 @@ function confirmDeleteAction(label, callback) {
   if (confirm(msg)) callback();
 }
 function updateTagHistoryFromInput(raw) {
-  const recent = new Set((data.tagHistory || []).slice(-50));
-  String(raw || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => recent.add(t));
+  const recent = new Set((data.tagHistory || []).slice(-50).map(t => sanitizeTagToken(t)).filter(Boolean));
+  String(raw || "").split(",").map(t => sanitizeTagToken(t)).filter(Boolean).forEach(t => recent.add(t));
   data.tagHistory = Array.from(recent).slice(-200).sort();
 }
 function renderTagSuggestions() {
   const dl = $("tagSuggestions");
   if (!dl) return;
   const tagSet = new Set();
-  (data.logs || []).slice(-200).forEach(l => String(l.sessionTags || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => tagSet.add(t)));
-  (data.tagHistory || []).slice(-100).forEach(t => { if (t) tagSet.add(t); });
+  (data.logs || []).slice(-200).forEach(l => String(l.sessionTags || "").split(",").map(t => sanitizeTagToken(t)).filter(Boolean).forEach(t => tagSet.add(t)));
+  (data.tagHistory || []).slice(-100).map(t => sanitizeTagToken(t)).filter(Boolean).forEach(t => tagSet.add(t));
   dl.innerHTML = Array.from(tagSet).sort().slice(0,200).map(t => `<option value="${escapeAttr(t)}"></option>`).join("");
 }
 function progressiveUnitLabel(r) {
@@ -7892,7 +7966,14 @@ function refreshReferenceNames() {
 
 function logAppError(error, context="runtime") {
   try {
-    const errors = JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]");
+    let errors = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]");
+      errors = Array.isArray(parsed) ? parsed.slice(0,5) : [];
+    } catch(parseError) {
+      errors = [];
+      try { localStorage.removeItem("snookerPracticePWA.errorLog"); } catch(_) {}
+    }
     let safeMessage = "Unknown error";
     let safeStack = "";
     try {
@@ -8094,8 +8175,8 @@ async function exportDebugInfo() {
   const payload = {
     appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    location: location.href,
+    userAgent: String(navigator.userAgent || "").replace(/[\u0000-\u001f\u007f]/g, "").slice(0,500),
+    location: String(location.href || "").replace(/[\u0000-\u001f\u007f]/g, "").slice(0,500),
     urlVersionParam: new URLSearchParams(location.search).get("v") || "",
     counts: {
       routines: (data.routines || []).length,
@@ -9163,7 +9244,7 @@ function generateNextSession(){
   const ranked = rankRoutines(focus, strategy);
   const blocks = composeBlocks(length, intensity, ranked, focus);
 
-  generatedPlanDraft = blocks.flatMap(b => b.picks.map(p => p.routine.id));
+  generatedPlanDraft = validRoutineIds(blocks.flatMap(b => b.picks.map(p => p.routine.id)));
   lastGeneratedPlannedRoutineIds = [...generatedPlanDraft];
 
   const weak = weaknessConcentration(data.logs)[0];
@@ -9193,7 +9274,7 @@ function loadGeneratedPlan(){
   if(!generatedPlanDraft.length) return;
   // Do not silently inject anchor drills into orchestrated drafts.
   // Anchor routines should only appear when explicitly selected or when a future adaptive block asks for an anchor baseline.
-  planDraft = [...generatedPlanDraft.filter(id => activeRoutines().some(r => r.id === id))];
+  planDraft = validRoutineIds(generatedPlanDraft);
   if ($("planName") && !$("planName").value.trim()) $("planName").value = `Orchestrated session — ${new Date().toLocaleDateString()}`;
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();
@@ -10584,6 +10665,11 @@ window.addEventListener("storage", e => {
     return;
   }
   if (e.key === STORAGE_KEY) {
+    if (activeSession) {
+      pendingExternalStorageSyncAfterSession = true;
+      console.info("External storage sync deferred while an active session is in progress.");
+      return;
+    }
     try {
       externalStorageSyncInProgress = true;
       data = loadData();
@@ -10597,6 +10683,22 @@ window.addEventListener("storage", e => {
     }
   }
 });
+
+function runDeferredExternalStorageSyncIfSafe() {
+  if (!pendingExternalStorageSyncAfterSession || activeSession) return;
+  pendingExternalStorageSyncAfterSession = false;
+  try {
+    externalStorageSyncInProgress = true;
+    data = loadData();
+    hydrateIndexedDBData(false, {readOnlySync:true})
+      .then(() => { ensureTablesDatabase?.(); renderAll(); })
+      .catch(err => logAppError(err, "deferred storage sync hydrate"))
+      .finally(() => { externalStorageSyncInProgress = false; });
+  } catch(err) {
+    externalStorageSyncInProgress = false;
+    logAppError(err, "deferred storage sync");
+  }
+}
 
 window.addEventListener("beforeunload", () => {
   try {

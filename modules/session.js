@@ -40,6 +40,7 @@ export function readActiveSessionDraft(key, logError = () => {}) {
     return s;
   } catch(e) {
     logError(e, "readActiveSessionDraft");
+    try { localStorage.removeItem(key); } catch(removeError) { logError(removeError, "readActiveSessionDraft cleanup"); }
     return null;
   }
 }

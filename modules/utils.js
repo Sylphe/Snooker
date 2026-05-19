@@ -25,8 +25,15 @@ export function structuredCloneSafe(obj) {
 }
 
 export function cssEscapeSafe(value) {
-  if (window.CSS && typeof window.CSS.escape === "function") return CSS.escape(String(value));
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+  const string = String(value ?? "");
+  if (typeof window !== "undefined" && window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(string);
+  // Conservative CSS.escape fallback based on the CSSOM escaping rules.
+  return string.replace(/[\0-\x1f\x7f]|^-?\d|^-$|[^a-zA-Z0-9_-]/g, (ch, offset) => {
+    if (ch === "\0") return "\uFFFD";
+    const code = ch.charCodeAt(0).toString(16).toUpperCase();
+    const needsHex = /[\0-\x1f\x7f]/.test(ch) || (offset === 0 && /[-0-9]/.test(ch));
+    return needsHex ? `\\${code} ` : `\\${ch}`;
+  });
 }
 
 export function escapeHtml(value) {

@@ -1,8 +1,15 @@
+function finiteNumber(value, fallback=0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2, priorMeta={}) {
-  const s = Math.max(0, Number(successes || 0));
-  const n = Math.max(0, Number(attempts || 0));
-  const pa = Math.max(0.0001, Number(priorAlpha || 2));
-  const pb = Math.max(0.0001, Number(priorBeta || 2));
+  const nRaw = finiteNumber(attempts, 0);
+  const sRaw = finiteNumber(successes, 0);
+  const n = Math.max(0, nRaw);
+  const s = Math.max(0, Math.min(n, sRaw));
+  const pa = Math.max(0.0001, finiteNumber(priorAlpha, 2));
+  const pb = Math.max(0.0001, finiteNumber(priorBeta, 2));
   const alpha = pa + s;
   const beta = pb + Math.max(0, n - s);
   const mean = alpha / (alpha + beta);
@@ -12,9 +19,9 @@ export function betaPosterior(successes, attempts, priorAlpha=2, priorBeta=2, pr
     alpha,
     beta,
     attempts:n,
-    rawAttempts:Number(priorMeta?.rawAttempts ?? n),
+    rawAttempts:Math.max(0, finiteNumber(priorMeta?.rawAttempts, n)),
     successes:s,
-    rawSuccesses:Number(priorMeta?.rawSuccesses ?? s),
+    rawSuccesses:Math.max(0, finiteNumber(priorMeta?.rawSuccesses, s)),
     priorAlpha:pa,
     priorBeta:pb,
     priorStrength:pa + pb,
@@ -47,15 +54,20 @@ function bayesianEffectiveAttempts(log) {
 export const BAYESIAN_DECAY_HALF_LIFE_DAYS = 30;
 
 export function aggregateSuccessRateLogs(logs, options = {}) {
-  const now = Number(options.now || Date.now());
-  const halfLifeDays = Number(options.halfLifeDays || BAYESIAN_DECAY_HALF_LIFE_DAYS);
+  const nowRaw = Number(options.now || Date.now());
+  const now = Number.isFinite(nowRaw) ? nowRaw : Date.now();
+  const halfLifeRaw = Number(options.halfLifeDays || BAYESIAN_DECAY_HALF_LIFE_DAYS);
+  const halfLifeDays = Number.isFinite(halfLifeRaw) && halfLifeRaw > 0 ? halfLifeRaw : BAYESIAN_DECAY_HALF_LIFE_DAYS;
   return (logs || []).reduce((acc, l) => {
     const attempts = bayesianEffectiveAttempts(l);
-    const score = Math.max(0, Number(l.score || 0));
+    const scoreRaw = Number(l?.score ?? 0);
+    const score = Number.isFinite(scoreRaw) ? Math.max(0, scoreRaw) : 0;
     if (attempts > 0) {
-      const logDate = l.createdAt ? new Date(l.createdAt).getTime() : now;
-      const daysOld = Number.isFinite(logDate) ? Math.max(0, (now - logDate) / 86400000) : 0;
-      const weight = halfLifeDays > 0 ? Math.pow(0.5, daysOld / halfLifeDays) : 1;
+      const parsedDate = l?.createdAt ? new Date(l.createdAt).getTime() : now;
+      const safeDate = Number.isFinite(parsedDate) ? Math.min(parsedDate, now) : now;
+      const daysOld = Math.max(0, (now - safeDate) / 86400000);
+      const weightRaw = Math.pow(0.5, daysOld / halfLifeDays);
+      const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : 1;
       acc.attempts += attempts * weight;
       acc.successes += Math.min(score, attempts) * weight;
       acc.rawAttempts += attempts;

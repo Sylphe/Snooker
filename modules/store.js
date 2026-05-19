@@ -27,6 +27,37 @@ function rejectOnceFactory(reject) {
   };
 }
 
+const IDB_REPLACE_CHUNK_SIZE = 750;
+
+function idbTransactionComplete(db, storeNames, mode, work) {
+  return new Promise((resolve, reject) => {
+    let tx;
+    const rejectOnce = rejectOnceFactory(reject);
+    try {
+      tx = db.transaction(storeNames, mode);
+      work(tx);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => { safeAbortTransaction(tx); rejectOnce(tx.error || new Error("IndexedDB transaction failed.")); };
+      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB transaction aborted.")); };
+    } catch(error) {
+      safeAbortTransaction(tx);
+      rejectOnce(error);
+    }
+  });
+}
+
+async function putStoreRowsChunked(db, storeName, rows, chunkSize = IDB_REPLACE_CHUNK_SIZE) {
+  const cleanRows = (rows || []).filter(row => row && row.id);
+  for (let i = 0; i < cleanRows.length; i += chunkSize) {
+    const chunk = cleanRows.slice(i, i + chunkSize);
+    await idbTransactionComplete(db, storeName, "readwrite", tx => {
+      const store = tx.objectStore(storeName);
+      chunk.forEach(row => store.put(row));
+    });
+  }
+  return true;
+}
+
 const SCHEMA_MIGRATIONS = {
   1(db) { ensureObjectStores(db); },
   2(db) { ensureObjectStores(db); }
@@ -143,25 +174,15 @@ export function idbGetStores(storeNames) {
   }));
 }
 
-export function idbReplaceAll(storeName, rows) {
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    let tx;
-    const rejectOnce = rejectOnceFactory(reject);
-    try {
-      tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      store.clear();
-      (rows || []).forEach(row => { if (row && row.id) store.put(row); });
-      tx.oncomplete = () => { resolve(true); };
-      tx.onerror = () => { safeAbortTransaction(tx); rejectOnce(tx.error || new Error("IndexedDB replaceAll failed.")); };
-      tx.onabort = () => { rejectOnce(tx.error || new Error("IndexedDB replaceAll aborted.")); };
-    } catch(e) {
-      safeAbortTransaction(tx);
-      closeDb(db);
-      rejectOnce(e);
-    }
-  }));
+export async function idbReplaceAll(storeName, rows) {
+  const db = await openSnookerDB();
+  await idbTransactionComplete(db, storeName, "readwrite", tx => {
+    tx.objectStore(storeName).clear();
+  });
+  await putStoreRowsChunked(db, storeName, rows);
+  return true;
 }
+
 
 export function idbPut(storeName, item) {
   if (!item || !item.id) return Promise.resolve(false);
@@ -184,27 +205,17 @@ export function idbPut(storeName, item) {
 
 
 
-export function idbReplaceStores(logRows = [], sessionRows = []) {
-  return openSnookerDB().then(db => new Promise((resolve, reject) => {
-    let tx;
-    try {
-      tx = db.transaction([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite");
-      const logStore = tx.objectStore(INDEXEDDB_LOG_STORE);
-      const sessionStore = tx.objectStore(INDEXEDDB_SESSION_STORE);
-      logStore.clear();
-      sessionStore.clear();
-      (logRows || []).forEach(row => { if (row && row.id) logStore.put(row); });
-      (sessionRows || []).forEach(row => { if (row && row.id) sessionStore.put(row); });
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => { safeAbortTransaction(tx); reject(tx.error || new Error("IndexedDB atomic replace failed.")); };
-      tx.onabort = () => reject(tx.error || new Error("IndexedDB atomic replace aborted."));
-    } catch(e) {
-      safeAbortTransaction(tx);
-      closeDb(db);
-      reject(e);
-    }
-  }));
+export async function idbReplaceStores(logRows = [], sessionRows = []) {
+  const db = await openSnookerDB();
+  await idbTransactionComplete(db, [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite", tx => {
+    tx.objectStore(INDEXEDDB_LOG_STORE).clear();
+    tx.objectStore(INDEXEDDB_SESSION_STORE).clear();
+  });
+  await putStoreRowsChunked(db, INDEXEDDB_LOG_STORE, logRows);
+  await putStoreRowsChunked(db, INDEXEDDB_SESSION_STORE, sessionRows);
+  return true;
 }
+
 
 export function idbPutBundle(logs = [], sessions = []) {
   const logRows = (Array.isArray(logs) ? logs : [logs]).filter(row => row && row.id);
