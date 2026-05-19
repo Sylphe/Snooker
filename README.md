@@ -1,17 +1,18 @@
-# Snooker Practice PWA v5.2.4
+# Snooker Practice PWA v5.4.0
 
-## v5.2.4 — Focus Mode Numpad Alignment
+## v5.4.0 — Friendly / Analytical UI Language Foundation
 
-Built from v5.2.2.
+Built from v5.2.4.
 
 ### Included
-- fixed Focus Mode score/attempts layout overlap
-- removed green highlight styling from the primary score box
-- removed green highlight styling from the PB box
-- aligned score, PB, stepper, and cockpit surfaces to the darker table-mode theme
-- preserved score-entry cockpit, numpad, swipe, long-press, and session logic
-- no analytics, storage, hydration, or session schema changes
+- New Interface setting: Insight language (`Friendly` / `Analytical`).
+- Centralized UI label dictionary foundation.
+- Centralized explanation dictionary scaffolding.
+- Top-level analytics and insight section labels switch dynamically between coaching language and technical terminology.
+- Recommendation and advanced insight headers preserve analytical terminology internally while allowing friendlier user-facing names.
+- No analytics engine changes.
+- No storage, hydration, or session schema changes.
 
-### Build
-- Version: v5.2.4
-- Build time: 2026-05-19 09:40 CEST
+### Build metadata
+- Version: v5.4.0
+- Build timestamp: 2026-05-19 10:42 CEST
