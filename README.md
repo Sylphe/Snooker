@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.5.1
+# Snooker Practice PWA v5.5.2
 
-## v5.5.1 — Advanced Analytics Language Pass
+## v5.5.2 — Advanced Analytics Language Pass
 
 Built from the working v5.4.2 insight language pass.
 
@@ -25,7 +25,7 @@ Built from the working v5.4.2 UI language foundation.
 - Technical model terminology remains available in Analytical mode.
 
 ### Integrity
-- Version: v5.5.1
+- Version: v5.5.2
 - Build timestamp: 2026-05-19 12:22 CEST
 - No analytics engine changes.
 - No storage schema changes.
@@ -45,10 +45,10 @@ Build: 2026-05-19 12:22 CEST
 - No analytics, storage, hydration, or session schema changes.
 
 
-## v5.5.1 — Storage Hardening
+## v5.5.2 — Input & Export Hardening
 
 This release reorganizes the Stats tab into a progressive workflow: Core, Advanced, and Research. It adds scope chips, a section-purpose header, collapsible advanced filters, collapsed diagnostics in the overview, and mobile-first stats grouping to reduce analytics overload while preserving the full analytical stack.
 
 
-### v5.5.1 maintenance correction
+### v5.5.2 maintenance correction
 - Removed the redundant Core / Advanced / Research explanatory strip below the Stats navigation. The Stats tab now has one navigation hierarchy only, followed by active scope chips, filters, and the selected analytics content.

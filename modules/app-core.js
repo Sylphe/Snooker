@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.5.1";
+} from "./utils.js?v=5.5.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.1";
+} from "./settings.js?v=5.5.2";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.1";
+} from "./analytics.js?v=5.5.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.1";
+} from "./bayesian.js?v=5.5.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.1";
+} from "./session.js?v=5.5.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.1";
+} from "./pressure.js?v=5.5.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.1";
+} from "./recommendations.js?v=5.5.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.1";
+} from "./store.js?v=5.5.2";
 
 
 
@@ -406,7 +406,13 @@ function activeTemplatesPanelName(){
   return active?.dataset?.templatesPanel || null;
 }
 function canonicalSkillKey(value){
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .replace(/^_+|_+$/g, "");
 }
 function skillIdFromLabel(label){ return canonicalSkillKey(label || "custom_skill"); }
 function normalizeSkillRecord(skill){
@@ -1559,6 +1565,7 @@ let focusNumpadTargetId = "scoreValue";
 let focusStepHoldStartTimer = null;
 let focusStepHoldRepeatTimer = null;
 let focusStepHoldAccelerationTimer = null;
+let focusStepFiredByHold = false;
 let focusSwipeStartX = 0;
 let focusSwipeStartY = 0;
 let focusSwipeStartTime = 0;
@@ -1616,9 +1623,17 @@ function applyFocusModeInputLocks() {
   ids.forEach(id => {
     const el = $(id);
     if (!el) return;
-    el.readOnly = true;
-    el.setAttribute("inputmode", "none");
-    el.classList.add("focus-readonly-input");
+    const step = String(el.getAttribute("step") || "");
+    const needsDecimals = step.includes(".");
+    if (needsDecimals) {
+      el.readOnly = false;
+      el.setAttribute("inputmode", "decimal");
+      el.classList.remove("focus-readonly-input");
+    } else {
+      el.readOnly = true;
+      el.setAttribute("inputmode", "none");
+      el.classList.add("focus-readonly-input");
+    }
     el.addEventListener("focus", () => setFocusNumpadTarget(id), {once:false});
     el.addEventListener("click", () => setFocusNumpadTarget(id), {once:false});
   });
@@ -1897,7 +1912,7 @@ function uiExplain(key){
 }
 
 
-/* v5.5.1 Recommendation explanation wording layer */
+/* v5.5.2 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1931,7 +1946,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.5.1 Insight cards and stats language pass */
+/* v5.5.2 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -2912,6 +2927,8 @@ function duplicateRoutine(id) {
   if (!r) return;
   const newId = uuid();
   const copied = {...r, id: newId, name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)};
+  copied.targetHistory = structuredCloneSafe(r.targetHistory || []);
+  copied.activeTargetProfileId = r.activeTargetProfileId;
   copied.skillMap = normalizeRoutineSkillMap(copied, getRoutineSkillMap(r));
   data.routines.push(copied);
   data.routineSkillMap = data.routineSkillMap || {};
@@ -3485,7 +3502,7 @@ async function saveCurrentRoutine() {
     if (sideError) return validationNotice(sideError);
   }
   if (Number.isNaN(score)) return validationNotice("Enter a valid score.");
-  if (score < 0) return validationNotice("Score cannot be negative.");
+  if (r.scoring !== "points" && score < 0) return validationNotice("Score cannot be negative.");
   if ((r.scoring === "success_rate" || r.scoring === "progressive_completion")) {
     const wholeAttempts = validateWholeNumberField(attempts, "Attempts", {required:true, min:r.scoring === "success_rate" ? 1 : 0});
     if (wholeAttempts.error) return validationNotice(wholeAttempts.error);
@@ -6929,7 +6946,7 @@ function renderEditLogForm(l) {
       <div><label>${logUsesSideSplit(l) ? "Attempts" : "Attempts"}</label><input class="edit-attempts" type="number" step="1" value="${numAttr(l.attempts || "")}"></div>
       <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div>
       <div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
-      ${l.scoring === "progressive_completion" ? `<div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
+      ${l.scoring === "progressive_completion" ? `<div><label>Total units</label><input class="edit-total-units" type="number" step="1" value="${numAttr(l.totalUnitsAtLog || l.totalUnits || "")}"></div><div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
       <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${numAttr(l.sessionRating || "")}"></div>
       <div><label>Category</label><select class="edit-category">${editCategoryOptions(l.category)}</select></div>
       <div><label>Tags</label><input class="edit-tags" value="${attrText(l.sessionTags || "")}"></div>
@@ -7016,7 +7033,7 @@ async function saveEditedLog(id, formEl) {
   } else {
     l.score = Number(field("edit-score")?.value || 0);
     if (Number.isNaN(l.score)) return validationNotice("Enter a valid score.");
-    if (l.score < 0) return validationNotice("Score cannot be negative.");
+    if (l.scoring !== "points" && l.score < 0) return validationNotice("Score cannot be negative.");
   }
   l.attempts = Number(field("edit-attempts")?.value || 0) || "";
   if (Number(l.attempts || 0) < 0) return validationNotice("Attempts cannot be negative.");
@@ -7052,6 +7069,13 @@ async function saveEditedLog(id, formEl) {
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
   if (l.scoring === "progressive_completion") {
+    const totalUnitsInput = field("edit-total-units")?.value;
+    if (totalUnitsInput !== undefined && totalUnitsInput !== "") {
+      const totalCheck = validateWholeNumberField(totalUnitsInput, "Total units", {required:false, min:0});
+      if (totalCheck.error) return validationNotice(totalCheck.error);
+      l.totalUnitsAtLog = totalCheck.value ?? "";
+      l.totalUnits = l.totalUnitsAtLog || l.totalUnits || "";
+    }
     const totalUnits = Number(l.totalUnitsAtLog || l.totalUnits || routine?.totalUnits || 0);
     if (totalUnits > 0 && Number(l.score || 0) > totalUnits) return validationNotice(`Score cannot exceed completion size (${totalUnits}).`);
     if (field("edit-best")) {
@@ -7301,7 +7325,11 @@ function exportValue(log, field) {
   if (field === "sessionName") return getPlanName(log);
   if (field === "routineName") return getRoutineName(log);
   if (field === "currentTargetPerformance") return currentTargetPerformance(log);
-  return log[field] ?? "";
+  const val = log[field] ?? "";
+  if (typeof val === "object" && val !== null) {
+    try { return JSON.stringify(val); } catch(e) { return String(val); }
+  }
+  return val;
 }
 
 safeOn("exportCsvBtn", "click", async () => {
@@ -7372,7 +7400,9 @@ function downloadFile(filename, content, type) {
 }
 function csvEscape(value) {
   const s = String(value ?? "");
-  return '"' + s.replace(/"/g, '""') + '"';
+  let escaped = s.replace(/"/g, '""');
+  if (/^[=+\-@]/.test(escaped)) escaped = "'" + escaped;
+  return '"' + escaped + '"';
 }
 
 
@@ -7404,7 +7434,11 @@ function progressiveStatsForLogs(logs) {
   const pc = logs.filter(l => l.scoring === "progressive_completion");
   if (!pc.length) return null;
   const avgCompletion = avg(pc.map(l => Number(l.normalizedScore || 0)));
-  const bestAttempt = Math.max(...pc.map(l => Number(l.bestAttempt || l.score || 0)));
+  const bestAttempt = Math.max(...pc.map(l => {
+    const raw = l.bestAttempt !== undefined && l.bestAttempt !== null && l.bestAttempt !== "" ? l.bestAttempt : l.score;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }));
   const completionCount = pc.filter(l => Number(l.completionCount || 0) > 0 || Number(l.normalizedScore || 0) >= 100).length;
   const highestBreak = Math.max(0, ...pc.map(l => Number(l.highestBreak || 0)));
   return {avgCompletion, bestAttempt, completionCount, highestBreak, count:pc.length};
@@ -8350,7 +8384,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -9185,7 +9219,14 @@ function handleDelegatedUIAction(event) {
     case "delete-log": return deleteLog(id);
     case "score-set": hapticFeedback("tap"); setScoreValue(Number(actionEl.dataset.score || 0)); focusModeScoreFeedback("scoreValue"); return refreshCurrentRoutineLivePerformance();
     case "score-adjust": hapticFeedback("tap"); adjustScore(Number(actionEl.dataset.delta || 0)); focusModeScoreFeedback("scoreValue"); return refreshCurrentRoutineLivePerformance();
-    case "focus-step": hapticFeedback("tap"); adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0)); return refreshCurrentRoutineLivePerformance();
+    case "focus-step":
+      if (focusStepFiredByHold) {
+        focusStepFiredByHold = false;
+        return;
+      }
+      hapticFeedback("tap");
+      adjustNumericInputValue(actionEl.dataset.target || "scoreValue", Number(actionEl.dataset.delta || 0));
+      return refreshCurrentRoutineLivePerformance();
     case "focus-numpad": hapticFeedback("tap"); return handleFocusNumpad(actionEl.dataset.numpadAction || "digit", actionEl.dataset.value || "");
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
@@ -9216,6 +9257,9 @@ document.addEventListener("pointerdown", function(event) {
   const delta = Number(btn.dataset.delta || 0);
   btn.classList.add("focus-hold-active");
   focusStepHoldStartTimer = setTimeout(() => {
+    focusStepFiredByHold = true;
+    adjustNumericInputValue(target, delta);
+    refreshCurrentRoutineLivePerformance();
     focusStepHoldRepeatTimer = setInterval(() => {
       adjustNumericInputValue(target, delta);
       refreshCurrentRoutineLivePerformance();
@@ -9241,6 +9285,22 @@ safeOn("saveSkillTagBtn", "click", saveSkillTagFromForm);
 safeOn("clearSkillTagFormBtn", "click", () => { clearSkillTagForm(); renderSkillManager(); });
 safeOn("skillManagerFilterGroup", "change", renderSkillManager);
 safeOn("skillManagerSearch", "input", renderSkillManager);
+
+
+document.addEventListener("focusin", event => {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const tag = target.tagName;
+  const type = String(target.getAttribute("type") || target.type || "").toLowerCase();
+  if (tag === "TEXTAREA" || type === "text" || type === "search" || type === "email" || type === "url") {
+    document.body.classList.add("focus-keyboard-open");
+  }
+});
+document.addEventListener("focusout", () => {
+  document.body?.classList?.remove("focus-keyboard-open");
+});
+
 document.addEventListener("click", handleDelegatedUIAction);
 document.addEventListener("change", event => {
   if (event.target && event.target.id === "sessionRating") {
