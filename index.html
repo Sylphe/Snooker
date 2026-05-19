@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.4.4</title>
+  <title>Snooker Practice Log v5.5.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=5.4.4" />
-  <link rel="stylesheet" href="styles.css?v=5.4.4" />
-  <link rel="icon" href="icon.svg?v=5.4.4" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=5.5.0" />
+  <link rel="stylesheet" href="styles.css?v=5.5.0" />
+  <link rel="icon" href="icon.svg?v=5.5.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.4.4 · Build 2026-05-19 12:22 CEST — Advanced Analytics Language Pass.</p>
+      <p>v5.5.0 · Build 2026-05-19 12:55 CEST — Stats UX Redesign.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -885,29 +885,35 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <p class="muted">Stats are now grouped by decision need: quick overview, training analysis, and advanced comparison tools.</p>
+        <p class="muted">Stats are organized as a progressive workflow: Core first, Advanced only when needed, Research for experimental diagnostics.</p>
         <div class="stats-subtabs stats-internal-nav stats-hub-nav" role="tablist" aria-label="Stats sections">
           <div class="stats-nav-group" aria-label="Core stats">
             <span class="stats-nav-label">Core</span>
             <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
             <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
           </div>
-          <div class="stats-nav-group" aria-label="Training analysis">
-            <span class="stats-nav-label">Training</span>
+          <div class="stats-nav-group" aria-label="Advanced training analysis">
+            <span class="stats-nav-label">Advanced</span>
             <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
             <button id="statsGraphsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="graphs">Graphs</button>
             <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
             <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
           </div>
-          <div class="stats-nav-group" aria-label="Advanced comparison">
-            <span class="stats-nav-label">Advanced</span>
+          <div class="stats-nav-group" aria-label="Research and comparison tools">
+            <span class="stats-nav-label">Research</span>
             <button id="statsBayesianBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="bayesian">True Skill</button>
             <button id="statsABBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="ab">A/B</button>
             <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Drill Compare</button>
             <button id="statsTournamentBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="tournament">Tournament</button>
           </div>
         </div>
-        <div class="grid three">
+        <div class="stats-flow-helper">
+          <div><strong>Core</strong><span>Overview and immediate coaching decisions.</span></div>
+          <div><strong>Advanced</strong><span>Trend, graph, routine, and pressure diagnostics.</span></div>
+          <div><strong>Research</strong><span>Bayesian estimates, comparisons, and tournament modelling.</span></div>
+        </div>
+        <div id="statsScopeChips" class="stats-scope-chips" aria-live="polite"></div>
+        <div class="grid three stats-filter-grid">
           <div>
             <label>Stats view</label>
             <select id="statsPeriodSelect">
@@ -935,7 +941,9 @@
             </select>
           </div>
         </div>
-        <div class="grid two">
+        <details class="stats-filter-advanced">
+          <summary>Advanced filters and windows</summary>
+          <div class="grid two">
           <div>
             <label>Rolling average window</label>
             <input id="rollingWindowInput" type="number" min="2" max="20" value="5" />
@@ -944,7 +952,8 @@
             <label>Benchmark window</label>
             <input id="benchmarkWindowInput" type="number" min="3" max="30" value="10" />
           </div>
-        </div>
+          </div>
+        </details>
         
         <div class="card nested stats-standalone-panel hidden" id="statsABPanel">
           <h3>A/B period comparison <button type="button" class="stat-help" data-action="field-help" data-help-key="abComparison">?</button></h3>
@@ -1347,7 +1356,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.4.4"></script>
+  <script type="module" src="app.js?v=5.5.0"></script>
 </body>
 
 

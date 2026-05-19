@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.4.4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.4.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.4.4";
+} from "./utils.js?v=5.5.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.4.4";
+} from "./settings.js?v=5.5.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.4.4";
+} from "./analytics.js?v=5.5.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.4.4";
+} from "./bayesian.js?v=5.5.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.4.4";
+} from "./session.js?v=5.5.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.4.4";
+} from "./pressure.js?v=5.5.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.4.4";
+} from "./recommendations.js?v=5.5.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.4.4";
+} from "./store.js?v=5.5.0";
 
 
 
@@ -1889,7 +1889,7 @@ function uiExplain(key){
 }
 
 
-/* v5.4.4 Recommendation explanation wording layer */
+/* v5.5.0 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1923,7 +1923,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.4.4 Insight cards and stats language pass */
+/* v5.5.0 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -5852,18 +5852,43 @@ function renderStatsScopeBanner(scope, logs) {
   const periodLabel = scope.period === "exercise" ? "All history" : htmlText(scope.range.label);
   return `<div class="analytics-note stats-scope-banner"><strong>Active stats scope:</strong> ${filterLabel} · ${periodLabel} · ${logs.length} log${logs.length === 1 ? "" : "s"}</div>`;
 }
+function getStatsModeMeta(mode = statsMode) {
+  const map = {
+    overview:{tier:"Core", label:"Overview", purpose:"Immediate practice decisions"},
+    insights:{tier:"Core", label:"Insights", purpose:"Actionable coaching signals"},
+    trends:{tier:"Advanced", label:"Trends", purpose:"Trend diagnostics"},
+    graphs:{tier:"Advanced", label:"Graphs", purpose:"Visual pattern review"},
+    routines:{tier:"Advanced", label:"Routines", purpose:"Exercise-level comparison"},
+    pressure:{tier:"Advanced", label:"Pressure", purpose:"Pressure-mode performance"},
+    bayesian:{tier:"Research", label:"True Skill", purpose:"Probabilistic estimates"},
+    ab:{tier:"Research", label:"A/B", purpose:"Period comparison"},
+    counterfactual:{tier:"Research", label:"Drill Compare", purpose:"Alternative drill comparison"},
+    tournament:{tier:"Research", label:"Tournament", purpose:"Readiness modelling"}
+  };
+  return map[normalizeStatsMode(mode)] || map.overview;
+}
+
 function renderStatsScopeChips(scope, logs) {
   const el = $("statsScopeChips");
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
   const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
-  const modeLabel = ({overview:"Overview", trends:"Trends", graphs:"Graphs", routines:"Routines", pressure:"Pressure", insights:"Insights", bayesian:"True Skill", ab:"A/B", counterfactual:"Drill Compare", tournament:"Tournament"}[statsMode] || "Overview");
+  const meta = getStatsModeMeta(statsMode);
   el.innerHTML = [
-    `<span class="stats-scope-chip"><strong>Mode</strong><span>${htmlText(modeLabel)}</span></span>`,
+    `<span class="stats-scope-chip primary"><strong>${htmlText(meta.tier)}</strong><span>${htmlText(meta.label)}</span></span>`,
+    `<span class="stats-scope-chip"><strong>Purpose</strong><span>${htmlText(meta.purpose)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Exercise</strong><span>${htmlText(filterLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Period</strong><span>${htmlText(periodLabel)}</span></span>`,
     `<span class="stats-scope-chip"><strong>Logs</strong><span>${logs.length}</span></span>`
   ].join("");
+}
+
+function renderStatsSectionIntro(logs, range) {
+  const meta = getStatsModeMeta(statsMode);
+  const reliability = logs.length >= 30 ? "High evidence" : logs.length >= 10 ? "Moderate evidence" : logs.length ? "Low evidence" : "No evidence yet";
+  return `<div class="stats-section-intro ${htmlText(meta.tier).toLowerCase()}">
+    <div><span class="stats-tier-pill">${htmlText(meta.tier)}</span><h3>${htmlText(meta.label)} — ${escapeHtml(range.label)}</h3><p>${htmlText(meta.purpose)}. ${htmlText(reliability)} based on ${logs.length} log${logs.length === 1 ? "" : "s"} in scope.</p></div>
+  </div>`;
 }
 
 function statsModule(title, subtitle, bodyHtml, open = false) {
@@ -6174,7 +6199,8 @@ function renderStats() {
     if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
     renderTableStats(scopedLogs);
 
-    let html = renderStatsScopeBanner(scope, scopedLogs);
+    renderStatsScopeChips(scope, scopedLogs);
+    let html = renderStatsScopeBanner(scope, scopedLogs) + renderStatsSectionIntro(scopedLogs, range);
     if (statsMode === "overview") {
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
     } else if (statsMode === "trends") {
@@ -6357,20 +6383,25 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
       <div class="overview-mini-card"><strong>Most improved</strong><span>${improved ? `${escapeHtml(improved.name)} · ${improved.metric}` : "More history needed"}</span></div>
     </div>`;
 
-  html += renderCoachingEngine(logs, rid);
-  html += renderPerformanceStability(logs);
-  html += renderFatigueSlope(logs);
-  html += renderDifficultyLadder(logs);
-  html += renderSecondOrderAnalytics(logs, rid, rollingWindow);
+  html += `<div class="stats-priority-stack">
+    <h3>Recommended action</h3>
+    ${renderCoachingEngine(logs, rid)}
+  </div>`;
 
-  if (weak) {
-    html += `<div class="analytics-note"><strong>Weakest area:</strong> ${escapeHtml(weak.category)} · hit rate ${weak.hitRate === null ? "N/A" : weak.hitRate.toFixed(1)+"%"} · vs overall ${weak.delta === null ? "N/A" : weak.delta.toFixed(1)+" pts"}</div>`;
-  }
-  if (fatigue) {
-    html += `<div class="analytics-note"><strong>Fatigue curve:</strong> first-third avg ${fatigue.first.toFixed(2)} vs final-third avg ${fatigue.last.toFixed(2)} (${fatigue.deltaPct >= 0 ? "+" : ""}${fatigue.deltaPct.toFixed(1)}%).</div>`;
-  }
+  const diagnosticsHtml = [
+    statsModule(uiLabel("performanceStability"), "Reliability, volatility, and repeatability", renderPerformanceStability(logs), false),
+    statsModule(uiLabel("staminaDropoff"), "Performance decay or lift inside sessions", renderFatigueSlope(logs), false),
+    statsModule("Difficulty ladder", "Whether targets are too easy, appropriate, or too hard", renderDifficultyLadder(logs), false),
+    statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, rid, rollingWindow), false)
+  ].join("");
+  html += `<h3>Advanced diagnostics</h3><div class="advanced-stats-modules stats-collapsed-diagnostics">${diagnosticsHtml}</div>`;
 
-  html += `<h3>Compact charts</h3>${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}`;
+  const decisionNotes = [];
+  if (weak) decisionNotes.push(`<div class="analytics-note"><strong>Weakest area:</strong> ${escapeHtml(weak.category)} · hit rate ${weak.hitRate === null ? "N/A" : weak.hitRate.toFixed(1)+"%"} · vs overall ${weak.delta === null ? "N/A" : weak.delta.toFixed(1)+" pts"}</div>`);
+  if (fatigue) decisionNotes.push(`<div class="analytics-note"><strong>Fatigue curve:</strong> first-third avg ${fatigue.first.toFixed(2)} vs final-third avg ${fatigue.last.toFixed(2)} (${fatigue.deltaPct >= 0 ? "+" : ""}${fatigue.deltaPct.toFixed(1)}%).</div>`);
+  if (decisionNotes.length) html += `<details class="advanced-stats-module stats-decision-notes"><summary><span><strong>Decision notes</strong><small>Extra context behind the dashboard</small></span><span class="advanced-module-chevron">›</span></summary><div class="advanced-module-body">${decisionNotes.join("")}</div></details>`;
+
+  html += `<h3>Compact charts</h3><div class="stats-graph-group">${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}</div>`;
   return html;
 }
 
@@ -8304,7 +8335,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.4.4");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
