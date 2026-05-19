@@ -45,6 +45,10 @@ Build: 2026-05-19 12:22 CEST
 - No analytics, storage, hydration, or session schema changes.
 
 
+## v5.6.1 — Mobile Graph Scaling
+
+This release builds on the v5.6 graph foundation with a dedicated mobile scaling pass. It keeps the Graphs section grouped into Form, Consistency, Session Load, and Routine Progress, then improves phone usability through responsive chart heights, scroll-safe SVG containers on narrow screens, reduced axis clutter, tighter legends, better KPI stacking, improved card spacing, and mobile-specific label density. This prepares the graph layer for touch tooltips, rolling overlays, confidence bands, uncertainty overlays, transfer links, sparklines, momentum indicators, and pace overlays.
+
 ## v5.5.0 — Stats UX Redesign
 
 This release reorganizes the Stats tab into a progressive workflow: Core, Advanced, and Research. It adds scope chips, a section-purpose header, collapsible advanced filters, collapsed diagnostics in the overview, and mobile-first stats grouping to reduce analytics overload while preserving the full analytical stack.
