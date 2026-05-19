@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.13";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.13";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.14";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.14";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.13";
+} from "./utils.js?v=5.5.14";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.13";
+} from "./settings.js?v=5.5.14";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.13";
+} from "./analytics.js?v=5.5.14";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.13";
+} from "./bayesian.js?v=5.5.14";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.13";
+} from "./session.js?v=5.5.14";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.13";
+} from "./pressure.js?v=5.5.14";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.13";
+} from "./recommendations.js?v=5.5.14";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.13";
+} from "./store.js?v=5.5.14";
 
 
 
@@ -231,6 +231,21 @@ function notifyUser(message, tone="info") {
   else console.warn(message);
 }
 function validationNotice(message) { notifyUser(message, "warn"); return false; }
+
+const operationRateLimits = Object.create(null);
+function allowRateLimitedOperation(key, maxOps=20, windowMs=60000, message="Too many rapid actions. Wait a moment and try again.") {
+  const now = Date.now();
+  const bucket = (operationRateLimits[key] || []).filter(ts => now - ts < windowMs);
+  if (bucket.length >= maxOps) {
+    notifyUser(message, "warn");
+    operationRateLimits[key] = bucket;
+    return false;
+  }
+  bucket.push(now);
+  operationRateLimits[key] = bucket;
+  return true;
+}
+
 function sanitizeTagToken(value, maxLen=32) {
   return String(value || "")
     .replace(/[\x00-\x1F\x7F]/g, "")
@@ -3101,6 +3116,7 @@ function duplicateRoutine(id) {
   saveData();
 }
 function deleteRoutine(id) {
+  if (!allowRateLimitedOperation("deleteRoutine", 15, 60000, "Too many exercise delete actions. Wait a moment and try again.")) return;
   return confirmDeleteAction("this exercise template", () => {
     const now = new Date().toISOString();
     const hasLogs = (data.logs || []).some(l => l.routineId === id);
@@ -3698,6 +3714,7 @@ safeOn("continueFreeBtn", "click", () => {
   renderCurrentRoutine();
 });
 async function saveCurrentRoutine() {
+  if (!allowRateLimitedOperation("saveCurrentRoutine", 30, 60000, "Too many rapid saves. Wait a moment before logging again.")) return;
   if (!activeSession) return;
   const r = routineById(activeSession.routineIds[activeSession.index]);
   if (!r) return;
@@ -3932,6 +3949,25 @@ function restoreTimerStateFromActiveSession() {
 }
 
 function getWakeLockSetting(){ return interfaceReadSetting(WAKE_LOCK_KEY, "wakeLock", "off"); }
+function ensureWakeLockIndicator() {
+  let el = $("wakeLockIndicator");
+  if (!el && document.body) {
+    el = document.createElement("div");
+    el.id = "wakeLockIndicator";
+    el.className = "wake-lock-indicator";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.textContent = "Screen awake during practice";
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function setWakeLockIndicator(active) {
+  try {
+    ensureWakeLockIndicator();
+    document.body?.classList.toggle("wake-lock-active", !!active);
+  } catch(e) {}
+}
 function hapticFeedback(kind="tap") {
   try {
     if (!navigator.vibrate) return;
@@ -3982,7 +4018,8 @@ async function requestFocusWakeLock() {
   try {
     wakeLockRequestInFlight = true;
     wakeLockSentinel = await navigator.wakeLock.request("screen");
-    wakeLockSentinel.addEventListener?.("release", () => { wakeLockSentinel = null; });
+    setWakeLockIndicator(true);
+    wakeLockSentinel.addEventListener?.("release", () => { wakeLockSentinel = null; setWakeLockIndicator(false); });
     if (!timerStartMs && !timerAutostartDelayInterval) {
       releaseFocusWakeLock();
     } else if ($("timerState") && timerStartMs) {
@@ -3990,6 +4027,7 @@ async function requestFocusWakeLock() {
     }
   } catch(e) {
     wakeLockSentinel = null;
+    setWakeLockIndicator(false);
     wakeLockPermanentlyFailed = true;
     console.warn("WakeLock request rejected; disabling wake lock retries for this session.", e);
   } finally {
@@ -3999,6 +4037,7 @@ async function requestFocusWakeLock() {
 async function releaseFocusWakeLock() {
   const sentinel = wakeLockSentinel;
   wakeLockSentinel = null;
+  setWakeLockIndicator(false);
   try { await sentinel?.release?.(); } catch(e) {}
 }
 function syncFocusWakeLock() {
@@ -4398,12 +4437,43 @@ function openExportFolderDB(){ return new Promise((resolve,reject)=>{ const req=
 async function saveExportFolderHandle(handle){ const db=await openExportFolderDB(); return new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).put(handle,EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }
 async function getExportFolderHandle(){ if(!supportsExportFolderPicker()) return null; try{ const db=await openExportFolderDB(); return await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readonly"); const req=tx.objectStore(EXPORT_FOLDER_STORE).get(EXPORT_FOLDER_KEY); req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error); }); }catch(e){ logAppError(e,"getExportFolderHandle"); return null; } }
 async function clearExportFolderHandle(){ if(!("indexedDB" in window)) return; try{ const db=await openExportFolderDB(); await new Promise((resolve,reject)=>{ const tx=db.transaction(EXPORT_FOLDER_STORE,"readwrite"); tx.objectStore(EXPORT_FOLDER_STORE).delete(EXPORT_FOLDER_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); }catch(e){ logAppError(e,"clearExportFolderHandle"); } }
-async function ensureExportFolderPermission(handle){ if(!handle) return false; try{ const opts={mode:"readwrite"}; if((await handle.queryPermission(opts))==="granted") return true; return (await handle.requestPermission(opts))==="granted"; }catch(e){ logAppError(e,"ensureExportFolderPermission"); return false; } }
+async function ensureExportFolderPermission(handle){
+  if(!handle) return false;
+  try{
+    const opts={mode:"readwrite"};
+    const current = await handle.queryPermission(opts);
+    if(current === "granted") return true;
+    const requested = await handle.requestPermission(opts);
+    if(requested !== "granted") notifyUser("Export folder permission is not available. Falling back to normal Downloads.", "warn");
+    return requested === "granted";
+  }catch(e){ logAppError(e,"ensureExportFolderPermission"); notifyUser("Export folder could not be reached. Falling back to normal Downloads.", "warn"); return false; }
+}
 async function chooseExportFolder(){ if(!supportsExportFolderPicker()){ alert("Folder selection is not supported in this browser. Exports will continue using normal downloads."); renderExportFolderStatus(); return; } try{ const handle=await window.showDirectoryPicker({mode:"readwrite"}); await saveExportFolderHandle(handle); localStorage.setItem("snookerPracticePWA.exportFolderName", handle.name || "Selected folder"); renderExportFolderStatus(); }catch(e){ if(e&&e.name!=="AbortError") logAppError(e,"chooseExportFolder"); } }
 async function clearExportFolder(){ await clearExportFolderHandle(); localStorage.removeItem("snookerPracticePWA.exportFolderName"); renderExportFolderStatus(); }
 async function renderExportFolderStatus(){ const el=$("exportFolderStatus"); if(!el) return; const chooseBtn=$("chooseExportFolderBtn"); const clearBtn=$("clearExportFolderBtn"); if(!supportsExportFolderPicker()){ if(chooseBtn) chooseBtn.classList.add("hidden"); if(clearBtn) clearBtn.classList.add("hidden"); el.className="analytics-note export-folder-fallback"; el.innerHTML=isIOSSafariLike()?"iOS Safari uses normal Downloads for exports; folder selection is hidden because the browser does not support it.":"Folder export is not supported by this browser. Files will use normal Downloads."; return; } if(chooseBtn) chooseBtn.classList.remove("hidden"); if(clearBtn) clearBtn.classList.remove("hidden"); const handle=await getExportFolderHandle(); if(!handle){ el.className="analytics-note export-folder-fallback"; el.innerHTML="Export folder not selected. Files will use normal Downloads."; return; } const name=localStorage.getItem("snookerPracticePWA.exportFolderName") || handle.name || "Selected folder"; el.className="analytics-note export-folder-ok"; el.innerHTML=`Selected export folder: <strong>${escapeHtml(name)}</strong>.`; }
-async function saveTextFileToExportFolder(filename,text,mimeType="application/octet-stream"){ const handle=await getExportFolderHandle(); if(!handle) return false; const ok=await ensureExportFolderPermission(handle); if(!ok) return false; try{ const fileHandle=await handle.getFileHandle(filename,{create:true}); const writable=await fileHandle.createWritable(); await writable.write(new Blob([text],{type:mimeType})); await writable.close(); return true; }catch(e){ logAppError(e,"saveTextFileToExportFolder"); return false; } }
-async function exportFile(filename,text,mimeType="application/octet-stream"){ const saved=await saveTextFileToExportFolder(filename,text,mimeType); if(!saved) downloadFile(filename,text,mimeType); }
+async function saveTextFileToExportFolder(filename,text,mimeType="application/octet-stream"){
+  const handle=await getExportFolderHandle();
+  if(!handle) return false;
+  const ok=await ensureExportFolderPermission(handle);
+  if(!ok) return false;
+  try{
+    const fileHandle=await handle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(new Blob([text],{type:mimeType}));
+    await writable.close();
+    return true;
+  }catch(e){ logAppError(e,"saveTextFileToExportFolder"); notifyUser("Selected export folder is unavailable. Falling back to normal Downloads.", "warn"); return false; }
+}
+async function exportFile(filename,text,mimeType="application/octet-stream"){
+  const hadExportFolder = !!localStorage.getItem("snookerPracticePWA.exportFolderName");
+  const saved=await saveTextFileToExportFolder(filename,text,mimeType);
+  if(!saved){
+    if(hadExportFolder) notifyUser("Export folder unavailable. File downloaded through the browser instead.", "warn");
+    downloadFile(filename,text,mimeType);
+  } else {
+    notifyUser(`Saved to export folder: ${filename}`, "ok");
+  }
+}
 
 function ensureTablesDatabase() {
   data.tables = data.tables || [];
@@ -7472,6 +7542,7 @@ function makeRoutineSnapshotFromLog(l) {
   };
 }
 function deleteLog(id) {
+  if (!allowRateLimitedOperation("deleteLog", 20, 60000, "Too many delete actions. Wait a moment and try again.")) return;
   return confirmDeleteAction("this session log", async () => {
     const previousLogs = data.logs || [];
     const target = previousLogs.find(l => l.id === id);
@@ -7777,6 +7848,7 @@ safeOn("importJsonInput", "change", async (e) => {
   }
 });
 safeOn("clearDataBtn", "click", async () => {
+  if (!allowRateLimitedOperation("clearData", 3, 300000, "Clear-data action is temporarily rate-limited.")) return;
   if (!confirm("Clear all data? This cannot be undone unless you have exported a backup.")) return;
   localStorage.removeItem(STORAGE_KEY);
   try { await idbReplaceAll(INDEXEDDB_LOG_STORE, []); await idbReplaceAll(INDEXEDDB_SESSION_STORE, []); } catch(e) { logAppError(e, "clearData indexedDB clear"); }
@@ -8367,6 +8439,7 @@ async function generateTestLogs() {
   }
 }
 async function clearTestLogsOnly() {
+  if (!allowRateLimitedOperation("clearTestLogs", 5, 300000, "Test-log cleanup is temporarily rate-limited.")) return;
   if (!confirm("Clear synthetic storage-test logs and sessions only? Real logs are preserved.")) return;
   try {
     const testSessionIds = new Set((data.sessions || []).filter(s => s.isTestData).map(s => s.id));

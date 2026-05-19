@@ -1,23 +1,23 @@
-const CACHE_VERSION = "5.5.13-analytics-input-hardening";
+const CACHE_VERSION = "5.5.14-security-baseline";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
-  "./index.html?v=5.5.13",
-  "./styles.css?v=5.5.13",
-  "./app.js?v=5.5.13",
-  "./modules/app-core.js?v=5.5.13",
-  "./modules/version.js?v=5.5.13",
-  "./modules/store.js?v=5.5.13",
-  "./modules/utils.js?v=5.5.13",
-  "./modules/settings.js?v=5.5.13",
-  "./modules/analytics.js?v=5.5.13",
-  "./modules/bayesian.js?v=5.5.13",
-  "./modules/session.js?v=5.5.13",
-  "./modules/pressure.js?v=5.5.13",
-  "./modules/recommendations.js?v=5.5.13",
-  "./modules/render.js?v=5.5.13",
-  "./modules/inference.js?v=5.5.13",
-  "./manifest.json?v=5.5.13",
-  "./icon.svg?v=5.5.13"
+  "./index.html?v=5.5.14",
+  "./styles.css?v=5.5.14",
+  "./app.js?v=5.5.14",
+  "./modules/app-core.js?v=5.5.14",
+  "./modules/version.js?v=5.5.14",
+  "./modules/store.js?v=5.5.14",
+  "./modules/utils.js?v=5.5.14",
+  "./modules/settings.js?v=5.5.14",
+  "./modules/analytics.js?v=5.5.14",
+  "./modules/bayesian.js?v=5.5.14",
+  "./modules/session.js?v=5.5.14",
+  "./modules/pressure.js?v=5.5.14",
+  "./modules/recommendations.js?v=5.5.14",
+  "./modules/render.js?v=5.5.14",
+  "./modules/inference.js?v=5.5.14",
+  "./manifest.json?v=5.5.14",
+  "./icon.svg?v=5.5.14"
 ];
 
 self.addEventListener("install", event => {
@@ -42,8 +42,39 @@ self.addEventListener("activate", event => {
   );
 });
 
+function isLocalDevelopmentUrl(url) {
+  return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0";
+}
+
+function isSafeAppRequest(request, url) {
+  if (request.method !== "GET") return false;
+  if (url.origin !== self.location.origin) return false;
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalDevelopmentUrl(url))) return false;
+  return true;
+}
+
+function isCacheableAppFile(url) {
+  return url.pathname.endsWith(".js") || ["index.html", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+}
+
+function expectedContentType(url) {
+  if (url.pathname.endsWith(".js")) return "javascript";
+  if (url.pathname.endsWith(".css")) return "text/css";
+  if (url.pathname.endsWith("manifest.json")) return "application/manifest+json|application/json";
+  if (url.pathname.endsWith("icon.svg")) return "image/svg+xml";
+  return "text/html";
+}
+
+function responseHasExpectedType(url, response) {
+  const expected = expectedContentType(url);
+  const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+  return expected.split("|").some(part => contentType.includes(part.toLowerCase()));
+}
+
 function cacheResponse(request, response) {
-  if (!response || response.status !== 200) return response;
+  const url = new URL(request.url);
+  if (!response || response.status !== 200 || response.type === "error") return response;
+  if (!isSafeAppRequest(request, url) || !responseHasExpectedType(url, response)) return response;
   const copy = response.clone();
   caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {});
   return response;
@@ -53,15 +84,16 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+  if (!isSafeAppRequest(request, url)) return;
   if (url.pathname.endsWith("/sw-version.json") || url.pathname.endsWith("sw-version.json")) {
     event.respondWith(new Response(JSON.stringify({version:CACHE_VERSION, cache:CACHE_NAME}), {headers:{"Content-Type":"application/json","Cache-Control":"no-store"}}));
     return;
   }
-  const isAppFile = url.pathname.endsWith(".js") || ["index.html", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+  const isAppFile = isCacheableAppFile(url);
   if (isAppFile) {
     event.respondWith(
       caches.match(request, {ignoreSearch:true}).then(cached => {
-        const networkFetch = fetch(request)
+        const networkFetch = fetch(request, {cache:"no-store"})
           .then(response => cacheResponse(request, response))
           .catch(() => null);
         return cached || networkFetch;
