@@ -1,3 +1,15 @@
+const MAX_PRESSURE_EVENT_HISTORY = 500;
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function clampInteger(value, min, max, fallback) {
+  return Math.round(clampNumber(value, min, max, fallback));
+}
+
 export function createPressureSession({
   routineId,
   mode="streak",
@@ -7,10 +19,15 @@ export function createPressureSession({
   finalReps=3,
   escalationStep=2
 } = {}) {
+  const safeLives = clampInteger(lives, 1, 99, 3);
+  const safeTargetStreak = clampInteger(targetStreak, 1, 999, 5);
+  const safeFinalReps = clampInteger(finalReps, 1, 99, 3);
+  const safeEscalationStep = clampInteger(escalationStep, 1, 99, 2);
+  const safeMode = ["streak", "lives", "recovery"].includes(mode) ? mode : "streak";
   return {
     active:true,
     routineId:routineId || "",
-    mode,
+    mode:safeMode,
     startedAt:new Date().toISOString(),
     attempts:0,
     makes:0,
@@ -20,12 +37,12 @@ export function createPressureSession({
     streak:0,
     bestStreak:0,
     resets:0,
-    livesStart:Number(lives || 3),
-    livesRemaining:Number(lives || 3),
-    targetStreak:Number(targetStreak || 5),
+    livesStart:safeLives,
+    livesRemaining:safeLives,
+    targetStreak:safeTargetStreak,
     suddenDeath:!!suddenDeath,
-    finalReps:Number(finalReps || 3),
-    escalationStep:Number(escalationStep || 2),
+    finalReps:safeFinalReps,
+    escalationStep:safeEscalationStep,
     recoveryMode:false,
     recoveryAttempts:0,
     recoverySuccesses:0,
@@ -36,12 +53,18 @@ export function createPressureSession({
     collapseEvents:0,
     fatigueRisk:0,
     eventHistory:[],
+    historyTruncated:false,
     completed:false
   };
 }
 
+function prunePressureEventHistory(history) {
+  const arr = Array.isArray(history) ? history : [];
+  return arr.length > MAX_PRESSURE_EVENT_HISTORY ? arr.slice(-MAX_PRESSURE_EVENT_HISTORY) : arr;
+}
+
 function cloneSession(session) {
-  return {...session, eventHistory:[...(session?.eventHistory || [])]};
+  return {...session, eventHistory:prunePressureEventHistory(session?.eventHistory || [])};
 }
 
 export function pressureLevelLabel(level) {
@@ -90,6 +113,10 @@ export function recordPressureEvent(session, type) {
   const clutchBefore = isClutchZone(s);
   const weight = eventWeight(s);
 
+  if (s.eventHistory.length >= MAX_PRESSURE_EVENT_HISTORY) {
+    s.eventHistory = s.eventHistory.slice(-Math.floor(MAX_PRESSURE_EVENT_HISTORY * 0.7));
+    s.historyTruncated = true;
+  }
   s.eventHistory.push({
     type,
     at:new Date().toISOString(),
@@ -146,6 +173,7 @@ export function recordPressureEvent(session, type) {
 }
 
 export function undoPressureEvent(session) {
+  if (session?.historyTruncated) return session;
   const history = [...(session?.eventHistory || [])];
   if (!history.length) return session;
   const initial = createPressureSession({

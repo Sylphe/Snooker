@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.7";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.7";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.8";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.8";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.7";
+} from "./utils.js?v=5.5.8";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.7";
+} from "./settings.js?v=5.5.8";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.7";
+} from "./analytics.js?v=5.5.8";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.7";
+} from "./bayesian.js?v=5.5.8";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.7";
+} from "./session.js?v=5.5.8";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.7";
+} from "./pressure.js?v=5.5.8";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.7";
+} from "./recommendations.js?v=5.5.8";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -109,7 +109,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.7";
+} from "./store.js?v=5.5.8";
 
 
 
@@ -435,7 +435,6 @@ function ensureSkillTaxonomyReady(){
   if(!tax || !Array.isArray(tax.skills) || tax.version !== SKILL_TAXONOMY_VERSION){
     data.skillTaxonomy = normalizeSkillTaxonomy(tax || defaultSkillTaxonomy());
     activeSkillTaxonomyForNormalization = data.skillTaxonomy; invalidateSkillLibraryCache();
-    invalidateSkillLibraryCache();
     return;
   }
   if(activeSkillTaxonomyForNormalization !== tax){
@@ -2309,7 +2308,7 @@ function migrateData(d) {
   const grouped = {};
   d.logs.forEach(l => {
     if (!l.sessionId) return;
-    grouped[l.sessionId] ||= [];
+    if (!grouped[l.sessionId]) grouped[l.sessionId] = [];
     grouped[l.sessionId].push(l);
   });
   Object.entries(grouped).forEach(([sid, logs]) => {
@@ -2876,8 +2875,8 @@ function renderRoutineList() {
   const grouped = {};
   routines.forEach(r => {
     const f = r.folder || "Unfiled", s = r.subfolder || "General";
-    grouped[f] ||= {};
-    grouped[f][s] ||= [];
+    if (!grouped[f]) grouped[f] = {};
+    if (!grouped[f][s]) grouped[f][s] = [];
     grouped[f][s].push(r);
   });
 
@@ -3921,7 +3920,11 @@ safeOn("timerPauseBtn", "click", () => {
   syncTimerStateToActiveSession();
   syncFocusWakeLock();
 });
-safeOn("timerResetBtn", "click", resetTimerState);
+safeOn("timerResetBtn", "click", () => {
+  const elapsed = getElapsedMinutes();
+  if (elapsed > 1 && !window.confirm(`Reset timer? You will lose ${elapsed.toFixed(1)} minutes of tracked time.`)) return;
+  resetTimerState();
+});
 function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; syncFocusWakeLock(); }
 function updateTimerDisplay() {
   if ($("timerDisplay")) $("timerDisplay").textContent = formatElapsedClock(getElapsedMs());
@@ -4035,7 +4038,7 @@ function bucketLogs(logs, period) {
     } else if (period === "monthly") key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
     else if (period === "yearly") key = String(d.getFullYear());
     else key = localDateKey(d);
-    buckets[key] ||= {label:key, logs:[], time:0, avg:0, count:0};
+    if (!buckets[key]) buckets[key] = {label:key, logs:[], time:0, avg:0, count:0};
     buckets[key].logs.push(l);
     buckets[key].time += Number(l.timeMinutes || 0);
   });
@@ -4641,7 +4644,8 @@ function adaptiveRoutineState(routineId) {
     reasons.push("normal training zone");
   }
 
-  return {routine:r, logs, recent, hit, psi, drift, plateau, fatigue, days, upgrade, gap, phase, reasons};
+  const targetGap = hit === null ? 0 : Math.max(0, 80 - hit);
+  return {routine:r, logs, recent, hit, psi, drift, plateau, fatigue, days, upgrade, gap, targetGap, phase, reasons};
 }
 
 function adaptivePriorityScore(state, goal="auto") {
@@ -5357,10 +5361,13 @@ function setSmartRecommendationMode(value) {
   if ($("adaptiveEngineOutput")) renderAdaptiveSession();
 }
 function gaussianRandom() {
-  let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  let u = 0, v = 0, s = 0;
+  do {
+    u = Math.random() * 2 - 1;
+    v = Math.random() * 2 - 1;
+    s = u * u + v * v;
+  } while (s <= 0 || s >= 1);
+  return u * Math.sqrt((-2 * Math.log(s)) / s);
 }
 function routineEvidenceLabel(n) {
   const e = evidenceStrength(n);
@@ -5726,7 +5733,7 @@ function groupContextEffects(logs, keyFn, label) {
   logs.forEach(l => {
     const key = keyFn(l);
     if (!key) return;
-    groups[key] ||= [];
+    if (!groups[key]) groups[key] = [];
     groups[key].push(l);
   });
   return Object.entries(groups).map(([key, arr]) => {
@@ -5784,7 +5791,7 @@ function contextEffectTable(logs, keyFn, label, minN=3){
     rows.forEach(x=>{
       const key=keyFn(x.log);
       if(!key) return;
-      groups[key] ||= [];
+      if (!groups[key]) groups[key] = [];
       groups[key].push(x.score);
     });
     return Object.entries(groups).map(([key, vals])=>{
@@ -6605,7 +6612,7 @@ function routinePerformanceLeader(logs, mode="best") {
   const groups = {};
   logs.forEach(l => {
     const rid = l.routineId || "unknown";
-    groups[rid] ||= [];
+    if (!groups[rid]) groups[rid] = [];
     groups[rid].push(l);
   });
   const rows = Object.entries(groups).map(([rid, arr]) => {
@@ -6624,7 +6631,7 @@ function mostImprovedRoutine(logs) {
   const groups = {};
   logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(l => {
     const rid = l.routineId || "unknown";
-    groups[rid] ||= [];
+    if (!groups[rid]) groups[rid] = [];
     groups[rid].push(l);
   });
   const rows = Object.entries(groups).map(([rid, arr]) => {
@@ -6680,7 +6687,7 @@ function weaknessConcentration(logs) {
   const groups = {};
   logs.forEach(l => {
     const k = l.category || "uncategorized";
-    groups[k] ||= [];
+    if (!groups[k]) groups[k] = [];
     groups[k].push(l);
   });
   return Object.entries(groups).map(([category, arr]) => {
@@ -6803,7 +6810,7 @@ function optimalSessionLength(logs) {
   const sessionGroups = {};
   logs.forEach(l => {
     const sid = l.sessionId || "unknown";
-    sessionGroups[sid] ||= [];
+    if (!sessionGroups[sid]) sessionGroups[sid] = [];
     sessionGroups[sid].push(l);
   });
   const sessions = Object.values(sessionGroups).map(arr => {
@@ -6837,15 +6844,15 @@ function exerciseTransferEffect(allLogs, targetRid) {
   allLogs.forEach(l => {
     if (l.routineId !== targetRid && l.category && l.category !== targetCategory) {
       const day = localDateKey(l.createdAt);
-      candidates[l.category] ||= {};
-      candidates[l.category][day] ||= [];
+      if (!candidates[l.category]) candidates[l.category] = {};
+      if (!candidates[l.category][day]) candidates[l.category][day] = [];
       candidates[l.category][day].push(Number(l.normalizedScore||0));
     }
   });
   const targetByDay = {};
   targetLogs.forEach(l => {
     const day = localDateKey(l.createdAt);
-    targetByDay[day] ||= [];
+    if (!targetByDay[day]) targetByDay[day] = [];
     targetByDay[day].push(Number(l.normalizedScore||0));
   });
   const results = Object.entries(candidates).map(([cat, byDay]) => {
@@ -7034,7 +7041,7 @@ function renderTargetProfileSummary(logs) {
   const groups = {};
   logs.forEach(l => {
     const label = getTargetProfileLabel(l);
-    groups[label] ||= [];
+    if (!groups[label]) groups[label] = [];
     groups[label].push(l);
   });
   const entries = Object.entries(groups);
@@ -7357,7 +7364,7 @@ function renderToday() {
   const byType = {}, bySession = {};
   logs.forEach(l => {
     byType[l.category || "uncategorized"] = (byType[l.category || "uncategorized"] || 0) + 1;
-    bySession[l.sessionId] ||= {name: getPlanName(l), type: l.sessionType || "", logs: []};
+    if (!bySession[l.sessionId]) bySession[l.sessionId] = {name: getPlanName(l), type: l.sessionType || "", logs: []};
     bySession[l.sessionId].logs.push(l);
   });
   const hit = targetHitRate(logs);
@@ -7455,7 +7462,7 @@ function renderCategoryChart(logs) {
   const grouped = {};
   logs.forEach(l => {
     const k = l.category || "uncategorized";
-    grouped[k] ||= {label:k, count:0, time:0};
+    if (!grouped[k]) grouped[k] = {label:k, count:0, time:0};
     grouped[k].count += 1;
     grouped[k].time += Number(l.timeMinutes || 0);
   });
