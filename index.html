@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v4.43.0</title>
+  <title>Snooker Practice Log v5.1.0</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
 
   <script>
@@ -31,15 +31,15 @@
       } catch(e) {}
     })();
   </script>
-  <link rel="manifest" href="manifest.json?v=4.43.0" />
-  <link rel="stylesheet" href="styles.css?v=4.43.0" />
-  <link rel="icon" href="icon.svg?v=4.43.0" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json?v=5.1.0" />
+  <link rel="stylesheet" href="styles.css?v=5.1.0" />
+  <link rel="icon" href="icon.svg?v=5.1.0" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v4.43.0 · Build 2026-05-18 18:43 CEST — Skill Tag Manager.</p>
+      <p>v5.1.0 · Build 2026-05-19 08:07 CEST — Visual hierarchy cleanup.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -47,10 +47,17 @@
   <nav class="tabs">
     <button class="tab active" data-tab="practice">Practice</button>
     <button class="tab" data-tab="today">Today</button>
-    <button class="tab" data-tab="templates">Exercises</button>
+    <button class="tab" data-tab="templates">Library</button>
     <button class="tab" data-tab="plans">Plans</button>
     <button class="tab" data-tab="stats">Stats</button>
-    <button class="tab" data-tab="data">Data</button>
+    <button class="tab" data-tab="data">Settings/Data</button>
+  </nav>
+
+  <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
+    <button type="button" class="mobile-nav-btn active" data-tab="practice"><span class="mobile-nav-icon">●</span><span>Practice</span></button>
+    <button type="button" class="mobile-nav-btn" data-tab="templates"><span class="mobile-nav-icon">◇</span><span>Library</span></button>
+    <button type="button" class="mobile-nav-btn" data-tab="stats"><span class="mobile-nav-icon">▥</span><span>Stats</span></button>
+    <button type="button" class="mobile-nav-btn" data-tab="data"><span class="mobile-nav-icon">☰</span><span>Settings</span></button>
   </nav>
 
   <div id="backupReminderBanner" class="backup-banner hidden"></div>
@@ -68,6 +75,8 @@
       </div>
 
       <div id="quickResumeBanner" class="card quick-resume-banner hidden"></div>
+
+      <div id="practiceTodayCommand" class="card practice-command-card"></div>
 
       <div class="practice-tab-panel active" data-practice-panel="regular">
         <div class="card practice-start-card">
@@ -432,7 +441,13 @@
 
     <section id="templates" class="panel">
       <div class="card templates-hub-card">
-        <h2>Exercises</h2>
+        <h2>Library</h2>
+        <p class="muted">Manage training assets: exercises, plans, tables, and skill tags.</p>
+        <div class="library-quick-nav">
+          <button type="button" class="secondary library-nav-btn active-library-link" data-action="open-library-exercises" aria-current="page">Exercises</button>
+          <button type="button" class="secondary library-nav-btn" data-action="open-library-plans">Plans</button>
+          <button type="button" class="secondary library-nav-btn" data-action="open-library-skills">Skill Tags</button>
+        </div>
         <div class="templates-main-nav" role="tablist" aria-label="Exercise sections">
           <button type="button" class="templates-nav-btn active-subtab" data-action="templates-main-tab" data-templates-tab="exercises" role="tab" aria-selected="true">Exercise Database</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="tables" role="tab" aria-selected="false">Table/Venue Database</button>
@@ -750,6 +765,15 @@
     </section>
 
     <section id="plans" class="panel">
+      <div class="card templates-hub-card library-plans-hub-card">
+        <h2>Library</h2>
+        <p class="muted">Plans are part of the Library. Use these controls to move between Exercises, Plans, and Skill Tags without leaving the Library flow.</p>
+        <div class="library-quick-nav">
+          <button type="button" class="secondary library-nav-btn" data-action="open-library-exercises">Exercises</button>
+          <button type="button" class="secondary library-nav-btn active-library-link" data-action="open-library-plans" aria-current="page">Plans</button>
+          <button type="button" class="secondary library-nav-btn" data-action="open-library-skills">Skill Tags</button>
+        </div>
+      </div>
       <div class="card plans-hub-card">
         <h2>Plans</h2>
         <div class="plans-main-nav" role="tablist" aria-label="Plan sections">
@@ -861,17 +885,27 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <div class="stats-subtabs stats-internal-nav" role="tablist" aria-label="Stats sections">
-          <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
-          <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
-          <button id="statsGraphsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="graphs">Graphs</button>
-          <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
-          <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
-          <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
-          <button id="statsBayesianBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="bayesian">True Skill</button>
-          <button id="statsABBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="ab">A/B</button>
-          <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Drill Compare</button>
-          <button id="statsTournamentBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="tournament">Tournament</button>
+        <p class="muted">Stats are now grouped by decision need: quick overview, training analysis, and advanced comparison tools.</p>
+        <div class="stats-subtabs stats-internal-nav stats-hub-nav" role="tablist" aria-label="Stats sections">
+          <div class="stats-nav-group" aria-label="Core stats">
+            <span class="stats-nav-label">Core</span>
+            <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
+            <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
+          </div>
+          <div class="stats-nav-group" aria-label="Training analysis">
+            <span class="stats-nav-label">Training</span>
+            <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
+            <button id="statsGraphsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="graphs">Graphs</button>
+            <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
+            <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
+          </div>
+          <div class="stats-nav-group" aria-label="Advanced comparison">
+            <span class="stats-nav-label">Advanced</span>
+            <button id="statsBayesianBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="bayesian">True Skill</button>
+            <button id="statsABBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="ab">A/B</button>
+            <button id="statsCounterfactualBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="counterfactual">Drill Compare</button>
+            <button id="statsTournamentBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="tournament">Tournament</button>
+          </div>
         </div>
         <div class="grid three">
           <div>
@@ -987,12 +1021,12 @@
 
     <section id="data" class="panel">
       <div class="card data-hub-card">
-        <h2>Data & Settings</h2>
-        <p class="muted">Manage interface preferences, backups/imports, and developer safety tools from separate sections.</p>
+        <h2>Settings</h2>
+        <p class="muted">Settings are grouped into interface preferences, backups/imports, and system safety tools.</p>
         <div class="data-main-nav" role="tablist" aria-label="Data tab sections">
-          <button type="button" class="data-nav-btn active-subtab" data-action="data-main-tab" data-data-tab="settings" role="tab" aria-selected="true">Settings</button>
-          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="import-export" role="tab" aria-selected="false">Import / Export</button>
-          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="developer" role="tab" aria-selected="false">Developer options</button>
+          <button type="button" class="data-nav-btn active-subtab" data-action="data-main-tab" data-data-tab="settings" role="tab" aria-selected="true">Interface</button>
+          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="import-export" role="tab" aria-selected="false">Backup</button>
+          <button type="button" class="data-nav-btn" data-action="data-main-tab" data-data-tab="developer" role="tab" aria-selected="false">System</button>
         </div>
       </div>
 
@@ -1088,7 +1122,7 @@
           <button type="button" class="data-subnav-btn active-subtab" disabled>Data import / export</button>
         </div>
         <div class="card">
-          <h2>Data export / import</h2>
+          <h2>Backup & import</h2>
           <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
           <div class="row">
             <button id="exportCsvBtn">Export CSV</button>
@@ -1120,7 +1154,7 @@
           <button type="button" class="data-subnav-btn active-subtab" disabled>Reset app data</button>
         </div>
         <div class="card">
-          <h2>Storage safety dashboard</h2>
+          <h2>System safety dashboard</h2>
           <p class="muted">Track localStorage and IndexedDB health before larger refactors. Use the diagnostic tools below to verify storage integrity after upgrades, imports, and stress tests.</p>
           <div id="storageDashboard" class="storage-dashboard analytics-note">Storage dashboard will appear here.</div>
           <div class="row">
@@ -1304,7 +1338,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=4.43.0"></script>
+  <script type="module" src="app.js?v=5.1.0"></script>
 </body>
 
 

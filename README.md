@@ -1,26 +1,23 @@
-# Snooker Practice PWA v4.43.0
+# Snooker Practice PWA v5.1.0
 
-## v4.43.0 — Skill Tag Manager
+## v5.1.0 — Visual Hierarchy Cleanup
 
-Built from v4.42.0 Adaptive Session Periodization.
+Built from the v5.0.3 mobile navigation redesign branch. This release intentionally postpones the Practice command-center tile redesign and focuses on low-risk visual cleanup across the existing UI.
 
-### Added
-- Skill Tag Manager tab under Exercises.
-- Add, edit, archive/restore, and merge controlled skill tags.
-- Alias management to prevent duplicate variants such as `cueball speed`, `cue ball speed`, and `cue-ball speed`.
-- Category management for Technical, Break-building, Safety / tactical, Mental, Physical, and Custom skill groups.
-- Optional transfer relationship field for future skill-relationship analytics.
-- Exercise creator skill chips now read from the managed skill library.
-- Historical routine/log skill references can be remapped when tags are merged.
-- New app icon applied via `icon.svg` and manifest references.
-
-### Guardrails
-- No storage/hydration/session-flow changes.
-- Existing default skill tags remain available.
-- Archived tags are hidden from new selection chips but remain readable in historical data.
-- Skill references continue to use stable canonical IDs.
-- Bootstrap/render hardening remains in place.
+### Included
+- Reduced nested-card border fatigue with softer grouped surfaces.
+- Calmer card hierarchy using subtle background surfaces and lighter shadows.
+- Simplified routine cards with one-line metadata instead of multiple visible badges.
+- Preserved only high-signal routine badges such as Anchor or inactive recommendation status.
+- Added more whitespace and cleaner mobile routine-card stacking.
+- No analytics, storage, hydration, recommendation, or session-schema changes.
 
 ### Build
-- Version: v4.43.0
-- Build timestamp: 2026-05-18 18:43 CEST
+- Version: v5.1.0
+- Build timestamp: 2026-05-19 08:07 CEST
+- Source base: v5.0.3 mobile navigation redesign part 3
+
+### Validation
+- JavaScript syntax checks passed.
+- Duplicate declaration checks passed.
+- Zip integrity check passed.

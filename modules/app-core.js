@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=4.43.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=4.43.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.1.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.1.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=4.43.0";
+} from "./utils.js?v=5.1.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=4.43.0";
+} from "./settings.js?v=5.1.0";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=4.43.0";
+} from "./analytics.js?v=5.1.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=4.43.0";
+} from "./bayesian.js?v=5.1.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=4.43.0";
+} from "./session.js?v=5.1.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=4.43.0";
+} from "./pressure.js?v=5.1.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=4.43.0";
+} from "./recommendations.js?v=5.1.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=4.43.0";
+} from "./store.js?v=5.1.0";
 
 
 
@@ -371,6 +371,32 @@ const DEFAULT_SKILLS = [
   {id:"stamina", label:"Stamina", group:"Physical", aliases:["endurance","fatigue resistance","fatigue"]}
 ];
 let activeSkillTaxonomyForNormalization = null;
+let skillLibraryCacheSource = null;
+let skillLibraryCacheAll = null;
+let skillLibraryCacheActive = null;
+function invalidateSkillLibraryCache(){
+  skillLibraryCacheSource = null;
+  skillLibraryCacheAll = null;
+  skillLibraryCacheActive = null;
+}
+function ensureSkillTaxonomyReady(){
+  if(!data || typeof data !== "object") return;
+  const tax = data.skillTaxonomy;
+  if(!tax || !Array.isArray(tax.skills) || tax.version !== SKILL_TAXONOMY_VERSION){
+    data.skillTaxonomy = normalizeSkillTaxonomy(tax || defaultSkillTaxonomy());
+    activeSkillTaxonomyForNormalization = data.skillTaxonomy; invalidateSkillLibraryCache();
+    invalidateSkillLibraryCache();
+    return;
+  }
+  if(activeSkillTaxonomyForNormalization !== tax){
+    activeSkillTaxonomyForNormalization = tax;
+    invalidateSkillLibraryCache();
+  }
+}
+function activeTemplatesPanelName(){
+  const active = document.querySelector('[data-templates-panel].active:not(.hidden)');
+  return active?.dataset?.templatesPanel || null;
+}
 function canonicalSkillKey(value){
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 }
@@ -401,8 +427,13 @@ function normalizeSkillTaxonomy(taxonomy){
 }
 function defaultSkillTaxonomy(){ return normalizeSkillTaxonomy({skills:DEFAULT_SKILLS}); }
 function currentSkillLibrary(options={}){
-  const lib = mergeSkillLibraries(activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS);
-  return options.includeArchived === false ? lib.filter(s => s.active !== false) : lib;
+  const source = activeSkillTaxonomyForNormalization?.skills || DEFAULT_SKILLS;
+  if(skillLibraryCacheSource !== source || !skillLibraryCacheAll){
+    skillLibraryCacheSource = source;
+    skillLibraryCacheAll = (Array.isArray(source) ? source : DEFAULT_SKILLS).slice().sort((a,b)=>String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));
+    skillLibraryCacheActive = skillLibraryCacheAll.filter(s => s.active !== false);
+  }
+  return options.includeArchived === false ? skillLibraryCacheActive : skillLibraryCacheAll;
 }
 function skillAliasMap(){
   const map = {};
@@ -699,7 +730,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v5.1.0 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -795,10 +826,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v5.1.0 Adaptive Session Periodization ===== */
 
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v5.1.0 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -904,9 +935,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v5.1.0 Adaptive Session Periodization ===== */
 
-/* ===== v4.43.0 Adaptive Session Periodization ===== */
+/* ===== v5.1.0 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -993,7 +1024,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v4.43.0 Adaptive Session Periodization ===== */
+/* ===== end v5.1.0 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -2135,18 +2166,24 @@ function editCategoryOptions(current) {
 }
 
 function activateTab(tabId) {
-  const btn = Array.from(document.querySelectorAll(".tab")).find(b => b.dataset.tab === tabId);
   const panel = $(tabId);
-  if (!btn || !panel) return;
-  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  if (!panel) return;
+  document.querySelectorAll(".tab, .mobile-nav-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  btn.classList.add("active");
+  document.querySelectorAll(`[data-tab="${CSS.escape(tabId)}"]`).forEach(b => {
+    if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
+  });
+  if (tabId === "plans") {
+    // v5.1.0: Plans is now treated as a Library sub-area in the mobile IA.
+    document.querySelectorAll('.mobile-nav-btn[data-tab="templates"]').forEach(b => b.classList.add("active"));
+  }
   panel.classList.add("active");
+  if (tabId === "practice") renderPracticeTodayCommand();
   if (tabId === "today") renderToday();
   if (tabId === "stats") renderStats();
 }
 
-document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
+document.querySelectorAll(".tab, .mobile-nav-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 
 function renderAll() {
   const renderSteps = [
@@ -2157,6 +2194,7 @@ function renderAll() {
     ["renderPlanList", renderPlanList],
     ["renderStats", renderStats],
     ["renderToday", renderToday],
+    ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
     ["renderTagSuggestions", renderTagSuggestions],
     ["renderBackupReminder", renderBackupReminder],
@@ -2165,7 +2203,7 @@ function renderAll() {
     ["renderPeriodization", renderPeriodization],
     ["renderRegretRoutineOptions", renderRegretRoutineOptions],
     ["renderTableDatabase", renderTableDatabase],
-    ["renderSkillManager", renderSkillManager],
+    ["renderSkillManager", () => { if (activeTemplatesPanelName() === "skills") renderSkillManager(); }],
     ["renderTableSelects", renderTableSelects],
     ["renderTrainingLoad", renderTrainingLoad],
     ["renderWeeklyReview", renderWeeklyReview],
@@ -2189,8 +2227,7 @@ function renderAll() {
 }
 
 function renderRoutineSelects() {
-  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
-  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  ensureSkillTaxonomyReady();
   renderPrimarySkillOptions();
   const cats = categories(), flds = folders(), subs = subfolders();
 
@@ -2251,29 +2288,32 @@ function renderRoutineList() {
   ).join("");
 }
 function renderRoutineItem(r) {
+  const skillMap = getRoutineSkillMap(r);
+  const primarySkill = skillMap?.primarySkill ? skillLabel(skillMap.primarySkill) : "";
   const meta = [
+    r.category ? htmlText(r.category) : "Uncategorized",
+    htmlText(fmtScoring(r.scoring)),
+    primarySkill ? `Skill: ${htmlText(primarySkill)}` : "",
     r.duration ? `${numText(r.duration)}m` : "",
     r.target ? `Target ${numText(r.target)}` : "",
     r.attempts ? `${numText(r.attempts)} reps` : "",
     r.scoring === "progressive_completion" && r.totalUnits ? `Progressive ${numText(r.totalUnits)} ${htmlText(progressiveUnitLabel(r))}` : ""
   ].filter(Boolean).join(" · ");
   const statusBadges = [
-    `<span class="badge">${htmlText(fmtScoring(r.scoring))}</span>`,
     r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : "",
-    recommendationMode(r) !== "active" ? `<span class="badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""
+    recommendationMode(r) !== "active" ? `<span class="badge routine-status-badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""
   ].filter(Boolean).join("");
   return `<div class="item routine-item-clean">
-    <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges}</div>
-    <p>${htmlText(r.description || "")}</p>
-    <div class="routine-meta-line">${htmlText(r.category || "uncategorized")}${meta ? ` · ${meta}` : ""}</div>
-    <div class="routine-skill-row">${routineSkillBadges(r)}</div>
+    <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges ? `<span class="routine-status-row">${statusBadges}</span>` : ""}</div>
+    <div class="routine-meta-line routine-meta-compact">${meta}</div>
+    ${r.description ? `<p class="routine-description-compact">${htmlText(r.description)}</p>` : ""}
     ${r.stretchTarget ? `<div class="routine-meta-line">Stretch target ${numText(r.stretchTarget)}</div>` : ""}
     ${r.scoring === "progressive_completion" && r.targetColour ? `<div class="routine-meta-line">Colour ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</div>` : ""}
     ${renderTargetUpgradeButton(r.id)}
-    <div class="small-actions">
+    <div class="small-actions routine-actions-compact">
       <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
       <button class="secondary" data-action="toggle-favorite-routine" data-id="${attrText(r.id)}">${isFavoriteRoutine(r.id) ? "Unfavorite" : "Favorite"}</button>
-              <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
+      <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
       <button class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
     </div>
   </div>`;
@@ -3577,8 +3617,7 @@ function clearSkillTagForm(){
 }
 function currentSkillById(id){ return currentSkillLibrary({includeArchived:true}).find(s => s.id === id) || null; }
 function renderSkillManager(){
-  activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
-  data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+  ensureSkillTaxonomyReady();
   const list=$("skillManagerList");
   if(!list) return;
   const q=($("skillManagerSearch")?.value||"").trim().toLowerCase();
@@ -3620,7 +3659,7 @@ function saveSkillTagFromForm(){
   });
   skills.push(rec);
   data.skillTaxonomy=normalizeSkillTaxonomy({skills});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   if(editId && editId !== id){
     remapSkillIdAcrossData(editId,id);
   }
@@ -3640,7 +3679,7 @@ function editSkillTag(id){
 function archiveSkillTag(id){
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   const skills=taxonomy.skills.map(s => s.id===id ? {...s, active:s.active===false?true:false} : s);
-  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  data.skillTaxonomy=normalizeSkillTaxonomy({skills}); activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tag status updated.", "ok");
 }
@@ -3681,7 +3720,7 @@ function mergeSkillTag(id){
   remapSkillIdAcrossData(id,to);
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   data.skillTaxonomy=normalizeSkillTaxonomy({skills:taxonomy.skills.map(s=>s.id===id?{...s, active:false}:s)});
-  activeSkillTaxonomyForNormalization=data.skillTaxonomy;
+  activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
   saveData({render:"all"}); renderSkillManager(); renderRoutineSelects();
   showTransientNotice("Skill tags merged.", "ok");
 }
@@ -6440,6 +6479,32 @@ function renderDateView(logs) {
   ${renderTargetProfileSummary(logs)}
   <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${logs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
 }
+function renderPracticeTodayCommand() {
+  const box = $("practiceTodayCommand");
+  if (!box) return;
+  const today = localDateKey();
+  const logs = (data.logs || []).filter(l => sameDate(l, today));
+  const totalTime = logs.reduce((a,b) => a + Number(b.timeMinutes || 0), 0);
+  const hit = targetHitRate(logs);
+  const resume = normalizePersistedSessionDraft(getPersistedActiveSession());
+  const nextRoutine = resume ? routineById(resume.routineIds?.[resume.index]) : null;
+  const recentPeriodization = safeCall("practice periodization summary", () => adaptiveSessionPeriodizationSummary?.(data.logs || []), null);
+  const theme = recentPeriodization?.nextSessionBias || recentPeriodization?.weeklyTheme || "Start with a short calibration block.";
+  box.innerHTML = `<div class="practice-command-grid">
+    <div>
+      <p class="eyebrow">Today</p>
+      <h2>${logs.length ? `${logs.length} logged exercise${logs.length===1?"":"s"}` : "No logs yet today"}</h2>
+      <p class="muted">${formatDurationHuman(totalTime)} logged${hit===null ? "" : ` · ${hit.toFixed(0)}% target hit rate`}</p>
+      <p class="tiny muted">Suggested focus: ${escapeHtml(String(theme))}</p>
+    </div>
+    <div class="practice-command-actions">
+      ${resume ? `<div class="resume-inline"><strong>Resume active session</strong><span>${Number(resume.index||0)+1}/${resume.routineIds?.length || 0}: ${escapeHtml(nextRoutine?.name || "Missing exercise")}</span></div><button type="button" data-action="resume-session">Resume</button>` : `<button type="button" data-action="practice-main-tab" data-practice-tab="smart">Start Smart Session</button>`}
+      <button type="button" class="secondary" data-action="practice-main-tab" data-practice-tab="regular">Log Single Drill</button>
+      <button type="button" class="secondary" data-action="open-today-panel">Full Today View</button>
+    </div>
+  </div>`;
+}
+
 function renderToday() {
   const today = localDateKey();
   const logs = data.logs.filter(l => sameDate(l, today)).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -7640,7 +7705,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=4.43.0");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.1.0");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8426,6 +8491,10 @@ function handleDelegatedUIAction(event) {
   switch (action) {
     case "field-help": return showFieldHelp(actionEl.dataset.helpKey || "");
     case "switch-tab": return activateTab(actionEl.dataset.tab || "practice");
+    case "open-today-panel": return activateTab("today");
+    case "open-library-exercises": activateTab("templates"); return setTemplatesMainTab("exercises");
+    case "open-library-plans": activateTab("plans"); return restorePlansMainTab();
+    case "open-library-skills": activateTab("templates"); return setTemplatesMainTab("skills");
     case "hide-field-help": return hideFieldHelp();
     case "skip-reflection": return skipReflection();
     case "save-reflection": return saveReflection();
