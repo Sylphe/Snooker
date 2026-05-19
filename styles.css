@@ -2984,7 +2984,7 @@ body.session-focus-active #timerDisplay{
   .data-hub-card .data-nav-btn{flex:1 1 30%;}
 }
 
-/* v5.1.0 Visual hierarchy cleanup — calmer surfaces and simplified routine metadata */
+/* v5.1.1 Visual hierarchy cleanup — calmer surfaces and simplified routine metadata */
 :root{
   --surface-soft:rgba(16,43,34,.035);
   --surface-softer:rgba(16,43,34,.022);
@@ -3097,4 +3097,165 @@ body.session-focus-active #timerDisplay{
   .routine-item-clean .item-title{flex-direction:column;gap:6px}
   .routine-status-row{justify-content:flex-start}
   .routine-actions-compact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+}
+
+/* v5.1.1 Theme Control Consistency Fix
+   Ensures tabs, submenus, form controls, file buttons and chip buttons never fall
+   back to browser/default white surfaces in dark or contrast modes. */
+body[data-theme="dark"],
+body[data-theme="contrast"]{
+  color-scheme: dark;
+}
+body[data-theme="dark"] :is(
+  button,
+  .button,
+  .file-btn,
+  input,
+  select,
+  textarea,
+  .tab,
+  .stats-nav-btn,
+  .stats-subnav button,
+  .stats-subtabs button,
+  .practice-nav-btn,
+  .practice-subnav button,
+  .plans-nav-btn,
+  .plans-subnav button,
+  .data-nav-btn,
+  .data-subnav-btn,
+  .library-quick-nav button,
+  .library-quick-link,
+  .skill-select-chip,
+  .rating-tile,
+  .numpad-btn,
+  .chip,
+  .tag-chip
+){
+  background: var(--panel-bg-2) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+  box-shadow: none;
+}
+body[data-theme="dark"] :is(
+  button:not(.secondary):not(.danger):not(.ghost):not(.icon-btn),
+  .file-btn,
+  .primary-start-btn,
+  button.success,
+  .active-subtab,
+  .tab.active,
+  .stats-nav-btn.active,
+  .stats-subnav button.active,
+  .stats-subtabs button.active,
+  .practice-nav-btn.active,
+  .plans-nav-btn.active,
+  .data-nav-btn.active,
+  .data-subnav-btn.active,
+  .library-quick-nav .active-library-link,
+  .skill-select-chip.active,
+  .rating-tile.active
+){
+  background: linear-gradient(180deg,#1f7a55,#176143) !important;
+  color: #f3fff8 !important;
+  border-color: rgba(74,222,128,.38) !important;
+}
+body[data-theme="dark"] :is(
+  button.secondary,
+  .secondary,
+  .ghost,
+  .icon-btn,
+  .stats-nav-btn:not(.active),
+  .stats-subnav button:not(.active),
+  .stats-subtabs button:not(.active),
+  .practice-nav-btn:not(.active),
+  .plans-nav-btn:not(.active),
+  .data-nav-btn:not(.active),
+  .data-subnav-btn:not(.active),
+  .library-quick-link:not(.active-library-link)
+){
+  background: var(--panel-bg-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+}
+body[data-theme="dark"] :is(button:hover,.file-btn:hover,.tab:hover,.stats-nav-btn:hover,.practice-nav-btn:hover,.plans-nav-btn:hover,.data-nav-btn:hover,.data-subnav-btn:hover,.skill-select-chip:hover){
+  background: var(--panel-bg-3) !important;
+  color: var(--text) !important;
+}
+body[data-theme="dark"] :is(button.success:hover,.primary-start-btn:hover,.active-subtab:hover,.tab.active:hover,.stats-nav-btn.active:hover,.practice-nav-btn.active:hover,.plans-nav-btn.active:hover,.data-nav-btn.active:hover,.data-subnav-btn.active:hover){
+  background: linear-gradient(180deg,#23865e,#1a6d4c) !important;
+  color:#f3fff8 !important;
+}
+body[data-theme="dark"] :is(input,select,textarea):focus{
+  outline: 2px solid rgba(74,222,128,.26) !important;
+  border-color: rgba(74,222,128,.52) !important;
+  background: var(--panel-bg-3) !important;
+}
+body[data-theme="dark"] :is(option,optgroup){
+  background: var(--panel-bg-2) !important;
+  color: var(--text) !important;
+}
+body[data-theme="dark"] input[type="checkbox"],
+body[data-theme="dark"] input[type="radio"]{
+  accent-color:#22c55e;
+  background: transparent !important;
+  color: inherit !important;
+}
+body[data-theme="dark"] input[readonly],
+body[data-theme="dark"] input:disabled,
+body[data-theme="dark"] select:disabled,
+body[data-theme="dark"] textarea:disabled,
+body[data-theme="dark"] button:disabled{
+  opacity:.58;
+  background: rgba(255,255,255,.04) !important;
+  color: var(--muted) !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+body[data-theme="dark"] .danger{
+  background:#7f1d1d !important;
+  color:#fff5f5 !important;
+  border-color:#991b1b !important;
+}
+body[data-theme="contrast"] :is(
+  button,
+  .button,
+  .file-btn,
+  input,
+  select,
+  textarea,
+  .tab,
+  .stats-nav-btn,
+  .stats-subnav button,
+  .stats-subtabs button,
+  .practice-nav-btn,
+  .plans-nav-btn,
+  .data-nav-btn,
+  .data-subnav-btn,
+  .library-quick-link,
+  .skill-select-chip,
+  .rating-tile
+){
+  background:#000 !important;
+  color:#fff !important;
+  border:2px solid #fff !important;
+}
+body[data-theme="contrast"] :is(
+  .tab.active,
+  .active-subtab,
+  .stats-nav-btn.active,
+  .practice-nav-btn.active,
+  .plans-nav-btn.active,
+  .data-nav-btn.active,
+  .data-subnav-btn.active,
+  .library-quick-nav .active-library-link,
+  .skill-select-chip.active,
+  .rating-tile.active,
+  button:not(.secondary):not(.danger)
+){
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#fff !important;
+}
+body[data-theme="dark"] .tabs,
+body[data-theme="dark"] :is(.stats-internal-nav,.stats-subnav,.stats-subtabs,.practice-main-nav,.plans-main-nav,.data-main-nav,.data-subnav,.library-quick-nav){
+  background: transparent !important;
+  border-color: var(--line) !important;
 }

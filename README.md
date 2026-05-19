@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.1.0
+# Snooker Practice PWA v5.1.1
 
-## v5.1.0 — Visual Hierarchy Cleanup
+## v5.1.1 — Theme Control Consistency Fix
 
 Built from the v5.0.3 mobile navigation redesign branch. This release intentionally postpones the Practice command-center tile redesign and focuses on low-risk visual cleanup across the existing UI.
 
@@ -13,11 +13,16 @@ Built from the v5.0.3 mobile navigation redesign branch. This release intentiona
 - No analytics, storage, hydration, recommendation, or session-schema changes.
 
 ### Build
-- Version: v5.1.0
-- Build timestamp: 2026-05-19 08:07 CEST
+- Version: v5.1.1
+- Build timestamp: 2026-05-19 08:20 CEST
 - Source base: v5.0.3 mobile navigation redesign part 3
 
 ### Validation
 - JavaScript syntax checks passed.
 - Duplicate declaration checks passed.
 - Zip integrity check passed.
+
+### v5.1.1 patch
+- Normalized dark-mode styling for tab buttons, sub-navigation buttons, forms, selects, file buttons, action controls, and chip controls.
+- Prevented browser-default white backgrounds from leaking into dark/contrast modes.
+- No analytics, storage, hydration, or session logic changes.
