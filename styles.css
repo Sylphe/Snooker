@@ -4992,7 +4992,7 @@ body.session-focus-active #activeSession .live-perf{
   }
 }
 
-/* v5.3.2 Focus Mode exact cockpit recomposition */
+/* v5.3.3 Focus Mode exact cockpit recomposition */
 body.session-focus-active{
   background:radial-gradient(circle at 50% 15%, rgba(20,55,42,.42), transparent 42%),linear-gradient(180deg,#07140f 0%,#06100c 100%)!important;
   color:#f3f6f0!important;
@@ -5114,3 +5114,13 @@ body.session-focus-active .gesture-hint{font-size:9px!important;line-height:1.15
 body.session-focus-active .gesture-hint strong{display:block!important;margin-top:2px!important;font-size:10px!important;color:rgba(246,248,242,.78)!important;text-transform:uppercase!important;}
 body.session-focus-active .sticky-log-actions{display:none!important;}
 @media(max-height:620px){body.session-focus-active .current-break-card{height:138px!important}.current-break-value{font-size:80px!important}body.session-focus-active .score-key{height:46px!important}body.session-focus-active .quality-card{margin-top:7px!important}}
+
+
+/* v5.3.3 visible cockpit enforcement: keep exact Focus Mode layout above legacy score-input rules. */
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-numpad-panel),
+body.session-focus-active #activeSession #scoreInputs > .side-split-panel { display:none!important; }
+body.session-focus-active #activeSession .focus-score-cockpit { width:100%!important; max-width:437px!important; margin:0 auto!important; padding:0!important; display:block!important; background:transparent!important; border:0!important; box-shadow:none!important; }
+body.session-focus-active #activeSession .focus-score-cockpit .current-break-card { width:min(298px,calc(100vw - 72px))!important; height:154px!important; margin:10px auto 8px!important; }
+body.session-focus-active #activeSession .focus-score-cockpit .score-numpad { width:min(298px,calc(100vw - 72px))!important; margin:8px auto 0!important; display:grid!important; grid-template-columns:repeat(3,1fr)!important; gap:4px!important; }
+body.session-focus-active #activeSession .focus-score-cockpit .focus-meta-strip,
+body.session-focus-active #activeSession .focus-score-cockpit .quality-card { width:min(298px,calc(100vw - 72px))!important; }
