@@ -4178,7 +4178,7 @@ body.session-focus-active #activeSession .focus-numpad-footer button:active{
   body.session-focus-active #activeSession .focus-numpad-footer button{font-size:10.5px!important;}
 }
 
-/* v5.3.0 Focus Mode Foundation Refactor — dark performance-instrument shell */
+/* v5.3.1 Dominant Score Cockpit — dark performance-instrument shell */
 :root{
   --focus-bg-0:#03120e;
   --focus-bg-1:#071b15;
@@ -4667,4 +4667,327 @@ body.session-focus-active #activeSession.focus-state-active-break #scoreInputs .
     font-size:25px!important;
   }
   body.session-focus-active #activeSession .sticky-log-actions{bottom:6px!important;}
+}
+
+/* v5.3.1 Dominant Score Cockpit — tighter instrument-style score entry */
+body.session-focus-active main{
+  max-width:520px!important;
+  padding:0!important;
+}
+
+body.session-focus-active #activeSession{
+  max-width:520px!important;
+  min-height:100vh!important;
+  margin:0 auto!important;
+  padding:10px 16px 84px!important;
+  border-radius:0!important;
+  border:0!important;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(42,86,63,.20), transparent 42%),
+    linear-gradient(180deg, rgba(4,22,17,.98), rgba(2,12,10,.995))!important;
+  box-shadow:none!important;
+}
+
+body.session-focus-active #activeSession .session-top{
+  grid-template-columns: minmax(0,1fr) auto!important;
+  min-height:46px!important;
+  padding:0 0 8px!important;
+  margin:0 -2px 10px!important;
+  border-bottom:1px solid rgba(224,241,232,.065)!important;
+}
+
+body.session-focus-active #currentRoutineName{
+  font-size:15px!important;
+  letter-spacing:.01em!important;
+}
+
+body.session-focus-active #currentRoutineMeta{
+  margin-top:3px!important;
+  font-size:9px!important;
+  color:rgba(235,244,238,.68)!important;
+}
+
+body.session-focus-active #activeSession .timer{
+  font-size:22px!important;
+  line-height:1!important;
+}
+
+body.session-focus-active #activeSession .timer-sub{
+  font-size:9px!important;
+  letter-spacing:.10em!important;
+}
+
+body.session-focus-active #activeSession .focus-timer-action-row{
+  position:absolute!important;
+  top:15px!important;
+  right:10px!important;
+  margin:0!important;
+  z-index:8!important;
+}
+
+body.session-focus-active #activeSession .focus-timer-action-row button:not(#timerPauseBtn){
+  display:none!important;
+}
+
+body.session-focus-active #activeSession #timerPauseBtn{
+  width:38px!important;
+  min-width:38px!important;
+  height:38px!important;
+  min-height:38px!important;
+  padding:0!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.045)!important;
+  border:1px solid rgba(224,241,232,.10)!important;
+  color:var(--focus-text)!important;
+  font-size:0!important;
+}
+body.session-focus-active #activeSession #timerPauseBtn::before{
+  content:"Ⅱ";
+  font-size:18px;
+  font-weight:850;
+  line-height:1;
+}
+
+body.session-focus-active #activeSession #scoreInputs{
+  width:min(100%, 360px)!important;
+  margin:0 auto!important;
+  gap:8px!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row{
+  min-height:174px!important;
+  padding:22px 16px 18px!important;
+  border-radius:16px!important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.065), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.020))!important;
+  border:1px solid rgba(224,241,232,.065)!important;
+  box-shadow:0 22px 50px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.035)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row label,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row label{
+  margin-bottom:8px!important;
+  color:rgba(239,247,242,.72)!important;
+  font-size:11px!important;
+  letter-spacing:.10em!important;
+  font-weight:650!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
+body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input{
+  height:108px!important;
+  min-height:108px!important;
+  font-size:106px!important;
+  font-weight:900!important;
+  letter-spacing:-.065em!important;
+  text-shadow:0 16px 32px rgba(0,0,0,.42)!important;
+}
+
+body.session-focus-active #activeSession .focus-score-cockpit,
+body.session-focus-active #activeSession .focus-numpad-panel{
+  width:100%!important;
+  margin:0!important;
+}
+
+body.session-focus-active #activeSession .focus-cockpit-header{
+  display:none!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid{
+  gap:4px!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid button{
+  height:56px!important;
+  min-height:56px!important;
+  border-radius:8px!important;
+  border:1px solid rgba(224,241,232,.055)!important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.052), transparent 58%),
+    linear-gradient(180deg, rgba(255,255,255,.048), rgba(255,255,255,.020))!important;
+  color:rgba(246,250,247,.94)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.026), 0 10px 22px rgba(0,0,0,.13)!important;
+  font-size:27px!important;
+  font-weight:820!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-grid button[data-numpad-action="enter"]{
+  background:linear-gradient(180deg, rgba(91,151,94,.92), rgba(44,102,62,.90))!important;
+  border:0!important;
+  box-shadow:0 14px 30px rgba(48,133,75,.24), inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-footer{
+  grid-template-columns:1fr 1fr!important;
+  gap:4px!important;
+  margin-top:6px!important;
+}
+
+body.session-focus-active #activeSession .focus-numpad-footer button{
+  height:30px!important;
+  min-height:30px!important;
+  border-radius:8px!important;
+  background:rgba(255,255,255,.030)!important;
+  color:rgba(234,243,237,.56)!important;
+  font-size:9px!important;
+  letter-spacing:.05em!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel){
+  margin:2px 0 0!important;
+  padding:7px 9px!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.026)!important;
+  border:1px solid rgba(224,241,232,.045)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) label{
+  font-size:8.5px!important;
+  letter-spacing:.08em!important;
+  color:rgba(234,243,237,.47)!important;
+}
+
+body.session-focus-active #activeSession #scoreInputs > div:not(.focus-primary-score-row):not(.focus-numpad-panel) input{
+  height:23px!important;
+  min-height:23px!important;
+  font-size:17px!important;
+}
+
+body.session-focus-active #activeSession #sessionExtraFields{
+  width:min(100%, 360px)!important;
+  margin:7px auto 0!important;
+  gap:6px!important;
+}
+
+body.session-focus-active #activeSession #focusVenueBlock,
+body.session-focus-active #activeSession .focus-quality-block{
+  padding:7px 9px!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.026)!important;
+  border:1px solid rgba(224,241,232,.045)!important;
+}
+
+body.session-focus-active #activeSession #focusVenueBlock label,
+body.session-focus-active #activeSession .focus-quality-block label{
+  margin-bottom:5px!important;
+  font-size:8.5px!important;
+  letter-spacing:.08em!important;
+}
+
+body.session-focus-active #activeSession .quality-tile,
+body.session-focus-active #activeSession .reflection-rating-tile{
+  height:30px!important;
+  min-height:30px!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.035)!important;
+}
+
+body.session-focus-active #activeSession .quality-tile.active,
+body.session-focus-active #activeSession .reflection-rating-tile.active,
+body.session-focus-active #activeSession .quality-tile[aria-pressed="true"]{
+  background:linear-gradient(180deg, rgba(76,147,82,.78), rgba(38,99,59,.78))!important;
+}
+
+body.session-focus-active #activeSession .sticky-log-actions{
+  position:fixed!important;
+  right:14px!important;
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 34px)!important;
+  width:auto!important;
+  display:block!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  z-index:30!important;
+}
+
+body.session-focus-active #activeSession #saveNextBtn{
+  width:58px!important;
+  min-width:58px!important;
+  height:58px!important;
+  min-height:58px!important;
+  padding:0!important;
+  border-radius:999px!important;
+  font-size:0!important;
+  background:linear-gradient(180deg, rgba(90,155,91,.98), rgba(38,102,61,.98))!important;
+  box-shadow:0 18px 38px rgba(32,117,62,.34), inset 0 1px 0 rgba(255,255,255,.18)!important;
+}
+body.session-focus-active #activeSession #saveNextBtn::before{
+  content:"✓";
+  display:block;
+  font-size:30px;
+  line-height:34px;
+  font-weight:760;
+}
+body.session-focus-active #activeSession #saveNextBtn::after{
+  content:"SAVE";
+  display:block;
+  margin-top:-2px;
+  font-size:8px;
+  letter-spacing:.10em;
+  font-weight:700;
+}
+
+body.session-focus-active #activeSession #skipBtn,
+body.session-focus-active #activeSession #endFreeSessionBtn{
+  display:none!important;
+}
+
+body.session-focus-active #activeSession::after{
+  content:"← Swipe left        Long press 0        Double tap";
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  background:rgba(2,12,10,.78);
+  border-top:1px solid rgba(224,241,232,.055);
+  color:rgba(234,243,237,.58);
+  font-size:10px;
+  letter-spacing:.02em;
+  text-align:left;
+  white-space:pre;
+  z-index:20;
+}
+
+body.session-focus-active #activeSession #livePerformanceCard,
+body.session-focus-active #activeSession .live-performance-card{
+  width:min(100%, 360px)!important;
+  margin:0 auto 7px!important;
+}
+
+body.session-focus-active #activeSession .live-perf{
+  padding:6px 8px!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.024)!important;
+}
+
+@media (max-width:420px){
+  body.session-focus-active #activeSession{
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+  body.session-focus-active #activeSession #scoreInputs,
+  body.session-focus-active #activeSession #sessionExtraFields,
+  body.session-focus-active #activeSession #livePerformanceCard,
+  body.session-focus-active #activeSession .live-performance-card{
+    width:100%!important;
+  }
+  body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row,
+  body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row{
+    min-height:162px!important;
+  }
+  body.session-focus-active #activeSession #scoreInputs .focus-primary-score-row input,
+  body.session-focus-active #activeSession #scoreInputs > div.focus-primary-score-row input{
+    height:96px!important;
+    min-height:96px!important;
+    font-size:96px!important;
+  }
+  body.session-focus-active #activeSession .focus-numpad-grid button{
+    height:53px!important;
+    min-height:53px!important;
+  }
 }
