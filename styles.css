@@ -2984,7 +2984,7 @@ body.session-focus-active #timerDisplay{
   .data-hub-card .data-nav-btn{flex:1 1 30%;}
 }
 
-/* v5.1.1 Visual hierarchy cleanup — calmer surfaces and simplified routine metadata */
+/* v5.1.2 Visual hierarchy cleanup — calmer surfaces and simplified routine metadata */
 :root{
   --surface-soft:rgba(16,43,34,.035);
   --surface-softer:rgba(16,43,34,.022);
@@ -3099,7 +3099,7 @@ body.session-focus-active #timerDisplay{
   .routine-actions-compact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 }
 
-/* v5.1.1 Theme Control Consistency Fix
+/* v5.1.2 Very Compact Display Density
    Ensures tabs, submenus, form controls, file buttons and chip buttons never fall
    back to browser/default white surfaces in dark or contrast modes. */
 body[data-theme="dark"],
@@ -3258,4 +3258,134 @@ body[data-theme="dark"] .tabs,
 body[data-theme="dark"] :is(.stats-internal-nav,.stats-subnav,.stats-subtabs,.practice-main-nav,.plans-main-nav,.data-main-nav,.data-subnav,.library-quick-nav){
   background: transparent !important;
   border-color: var(--line) !important;
+}
+
+
+/* v5.1.2 Very compact display density — maximum information density */
+:root[data-density="very-compact"],body[data-density="very-compact"]{
+  --density-scale:.72;
+  --shadow:0 3px 10px rgba(0,0,0,.08);
+}
+body[data-density="very-compact"] main{padding:6px;max-width:1040px;}
+body[data-density="very-compact"] .app-header{padding:10px 10px;gap:6px;}
+body[data-density="very-compact"] .app-header h1{font-size:18px;line-height:1.05;}
+body[data-density="very-compact"] .app-header p{font-size:10.5px;margin-top:2px;line-height:1.15;}
+body[data-density="very-compact"] .tabs{border-bottom-width:1px;}
+body[data-density="very-compact"] .tab{padding:5px 2px;font-size:10.5px;min-height:30px;border-bottom-width:2px;}
+body[data-density="very-compact"] h2{font-size:15.5px;margin-bottom:5px;line-height:1.15;}
+body[data-density="very-compact"] h3{font-size:13px;margin-bottom:4px;line-height:1.15;}
+body[data-density="very-compact"] h4{font-size:12px;margin:0 0 3px;line-height:1.15;}
+body[data-density="very-compact"] p,
+body[data-density="very-compact"] .muted{font-size:11px;line-height:1.18;}
+body[data-density="very-compact"] label{font-size:10.5px;margin:5px 0 2px;line-height:1.1;}
+body[data-density="very-compact"] input,
+body[data-density="very-compact"] select,
+body[data-density="very-compact"] textarea{padding:5px 7px;border-radius:8px;font-size:12px;min-height:30px;}
+body[data-density="very-compact"] button,
+body[data-density="very-compact"] .file-btn{padding:6px 8px;border-radius:8px;font-size:11.5px;min-height:30px;line-height:1.1;}
+body[data-density="very-compact"] .card{padding:8px;margin-bottom:7px;border-radius:12px;box-shadow:none;}
+body[data-density="very-compact"] .card.nested{margin-top:6px;padding:7px;border-radius:10px;}
+body[data-density="very-compact"] .row{gap:4px;margin-top:5px;}
+body[data-density="very-compact"] .grid.two,
+body[data-density="very-compact"] .grid.three,
+body[data-density="very-compact"] .grid.five,
+body[data-density="very-compact"] .score-grid,
+body[data-density="very-compact"] .stats-grid{gap:5px;}
+body[data-density="very-compact"] .list{gap:4px;}
+body[data-density="very-compact"] .item{padding:6px 7px;border-radius:9px;}
+body[data-density="very-compact"] .item-title{gap:5px;}
+body[data-density="very-compact"] .item-title strong{font-size:12px;line-height:1.15;}
+body[data-density="very-compact"] .item p{font-size:10.5px;margin-top:2px;line-height:1.15;}
+body[data-density="very-compact"] .badge,
+body[data-density="very-compact"] .phase-pill,
+body[data-density="very-compact"] .adaptive-pill,
+body[data-density="very-compact"] .target-profile-badge,
+body[data-density="very-compact"] .chip,
+body[data-density="very-compact"] .tag-chip{padding:2px 5px;font-size:9.5px;margin:2px 2px 0 0;border-radius:999px;line-height:1.15;}
+body[data-density="very-compact"] .small-actions{gap:4px;margin-top:4px;}
+body[data-density="very-compact"] .small-actions button{padding:4px 6px;font-size:10.5px;min-height:26px;}
+body[data-density="very-compact"] .folder-group{border-radius:10px;}
+body[data-density="very-compact"] .folder-header{padding:5px 7px;font-size:11.5px;}
+body[data-density="very-compact"] .subfolder-header{padding:4px 7px;font-size:10.5px;}
+body[data-density="very-compact"] .session-top{gap:6px;}
+body[data-density="very-compact"] .timer{font-size:22px;line-height:1;}
+body[data-density="very-compact"] .timer-sub{font-size:9.5px;}
+body[data-density="very-compact"] .description-box{padding:6px;border-radius:8px;margin-bottom:5px;font-size:10.5px;line-height:1.15;}
+body[data-density="very-compact"] .quick-score{gap:4px;margin-top:5px;}
+body[data-density="very-compact"] .quick-score button{padding:5px 6px;font-size:10.5px;min-height:28px;}
+body[data-density="very-compact"] .sticky-log-actions{padding:5px;margin:6px -8px -8px;}
+body[data-density="very-compact"] .chart-wrap{padding:5px;border-radius:8px;margin-top:5px;}
+body[data-density="very-compact"] svg.chart{height:130px!important;min-width:240px;}
+body[data-density="very-compact"] .history-table{font-size:10.5px;margin-top:5px;}
+body[data-density="very-compact"] .history-table th,
+body[data-density="very-compact"] .history-table td,
+body[data-density="very-compact"] table th,
+body[data-density="very-compact"] table td{padding:3px 4px;line-height:1.12;}
+body[data-density="very-compact"] .stat-card{padding:5px;border-radius:8px;}
+body[data-density="very-compact"] .stat-card span{font-size:10px;line-height:1.1;}
+body[data-density="very-compact"] .stat-card .value{font-size:15px;margin-top:2px;}
+body[data-density="very-compact"] .analytics-note,
+body[data-density="very-compact"] .warning-note,
+body[data-density="very-compact"] .coaching-box,
+body[data-density="very-compact"] .trend,
+body[data-density="very-compact"] .difficulty-note{padding:5px 6px;margin:5px 0;border-radius:8px;font-size:10.5px;line-height:1.15;}
+body[data-density="very-compact"] .overview-kpi-dashboard,
+body[data-density="very-compact"] .overview-exec-strip,
+body[data-density="very-compact"] .advanced-stats-modules,
+body[data-density="very-compact"] .mini-metric-grid,
+body[data-density="very-compact"] .graphs-grid{gap:4px;margin:5px 0;}
+body[data-density="very-compact"] .overview-kpi,
+body[data-density="very-compact"] .overview-mini-card,
+body[data-density="very-compact"] .advanced-stats-module,
+body[data-density="very-compact"] .mini-metric,
+body[data-density="very-compact"] .trend-chart-card,
+body[data-density="very-compact"] .diagnostic-card,
+body[data-density="very-compact"] .training-block{padding:5px 6px;border-radius:8px;margin:4px 0;}
+body[data-density="very-compact"] .overview-kpi span,
+body[data-density="very-compact"] .overview-mini-card span,
+body[data-density="very-compact"] .advanced-stats-module>summary small{font-size:9.5px;line-height:1.1;}
+body[data-density="very-compact"] .overview-kpi .value{font-size:15px;margin-top:2px;}
+body[data-density="very-compact"] .overview-kpi.primary .value{font-size:16px;}
+body[data-density="very-compact"] .advanced-stats-module>summary{padding:5px 6px;gap:5px;}
+body[data-density="very-compact"] .advanced-module-body{padding:5px 6px;}
+body[data-density="very-compact"] .stats-internal-nav,
+body[data-density="very-compact"] .stats-subnav,
+body[data-density="very-compact"] .stats-subtabs,
+body[data-density="very-compact"] .practice-main-nav,
+body[data-density="very-compact"] .plans-main-nav,
+body[data-density="very-compact"] .data-main-nav,
+body[data-density="very-compact"] .data-subnav,
+body[data-density="very-compact"] .library-quick-nav{gap:3px;margin:4px 0;}
+body[data-density="very-compact"] .stats-internal-nav .stats-nav-btn,
+body[data-density="very-compact"] .stats-subnav button,
+body[data-density="very-compact"] .stats-subtabs button,
+body[data-density="very-compact"] .practice-nav-btn,
+body[data-density="very-compact"] .plans-nav-btn,
+body[data-density="very-compact"] .data-nav-btn,
+body[data-density="very-compact"] .data-subnav-btn,
+body[data-density="very-compact"] .library-quick-link{padding:5px 6px;font-size:10.5px;border-radius:8px;min-height:28px;}
+body[data-density="very-compact"] .training-block{margin:4px 0;}
+body[data-density="very-compact"] .block-meta{font-size:10px;margin-bottom:4px;}
+body[data-density="very-compact"] .drill-line{gap:4px;padding:4px 0;font-size:10.5px;}
+body[data-density="very-compact"] .data-hub-card,
+body[data-density="very-compact"] .settings-section-card,
+body[data-density="very-compact"] .timer-autostart-setting{padding:6px;border-radius:9px;}
+body[data-density="very-compact"] footer{padding:8px 8px 12px;font-size:10.5px;}
+body[data-density="very-compact"] .app-toast{padding:6px 8px;border-radius:9px;font-size:11px;}
+@media(max-width:760px){
+  body[data-density="very-compact"] main{padding:4px;}
+  body[data-density="very-compact"] .app-header{padding:8px;}
+  body[data-density="very-compact"] .app-header h1{font-size:17px;}
+  body[data-density="very-compact"] .tab{font-size:9.5px;padding:5px 1px;min-height:28px;}
+  body[data-density="very-compact"] .card{padding:7px;margin-bottom:5px;border-radius:10px;}
+  body[data-density="very-compact"] .grid.two,
+  body[data-density="very-compact"] .grid.three,
+  body[data-density="very-compact"] .grid.five,
+  body[data-density="very-compact"] .score-grid,
+  body[data-density="very-compact"] .stats-grid{gap:4px;}
+  body[data-density="very-compact"] input,
+  body[data-density="very-compact"] select,
+  body[data-density="very-compact"] textarea{min-height:28px;font-size:11.5px;padding:4px 6px;}
+  body[data-density="very-compact"] button,
+  body[data-density="very-compact"] .file-btn{min-height:28px;font-size:10.5px;padding:5px 6px;}
 }

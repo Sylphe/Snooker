@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.1.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.1.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.1.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.1.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.1.1";
+} from "./utils.js?v=5.1.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.1.1";
+} from "./settings.js?v=5.1.2";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.1.1";
+} from "./analytics.js?v=5.1.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.1.1";
+} from "./bayesian.js?v=5.1.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.1.1";
+} from "./session.js?v=5.1.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.1.1";
+} from "./pressure.js?v=5.1.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.1.1";
+} from "./recommendations.js?v=5.1.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.1.1";
+} from "./store.js?v=5.1.2";
 
 
 
@@ -730,7 +730,7 @@ function signalLabelFromScore(score){
 }
 
 
-/* ===== v5.1.1 Adaptive Session Periodization ===== */
+/* ===== v5.1.2 Adaptive Session Periodization ===== */
 function skillDecayAndMaintenanceSummary(logs=(data.logs || []), options={}){
   try{
     const horizonDays = Number(options.horizonDays || 90);
@@ -826,10 +826,10 @@ function maintenanceSchedulerInsight(logs){
     return `<div class="insight-card watch"><strong>Maintenance scheduler</strong><div class="muted small">Maintenance signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.1 Adaptive Session Periodization ===== */
+/* ===== end v5.1.2 Adaptive Session Periodization ===== */
 
 
-/* ===== v5.1.1 Adaptive Session Periodization ===== */
+/* ===== v5.1.2 Adaptive Session Periodization ===== */
 const PERIODIZATION_BLOCK_TARGETS = {
   acquisition: 0.24,
   consolidation: 0.24,
@@ -935,9 +935,9 @@ function adaptiveSessionPeriodizationInsight(logs){
     return `<div class="insight-card watch"><strong>Adaptive periodization</strong><div class="muted small">Periodization signal unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.1.1 Adaptive Session Periodization ===== */
+/* ===== end v5.1.2 Adaptive Session Periodization ===== */
 
-/* ===== v5.1.1 Adaptive Session Periodization ===== */
+/* ===== v5.1.2 Adaptive Session Periodization ===== */
 function changePointSeverityLabel(score){
   const x = Math.abs(Number(score || 0));
   if(x >= 0.75) return "High probability";
@@ -1024,7 +1024,7 @@ function changePointInsight(logs){
     <div class="adaptive-rationale">Bayesian probabilities are guarded by sample-size evidence and fall back to the legacy window detector if needed.</div>
   </div>`;
 }
-/* ===== end v5.1.1 Adaptive Session Periodization ===== */
+/* ===== end v5.1.2 Adaptive Session Periodization ===== */
 
 
 /* ===== v4.39.0 Kalman-style Current Form ===== */
@@ -2174,7 +2174,7 @@ function activateTab(tabId) {
     if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
   });
   if (tabId === "plans") {
-    // v5.1.1: Plans is now treated as a Library sub-area in the mobile IA.
+    // v5.1.2: Plans is now treated as a Library sub-area in the mobile IA.
     document.querySelectorAll('.mobile-nav-btn[data-tab="templates"]').forEach(b => b.classList.add("active"));
   }
   panel.classList.add("active");
@@ -7705,7 +7705,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.1.1");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.1.2");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -8239,7 +8239,7 @@ function getTimerAutostartDelaySetting(){ return Number(interfaceReadSetting(TIM
 function applyDisplayDensity(mode){
   const clean = normalizeDisplayDensity(mode || getDisplayDensitySetting());
   [document.documentElement, document.body].filter(Boolean).forEach(el => {
-    el.classList.remove("density-comfortable", "density-compact");
+    el.classList.remove("density-comfortable", "density-compact", "density-very-compact");
     el.classList.add("density-" + clean);
     el.setAttribute("data-density", clean);
   });

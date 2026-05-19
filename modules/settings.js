@@ -15,7 +15,7 @@ export function normalizeOnOff(value, fallback="on") {
 }
 
 export function normalizeDisplayDensity(value) {
-  return value === "compact" ? "compact" : "comfortable";
+  return value === "very-compact" ? "very-compact" : (value === "compact" ? "compact" : "comfortable");
 }
 
 export function normalizeTimerAutostart(value) {
