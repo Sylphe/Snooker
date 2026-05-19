@@ -8,7 +8,9 @@ export function makeTimerState(timerStartMs, elapsedBeforeStartMs) {
 }
 
 export function elapsedMsFromState(timerStartMs, elapsedBeforeStartMs, now = Date.now()) {
-  return Number(elapsedBeforeStartMs || 0) + (timerStartMs ? now - Number(timerStartMs) : 0);
+  const base = Math.max(0, Number(elapsedBeforeStartMs || 0));
+  const currentRun = timerStartMs ? Math.max(0, Number(now || 0) - Number(timerStartMs)) : 0;
+  return base + currentRun;
 }
 
 export function elapsedMinutesFromState(timerStartMs, elapsedBeforeStartMs) {

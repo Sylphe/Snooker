@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.4";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.4";
 import {
   uuid,
   structuredCloneSafe,
@@ -17,7 +17,7 @@ import {
   numAttr,
   safeClassToken,
   sortedBy
-} from "./utils.js?v=5.5.3";
+} from "./utils.js?v=5.5.4";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -35,7 +35,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.3";
+} from "./settings.js?v=5.5.4";
 import {
   avg,
   stdDev,
@@ -57,7 +57,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.3";
+} from "./analytics.js?v=5.5.4";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -66,7 +66,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.3";
+} from "./bayesian.js?v=5.5.4";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -75,7 +75,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.3";
+} from "./session.js?v=5.5.4";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -83,7 +83,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.3";
+} from "./pressure.js?v=5.5.4";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -95,7 +95,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.3";
+} from "./recommendations.js?v=5.5.4";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -107,7 +107,7 @@ import {
   idbReplaceAll,
   idbPut,
   idbDelete
-} from "./store.js?v=5.5.3";
+} from "./store.js?v=5.5.4";
 
 
 
@@ -195,6 +195,16 @@ function queueFailedSessionDelta(session) {
   if (!indexedDBRetryNoticeShown) {
     indexedDBRetryNoticeShown = true;
     notifyUser("Save warning: session kept locally; IndexedDB sync will retry. Export backup if this repeats.", "warn");
+  }
+}
+function purgePendingIndexedDBDelta(type, id) {
+  if (!id) return;
+  if (type === "log") {
+    pendingFailedIndexedDBLogs = pendingFailedIndexedDBLogs.filter(l => l?.id !== id);
+    pendingPreHydrationLogs = pendingPreHydrationLogs.filter(l => l?.id !== id);
+  } else if (type === "session") {
+    pendingFailedIndexedDBSessions = pendingFailedIndexedDBSessions.filter(s => s?.id !== id);
+    pendingPreHydrationSessions = pendingPreHydrationSessions.filter(s => s?.id !== id);
   }
 }
 async function flushFailedIndexedDBDeltas(context="flushFailedIndexedDBDeltas") {
@@ -1022,7 +1032,9 @@ function skillChangePointRows(logs){
       bucket.values.push(score);
     });
   });
-  return Object.values(rows).map(x => ({...x, change:detectSeriesChangePoint(x.values, {minN:8, window:5})}))
+  return Object.values(rows)
+    .filter(x => x.values.length >= 10)
+    .map(x => ({...x, change:detectSeriesChangePoint(x.values, {minN:10, window:5})}))
     .filter(x => x.change.state !== "insufficient")
     .sort((a,b)=>b.change.severity-a.change.severity)
     .slice(0,4);
@@ -1912,7 +1924,7 @@ function uiExplain(key){
 }
 
 
-/* v5.5.3 Recommendation explanation wording layer */
+/* v5.5.4 Recommendation explanation wording layer */
 const UI_RECOMMENDATION_COPY = {
   friendly: {
     logicTitle: "Why this is suggested",
@@ -1946,7 +1958,7 @@ function uiRecommendationCopy(key){
   return (UI_RECOMMENDATION_COPY[mode] && UI_RECOMMENDATION_COPY[mode][key]) || (UI_RECOMMENDATION_COPY.analytical && UI_RECOMMENDATION_COPY.analytical[key]) || String(key || "");
 }
 
-/* v5.5.3 Insight cards and stats language pass */
+/* v5.5.4 Insight cards and stats language pass */
 function uiSignalLabel(evidence){
   const level = typeof evidence === "string" ? evidence : String(evidence?.level || evidence?.label || "").toLowerCase();
   if (getInsightLanguageSetting() !== "friendly") return typeof evidence === "string" ? evidence : (evidence?.label || "Low evidence");
@@ -2939,9 +2951,11 @@ function duplicateRoutine(id) {
   const r = routineById(id);
   if (!r) return;
   const newId = uuid();
-  const copied = {...r, id: newId, name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)};
-  copied.targetHistory = structuredCloneSafe(r.targetHistory || []);
-  copied.activeTargetProfileId = r.activeTargetProfileId;
+  let copied = {...r, id: newId, name: `${r.name} copy`, isDeleted: false, deletedAt: "", recommendationMode: recommendationMode(r)};
+  // Reset target profile lineage so edits to the duplicate cannot cross-contaminate the source routine.
+  copied.targetHistory = [];
+  copied.activeTargetProfileId = "";
+  copied = ensureTargetHistory(copied);
   copied.skillMap = normalizeRoutineSkillMap(copied, getRoutineSkillMap(r));
   data.routines.push(copied);
   data.routineSkillMap = data.routineSkillMap || {};
@@ -3140,7 +3154,11 @@ safeOn("todayDiscardSessionBtn", "click", discardPersistedSession);
 safeOn("startSessionBtn", "click", () => {
   const plan = data.plans.find(p => p.id === $("planSelect").value);
   if (!plan) return alert("Create or select a plan first.");
-  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorRoutines().map(r=>r.id), ...plan.routineIds.filter(id => activeRoutines().some(r => r.id === id) && !anchorRoutines().some(a=>a.id===id))], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
+  const anchors = anchorRoutines().map(r => r.id);
+  const activeIds = new Set(activeRoutines().map(r => r.id));
+  const sourceIds = (plan.routineIds || []).filter(id => activeIds.has(id));
+  const anchorPrefix = anchors.filter(id => activeIds.has(id) && sourceIds[0] !== id);
+  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorPrefix, ...sourceIds], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
   persistActiveSession();
 });
@@ -3285,7 +3303,8 @@ function renderScoreInputs(r) {
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else if (r.scoring === "success_rate") {
     if (!routineUsesSideSplit(r)) {
-      html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
+      const madeMax = Number(r.attempts || r.attemptsPerSession || 0) || "";
+      html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" ${madeMax ? `max="${numAttr(madeMax)}"` : ""} step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
     }
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || "")}" placeholder="e.g. 10" inputmode="numeric"></div>`;
     html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
@@ -3327,6 +3346,29 @@ function renderScoreInputs(r) {
     }
     $("scoreValue")?.focus();
   }, 120);
+  const syncScoreMax = () => {
+    const attemptsEl = $("attemptsValue");
+    if (!attemptsEl || r.scoring !== "success_rate") return;
+    const maxVal = Number(attemptsEl.value || 0);
+    const clampField = id => {
+      const el = $(id);
+      if (!el) return;
+      if (maxVal > 0) el.setAttribute("max", String(maxVal));
+      else el.removeAttribute("max");
+      if (maxVal > 0 && Number(el.value || 0) > maxVal) {
+        el.value = String(maxVal);
+        el.dispatchEvent(new Event("input", {bubbles:true}));
+      }
+    };
+    if (routineUsesSideSplit(r)) {
+      clampField("leftSideScoreValue");
+      clampField("rightSideScoreValue");
+    } else {
+      clampField("scoreValue");
+    }
+  };
+  $("attemptsValue")?.addEventListener("input", syncScoreMax);
+  syncScoreMax();
   ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
     const el = $(id);
     if (el) {
@@ -3373,9 +3415,11 @@ function adjustNumericInputValue(inputId, delta) {
   const current = Number(el.value || 0);
   const step = Number(el.getAttribute("step") || 1);
   const minRaw = el.getAttribute("min");
+  const maxRaw = el.getAttribute("max");
   const min = minRaw === null || minRaw === "" ? -Infinity : Number(minRaw);
+  const max = maxRaw === null || maxRaw === "" ? Infinity : Number(maxRaw);
   const nextRaw = current + Number(delta || 0);
-  const next = Number.isFinite(min) ? Math.max(min, nextRaw) : nextRaw;
+  const next = Math.max(min, Math.min(max, nextRaw));
   const decimals = step && !Number.isInteger(step) ? 2 : 0;
   el.value = decimals ? String(Math.round(next * 100) / 100) : String(Math.round(next));
   el.dispatchEvent(new Event("input", {bubbles:true}));
@@ -3819,7 +3863,7 @@ safeOn("timerStartBtn", "click", startPracticeTimer);
 safeOn("timerPauseBtn", "click", () => {
   cancelTimerAutostartDelay();
   if (!timerStartMs) return;
-  elapsedBeforeStartMs += Date.now() - timerStartMs;
+  elapsedBeforeStartMs += Math.max(0, Date.now() - timerStartMs);
   timerStartMs = null;
   stopTimer();
   $("timerState").textContent = "timer paused";
@@ -3996,10 +4040,12 @@ safeOn("generateConstraintPlanBtn", "click", () => {
     {key:"other", pct:Number($("allocOther").value || 0)}
   ];
   let pool = visibleRoutines();
+  if (!pool.length) return alert("No exercises are available for the constraint generator.");
   if (focus !== "all") {
     const focused = pool.filter(r => (r.category || "").toLowerCase() === focus.toLowerCase());
     if (focused.length) pool = focused.concat(pool.filter(r => !focused.includes(r)));
   }
+  if (!pool.length) return alert("No exercises match your constraint filters. Try broadening the focus.");
   const picked = [];
   allocs.forEach(a => {
     const n = Math.max(0, Math.round(count * a.pct / 100));
@@ -4214,9 +4260,9 @@ function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastT
 function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
 function renderTableSelects(){ ensureTablesDatabase(); const sel=$("sessionVenueTable"); if(!sel) return; const current=sel.value||getLastTableId()||""; sel.innerHTML=`<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}">${htmlText(t.name)}</option>`).join(""); sel.value=current&&data.tables.some(t=>t.id===current)?current:""; }
 function clearTableForm(){ if(!$("tableNameInput")) return; $("tableEditId").value=""; $("tableNameInput").value=""; $("tableTypeInput").value=""; $("tableInfoInput").value=""; }
-function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name)table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
+function saveTableDefinition(){ ensureTablesDatabase(); const name=$("tableNameInput").value.trim(); if(!name) return alert("Enter a table name."); const id=$("tableEditId").value||uuid(); const existing=data.tables.find(t=>t.id===id); const table={id,name,type:$("tableTypeInput").value.trim(),info:$("tableInfoInput").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),nameHistory:existing?.nameHistory||[]}; if(existing&&existing.name!==name){ table.nameHistory.push({name:existing.name,changedAt:new Date().toISOString()}); (data.logs||[]).forEach(l=>{ if(l.tableId===id){ l.venueTable=name; l.venueTableSnapshot=name; }}); (data.sessions||[]).forEach(sess=>{ if(sess.tableId===id){ sess.venueTable=name; sess.venueTableSnapshot=name; }}); if(activeSession?.tableId===id){ activeSession.venueTable=name; activeSession.venueTableSnapshot=name; persistActiveSession(); }} data.tables=existing?data.tables.map(t=>t.id===id?table:t):[...data.tables,table]; clearTableForm(); saveData(); }
 function editTableDefinition(id){ const t=tableById(id); if(!t)return; $("tableEditId").value=t.id; $("tableNameInput").value=t.name||""; $("tableTypeInput").value=t.type||""; $("tableInfoInput").value=t.info||""; }
-function deleteTableDefinition(id){ const used=(data.logs||[]).some(l=>l.tableId===id); if(used)return alert("This table is used by logs. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
+function deleteTableDefinition(id){ const usedInLogs=(data.logs||[]).some(l=>l.tableId===id); const usedInSessions=(data.sessions||[]).some(sess=>sess.tableId===id); const usedInDraft=activeSession?.tableId===id; if(usedInLogs||usedInSessions||usedInDraft)return alert("This table is used by existing logs, sessions, or an active session. Rename it instead of deleting so historical stats remain linked."); if(!confirm("Delete this table definition?"))return; data.tables=(data.tables||[]).filter(t=>t.id!==id); saveData(); }
 function renderEditTableOptions(currentId,currentName=""){ ensureTablesDatabase(); const selectedId=currentId||tableByName(currentName)?.id||""; return `<option value="">Not specified</option>`+data.tables.map(t=>`<option value="${attrText(t.id)}" ${t.id===selectedId?"selected":""}>${htmlText(t.name)}</option>`).join(""); }
 
 function clearSkillTagForm(){
@@ -4350,7 +4396,11 @@ function getPeriodizationPhase() {
 
   const storedCompDate = (() => { try { return localStorage.getItem("snookerPracticePWA.competitionDate") || ""; } catch(e) { return ""; } })();
   const compRaw = $("competitionDate")?.value || storedCompDate || "";
-  const comp = compRaw ? new Date(compRaw) : null;
+  let comp = null;
+  if (compRaw) {
+    const parts = String(compRaw).split("-").map(Number);
+    comp = parts.length >= 3 && parts.every(Number.isFinite) ? new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0) : new Date(compRaw);
+  }
   if (comp && !Number.isNaN(comp.getTime())) {
     const days = Math.ceil((comp.getTime() - Date.now()) / 86400000);
     if (days <= 7) return "performance";
@@ -4946,6 +4996,7 @@ function trackRecommendationFeedback(routineId, action, meta={}) {
       const idx = store.findIndex(x => x.id === previousSnapshot.id);
       if (idx >= 0) store[idx] = previousSnapshot;
       else store.push(previousSnapshot);
+      store.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
     }
     saveData({render:"all", immediateIDB:true});
     showTransientNotice("Recommendation feedback restored.", "ok");
@@ -7059,7 +7110,7 @@ async function saveEditedLogFromButton(button, id) {
 async function saveEditedLog(id, formEl) {
   const idx = data.logs.findIndex(l => l.id === id);
   if (idx < 0) return;
-  const l = data.logs[idx];
+  const l = structuredCloneSafe(data.logs[idx]);
   const routine = routineById(l.routineId) || makeRoutineSnapshotFromLog(l);
   const form = formEl || document.querySelector(`.log-edit[data-log-edit-id="${cssEscapeSafe(id)}"]`);
   if (!form) return validationNotice("Edit form not found.");
@@ -7153,7 +7204,7 @@ async function saveEditedLog(id, formEl) {
   }
   l.normalizedScore = normalizeScore(l);
   l.performance = classifyPerformance(l, routine);
-  data.logs[idx] = l;
+  data.logs = data.logs.map(log => log.id === id ? l : log);
   const persisted = await persistLogDelta(l, "saveEditedLog log put");
   if (!persisted && !indexedDBUnavailable) notifyUser("Edited log saved locally, but IndexedDB sync is pending.", "warn");
   saveData({render:"logEdit", idbSync:"skip"});
@@ -7177,6 +7228,7 @@ function makeRoutineSnapshotFromLog(l) {
 function deleteLog(id) {
   return confirmDeleteAction("this session log", async () => {
     data.logs = data.logs.filter(l => l.id !== id);
+    purgePendingIndexedDBDelta("log", id);
     await deleteLogDelta(id, "deleteLog log delete");
     saveData({render:"logEdit", idbSync:"skip"});
   });
@@ -7639,13 +7691,21 @@ function refreshReferenceNames() {
 function logAppError(error, context="runtime") {
   try {
     const errors = JSON.parse(localStorage.getItem("snookerPracticePWA.errorLog") || "[]");
+    let safeMessage = "Unknown error";
+    let safeStack = "";
+    try {
+      if (typeof error === "string") safeMessage = error;
+      else if (error instanceof Error) { safeMessage = error.message || safeMessage; safeStack = error.stack || ""; }
+      else if (error && typeof error.message === "string") safeMessage = error.message;
+      else if (error && typeof error.toString === "function") safeMessage = error.toString();
+    } catch(ex) { safeMessage = "Unserializable error"; }
     errors.unshift({
       at: new Date().toISOString(),
       appVersion: typeof APP_VERSION !== "undefined" ? APP_VERSION : "unknown",
       location: typeof location !== "undefined" ? location.href : "",
-      context,
-      message: error?.message || String(error),
-      stack: error?.stack || ""
+      context:String(context || "runtime").slice(0,160),
+      message:String(safeMessage || "Unknown error").slice(0,500),
+      stack:String(safeStack || "").slice(0,1000)
     });
     localStorage.setItem("snookerPracticePWA.errorLog", JSON.stringify(errors.slice(0,10)));
   } catch(e) {}
@@ -8451,7 +8511,7 @@ safeOn("installBtn", "click", async () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.3");
+      const reg = await navigator.serviceWorker.register("service-worker.js?v=5.5.4");
       if (reg && reg.update) reg.update();
     } catch(e) {
       console.warn("Service worker registration failed", e);
@@ -9047,7 +9107,7 @@ function updateSessionFocusState(){
   if (activeCard) {
     activeCard.classList.toggle("focus-first-exercise", !!(focusActive && activeSession && Number(activeSession.index || 0) === 0));
   }
-  if (active && currentSessionFocusActive) setTimeout(resetSessionFocusScrollTop, 0);
+  if (active && currentSessionFocusActive) requestAnimationFrame(() => resetSessionFocusScrollTop());
   const btn = $("toggleFocusModeBtn");
   if (btn) {
     btn.textContent = active && currentSessionFocusActive ? "Exit focus mode" : "Focus Mode";

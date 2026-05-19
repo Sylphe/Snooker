@@ -59,6 +59,11 @@ export function idbGetAll(storeName) {
 export function idbGetStores(storeNames) {
   return openSnookerDB().then(db => new Promise((resolve, reject) => {
     const out = {};
+    if (!Array.isArray(storeNames) || storeNames.length === 0) {
+      db.close();
+      resolve(out);
+      return;
+    }
     let remaining = storeNames.length;
     let settled = false;
     try {

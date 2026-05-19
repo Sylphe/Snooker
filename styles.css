@@ -147,7 +147,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(199,167,83,.55);b
   align-items:center;
   justify-content:center;
   padding:18px;
-  z-index:999;
+  z-index:2000;
 }
 .modal-card{
   width:min(520px,100%);
@@ -4231,4 +4231,19 @@ body.focus-keyboard-open .sticky-log-actions {
 body.modal-open {
   overflow: hidden;
   height: 100vh;
+}
+
+/* v5.5.4 hardening: keep decorative SVG layers from hijacking mobile scroll. */
+svg.chart .chart-line,
+svg.chart .chart-grid,
+svg.chart .chart-axis,
+svg.chart .trendline,
+svg.chart polyline,
+svg.chart path:not(.chart-point),
+svg.chart line {
+  pointer-events: none;
+}
+svg.chart .chart-point,
+svg.chart circle {
+  pointer-events: auto;
 }
