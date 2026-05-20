@@ -8847,6 +8847,60 @@ async function exportAiCoachingSnapshot() {
   showTransientNotice("Target calibration v2 created.", "ok");
 }
 
+
+async function loadBundledCuratedRoutinePack() {
+  try {
+    const response = await fetch("./routine-packs/curated-snooker-routine-pack-v1.json", {cache:"no-store"});
+    if (!response.ok) throw new Error(`Curated routine pack unavailable (${response.status})`);
+    return await response.json();
+  } catch(error) {
+    logAppError(error, "loadBundledCuratedRoutinePack");
+    alert("Could not load the bundled curated routine library. Try reinstalling the latest package or importing the JSON pack manually.");
+    return null;
+  }
+}
+
+async function installBundledCuratedRoutinePack() {
+  const pack = await loadBundledCuratedRoutinePack();
+  if (!pack) return;
+  const validation = validateRoutinePack(pack);
+  if (!validation.ok) {
+    alert(`Bundled curated library validation failed:\n${validation.errors.slice(0,10).join("\n")}`);
+    return;
+  }
+  const preview = [
+    `${pack.packMeta?.name || "Curated routine library"}`,
+    `${validation.routineCount} curated snooker routine(s) found.`,
+    validation.warnings.length ? `${validation.warnings.length} metadata warning(s). First: ${validation.warnings[0]}` : "No validation warnings.",
+    "Existing user target histories and descriptions will be preserved.",
+    "Catalogue routines will be added or merged by canonical ID."
+  ].join("\n");
+  if (!confirm(`${preview}\n\nImport curated library now?`)) return;
+  const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true});
+  if (!result.ok) {
+    alert(`Curated library import failed:\n${result.errors.slice(0,10).join("\n")}`);
+    return;
+  }
+  data.curatedRoutineLibrary = {
+    name: pack.packMeta?.name || "Curated Snooker Routine Library v1",
+    version: pack.packMeta?.version || "1.0.0",
+    installedAt: new Date().toISOString(),
+    added: result.added,
+    updated: result.updated,
+    routineCount: validation.routineCount
+  };
+  saveData({render:"all", immediateIDB:true});
+  showTransientNotice(`Curated library imported: ${result.added} added, ${result.updated} updated.`, "ok");
+}
+
+async function downloadBundledCuratedRoutinePack() {
+  const pack = await loadBundledCuratedRoutinePack();
+  if (!pack) return;
+  const filename = "curated-snooker-routine-pack-v1.json";
+  await exportFile(filename, JSON.stringify(pack), "application/json");
+  showTransientNotice("Curated routine pack exported.", "ok");
+}
+
 async function importRoutinePackFile(event) {
   const input = event?.target;
   const file = input?.files?.[0];
@@ -8907,6 +8961,8 @@ safeOn("exportCsvBtn", "click", async () => {
 safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
 safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
 safeOn("exportAiCoachingBtn", "click", exportAiCoachingSnapshot);
+safeOn("installCuratedRoutinePackBtn", "click", installBundledCuratedRoutinePack);
+safeOn("downloadCuratedRoutinePackBtn", "click", downloadBundledCuratedRoutinePack);
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));

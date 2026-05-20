@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.6.3</title>
+  <title>Snooker Practice Log v5.6.4</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -18,7 +18,7 @@
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.6.3 · Build 2026-05-20 15:10 CEST — Target calibration v2.</p>
+      <p>v5.6.4 · Build 2026-05-20 15:10 CEST — Target calibration v2.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1121,6 +1121,8 @@
             <button id="exportRoutinePackBtn" class="secondary" type="button">Export Routine Pack JSON</button>
             <button id="exportRoutineCsvBtn" class="secondary" type="button">Export Routine Library CSV</button>
             <button id="exportAiCoachingBtn" class="secondary" type="button">Export AI Coaching Snapshot</button>
+            <button id="installCuratedRoutinePackBtn" class="secondary" type="button">Import Curated Library v1</button>
+            <button id="downloadCuratedRoutinePackBtn" class="secondary" type="button">Download Curated Library JSON</button>
             <label class="file-btn secondary">
               Import Routine Pack
               <input id="importRoutinePackInput" type="file" accept="application/json" />
@@ -1341,7 +1343,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.6.3"></script>
+  <script type="module" src="app.js?v=5.6.4"></script>
 </body>
 
 

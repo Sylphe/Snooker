@@ -1,6 +1,33 @@
-# Snooker Practice PWA v5.6.3
+# Snooker Practice PWA v5.6.4
 
-## v5.6.3 — AI Coaching Export
+## v5.6.4 — Curated Routine Library v1
+
+Built from the working v5.6.4 target calibration baseline.
+
+This release adds a bundled curated snooker routine library that users can import directly from the Data / Import-Export panel. The pack is designed as a compact, high-transfer training catalogue rather than a large unstructured exercise dump.
+
+### Added
+
+- Bundled `routine-packs/curated-snooker-routine-pack-v1.json`.
+- `Import Curated Library v1` action in the Import / Export panel.
+- `Download Curated Library JSON` action for external sharing, editing, or AI review.
+- 50 curated snooker routines across potting, cue-ball control, break-building, safety/tactical, pressure/match-play, and rest/recovery.
+- Stable canonical IDs for every curated routine.
+- Six level target profiles for each routine: sub-30, 30-break, 50-break, 70-break, century, and pro.
+- Complete metadata per routine: scoring mode, attempts, target, stretch target, total units, training intent, fatigue cost, pressure value, tactical value, primary skill, secondary skills, and transfer skills.
+- Conservative merge behavior: existing user routine IDs, descriptions, target histories, and logs are preserved.
+- Curated-library notes in `routine-pack-schema/curated-library-v1-notes.md`.
+
+### Intended use
+
+Import the curated library as catalogue routines, then duplicate/edit personal copies if needed. The default targets are designed to be productive baselines, not aspirational failure traps. Use the app target calibration system to adapt them to the player after enough logs are collected.
+
+Build timestamp: 2026-05-20 16:20 CEST.
+
+---
+
+
+## v5.6.4 — AI Coaching Export
 
 Built from the working v5.6.1 external editing workflow.
 
@@ -101,8 +128,8 @@ These templates define the early pack format for curated routine libraries and e
 Planned follow-up releases:
 
 - v5.6.1 — CSV reimport and external editing workflow ✅
-- v5.6.3 — curated snooker routine pack v1
-- v5.6.3 — adaptive target calibration engine
+- v5.6.4 — curated snooker routine pack v1
+- v5.6.4 — adaptive target calibration engine
 - v5.6.4 — inferred skill-level profiles
 - v5.6.5 — recommendation integration with routine intelligence
 
