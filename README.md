@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.5.24
+# Snooker Practice PWA v5.5.25
 
-## v5.5.24 — Swipe History Rendering Cap
+## v5.5.25 — Skill Alias Memoization
 
 Built from the working v5.5.23 lightweight core serialization release.
 
@@ -8,4 +8,4 @@ This release isolates Optimization 6 only: the swipeable history carousel is cap
 
 No lazy rendering, serialization changes, table migration relocation, recommendation-stat caching, or broader render-pipeline changes were added in this build.
 
-Build timestamp: 2026-05-20 11:18 CEST.
+Build timestamp: 2026-05-20 11:31 CEST.
