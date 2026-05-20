@@ -4375,3 +4375,8 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 .smart-card {
   min-height: 72px;
 }
+
+/* ===== v5.5.28 Render/I-O polish ===== */
+.history-table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:12px;border-radius:12px;}
+.history-table-scroll .history-table{min-width:760px;margin-top:0;}
+@media(max-width:640px){.history-table-scroll{margin-inline:-2px;padding-bottom:2px;}}

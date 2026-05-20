@@ -1,24 +1,24 @@
-const CACHE_VERSION = "5.5.27-cache-stability-pass";
+const CACHE_VERSION = "5.5.28-render-io-polish";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
-  "./index.html?v=5.5.27",
-  "./styles.css?v=5.5.27",
-  "./app.js?v=5.5.27",
-  "./early-theme.js?v=5.5.27",
-  "./modules/app-core.js?v=5.5.27",
-  "./modules/version.js?v=5.5.27",
-  "./modules/store.js?v=5.5.27",
-  "./modules/utils.js?v=5.5.27",
-  "./modules/settings.js?v=5.5.27",
-  "./modules/analytics.js?v=5.5.27",
-  "./modules/bayesian.js?v=5.5.27",
-  "./modules/session.js?v=5.5.27",
-  "./modules/pressure.js?v=5.5.27",
-  "./modules/recommendations.js?v=5.5.27",
-  "./modules/render.js?v=5.5.27",
-  "./modules/inference.js?v=5.5.27",
-  "./manifest.json?v=5.5.27",
-  "./icon.svg?v=5.5.27"
+  "./index.html?v=5.5.28",
+  "./styles.css?v=5.5.28",
+  "./app.js?v=5.5.28",
+  "./early-theme.js?v=5.5.28",
+  "./modules/app-core.js?v=5.5.28",
+  "./modules/version.js?v=5.5.28",
+  "./modules/store.js?v=5.5.28",
+  "./modules/utils.js?v=5.5.28",
+  "./modules/settings.js?v=5.5.28",
+  "./modules/analytics.js?v=5.5.28",
+  "./modules/bayesian.js?v=5.5.28",
+  "./modules/session.js?v=5.5.28",
+  "./modules/pressure.js?v=5.5.28",
+  "./modules/recommendations.js?v=5.5.28",
+  "./modules/render.js?v=5.5.28",
+  "./modules/inference.js?v=5.5.28",
+  "./manifest.json?v=5.5.28",
+  "./icon.svg?v=5.5.28"
 ];
 
 self.addEventListener("install", event => {
@@ -54,15 +54,21 @@ function isSafeAppRequest(request, url) {
   return true;
 }
 
+function normalizedPathname(url) {
+  return String(url?.pathname || "").toLowerCase();
+}
+
 function isCacheableAppFile(url) {
-  return url.pathname.endsWith(".js") || ["index.html", "styles.css", "manifest.json", "icon.svg"].some(name => url.pathname.endsWith(name));
+  const path = normalizedPathname(url);
+  return path.endsWith(".js") || ["index.html", "styles.css", "manifest.json", "icon.svg"].some(name => path.endsWith(name));
 }
 
 function expectedContentType(url) {
-  if (url.pathname.endsWith(".js")) return "javascript";
-  if (url.pathname.endsWith(".css")) return "text/css";
-  if (url.pathname.endsWith("manifest.json")) return "application/manifest+json|application/json";
-  if (url.pathname.endsWith("icon.svg")) return "image/svg+xml";
+  const path = normalizedPathname(url);
+  if (path.endsWith(".js")) return "javascript";
+  if (path.endsWith(".css")) return "text/css";
+  if (path.endsWith("manifest.json")) return "application/manifest+json|application/json";
+  if (path.endsWith("icon.svg")) return "image/svg+xml";
   return "text/html";
 }
 
@@ -74,16 +80,16 @@ function responseHasExpectedType(url, response) {
 
 
 function offlineFallbackResponse(url) {
-  if (url.pathname.endsWith(".js")) {
+  if (normalizedPathname(url).endsWith(".js")) {
     return new Response('console.warn("Snooker Practice offline: uncached script unavailable.");', {status:503, headers:{"Content-Type":"application/javascript","Cache-Control":"no-store"}});
   }
-  if (url.pathname.endsWith(".css")) {
+  if (normalizedPathname(url).endsWith(".css")) {
     return new Response("", {status:503, headers:{"Content-Type":"text/css","Cache-Control":"no-store"}});
   }
-  if (url.pathname.endsWith("manifest.json")) {
+  if (normalizedPathname(url).endsWith("manifest.json")) {
     return new Response("{}", {status:503, headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
   }
-  if (url.pathname.endsWith("icon.svg")) {
+  if (normalizedPathname(url).endsWith("icon.svg")) {
     return new Response("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"></svg>", {status:503, headers:{"Content-Type":"image/svg+xml","Cache-Control":"no-store"}});
   }
   return new Response("<!doctype html><title>Offline</title><main><h1>Snooker Practice is offline</h1><p>The requested app file is not cached yet. Reconnect once, then reopen the app.</p></main>", {status:503, headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store"}});

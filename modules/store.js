@@ -94,8 +94,11 @@ function ensureObjectStores(db) {
 export function openSnookerDB() {
   return new Promise((resolve, reject) => {
     if (!("indexedDB" in window)) return reject(new Error("IndexedDB is not available in this browser."));
-    if (activeDb && activeDb.objectStoreNames?.contains(INDEXEDDB_LOG_STORE) && activeDb.objectStoreNames?.contains(INDEXEDDB_SESSION_STORE)) {
+    if (activeDb && activeDb.version === INDEXEDDB_VERSION && activeDb.objectStoreNames?.contains(INDEXEDDB_LOG_STORE) && activeDb.objectStoreNames?.contains(INDEXEDDB_SESSION_STORE)) {
       return resolve(activeDb);
+    }
+    if (activeDb && activeDb.version !== INDEXEDDB_VERSION) {
+      closeDb(activeDb);
     }
     const req = indexedDB.open(INDEXEDDB_NAME, INDEXEDDB_VERSION);
     req.onupgradeneeded = (event) => {

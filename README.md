@@ -1,11 +1,17 @@
-# Snooker Practice PWA v5.5.27
+# Snooker Practice PWA v5.5.28
 
-## v5.5.27 — Cache Stability Pass
+## v5.5.28 — Render / I-O Polish
 
-Built from the working v5.5.23 lightweight core serialization release.
+Built from the working v5.5.27 cache stability baseline.
 
-This release isolates Optimization 6 only: the swipeable history carousel is capped to the 10 most recent scoped logs, preventing large historical datasets from generating excessive card DOM and inline sparkline SVGs. The traditional history table remains available for broader review.
+This release applies the selected low-risk render and I/O optimizations:
 
-No lazy rendering, serialization changes, table migration relocation, recommendation-stat caching, or broader render-pipeline changes were added in this build.
+- Downsamples large SVG progression charts before rendering to reduce paint cost.
+- Updates the tournament preparation planner on input as well as change events.
+- Adds a horizontal scroll wrapper for wide history tables on mobile.
+- Checks the active IndexedDB connection version before reusing it across upgrades.
+- Routes library search/filter changes to the local routine list renderer instead of the full app render pipeline.
+- Makes service-worker app-file matching case-insensitive.
+- Replaces the linear slope helper with a closed-form O(1) index denominator to reduce temporary array allocation.
 
-Build timestamp: 2026-05-20 11:31 CEST.
+Build timestamp: 2026-05-20 12:05 CEST.

@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.27";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.27";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.28";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.28";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.27";
+} from "./utils.js?v=5.5.28";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.27";
+} from "./settings.js?v=5.5.28";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.27";
+} from "./analytics.js?v=5.5.28";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.27";
+} from "./bayesian.js?v=5.5.28";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.27";
+} from "./session.js?v=5.5.28";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.27";
+} from "./pressure.js?v=5.5.28";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.27";
+} from "./recommendations.js?v=5.5.28";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.27";
+} from "./store.js?v=5.5.28";
 
 
 
@@ -346,6 +346,7 @@ function debounce(fn, delay = 150) {
 }
 const debouncedRenderAll = debounce(() => renderAll(), 150);
 const debouncedRenderStats = debounce(() => renderStats(), 150);
+const debouncedRenderRoutineList = debounce(() => renderRoutineList(), 120);
 
 function sanitizeTagToken(value, maxLen=32) {
   return String(value || "")
@@ -1289,10 +1290,11 @@ function linearSlope(values){
   const vals=(values||[]).map(Number).filter(Number.isFinite);
   if(vals.length<3) return 0;
   const n=vals.length;
-  const xs=vals.map((_,i)=>i);
-  const mx=avg(xs), my=avg(vals);
-  const den=xs.reduce((a,x)=>a+Math.pow(x-mx,2),0)||1;
-  const num=vals.reduce((a,y,i)=>a+(xs[i]-mx)*(y-my),0);
+  const meanX=(n-1)/2;
+  const meanY=avg(vals);
+  const den=(n*(n*n-1))/12 || 1;
+  let num=0;
+  for(let i=0;i<n;i+=1){ num += (i-meanX)*(vals[i]-meanY); }
   return num/den;
 }
 function latestSessionReflectionForLogs(logs){
@@ -3105,7 +3107,11 @@ function renderRoutineSelects() {
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
-["exerciseTypeFilter","exerciseFolderFilter","exerciseSearch","planTypeFilter","planFolderFilter"].forEach(id => {
+["exerciseTypeFilter","exerciseFolderFilter","exerciseSearch"].forEach(id => {
+  safeOn(id, "input", debouncedRenderRoutineList);
+  safeOn(id, "change", debouncedRenderRoutineList);
+});
+["planTypeFilter","planFolderFilter"].forEach(id => {
   safeOn(id, "input", debouncedRenderAll);
   safeOn(id, "change", debouncedRenderAll);
 });
@@ -7796,7 +7802,7 @@ function renderDateView(logs) {
   ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(sourceLogs)}
   ${rowLimitNote}
-  <table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${displayLogs.map(l => renderDateLogRow(l)).join("")}</tbody></table>`;
+  <div class="history-table-scroll" role="region" aria-label="Log history table" tabindex="0"><table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${displayLogs.map(l => renderDateLogRow(l)).join("")}</tbody></table></div>`;
 }
 function renderPracticeTodayCommand() {
   const box = $("practiceTodayCommand");
@@ -7950,9 +7956,23 @@ function renderCategoryChart(logs) {
     }).join("")}
   </svg></div>`;
 }
+function downsampleChartLogs(logs, maxPoints = 80) {
+  const arr = Array.isArray(logs) ? logs : [];
+  if (arr.length <= maxPoints) return arr;
+  const out = [];
+  const step = (arr.length - 1) / Math.max(1, maxPoints - 1);
+  let lastIndex = -1;
+  for (let i = 0; i < maxPoints; i += 1) {
+    const idx = Math.min(arr.length - 1, Math.round(i * step));
+    if (idx !== lastIndex) out.push(arr[idx]);
+    lastIndex = idx;
+  }
+  return out;
+}
 function renderChart(logs) {
   if (logs.length < 2) return `<div class="chart-wrap"><p class="muted">Add at least two logs to display a progression curve.</p></div>`;
-  const points = logs.map((l,i) => ({i, y: Number(l.normalizedScore || 0), label: localDateKey(l.createdAt)}));
+  const chartLogs = downsampleChartLogs(logs, 80);
+  const points = chartLogs.map((l,i) => ({i, y: Number(l.normalizedScore || 0), label: localDateKey(l.createdAt)}));
   const w=520,h=160,padL=34,padR=12,padT=12,padB=30;
   const pointYs = points.map(p=>p.y); const minY=safeMin(pointYs, 0), maxY=safeMax(pointYs, 0), yRange=maxY===minY?1:maxY-minY;
   const xScale=i=>padL+(i/Math.max(1,points.length-1))*(w-padL-padR);
@@ -11153,7 +11173,7 @@ exposeV4LegacyGlobals();
 
 
 
-document.addEventListener("change", (event) => {
+function handleTournamentPrepInputChange(event) {
   const id = event.target?.id || "";
   if (
     id === "tournamentPrepDays" ||
@@ -11162,10 +11182,12 @@ document.addEventListener("change", (event) => {
     id === "tournamentPrepRisk" ||
     id === "tournamentPrepMinutes"
   ) {
-    if (statsMode === "tournament") renderStats();
+    if (statsMode === "tournament") debouncedRenderStats();
     else renderBayesianAnalyticsValidation?.();
   }
-});
+}
+document.addEventListener("input", handleTournamentPrepInputChange);
+document.addEventListener("change", handleTournamentPrepInputChange);
 
 
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncFocusWakeLock(); else releaseFocusWakeLock(); });
