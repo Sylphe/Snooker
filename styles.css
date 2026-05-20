@@ -4380,3 +4380,42 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 .history-table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:12px;border-radius:12px;}
 .history-table-scroll .history-table{min-width:760px;margin-top:0;}
 @media(max-width:640px){.history-table-scroll{margin-inline:-2px;padding-bottom:2px;}}
+
+
+/* v5.6.5 Adaptive Target Engine */
+.adaptive-target-engine {
+  margin: 1rem 0;
+}
+.target-engine-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.target-engine-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.7fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+.target-engine-values {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+.target-engine-row.confidence-low {
+  opacity: 0.88;
+}
+.target-engine-row.confidence-high {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+@media (max-width: 720px) {
+  .target-engine-row {
+    grid-template-columns: 1fr;
+  }
+  .target-engine-row .small-actions {
+    justify-content: flex-start;
+  }
+}

@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.5";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.5";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.3";
+} from "./utils.js?v=5.6.5";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.3";
+} from "./settings.js?v=5.6.5";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.3";
+} from "./analytics.js?v=5.6.5";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.3";
+} from "./bayesian.js?v=5.6.5";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.3";
+} from "./session.js?v=5.6.5";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.3";
+} from "./pressure.js?v=5.6.5";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.3";
+} from "./recommendations.js?v=5.6.5";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.3";
+} from "./store.js?v=5.6.5";
 
 
 
@@ -2707,7 +2707,7 @@ function fmtScoring(type) {
     highest_break:"Highest break",
     points:"Points system",
     score_per_minute:"Time-based score",
-    progressive_completion:"Steps completed"
+    progressive_completion:"Progressive completion"
   }[type] || type;
 }
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
@@ -3030,6 +3030,7 @@ function renderAll() {
     ["renderPlanBuilder", renderPlanBuilder],
     ["renderPlanList", renderPlanList],
     ["renderStats", () => renderStatsIfVisible("renderAll")],
+    ["renderAdaptiveTargetEngine", () => { if (shouldRenderStatsPanel()) renderAdaptiveTargetEngine(); }],
     ["renderToday", renderToday],
     ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
@@ -7838,7 +7839,7 @@ function renderDateView(logs) {
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
-  ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Steps completed:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
+  ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(sourceLogs)}
   ${rowLimitNote}
   <div class="history-table-scroll" role="region" aria-label="Log history table" tabindex="0"><table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${displayLogs.map(l => renderDateLogRow(l)).join("")}</tbody></table></div>`;
@@ -8473,7 +8474,7 @@ function aiTry(label, fn, fallback = null) {
 
 function aiLearningBandForRoutine(routine) {
   const scoring = routine?.scoring || "raw";
-  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Steps-completed routines should be used only for station/ladder drills where the score is completed positions, not break value."};
+  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Progressive snooker routines should be challenging enough to expose break-building limits without creating constant failure."};
   if (scoring === "points") return {low:null, high:null, rationale:"Points-based tactical/safety routines need contextual interpretation rather than a fixed percentage band."};
   const skills = new Set(normalizeSkillList([...(getRoutineSkillMap(routine)?.secondarySkills || []), ...(getRoutineSkillMap(routine)?.transferTags || []), getRoutineSkillMap(routine)?.primarySkill]));
   if (skills.has("pressure_resilience")) return {low:35, high:60, rationale:"Pressure drills can be productive at lower success rates than technical potting drills."};
@@ -8697,6 +8698,186 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
   };
 }
 
+
+const ADAPTIVE_TARGET_ENGINE_KEY = "adaptiveTargetEngine";
+
+function adaptiveTargetEngineState() {
+  data.interfaceSettings = data.interfaceSettings || {};
+  data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] = data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] || {accepted:[], rejected:{}, snoozed:{}};
+  const state = data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY];
+  state.accepted = Array.isArray(state.accepted) ? state.accepted : [];
+  state.rejected = state.rejected && typeof state.rejected === "object" ? state.rejected : {};
+  state.snoozed = state.snoozed && typeof state.snoozed === "object" ? state.snoozed : {};
+  return state;
+}
+
+function adaptiveTargetCandidateKey(candidate) {
+  return `${candidate?.routineId || ""}|${candidate?.suggestion?.currentTarget ?? ""}|${candidate?.suggestion?.suggestedTarget ?? ""}|${candidate?.suggestion?.direction || ""}`;
+}
+
+function isAdaptiveTargetCandidateSuppressed(candidate) {
+  const state = adaptiveTargetEngineState();
+  const key = adaptiveTargetCandidateKey(candidate);
+  const now = Date.now();
+  if (state.rejected?.[key]) return true;
+  const snoozedUntil = Number(state.snoozed?.[key] || 0);
+  return Number.isFinite(snoozedUntil) && snoozedUntil > now;
+}
+
+function adaptiveTargetConfidenceWeight(candidate) {
+  const confidence = String(candidate?.confidence || candidate?.suggestion?.confidence || "low");
+  if (confidence === "high") return 3;
+  if (confidence === "medium") return 2;
+  return 1;
+}
+
+function buildAdaptiveTargetCandidates(limit = 12) {
+  const routines = activeRoutines();
+  const grouped = getLogsByRoutineMap(data.logs || []);
+  return routines.map(routine => {
+    const logs = grouped[String(routine.id)] || [];
+    const health = aiTargetHealthForRoutine(routine, logs);
+    const suggestion = aiSuggestedTargetForRoutine(routine, logs, health);
+    if (!suggestion) return null;
+    const maturity = suggestion.routineMaturity || aiRoutineMaturityForLogs(logs, routine);
+    const values = logs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+    const recent = values.slice(-Math.min(10, values.length));
+    return {
+      routineId: routine.id,
+      canonicalId: routine.canonicalId || "",
+      routineName: routine.name || "Unnamed routine",
+      folder: routine.folder || "Unfiled",
+      scoring: routine.scoring || "",
+      attempts: routine.attempts || "",
+      health,
+      suggestion,
+      maturity,
+      logCount: logs.length,
+      recentAverageLast10: recent.length ? avg(recent) : null,
+      targetHitRate: targetHitRate(logs),
+      confidence: suggestion.confidence || health.confidence || "low"
+    };
+  }).filter(Boolean)
+    .filter(c => !isAdaptiveTargetCandidateSuppressed(c))
+    .sort((a,b) => {
+      const stateRank = s => ({too_hard:0, too_easy:1, stretching:2, getting_easy:3, productive:4}[s] ?? 5);
+      return stateRank(a.health?.state) - stateRank(b.health?.state)
+        || adaptiveTargetConfidenceWeight(b) - adaptiveTargetConfidenceWeight(a)
+        || Number(b.logCount || 0) - Number(a.logCount || 0);
+    }).slice(0, limit);
+}
+
+function renderAdaptiveTargetEngine() {
+  const box = $("adaptiveTargetEnginePanel");
+  if (!box) return;
+  const candidates = buildAdaptiveTargetCandidates(12);
+  const totalMature = activeRoutines().filter(r => {
+    const logs = (data.logs || []).filter(l => l.routineId === r.id);
+    return logs.length >= 6;
+  }).length;
+  if (!candidates.length) {
+    box.innerHTML = `<div class="card nested">
+      <h3>Adaptive Target Engine</h3>
+      <p class="muted">No target changes are recommended right now. Mature routines checked: ${numText(totalMature)}.</p>
+      <p class="tiny muted">The engine only recommends changes when sample size, volatility, and target-hit evidence are strong enough.</p>
+    </div>`;
+    return;
+  }
+  const rows = candidates.map(c => {
+    const s = c.suggestion || {};
+    const h = c.health || {};
+    const directionLabel = ({
+      reduce:"Lower target",
+      reduce_slightly:"Lower slightly",
+      raise:"Raise target",
+      raise_slightly:"Raise slightly"
+    })[s.direction] || "Adjust target";
+    const confidenceClass = safeClassToken(`confidence-${c.confidence || "low"}`);
+    return `<div class="target-engine-row ${confidenceClass}">
+      <div>
+        <strong>${htmlText(c.routineName)}</strong>
+        <div class="meta">${htmlText(c.folder || "Unfiled")} · ${htmlText(fmtScoring(c.scoring))} · ${numText(c.logCount)} logs · ${htmlText(h.label || "Target signal")}</div>
+        <p class="tiny muted">${htmlText(s.rationale || h.recommendation || "Target calibration suggestion.")}</p>
+      </div>
+      <div class="target-engine-values">
+        <span>Current <strong>${numText(s.currentTarget)}</strong></span>
+        <span>Suggested <strong>${numText(s.suggestedTarget)}</strong></span>
+        <span>Stretch <strong>${numText(s.suggestedStretchTarget)}</strong></span>
+        <span>${htmlText(c.confidence || "low")} confidence</span>
+      </div>
+      <div class="small-actions">
+        <button type="button" class="success" data-action="adaptive-target-accept" data-id="${attrText(c.routineId)}" data-current="${numAttr(s.currentTarget)}" data-suggested="${numAttr(s.suggestedTarget)}" data-stretch="${numAttr(s.suggestedStretchTarget)}">${htmlText(directionLabel)}</button>
+        <button type="button" class="secondary" data-action="adaptive-target-snooze" data-id="${attrText(c.routineId)}" data-current="${numAttr(s.currentTarget)}" data-suggested="${numAttr(s.suggestedTarget)}" data-direction="${attrText(s.direction || "")}">Snooze</button>
+        <button type="button" class="secondary" data-action="adaptive-target-reject" data-id="${attrText(c.routineId)}" data-current="${numAttr(s.currentTarget)}" data-suggested="${numAttr(s.suggestedTarget)}" data-direction="${attrText(s.direction || "")}">Reject</button>
+      </div>
+    </div>`;
+  }).join("");
+  box.innerHTML = `<div class="card nested">
+    <div class="section-head">
+      <div>
+        <h3>Adaptive Target Engine</h3>
+        <p class="muted">Target optimization queue. Suggestions are one-step changes and create new target profiles instead of overwriting history.</p>
+      </div>
+      <span class="pill">${numText(candidates.length)} suggested</span>
+    </div>
+    <div class="target-engine-list">${rows}</div>
+  </div>`;
+}
+
+function findAdaptiveTargetCandidateForAction(routineId, current, suggested, direction="") {
+  const candidates = buildAdaptiveTargetCandidates(100);
+  return candidates.find(c => String(c.routineId) === String(routineId)
+    && String(c.suggestion?.currentTarget ?? "") === String(current ?? "")
+    && String(c.suggestion?.suggestedTarget ?? "") === String(suggested ?? "")
+    && (!direction || String(c.suggestion?.direction || "") === String(direction)));
+}
+
+function adaptiveTargetActionKeyFromDataset(el) {
+  return `${el?.dataset?.id || ""}|${el?.dataset?.current ?? ""}|${el?.dataset?.suggested ?? ""}|${el?.dataset?.direction || ""}`;
+}
+
+function acceptAdaptiveTargetSuggestion(routineId, currentTarget, suggestedTarget, suggestedStretch) {
+  const routine = routineById(routineId);
+  if (!routine) return notifyUser("Routine not found.", "warn");
+  const target = Number(suggestedTarget);
+  const stretch = Number(suggestedStretch);
+  if (!Number.isFinite(target) || target <= 0) return notifyUser("Invalid suggested target.", "warn");
+  const previousTarget = Number(routine.target || 0);
+  const previousStretch = Number(routine.stretchTarget || 0);
+  routine.target = target;
+  routine.stretchTarget = Number.isFinite(stretch) && stretch >= target ? stretch : target;
+  routine.difficultyLabel = `Adaptive target ${new Date().toISOString().slice(0,10)}`;
+  const profile = makeTargetProfile(routine, routine.difficultyLabel);
+  profile.source = "adaptive_target_engine";
+  profile.previousTarget = previousTarget;
+  profile.previousStretchTarget = previousStretch;
+  routine.targetHistory = Array.isArray(routine.targetHistory) ? routine.targetHistory : [];
+  routine.targetHistory.push(profile);
+  routine.activeTargetProfileId = profile.id;
+  const state = adaptiveTargetEngineState();
+  state.accepted.unshift({routineId, at:new Date().toISOString(), previousTarget, previousStretchTarget:previousStretch, target:routine.target, stretchTarget:routine.stretchTarget});
+  state.accepted = state.accepted.slice(0, 50);
+  saveData({render:"all", immediateIDB:true});
+  notifyUser(`Adaptive target applied for ${routine.name}.`, "success");
+}
+
+function snoozeAdaptiveTargetSuggestionFromElement(el) {
+  const state = adaptiveTargetEngineState();
+  const key = adaptiveTargetActionKeyFromDataset(el);
+  state.snoozed[key] = Date.now() + 14 * 24 * 60 * 60 * 1000;
+  saveData({render:"all", idbSync:"skip"});
+  notifyUser("Target suggestion snoozed for 14 days.", "info");
+}
+
+function rejectAdaptiveTargetSuggestionFromElement(el) {
+  const state = adaptiveTargetEngineState();
+  const key = adaptiveTargetActionKeyFromDataset(el);
+  state.rejected[key] = new Date().toISOString();
+  saveData({render:"all", idbSync:"skip"});
+  notifyUser("Target suggestion rejected.", "info");
+}
+
+
 function buildAiSkillProfile(routineSnapshots) {
   const skillRows = Object.create(null);
   routineSnapshots.forEach(row => {
@@ -8804,14 +8985,14 @@ function buildAiCoachingSnapshot(options = {}) {
     },
     instructionsForAI: {
       sport: "snooker",
-      context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals. Interpret highest_break as the best snooker break achieved during the configured attempts/visits; interpret success_rate as successful shots or safeties out of attempts; interpret progressive_completion as steps completed only for station/ladder drills.",
+      context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals.",
       task: "Analyze the player's snooker routine performance and recommend target adjustments, routine prioritization, skill focus, and next-session structure.",
       interpretationRules: [
         "Do not recommend changing a snooker routine target if sample size is too small, the routine is immature, or volatility is very high.",
         "For technical potting drills, prefer targets that keep recent success roughly in the 55% to 75% band.",
         "For safety/tactical snooker drills, a productive band is often closer to 50% to 70% because quality of leave matters, not only success count.",
         "For pressure drills, productive success may be 35% to 60%; do not treat lower success as automatically bad.",
-        "For snooker line-up and break-building routines, highest_break usually means the best break achieved across the configured visits. Use progressive/steps-completed scoring only for station or ladder drills where each non-break step is explicitly completed.",
+        "For progressive completion or break-building routines, judge improvement using trend, consistency, and total-units context rather than one isolated score.",
         "Preserve historical target versions. Recommend creating a new target profile rather than overwriting old logs.",
         "Prefer one-step target changes. Do not collapse a target from 50 to 10 unless the evidence is mature and the routine design itself is inappropriate.",
         "When mixed scoring modes or legacy points logs are flagged, treat target advice as conservative and mention the data-quality caveat.",
@@ -11055,6 +11236,9 @@ function handleDelegatedUIAction(event) {
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);
     case "apply-target-upgrade": return applyTargetUpgrade(id);
+    case "adaptive-target-accept": return acceptAdaptiveTargetSuggestion(id, actionEl.dataset.current, actionEl.dataset.suggested, actionEl.dataset.stretch);
+    case "adaptive-target-snooze": return snoozeAdaptiveTargetSuggestionFromElement(actionEl);
+    case "adaptive-target-reject": return rejectAdaptiveTargetSuggestionFromElement(actionEl);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
     case "show-more-history":
       historyRenderRowLimit = Math.min(2000, Math.max(HISTORY_RENDER_ROW_LIMIT, historyRenderRowLimit || HISTORY_RENDER_ROW_LIMIT) + HISTORY_RENDER_ROW_INCREMENT);

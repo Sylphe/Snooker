@@ -7,13 +7,7 @@
     "author": "Snooker Practice PWA",
     "createdAt": "2026-05-20T00:00:00.000Z",
     "notes": "Template for portable routine catalogues.",
-    "appVersion": "5.6.6-scoring-archetype-cleanup",
-    "scoringArchetypeNotes": {
-      "success_rate": "Successful shots/safeties out of attempts.",
-      "highest_break": "Best break achieved across configured visits/attempts.",
-      "progressive_completion": "Steps completed in station/ladder drills only.",
-      "points": "Cumulative tactical/review score."
-    }
+    "appVersion": "5.6.5-adaptive-target-engine-v1"
   },
   "taxonomyVersion": "1.0",
   "skillTaxonomy": {
@@ -65,14 +59,5 @@
     }
   ],
   "skillMaps": [],
-  "targetProfiles": [],
-  "routinesExample": [
-    {
-      "canonicalId": "break-t-lineup-pink-001",
-      "name": "T line-up pink only",
-      "scoring": "highest_break",
-      "scoringArchetype": "highest_break",
-      "targetMeaning": "Highest break achieved across 10 visits/attempts."
-    }
-  ]
+  "targetProfiles": []
 }
