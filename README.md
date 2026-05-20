@@ -1,11 +1,11 @@
-# Snooker Practice PWA v5.5.23
+# Snooker Practice PWA v5.5.24
 
-## v5.5.23 — Lightweight Core Serialization Pass
+## v5.5.24 — Swipe History Rendering Cap
 
-Built from the working v5.5.22 table-repair isolation release.
+Built from the working v5.5.23 lightweight core serialization release.
 
-This release applies Optimization 2 only: `serializeCoreData()` now builds a compact core snapshot directly instead of deep-cloning the full application state and then stripping high-volume `logs` and `sessions`. IndexedDB-ready saves keep logs/sessions out of localStorage while preserving low-volume configuration, routines, plans, tables, taxonomy, settings, and migration metadata.
+This release isolates Optimization 6 only: the swipeable history carousel is capped to the 10 most recent scoped logs, preventing large historical datasets from generating excessive card DOM and inline sparkline SVGs. The traditional history table remains available for broader review.
 
-No lazy rendering, table migration relocation, recommendation-stat caching, or other performance changes were added in this build.
+No lazy rendering, serialization changes, table migration relocation, recommendation-stat caching, or broader render-pipeline changes were added in this build.
 
 Build timestamp: 2026-05-20 11:18 CEST.
