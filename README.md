@@ -1,17 +1,20 @@
-# Snooker Practice PWA v5.5.28
+# Snooker Practice PWA v5.5.29
 
-## v5.5.28 — Render / I-O Polish
+## v5.5.29 — Coaching Performance Pass
 
-Built from the working v5.5.27 cache stability baseline.
+Built from the working v5.5.28 render/I-O polish baseline.
 
-This release applies the selected low-risk render and I/O optimizations:
+This release applies the next coaching/recommendation performance optimizations on top of v5.5.28:
 
-- Downsamples large SVG progression charts before rendering to reduce paint cost.
-- Updates the tournament preparation planner on input as well as change events.
-- Adds a horizontal scroll wrapper for wide history tables on mobile.
-- Checks the active IndexedDB connection version before reusing it across upgrades.
-- Routes library search/filter changes to the local routine list renderer instead of the full app render pipeline.
-- Makes service-worker app-file matching case-insensitive.
-- Replaces the linear slope helper with a closed-form O(1) index denominator to reduce temporary array allocation.
+- Adds a conservative Bayesian decay cutoff to avoid processing logs with negligible statistical weight.
+- Passes routine objects and grouped log maps through adaptive/recommendation hot paths to reduce redundant routine lookups.
+- Consolidates coaching-engine base metrics so target rate and skill-gap calculations do not rescan the same logs repeatedly.
+- Preserves the v5.5.28 render/I-O polish layer: SVG downsampling, table scroll wrappers, case-insensitive SW matching, local routine-list search rendering, and IndexedDB version-aware connection reuse.
 
-Build timestamp: 2026-05-20 12:05 CEST.
+Build timestamp: 2026-05-20 13:32 CEST.
+
+
+### v5.5.29 changes
+- Added conservative Bayesian decay cutoff to skip negligible old-weight logs in hot success-rate aggregation.
+- Reduced redundant routine lookups in recommendation/adaptive-session loops by passing routine objects and grouped log maps through hot paths.
+- Consolidated coaching-engine base metrics to avoid repeated basic scans for target rate and skill-gap calculations.

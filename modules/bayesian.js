@@ -58,6 +58,8 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
   const now = Number.isFinite(nowRaw) ? nowRaw : Date.now();
   const halfLifeRaw = Number(options.halfLifeDays || BAYESIAN_DECAY_HALF_LIFE_DAYS);
   const halfLifeDays = Number.isFinite(halfLifeRaw) && halfLifeRaw > 0 ? halfLifeRaw : BAYESIAN_DECAY_HALF_LIFE_DAYS;
+  const cutoffRaw = Number(options.decayCutoffDays ?? (halfLifeDays * 8));
+  const decayCutoffDays = Number.isFinite(cutoffRaw) && cutoffRaw > 0 ? cutoffRaw : halfLifeDays * 8;
   return (logs || []).reduce((acc, l) => {
     const attempts = bayesianEffectiveAttempts(l);
     const scoreRaw = Number(l?.score ?? 0);
@@ -66,6 +68,7 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
       const parsedDate = l?.createdAt ? Date.parse(l.createdAt) : now;
       const safeDate = Number.isFinite(parsedDate) ? Math.min(parsedDate, now) : now;
       const daysOld = Math.max(0, (now - safeDate) / 86400000);
+      if (daysOld > decayCutoffDays) return acc;
       const weightRaw = Math.pow(0.5, daysOld / halfLifeDays);
       const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : 1;
       acc.attempts += attempts * weight;
@@ -76,7 +79,7 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
       acc.effectiveWeight += weight;
     }
     return acc;
-  }, {successes:0, attempts:0, rawSuccesses:0, rawAttempts:0, sessions:0, effectiveWeight:0, halfLifeDays});
+  }, {successes:0, attempts:0, rawSuccesses:0, rawAttempts:0, sessions:0, effectiveWeight:0, halfLifeDays, decayCutoffDays});
 }
 
 export function bayesianReliabilityLabel(posterior) {

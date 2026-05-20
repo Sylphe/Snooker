@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.28";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.28";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.29";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.29";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.28";
+} from "./utils.js?v=5.5.29";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.28";
+} from "./settings.js?v=5.5.29";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.28";
+} from "./analytics.js?v=5.5.29";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.28";
+} from "./bayesian.js?v=5.5.29";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.28";
+} from "./session.js?v=5.5.29";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.28";
+} from "./pressure.js?v=5.5.29";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.28";
+} from "./recommendations.js?v=5.5.29";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.28";
+} from "./store.js?v=5.5.29";
 
 
 
@@ -2838,8 +2838,9 @@ function personalizedPriorsInsight(){
   }
 }
 
-function bayesianStatsForRoutine(routineId) {
-  const r = routineById(routineId);
+function bayesianStatsForRoutine(routineOrId) {
+  const r = typeof routineOrId === "object" && routineOrId ? routineOrId : routineById(routineOrId);
+  const routineId = r?.id || routineOrId;
   if (!r || r.scoring !== "success_rate") return null;
   const logs = successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
@@ -4972,9 +4973,10 @@ function runRegretComparison() {
   </div>`;
 }
 
-function adaptiveRoutineState(routineId) {
-  const r = routineById(routineId);
-  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+function adaptiveRoutineState(routineOrId, groupedLogs = null) {
+  const r = typeof routineOrId === "object" && routineOrId ? routineOrId : routineById(routineOrId);
+  const routineId = r?.id || routineOrId;
+  const logs = groupedLogs ? ((groupedLogs[String(routineId)] || []).slice()) : (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
   const recent = logs.slice(-8);
   const hit = recent.length ? targetHitRate(recent) : null;
   const psi = performanceStabilityIndex(logs.slice(-10), 10);
@@ -5496,8 +5498,9 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const strategy = $("orchestratorStrategy")?.value || "balanced";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
   const routinePool = recommendationEligibleRoutines().filter(r => focusOverride === "all" || r.category === focusOverride);
-  let states = routinePool.map(r => adaptiveRoutineState(r.id));
-  if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r.id));
+  const adaptiveLogMap = getLogsByRoutineMap(data.logs || []);
+  let states = routinePool.map(r => adaptiveRoutineState(r, adaptiveLogMap));
+  if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r, adaptiveLogMap));
   const recommendationModeForBuilder = getSmartRecommendationMode();
   const recommendationProfiles = new Map(rankRoutinesByMode(focusOverride, strategy, recommendationModeForBuilder).map(x => [x.routine.id, x]));
   const ranked = states.map(s => {
@@ -5897,7 +5900,7 @@ function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSm
   if (rankRoutineMemoCache.has(cacheKey)) return rankRoutineMemoCache.get(cacheKey).slice();
   const logMap = getLogsByRoutineMap(data.logs || []);
   const base = activeRoutines().map(r => {
-    const stats = routineStats(r.id, logMap);
+    const stats = routineStats(r, logMap);
     return routineRecommendationProfile(r, stats, strategy, focusOverride);
   }).filter(x => recommendationMode(x.routine) !== "excluded");
   let ranked;
@@ -7125,13 +7128,37 @@ function coachingInsightForUI(item){
   return item;
 }
 
+function coachingBaseMetrics(logs, rid=null) {
+  const arr = logs || [];
+  let count = 0;
+  let sum = 0;
+  let max = -Infinity;
+  let targetCount = 0;
+  let targetHits = 0;
+  for (const l of arr) {
+    const v = Number(l?.normalizedScore || 0);
+    if (Number.isFinite(v)) { count += 1; sum += v; if (v > max) max = v; }
+    const perf = l?.performance || "N/A";
+    if (perf !== "N/A") {
+      targetCount += 1;
+      if (perf === "On Target" || perf === "Above Target") targetHits += 1;
+    }
+  }
+  const vals = arr.map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite);
+  const mean = count ? sum / count : 0;
+  const hit = targetCount ? targetHits / targetCount * 100 : null;
+  const gap = count >= 2 && Number.isFinite(max) ? max - mean : null;
+  return {vals, mean, hit, gap, weak: rid ? null : weaknessConcentration(arr)[0], fatigue: fatigueCurve(arr)};
+}
+
 function renderCoachingEngine(logs, rid=null) {
   if (!logs.length) return "";
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
-  const hit = targetHitRate(logs);
-  const gap = skillGapIndex(logs);
-  const weak = rid ? null : weaknessConcentration(logs)[0];
-  const fatigue = fatigueCurve(logs);
+  const metrics = coachingBaseMetrics(logs, rid);
+  const vals = metrics.vals;
+  const hit = metrics.hit;
+  const gap = metrics.gap;
+  const weak = metrics.weak;
+  const fatigue = metrics.fatigue;
   const insights = [];
 
   if (weak && weak.hitRate !== null) {
@@ -7142,7 +7169,7 @@ function renderCoachingEngine(logs, rid=null) {
   }
 
   if (gap !== null) {
-    if (gap > avg(vals) * 0.35) {
+    if (gap > metrics.mean * 0.35) {
       insights.push({
         title: "High skill gap: consistency problem",
         text: `Your best performance is materially above your average. Use repetition blocks and reduce difficulty changes until baseline rises.`
@@ -9493,8 +9520,9 @@ function tableStats(logs){
 }
 function renderTableStats(logs=data.logs||[]){const box=$("tableStatsBox"); if(!box)return; const rows=tableStats(logs); if(!rows.length){box.innerHTML="";return;} box.innerHTML=`<div class="table-stats"><h3>Table / venue performance ${statHelpButton("tableVenuePerformance")}</h3><table><thead><tr><th>Table</th><th>Logs</th><th>Time</th><th>Avg</th><th>Hit rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.table)}</td><td>${r.logs}</td><td>${formatDurationHuman(r.time)}</td><td>${r.avg===null?"N/A":r.avg.toFixed(1)}</td><td>${r.hit===null?"N/A":r.hit.toFixed(1)+"%"}</td></tr>`).join("")}</tbody></table></div>`;}
 
-function routineStats(routineId, groupedLogs = null) {
-  const routine = routineById(routineId);
+function routineStats(routineOrId, groupedLogs = null) {
+  const routine = typeof routineOrId === "object" && routineOrId ? routineOrId : routineById(routineOrId);
+  const routineId = routine?.id || routineOrId;
   const logMap = groupedLogs || getLogsByRoutineMap(data.logs || []);
   const logs = (logMap[String(routineId)] || []).slice();
   const cacheKey = `${routineId}|${recommendationMode(routine)}|${recommendationRecencyCap(routine)}|${recommendationUndertrainingMultiplier(routine)}|${logsSignature(logs)}`;
@@ -9511,7 +9539,7 @@ function routineStats(routineId, groupedLogs = null) {
   const consistencyPenalty = vals.length > 2 ? Math.min(15, stdDev(vals) / Math.max(1, Math.abs(avg(vals))) * 30) : 5;
   const modePenalty = recommendationMode(routine) === "occasional" ? 8 : 0;
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
-  const bayesian = bayesianStatsForRoutine(routineId);
+  const bayesian = bayesianStatsForRoutine(routine);
   const contextSignal = recommendationContextSignal(routineId);
   const result = {
     logs, vals, hit, recent, prior, bayesian, contextSignal,
@@ -9531,7 +9559,7 @@ function warmRoutineStatsCache(reason="warmRoutineStatsCache") {
     performanceCacheWarmInProgress = true;
     const grouped = getLogsByRoutineMap(logs);
     routines.forEach(r => {
-      try { routineStats(r.id, grouped); }
+      try { routineStats(r, grouped); }
       catch(e) { logAppError?.(e, `${reason} routineStats ${r?.id || "unknown"}`); }
     });
     routineStatsWarmSignature = signature;
