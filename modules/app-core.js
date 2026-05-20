@@ -1810,7 +1810,7 @@ function normalizeFocusNumpadTarget(id) {
 
 function setFocusNumpadTarget(id) {
   focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
-  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${CSS.escape(focusNumpadTargetId)}`)));
+  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${cssEscapeSafe(focusNumpadTargetId)}`)));
   const panel = document.querySelector(".focus-score-cockpit");
   if (panel) {
     const row = $(focusNumpadTargetId)?.closest("div");
@@ -2941,7 +2941,7 @@ function activateTab(tabId) {
   if (!panel) return;
   document.querySelectorAll(".tab, .mobile-nav-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(`[data-tab="${CSS.escape(tabId)}"]`).forEach(b => {
+  document.querySelectorAll(`[data-tab="${cssEscapeSafe(tabId)}"]`).forEach(b => {
     if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
   });
   if (tabId === "plans") {
@@ -7486,6 +7486,12 @@ function safeDateString(value, options) {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "Invalid date";
   try { return d.toLocaleDateString(undefined, options); } catch(e) { return fallbackDateKey(d); }
+}
+function safeDateTimeString(value, options) {
+  if (!value) return "Unknown date";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "Invalid date";
+  try { return d.toLocaleString(undefined, options); } catch(e) { return `${fallbackDateKey(d)} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
 }
 function safeTimeString(value, options) {
   if (!value) return "Unknown time";
