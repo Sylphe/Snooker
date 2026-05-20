@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.20.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.20.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.21";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.21";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.20.1";
+} from "./utils.js?v=5.5.21";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.20.1";
+} from "./settings.js?v=5.5.21";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.20.1";
+} from "./analytics.js?v=5.5.21";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.20.1";
+} from "./bayesian.js?v=5.5.21";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.20.1";
+} from "./session.js?v=5.5.21";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.20.1";
+} from "./pressure.js?v=5.5.21";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.20.1";
+} from "./recommendations.js?v=5.5.21";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.20.1";
+} from "./store.js?v=5.5.21";
 
 
 
@@ -2587,6 +2587,25 @@ function saveData(options = {}) {
 function isPanelActive(panelId) {
   return !!$(panelId)?.classList.contains("active");
 }
+function shouldRenderStatsPanel() {
+  return isPanelActive("stats");
+}
+function renderStatsIfVisible(reason="renderStatsIfVisible") {
+  if (!shouldRenderStatsPanel()) return;
+  safeCall(`${reason} renderStats`, renderStats);
+}
+function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible") {
+  if (!shouldRenderStatsPanel()) return;
+  safeCall(`${reason} renderPhaseOneInsights`, renderPhaseOneInsights);
+  safeCall(`${reason} renderBayesianAnalyticsValidation`, renderBayesianAnalyticsValidation);
+  safeCall(`${reason} renderTrainingLoad`, renderTrainingLoad);
+  safeCall(`${reason} renderWeeklyReview`, renderWeeklyReview);
+  safeCall(`${reason} renderABComparison`, renderABComparison);
+}
+function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
+  renderStatsIfVisible(reason);
+  renderStatsHeavyPanelsIfVisible(reason);
+}
 
 function renderAfterSave(mode = "all") {
   if (mode === "none") return;
@@ -2940,7 +2959,7 @@ function activateTab(tabId) {
   panel.classList.add("active");
   if (tabId === "practice") renderPracticeTodayCommand();
   if (tabId === "today") renderToday();
-  if (tabId === "stats") renderStats();
+  if (tabId === "stats") renderStatsBundleIfVisible("activateTab stats");
 }
 
 document.querySelectorAll(".tab, .mobile-nav-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
@@ -2966,7 +2985,7 @@ function renderAll() {
     ["renderRoutineList", renderRoutineList],
     ["renderPlanBuilder", renderPlanBuilder],
     ["renderPlanList", renderPlanList],
-    ["renderStats", renderStats],
+    ["renderStats", () => renderStatsIfVisible("renderAll")],
     ["renderToday", renderToday],
     ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
@@ -2979,16 +2998,16 @@ function renderAll() {
     ["renderTableDatabase", renderTableDatabase],
     ["renderSkillManager", () => { if (activeTemplatesPanelName() === "skills") renderSkillManager(); }],
     ["renderTableSelects", renderTableSelects],
-    ["renderTrainingLoad", renderTrainingLoad],
-    ["renderWeeklyReview", renderWeeklyReview],
-    ["renderABComparison", renderABComparison],
+    ["renderTrainingLoad", () => { if (shouldRenderStatsPanel()) renderTrainingLoad(); }],
+    ["renderWeeklyReview", () => { if (shouldRenderStatsPanel()) renderWeeklyReview(); }],
+    ["renderABComparison", () => { if (shouldRenderStatsPanel()) renderABComparison(); }],
     ["renderResumeCard", renderResumeCard],
     ["renderTodayResumeCard", renderTodayResumeCard],
     ["renderQuickResumeBanner", renderQuickResumeBanner],
-    ["renderTableStats", renderTableStats],
-    ["renderPhaseOneInsights", renderPhaseOneInsights],
-    ["renderBayesianAnalyticsValidation", renderBayesianAnalyticsValidation],
-    ["toggleStatsStandalonePanels", toggleStatsStandalonePanels],
+    ["renderTableStats", () => { if (shouldRenderStatsPanel()) renderTableStats(); }],
+    ["renderPhaseOneInsights", () => { if (shouldRenderStatsPanel()) renderPhaseOneInsights(); }],
+    ["renderBayesianAnalyticsValidation", () => { if (shouldRenderStatsPanel()) renderBayesianAnalyticsValidation(); }],
+    ["toggleStatsStandalonePanels", () => { if (shouldRenderStatsPanel()) toggleStatsStandalonePanels(); }],
     ["renderInterfaceSettings", renderInterfaceSettings],
     ["restorePracticeMainTab", restorePracticeMainTab],
     ["restorePlansMainTab", restorePlansMainTab],

@@ -4305,7 +4305,7 @@ body.session-focus-active #activeSession .live-perf > div:first-child{
 body.wake-lock-active .wake-lock-indicator{display:flex}
 body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 
-/* ===== v5.5.20.1 Performance cache/pass paint containment ===== */
+/* ===== v5.5.21 Performance cache/pass paint containment ===== */
 .history-table,
 .routine-item-clean,
 .folder-group,
@@ -4331,7 +4331,7 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
   font-size: .78rem;
 }
 
-/* ===== v5.5.20.1 UX integrity hardening ===== */
+/* ===== v5.5.21 UX integrity hardening ===== */
 .item-title strong,
 .routine-item-clean .item-title strong{
   overflow-wrap:anywhere;
