@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.0";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.0";
+} from "./utils.js?v=5.6.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.0";
+} from "./settings.js?v=5.6.1";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.0";
+} from "./analytics.js?v=5.6.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.0";
+} from "./bayesian.js?v=5.6.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.0";
+} from "./session.js?v=5.6.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.0";
+} from "./pressure.js?v=5.6.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.0";
+} from "./recommendations.js?v=5.6.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.0";
+} from "./store.js?v=5.6.1";
 
 
 
@@ -8217,6 +8217,195 @@ function exportRoutinePackJson() {
   return exportFile(filename, JSON.stringify(pack), "application/json");
 }
 
+
+function parseRoutineLibraryCsv(text) {
+  const src = String(text || "").replace(/^\ufeff/, "");
+  const rows = [];
+  let row = [], cell = "", quote = false;
+  for (let i = 0; i < src.length; i += 1) {
+    const ch = src[i];
+    if (quote) {
+      if (ch === '"' && src[i + 1] === '"') { cell += '"'; i += 1; }
+      else if (ch === '"') quote = false;
+      else cell += ch;
+    } else if (ch === '"') quote = true;
+    else if (ch === ',') { row.push(cell); cell = ""; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (ch !== '\r') cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const header = (rows.shift() || []).map(h => String(h || "").trim());
+  const normalizedHeader = header.map(h => h.toLowerCase());
+  return rows.filter(r => r.some(v => String(v || "").trim())).map((r, rowIndex) => {
+    const obj = {__row: rowIndex + 2};
+    normalizedHeader.forEach((h, i) => { obj[h] = String(r[i] ?? "").trim(); });
+    return obj;
+  });
+}
+
+function splitCsvSkillList(value) {
+  return String(value || "").split(/[|;,]/).map(x => x.trim()).filter(Boolean);
+}
+
+function parseOptionalNumber(value) {
+  const raw = String(value ?? "").trim().replace(",", ".");
+  if (raw === "") return "";
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function routineCsvImportRecord(row) {
+  const canonicalId = normalizeRoutineCanonicalId(row.canonicalid || row.canonical_id || row.catalogueid || row.catalogue_id || row.id || row.name || "");
+  const name = String(row.name || row.title || "").trim();
+  const scoring = String(row.scoring || "raw").trim() || "raw";
+  const sideMode = normalizeSideMode(row.sidemode || row.side_mode || "none");
+  const skillMap = normalizeRoutineSkillMap({name, category: row.category || row.folder || ""}, {
+    primarySkill: row.primaryskill || row.primary_skill || "cueing",
+    secondarySkills: splitCsvSkillList(row.secondaryskills || row.secondary_skills),
+    transferTags: splitCsvSkillList(row.transfertags || row.transfer_tags || row.transferskills || row.transfer_skills),
+    source: "csv-import",
+    updatedAt: new Date().toISOString()
+  });
+  const numericFields = ["attempts", "duration", "target", "stretchtarget", "totalunits", "attemptspersession"];
+  const nums = Object.create(null);
+  numericFields.forEach(key => { nums[key] = parseOptionalNumber(row[key] || row[key.replace(/([a-z])([A-Z])/g, "$1_$2")] || ""); });
+  return {
+    canonicalId,
+    name,
+    folder: row.folder || row.category || "Imported",
+    subfolder: row.subfolder || "General",
+    category: row.category || row.folder || "uncategorized",
+    scoring,
+    attempts: nums.attempts,
+    duration: nums.duration,
+    target: nums.target,
+    stretchTarget: nums.stretchtarget,
+    totalUnits: nums.totalunits,
+    attemptsPerSession: nums.attemptspersession,
+    sideMode,
+    attemptMode: sideMode === "left_right" ? normalizeAttemptMode(row.attemptmode || row.attempt_mode || "shared") : "shared",
+    unitType: row.unittype || row.unit_type || "",
+    difficultyLabel: row.difficultylabel || row.difficulty_label || "Base target",
+    description: row.description || "",
+    skillMap,
+    __row: row.__row
+  };
+}
+
+function validateRoutineCsvRows(rows) {
+  const errors = [], warnings = [], seen = new Set();
+  const records = rows.map(routineCsvImportRecord);
+  records.forEach(rec => {
+    if (!rec.name) errors.push(`Row ${rec.__row}: routine name is required.`);
+    if (!rec.canonicalId) errors.push(`Row ${rec.__row}: canonicalId could not be inferred.`);
+    if (seen.has(rec.canonicalId)) errors.push(`Row ${rec.__row}: duplicate canonicalId ${rec.canonicalId}.`);
+    seen.add(rec.canonicalId);
+    ["attempts","duration","target","stretchTarget","totalUnits","attemptsPerSession"].forEach(field => {
+      if (Number.isNaN(rec[field])) errors.push(`Row ${rec.__row}: ${field} is not a valid number.`);
+    });
+    if (!rec.skillMap.primarySkill) warnings.push(`Row ${rec.__row}: missing primary skill; cueing fallback will be used.`);
+    if (!["raw","success_rate","time","score_per_minute","progressive_completion","points"].includes(rec.scoring)) warnings.push(`Row ${rec.__row}: unknown scoring mode "${rec.scoring}" kept as-is.`);
+  });
+  return {ok: errors.length === 0, errors, warnings, records};
+}
+
+function routineCsvDiffSummary(records) {
+  const byCanonical = Object.create(null);
+  (data.routines || []).forEach(r => { byCanonical[getRoutineCanonicalId(r)] = r; });
+  let added = 0, updated = 0, unchanged = 0;
+  records.forEach(rec => {
+    const existing = byCanonical[rec.canonicalId];
+    if (!existing) { added += 1; return; }
+    const fields = ["name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget","totalUnits","attemptsPerSession","sideMode","attemptMode","unitType","difficultyLabel","description"];
+    const changed = fields.some(f => String(existing[f] ?? "") !== String(rec[f] ?? ""));
+    const existingMap = normalizeRoutineSkillMap(existing, getRoutineSkillMap(existing));
+    const skillChanged = JSON.stringify(existingMap) !== JSON.stringify(rec.skillMap);
+    if (changed || skillChanged) updated += 1; else unchanged += 1;
+  });
+  return {added, updated, unchanged};
+}
+
+function applyRoutineCsvImport(records) {
+  const now = new Date().toISOString();
+  data.routines = data.routines || [];
+  data.routineSkillMap = data.routineSkillMap || {};
+  const byCanonical = Object.create(null);
+  data.routines.forEach(r => { byCanonical[getRoutineCanonicalId(r)] = r; });
+  let added = 0, updated = 0;
+  records.forEach(rec => {
+    const existing = byCanonical[rec.canonicalId];
+    const clean = {
+      canonicalId: rec.canonicalId,
+      metadataVersion: existing ? Number(existing.metadataVersion || 1) + 1 : 1,
+      isCatalogueRoutine: true,
+      name: rec.name,
+      folder: rec.folder,
+      subfolder: rec.subfolder,
+      category: rec.category,
+      scoring: rec.scoring,
+      attempts: rec.attempts === "" || Number.isNaN(rec.attempts) ? "" : rec.attempts,
+      duration: rec.duration === "" || Number.isNaN(rec.duration) ? "" : rec.duration,
+      target: rec.target === "" || Number.isNaN(rec.target) ? "" : rec.target,
+      stretchTarget: rec.stretchTarget === "" || Number.isNaN(rec.stretchTarget) ? "" : rec.stretchTarget,
+      totalUnits: rec.totalUnits === "" || Number.isNaN(rec.totalUnits) ? "" : rec.totalUnits,
+      attemptsPerSession: rec.attemptsPerSession === "" || Number.isNaN(rec.attemptsPerSession) ? "" : rec.attemptsPerSession,
+      sideMode: rec.sideMode,
+      attemptMode: rec.attemptMode,
+      unitType: rec.unitType,
+      difficultyLabel: rec.difficultyLabel,
+      description: rec.description,
+      updatedAt: now
+    };
+    if (existing) {
+      const merged = ensureTargetHistory({...existing, ...clean, id: existing.id, createdAt: existing.createdAt || now, updatedAt: now});
+      data.routines = data.routines.map(r => r.id === existing.id ? merged : r);
+      data.routineSkillMap[existing.id] = normalizeRoutineSkillMap(merged, rec.skillMap);
+      updated += 1;
+    } else {
+      const routine = ensureTargetHistory({id: uuid(), createdAt: now, ...clean, isDeleted:false, deletedAt:""});
+      data.routines.push(routine);
+      data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, rec.skillMap);
+      added += 1;
+    }
+  });
+  data.routineCsvImports = data.routineCsvImports || [];
+  data.routineCsvImports.unshift({importedAt: now, added, updated, rowCount: records.length});
+  data.routineCsvImports = data.routineCsvImports.slice(0, 20);
+  return {added, updated};
+}
+
+async function importRoutineLibraryCsvFile(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  const lowerName = String(file.name || "").toLowerCase();
+  if (file.size > 4 * 1024 * 1024) {
+    input.value = "";
+    return alert("Routine CSV is too large. Maximum size is 4MB.");
+  }
+  if (!lowerName.endsWith(".csv") && !String(file.type || "").includes("csv")) {
+    input.value = "";
+    return alert("Invalid routine library file. Please select a .csv file.");
+  }
+  try {
+    const rows = parseRoutineLibraryCsv(await file.text());
+    const validation = validateRoutineCsvRows(rows);
+    if (!validation.ok) return alert(`Routine CSV validation failed:\n${validation.errors.slice(0,12).join("\n")}`);
+    const diff = routineCsvDiffSummary(validation.records);
+    const warningText = validation.warnings.length ? `\n\nWarnings:\n${validation.warnings.slice(0,5).join("\n")}` : "";
+    const msg = `Routine CSV preview:\n${validation.records.length} valid row(s)\n${diff.added} to add\n${diff.updated} to update\n${diff.unchanged} unchanged${warningText}\n\nApply these changes?`;
+    if (!confirm(msg)) return;
+    const result = applyRoutineCsvImport(validation.records);
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice(`Routine CSV imported: ${result.added} added, ${result.updated} updated.`, "ok");
+  } catch(error) {
+    logAppError(error, "importRoutineLibraryCsvFile");
+    alert("Could not import this routine CSV. Export Debug Info if the issue persists.");
+  } finally {
+    if (input) input.value = "";
+  }
+}
+
 function exportRoutineLibraryCsv() {
   const headers = [
     "canonicalId","id","name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget",
@@ -8315,6 +8504,7 @@ safeOn("exportCsvBtn", "click", async () => {
 safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
 safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
+safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));
 safeOn("runRegretBtn", "click", runRegretComparison);
 ["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => safeOn(id, "change", event => {

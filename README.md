@@ -1,6 +1,35 @@
-# Snooker Practice PWA v5.6.0
+# Snooker Practice PWA v5.6.1
 
-## v5.6.0 — Routine Pack Foundation
+## v5.6.1 — External Editing Workflow
+
+Built from the working v5.6.1 routine pack foundation.
+
+This release adds the first practical bulk-editing workflow for the exercise library. It allows users to export the library to CSV, edit core routine fields in a spreadsheet, then reimport the CSV with validation and a diff-style preview before applying changes.
+
+### Main changes
+
+- Added Routine CSV import from the Import / Export panel.
+- Added CSV parser with quoted-cell support and file-size/type validation.
+- Added validation for required names, duplicate canonical IDs, and invalid numeric fields.
+- Added import preview showing added, updated, and unchanged routine counts.
+- Added conservative merge behavior preserving existing routine IDs and historical logs.
+- Added CSV import history metadata.
+- Added skill-map parsing for primary, secondary, and transfer skills using pipe/comma/semicolon-separated values.
+- Added canonical-ID matching so external spreadsheet edits update catalogue routines without breaking log references.
+
+### CSV merge behavior
+
+Routine CSV imports are designed for spreadsheet-based editing:
+
+- Existing routines are matched by canonical ID.
+- Existing routine IDs are preserved.
+- Existing logs remain linked to their routines.
+- Missing catalogue routines are added.
+- Skill maps are normalized against the app taxonomy.
+- Invalid rows are blocked before any data is changed.
+
+
+## v5.6.1 — Routine Pack Foundation
 
 Built from the working v5.5.29 coaching performance baseline.
 
@@ -39,10 +68,10 @@ These templates define the early pack format for curated routine libraries and e
 
 Planned follow-up releases:
 
-- v5.6.1 — CSV reimport and external editing workflow
+- v5.6.1 — CSV reimport and external editing workflow ✅
 - v5.6.2 — curated snooker routine pack v1
 - v5.6.3 — adaptive target calibration engine
 - v5.6.4 — inferred skill-level profiles
 - v5.6.5 — recommendation integration with routine intelligence
 
-Build timestamp: 2026-05-20 14:24 CEST.
+Build timestamp: 2026-05-20 14:44 CEST.

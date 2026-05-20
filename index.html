@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.6.0</title>
+  <title>Snooker Practice Log v5.6.1</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.6.0"></script>
-  <link rel="manifest" href="manifest.json?v=5.6.0" />
-  <link rel="stylesheet" href="styles.css?v=5.6.0" />
-  <link rel="icon" href="icon.svg?v=5.6.0" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.6.1"></script>
+  <link rel="manifest" href="manifest.json?v=5.6.1" />
+  <link rel="stylesheet" href="styles.css?v=5.6.1" />
+  <link rel="icon" href="icon.svg?v=5.6.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.6.0 · Build 2026-05-20 13:32 CEST — Coaching performance pass.</p>
+      <p>v5.6.1 · Build 2026-05-20 13:32 CEST — Coaching performance pass.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -1124,6 +1124,10 @@
               Import Routine Pack
               <input id="importRoutinePackInput" type="file" accept="application/json" />
             </label>
+            <label class="file-btn secondary">
+              Import Routine CSV
+              <input id="importRoutineCsvInput" type="file" accept=".csv,text/csv" />
+            </label>
             <div class="card nested">
               <h3>Export folder</h3>
               <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
@@ -1336,7 +1340,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.6.0"></script>
+  <script type="module" src="app.js?v=5.6.1"></script>
 </body>
 
 
