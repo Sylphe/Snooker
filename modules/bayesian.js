@@ -63,7 +63,7 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
     const scoreRaw = Number(l?.score ?? 0);
     const score = Number.isFinite(scoreRaw) ? Math.max(0, scoreRaw) : 0;
     if (attempts > 0) {
-      const parsedDate = l?.createdAt ? Date.parse(l.createdAt) : now;
+      const parsedDate = l?.createdAt ? new Date(l.createdAt).getTime() : now;
       const safeDate = Number.isFinite(parsedDate) ? Math.min(parsedDate, now) : now;
       const daysOld = Math.max(0, (now - safeDate) / 86400000);
       const weightRaw = Math.pow(0.5, daysOld / halfLifeDays);
