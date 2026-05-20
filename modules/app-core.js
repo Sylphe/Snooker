@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.22";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.22";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.23";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.23";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.22";
+} from "./utils.js?v=5.5.23";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.22";
+} from "./settings.js?v=5.5.23";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.22";
+} from "./analytics.js?v=5.5.23";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.22";
+} from "./bayesian.js?v=5.5.23";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.22";
+} from "./session.js?v=5.5.23";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.22";
+} from "./pressure.js?v=5.5.23";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.22";
+} from "./recommendations.js?v=5.5.23";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.22";
+} from "./store.js?v=5.5.23";
 
 
 
@@ -155,9 +155,26 @@ function enterStorageReadOnlyMode(context="storage") {
 }
 
 
+function buildCoreDataSnapshot(d, includeHighVolumeCollections=false) {
+  const source = d || {};
+  const core = {};
+  Object.keys(source).forEach(key => {
+    if (!includeHighVolumeCollections && (key === "logs" || key === "sessions")) return;
+    core[key] = source[key];
+  });
+  core.appVersion = APP_VERSION;
+  core.appBuildTimestamp = APP_BUILD_TIMESTAMP;
+  if (!includeHighVolumeCollections) {
+    core.logs = [];
+    core.sessions = [];
+  }
+  return core;
+}
+
 function serializeCoreData(d) {
-  const core = structuredCloneSafe(d || {});
-  if (indexedDBUnavailable || !indexedDBReady) {
+  const includeHighVolumeCollections = indexedDBUnavailable || !indexedDBReady;
+  const core = buildCoreDataSnapshot(d, includeHighVolumeCollections);
+  if (includeHighVolumeCollections) {
     const fullSize = estimateSerializedBytes(JSON.stringify(core));
     if (indexedDBUnavailable && fullSize >= LOCALSTORAGE_HARD_STOP_BYTES) {
       core.logs = [];
@@ -179,8 +196,6 @@ function serializeCoreData(d) {
     };
     return core;
   }
-  core.logs = [];
-  core.sessions = [];
   core.indexedDBStorage = {
     enabled: true,
     stores: [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE],
