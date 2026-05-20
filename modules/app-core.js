@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.18";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.18";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.19";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.19";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.18";
+} from "./utils.js?v=5.5.19";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.18";
+} from "./settings.js?v=5.5.19";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.18";
+} from "./analytics.js?v=5.5.19";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.18";
+} from "./bayesian.js?v=5.5.19";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.18";
+} from "./session.js?v=5.5.19";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.18";
+} from "./pressure.js?v=5.5.19";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.18";
+} from "./recommendations.js?v=5.5.19";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.18";
+} from "./store.js?v=5.5.19";
 
 
 
@@ -540,11 +540,10 @@ async function bootstrapIndexedDBStorage() {
     await safeRenderAll("bootstrap renderAll fallback");
     return;
   }
-  const bootstrapLogsBefore = JSON.stringify(data.logs || []);
-  const bootstrapSessionsBefore = JSON.stringify(data.sessions || []);
-  safeCall("bootstrap ensureTablesDatabase", () => ensureTablesDatabase?.());
-  safeCall("bootstrap refreshReferenceNames", () => refreshReferenceNames?.());
-  if (bootstrapLogsBefore !== JSON.stringify(data.logs || []) || bootstrapSessionsBefore !== JSON.stringify(data.sessions || [])) {
+  let bootstrapMutated = false;
+  safeCall("bootstrap ensureTablesDatabase", () => { bootstrapMutated = !!ensureTablesDatabase?.() || bootstrapMutated; });
+  safeCall("bootstrap refreshReferenceNames", () => { bootstrapMutated = !!refreshReferenceNames?.() || bootstrapMutated; });
+  if (bootstrapMutated) {
     scheduleIndexedDBSync("bootstrap memory migration sync", true);
     saveCoreData("bootstrap memory migration core save");
   }
@@ -3859,7 +3858,7 @@ async function saveCurrentRoutine() {
   }
   if (!sideSplitEnabled && r.scoring === "success_rate" && score > attempts) return validationNotice("Score cannot exceed attempts.");
   if (manualTime < 0) return validationNotice("Time cannot be negative.");
-  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value || "") || wholeNumberOrNull(r.totalUnits) || 0) : Number(r.totalUnits || 0);
+  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value ?? "") ?? wholeNumberOrNull(r.totalUnits) ?? 0) : Number(r.totalUnits || 0);
   if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return validationNotice("Enter the completion size / total units for this progressive completion drill.");
   if (r.scoring === "progressive_completion") {
     if (score > sessionTotalUnits) return validationNotice(`Average ${progressiveUnitLabel(r)} cannot exceed completion size (${sessionTotalUnits}).`);
@@ -3868,7 +3867,8 @@ async function saveCurrentRoutine() {
     const breakRaw = $("highestBreakValue")?.value || "";
     const bestCheck = validateWholeNumberField(bestRaw, "Best attempt", {required:false, min:0, max:sessionTotalUnits});
     if (bestCheck.error) return validationNotice(bestCheck.error);
-    const completionCheck = validateWholeNumberField(completionsRaw, "Completions", {required:false, min:0, max:attempts || null});
+    const completionMax = Number.isFinite(Number(attempts)) ? Number(attempts) : null;
+    const completionCheck = validateWholeNumberField(completionsRaw, "Completions", {required:false, min:0, max:completionMax});
     if (completionCheck.error) return validationNotice(completionCheck.error);
     const breakCheck = validateWholeNumberField(breakRaw, "Highest break", {required:false, min:0, max:sessionTotalUnits});
     if (breakCheck.error) return validationNotice(breakCheck.error);
@@ -4574,20 +4574,35 @@ async function exportFile(filename,text,mimeType="application/octet-stream"){
   }
 }
 
+const DEFAULT_TABLE_DEFINITIONS = [
+  {id:"default-home-table", name:"Home table", type:"Home"},
+  {id:"default-club-table-1", name:"Club table 1", type:"Club"},
+  {id:"default-club-table-2", name:"Club table 2", type:"Club"},
+  {id:"default-club-table-3", name:"Club table 3", type:"Club"},
+  {id:"default-club-table-4", name:"Club table 4", type:"Club"},
+  {id:"default-other-table", name:"Other", type:"Other"}
+];
 function ensureTablesDatabase() {
-  data.tables = data.tables || [];
-  const defaults = ["Home table", "Club table 1", "Club table 2", "Club table 3", "Club table 4", "Other"];
-  defaults.forEach(name => {
-    if (!data.tables.some(t => t.name === name)) {
-      data.tables.push({id: uuid(), name, type:name.includes("Club")?"Club":(name==="Home table"?"Home":"Other"), info:"", createdAt:new Date().toISOString(), nameHistory:[]});
-    }
-  });
+  let mutated = false;
+  data.systemMeta = data.systemMeta || {};
+  const hadTables = Array.isArray(data.tables) && data.tables.length > 0;
+  if (!Array.isArray(data.tables)) { data.tables = []; mutated = true; }
+  if (!data.systemMeta.defaultTablesInitialized && !hadTables && data.tables.length === 0) {
+    const now = new Date().toISOString();
+    data.tables = DEFAULT_TABLE_DEFINITIONS.map(t => ({id:t.id, name:t.name, type:t.type, info:"", createdAt:now, updatedAt:now, nameHistory:[], isDefaultSeed:true}));
+    data.systemMeta.defaultTablesInitialized = true;
+    mutated = true;
+  } else if (!data.systemMeta.defaultTablesInitialized) {
+    data.systemMeta.defaultTablesInitialized = true;
+    mutated = true;
+  }
   (data.logs || []).forEach(l => {
     if (l.venueTable && !l.tableId) {
       const found = data.tables.find(t => t.name === l.venueTable);
-      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; }
+      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; mutated = true; }
     }
   });
+  return mutated;
 }
 function tableById(id){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.id===id); }
 function tableByName(name){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.name===name); }
@@ -6224,9 +6239,9 @@ function forecastWithConfidence(logs, horizon=5){
     const yhat = intercept + slope*xi;
     preds.push({
       step:h,
-      expected:yhat,
-      upper:yhat+sd,
-      lower:yhat-sd
+      expected:Math.max(0, Math.min(100, yhat)),
+      upper:Math.max(0, Math.min(100, yhat+sd)),
+      lower:Math.max(0, Math.min(100, yhat-sd))
     });
   }
   return {slope,intercept,sd,preds};
@@ -7622,22 +7637,23 @@ async function saveEditedLog(id, formEl) {
       const totalCheck = validateWholeNumberField(totalUnitsInput, "Total units", {required:false, min:0});
       if (totalCheck.error) return validationNotice(totalCheck.error);
       l.totalUnitsAtLog = totalCheck.value ?? "";
-      l.totalUnits = l.totalUnitsAtLog || l.totalUnits || "";
+      l.totalUnits = (l.totalUnitsAtLog ?? l.totalUnits ?? "");
     }
-    const totalUnits = Number(l.totalUnitsAtLog || l.totalUnits || routine?.totalUnits || 0);
+    const totalUnits = Number(l.totalUnitsAtLog ?? l.totalUnits ?? routine?.totalUnits ?? 0);
     if (totalUnits > 0 && Number(l.score || 0) > totalUnits) return validationNotice(`Score cannot exceed completion size (${totalUnits}).`);
     if (field("edit-best")) {
-      const bestCheck = validateWholeNumberField(field("edit-best").value || "", "Best attempt", {required:false, min:0, max:totalUnits || null});
+      const bestCheck = validateWholeNumberField(field("edit-best").value || "", "Best attempt", {required:false, min:0, max:Number.isFinite(totalUnits) ? totalUnits : null});
       if (bestCheck.error) return validationNotice(bestCheck.error);
       l.bestAttempt = bestCheck.value ?? "";
     }
     if (field("edit-completions")) {
-      const completionCheck = validateWholeNumberField(field("edit-completions").value || "", "Completions", {required:false, min:0, max:Number(l.attempts || 0) || null});
+      const editAttemptMax = Number.isFinite(Number(l.attempts)) ? Number(l.attempts) : null;
+      const completionCheck = validateWholeNumberField(field("edit-completions").value || "", "Completions", {required:false, min:0, max:editAttemptMax});
       if (completionCheck.error) return validationNotice(completionCheck.error);
       l.completionCount = completionCheck.value ?? "";
     }
     if (field("edit-break")) {
-      const breakCheck = validateWholeNumberField(field("edit-break").value || "", "Highest break", {required:false, min:0, max:totalUnits || null});
+      const breakCheck = validateWholeNumberField(field("edit-break").value || "", "Highest break", {required:false, min:0, max:Number.isFinite(totalUnits) ? totalUnits : null});
       if (breakCheck.error) return validationNotice(breakCheck.error);
       l.highestBreak = breakCheck.value ?? "";
     }
@@ -8205,16 +8221,27 @@ function enrichLogReferences(log) {
   return log;
 }
 function refreshReferenceNames() {
-  if (!data) return;
-  data.logs = (data.logs || []).map(enrichLogReferences);
+  if (!data) return false;
+  let mutated = false;
+  data.logs = (data.logs || []).map(log => {
+    const before = `${log.routineNameSnapshot || ""}|${log.currentRoutineName || ""}|${log.planNameSnapshot || ""}|${log.sessionName || ""}`;
+    const enriched = enrichLogReferences(log);
+    const after = `${enriched.routineNameSnapshot || ""}|${enriched.currentRoutineName || ""}|${enriched.planNameSnapshot || ""}|${enriched.sessionName || ""}`;
+    if (before !== after) mutated = true;
+    return enriched;
+  });
   data.sessions = (data.sessions || []).map(s => {
+    const before = `${s.planNameSnapshot || ""}|${s.name || ""}`;
     const p = planById(s.planId);
     if (p) {
       s.planNameSnapshot = s.planNameSnapshot || s.name || p.name;
       s.name = p.name;
     }
+    const after = `${s.planNameSnapshot || ""}|${s.name || ""}`;
+    if (before !== after) mutated = true;
     return s;
   });
+  return mutated;
 }
 
 
@@ -9648,7 +9675,16 @@ function renderInterfaceSettings(){
   if (density) density.value = getDisplayDensitySetting();
   if (insightLanguage) insightLanguage.value = getInsightLanguageSetting();
   if (timerAuto) timerAuto.value = getTimerAutostartSetting();
-  if (timerDelay) timerDelay.value = String(getTimerAutostartDelaySetting());
+  if (timerDelay) {
+    const delayValue = String(getTimerAutostartDelaySetting());
+    if (delayValue && !Array.from(timerDelay.options || []).some(opt => opt.value === delayValue)) {
+      const opt = document.createElement("option");
+      opt.value = delayValue;
+      opt.textContent = `${delayValue} seconds (custom)`;
+      timerDelay.appendChild(opt);
+    }
+    timerDelay.value = delayValue;
+  }
   if (wake) wake.value = getWakeLockSetting();
 }
 var currentSessionFocusActive = null;
