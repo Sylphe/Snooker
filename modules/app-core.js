@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.16";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.16";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.17";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.17";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.16";
+} from "./utils.js?v=5.5.17";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.16";
+} from "./settings.js?v=5.5.17";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.16";
+} from "./analytics.js?v=5.5.17";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.16";
+} from "./bayesian.js?v=5.5.17";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.16";
+} from "./session.js?v=5.5.17";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.16";
+} from "./pressure.js?v=5.5.17";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.16";
+} from "./recommendations.js?v=5.5.17";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.16";
+} from "./store.js?v=5.5.17";
 
 
 
@@ -1752,6 +1752,7 @@ let isResumingActiveSession = false;
 let timerInterval = null;
 let timerStartMs = null;
 let elapsedBeforeStartMs = 0;
+function monotonicNowMs() { try { if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now(); } catch(e) {} return Date.now(); }
 let suppressTimerPersistence = false;
 let timerAutostartDelayInterval = null;
 let timerAutostartDelayEndsAt = null;
@@ -2889,18 +2890,21 @@ function localDateKey(dateLike = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 function sameDate(log, dateKey) { return localDateKey(log.createdAt) === dateKey; }
+const SYSTEM_ALL_VALUE = "__SYSTEM_ALL__";
+function isSystemAll(value) { return value === "all" || value === SYSTEM_ALL_VALUE || value === "" || value === null || value === undefined; }
 function visibleRoutines(typeFilter="all", folderFilter="all", search="") {
   const q = search.trim().toLowerCase();
   return activeRoutines()
-    .filter(r => typeFilter === "all" || (r.category || "uncategorized") === typeFilter)
-    .filter(r => folderFilter === "all" || (r.folder || "Unfiled") === folderFilter)
+    .filter(r => isSystemAll(typeFilter) || (r.category || "uncategorized") === typeFilter)
+    .filter(r => isSystemAll(folderFilter) || (r.folder || "Unfiled") === folderFilter)
     .filter(r => !q || r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q))
     .sort((a,b) => (a.folder||"").localeCompare(b.folder||"") || (a.subfolder||"").localeCompare(b.subfolder||"") || a.name.localeCompare(b.name));
 }
 function setSelectOptions(select, values, allLabel, selected="all") {
   if (!select) return;
-  select.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>` + values.map(v => `<option value="${attrText(v)}">${htmlText(v)}</option>`).join("");
-  select.value = values.includes(selected) || selected === "all" ? selected : "all";
+  const allValue = /^All\b/i.test(String(allLabel || "")) ? SYSTEM_ALL_VALUE : "all";
+  select.innerHTML = `<option value="${allValue}">${escapeHtml(allLabel)}</option>` + values.map(v => `<option value="${attrText(v)}">${htmlText(v)}</option>`).join("");
+  select.value = values.includes(selected) ? selected : (isSystemAll(selected) ? allValue : allValue);
 }
 function editCategoryOptions(current) {
   const vals = [...new Set([current || "uncategorized", ...categories()])].filter(Boolean).sort();
@@ -3208,10 +3212,10 @@ safeOn("saveRoutineBtn", "click", () => {
   const category = newCategory || (selectedCategory !== "all" ? selectedCategory : "uncategorized");
   const newFolder = $("routineFolderNew").value.trim();
   const selectedFolder = $("routineFolderSelect").value;
-  const folder = newFolder || (selectedFolder !== "all" ? selectedFolder : (category || "Unfiled"));
+  const folder = newFolder || (!isSystemAll(selectedFolder) ? selectedFolder : (category || "Unfiled"));
   const newSubfolder = $("routineSubfolderNew").value.trim();
   const selectedSubfolder = $("routineSubfolderSelect").value;
-  const subfolder = newSubfolder || (selectedSubfolder !== "all" ? selectedSubfolder : "General");
+  const subfolder = newSubfolder || (!isSystemAll(selectedSubfolder) ? selectedSubfolder : "General");
 
   const routine = {
     id: $("routineEditId").value || uuid(),
@@ -3390,7 +3394,9 @@ safeOn("startSessionBtn", "click", () => {
   const activeIds = new Set(activeRoutines().map(r => r.id));
   const sourceIds = (plan.routineIds || []).filter(id => activeIds.has(id));
   const anchorPrefix = anchors.filter(id => activeIds.has(id) && sourceIds[0] !== id);
-  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: [...anchorPrefix, ...sourceIds], index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
+  const sessionRoutineIds = [...anchorPrefix, ...sourceIds];
+  if (!sessionRoutineIds.length) return alert("This plan has no available exercises. Add exercises to the plan or restore deleted templates before starting.");
+  activeSession = { id: uuid(), type: "plan", planId: plan.id, planName: plan.name, routineIds: sessionRoutineIds, index: 0, startedAt: new Date().toISOString(), completedLogs: [], plannedRoutineIds: plan.routineIds ? [...plan.routineIds] : [] };
   startRoutineScreen();
   persistActiveSession();
 });
@@ -4004,6 +4010,10 @@ function restoreTimerStateFromActiveSession() {
   stopTimer();
   elapsedBeforeStartMs = Number(ts.elapsedBeforeStartMs || 0);
   timerStartMs = ts.isRunning && ts.timerStartMs ? Number(ts.timerStartMs) : null;
+  if (timerStartMs && ts.clockType === "monotonic") {
+    timerStartMs = null;
+    if ($("timerState")) $("timerState").textContent = "timer restored paused";
+  }
   if (timerStartMs) {
     timerInterval = setInterval(updateTimerDisplay, 1000);
     if ($("timerState")) $("timerState").textContent = "timer running";
@@ -4035,9 +4045,13 @@ function setWakeLockIndicator(active) {
     document.body?.classList.toggle("wake-lock-active", !!active);
   } catch(e) {}
 }
+let lastHapticAt = 0;
 function hapticFeedback(kind="tap") {
   try {
-    if (!navigator.vibrate) return;
+    if (typeof navigator.vibrate !== "function") return;
+    const now = Date.now();
+    if (kind === "tap" && now - lastHapticAt < 250) return;
+    lastHapticAt = now;
     const pattern = kind === "miss" ? [100, 50, 100] : kind === "save" ? [40, 30, 40] : [50];
     navigator.vibrate(pattern);
   } catch(e) {}
@@ -4120,7 +4134,7 @@ function cancelTimerAutostartDelay() {
 function startPracticeTimer() {
   cancelTimerAutostartDelay();
   if (timerStartMs) return;
-  timerStartMs = Date.now();
+  timerStartMs = monotonicNowMs();
   timerInterval = setInterval(updateTimerDisplay, 1000);
   if ($("timerState")) $("timerState").textContent = "timer running";
   updateTimerDisplay();
@@ -4132,7 +4146,7 @@ safeOn("timerStartBtn", "click", startPracticeTimer);
 safeOn("timerPauseBtn", "click", () => {
   cancelTimerAutostartDelay();
   if (!timerStartMs) return;
-  elapsedBeforeStartMs += Math.max(0, Date.now() - timerStartMs);
+  elapsedBeforeStartMs += Math.max(0, monotonicNowMs() - timerStartMs);
   timerStartMs = null;
   stopTimer();
   $("timerState").textContent = "timer paused";
@@ -4536,7 +4550,7 @@ async function exportFile(filename,text,mimeType="application/octet-stream"){
   const saved=await saveTextFileToExportFolder(filename,text,mimeType);
   if(!saved){
     if(hadExportFolder) notifyUser("Export folder unavailable. File downloaded through the browser instead.", "warn");
-    downloadFile(filename,text,mimeType);
+    await downloadFile(filename,text,mimeType);
   } else {
     notifyUser(`Saved to export folder: ${filename}`, "ok");
   }
@@ -7411,17 +7425,21 @@ function toDateTimeLocal(iso) {
   const pad = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function fallbackDateKey(d) {
+  const pad = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 function safeDateString(value, options) {
   if (!value) return "Unknown date";
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "Invalid date";
-  return d.toLocaleDateString(undefined, options);
+  try { return d.toLocaleDateString(undefined, options); } catch(e) { return fallbackDateKey(d); }
 }
 function safeTimeString(value, options) {
   if (!value) return "Unknown time";
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "Invalid time";
-  return d.toLocaleTimeString(undefined, options);
+  try { return d.toLocaleTimeString(undefined, options); } catch(e) { return `${fallbackDateKey(d)} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
 }
 function openLogEditModal(id) {
   const log = (data.logs || []).find(l => l.id === id);
@@ -7482,9 +7500,18 @@ async function saveEditedLogFromModal() {
   const modal = $("logEditModal");
   const id = modal?.dataset?.logId || "";
   const form = modal?.querySelector?.(".log-edit");
+  const btn = modal?.querySelector?.('[data-action="save-log-edit"], .save-log-edit-btn, button[type="submit"]');
   if (!id || !form) return validationNotice("Edit form not found.");
-  await saveEditedLog(id, form);
-  closeLogEditModal();
+  if (modal?.dataset?.saving === "1") return;
+  if (modal) modal.dataset.saving = "1";
+  if (btn) btn.disabled = true;
+  try {
+    await saveEditedLog(id, form);
+    closeLogEditModal();
+  } finally {
+    if (modal) modal.dataset.saving = "";
+    if (btn) btn.disabled = false;
+  }
 }
 function showEditLog(source) {
   if (typeof source === "string") return openLogEditModal(source);
@@ -7494,8 +7521,14 @@ function showEditLog(source) {
   if (id) openLogEditModal(id);
 }
 async function saveEditedLogFromButton(button, id) {
-  const form = button?.closest?.(".log-edit");
-  await saveEditedLog(id, form);
+  if (button?.disabled) return;
+  if (button) button.disabled = true;
+  try {
+    const form = button?.closest?.(".log-edit");
+    await saveEditedLog(id, form);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 async function saveEditedLog(id, formEl) {
   const idx = data.logs.findIndex(l => l.id === id);
@@ -7869,6 +7902,18 @@ safeOn("exportDebugBtn", "click", exportDebugInfo);
 safeOn("exportRawStorageBtn", "click", exportRawLocalData);
 $("refreshStorageDashboardBtn")?.addEventListener("click", renderStorageDashboard);
 $("preMigrationBackupBtn")?.addEventListener("click", async () => exportFullBackup("pre-indexeddb-migration"));
+function clearVolatileDatasetKeysForImport() {
+  const keys = [
+    "snookerPracticePWA.activeSessionDraft",
+    "snookerPracticePWA.pressureDraft",
+    "snookerPracticePWA.lastTableId",
+    LAST_TABLE_NOTE_KEY,
+    "snookerPracticePWA.errorLog",
+    "snookerPracticePWA.compDate"
+  ];
+  keys.forEach(key => { try { localStorage.removeItem(key); } catch(e) {} });
+}
+
 function validateBackupShape(candidate) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return {ok:false, message:"Backup is not a JSON object."};
   const requiredArrays = ["routines", "plans", "logs", "sessions"];
@@ -7922,6 +7967,7 @@ safeOn("importJsonInput", "change", async (e) => {
       persistPressureSession?.();
       $("pressureSessionPanel")?.classList.add("hidden");
     }
+    clearVolatileDatasetKeysForImport();
     data = imported;
     storageReadOnlyMode = false;
     indexedDBUnavailable = false;
@@ -7944,14 +7990,40 @@ safeOn("clearDataBtn", "click", async () => {
   data = loadData();
   renderAll();
 });
-function downloadFile(filename, content, type) {
+async function downloadFile(filename, content, type) {
   const blob = new Blob([content], {type});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    if (isIOSSafariLike() && typeof File !== "undefined" && navigator.canShare && navigator.share) {
+      const file = new File([blob], filename, {type});
+      if (navigator.canShare({files:[file]})) {
+        await navigator.share({files:[file], title:filename});
+        notifyUser?.("Export shared through iOS share sheet.", "ok");
+        return true;
+      }
+    }
+  } catch(e) { logAppError?.(e, "downloadFile share fallback"); }
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } catch(e) {
+    logAppError?.(e, "downloadFile blob fallback");
+    try {
+      const reader = new FileReader();
+      reader.onload = () => { window.location.href = String(reader.result || ""); };
+      reader.readAsDataURL(blob);
+      return true;
+    } catch(ex) { logAppError?.(ex, "downloadFile data-uri fallback"); }
+  }
+  notifyUser?.("Export could not be started by this browser. Try Export Folder or another browser.", "warn");
+  return false;
 }
 function csvEscape(value) {
   const s = String(value ?? "");
@@ -8068,8 +8140,9 @@ function classifyPerformanceAgainstTarget(normalizedScore, targetAtLog, stretchT
   const stretch = Number(stretchTargetAtLog || 0);
   const s = Number(normalizedScore || 0);
   if (!target) return "N/A";
-  if (stretch && s >= stretch) return "Above Target";
-  if (s >= target) return "On Target";
+  const eps = 0.0001;
+  if (stretch && s + eps >= stretch) return "Above Target";
+  if (s + eps >= target) return "On Target";
   return "Fail";
 }
 function currentTargetPerformance(log) {
@@ -8549,8 +8622,11 @@ function clearErrorLog() {
   renderStorageDashboard();
   setDiagnosticsOutput("<strong>Error log cleared.</strong><p class=\"muted\">Run your test sequence, then export debug info to see only new errors.</p>", "analytics-note storage-good");
 }
+let storageDiagnosticsBound = false;
 function bindStorageDiagnostics() {
   syncLoadedVersionDisplay();
+  if (storageDiagnosticsBound) return;
+  storageDiagnosticsBound = true;
   $("verifyStorageIntegrityBtn")?.addEventListener("click", verifyStorageIntegrity);
   $("generateTestLogsBtn")?.addEventListener("click", generateTestLogs);
   $("clearTestLogsBtn")?.addEventListener("click", clearTestLogsOnly);
@@ -9996,6 +10072,7 @@ function computeTournamentPrepPlan(logs = []) {
   const scopedLogs = Array.isArray(logs) ? logs.slice() : [];
   const daysInput = Number($("tournamentPrepDays")?.value || 14);
   const format = $("tournamentPrepFormat")?.value || "best_of_7";
+  const formatProfile = ({best_of_5:{stamina:0.95, pressure:0.95, label:"short match"}, best_of_7:{stamina:1.00, pressure:1.00, label:"standard match"}, best_of_11:{stamina:1.15, pressure:1.10, label:"long-format match"}})[format] || {stamina:1, pressure:1, label:"standard match"};
   const focus = $("tournamentPrepFocus")?.value || "balanced";
   const risk = $("tournamentPrepRisk")?.value || "balanced";
   const minutes = Number($("tournamentPrepMinutes")?.value || 90);
@@ -10034,6 +10111,8 @@ function computeTournamentPrepPlan(logs = []) {
   const stabilityScore = psi === null ? Math.min(60, evidenceScore) : psi;
   const pressureScore = Math.min(100, pressureShare * 3);
   const balancePenalty = sideImbalance === null ? 0 : Math.min(20, sideImbalance / 2);
+  const staminaDemandPenalty = Math.max(0, (formatProfile.stamina - 1) * Math.max(0, 75 - stabilityScore));
+  const pressureDemandPenalty = Math.max(0, (formatProfile.pressure - 1) * Math.max(0, 40 - pressureShare));
   const readiness = Math.max(0, Math.min(100,
     performanceScore * 0.30 +
     hitScore * 0.20 +
@@ -10041,7 +10120,9 @@ function computeTournamentPrepPlan(logs = []) {
     evidenceScore * 0.15 +
     recencyScore * 0.10 +
     pressureScore * 0.05 -
-    balancePenalty
+    balancePenalty -
+    staminaDemandPenalty -
+    pressureDemandPenalty
   ));
 
   let readinessLabel = "Needs data";
@@ -10088,6 +10169,7 @@ function computeTournamentPrepPlan(logs = []) {
     blocks.push("Pressure scoring routines");
   }
 
+  if (format === "best_of_11") blocks.push("Long-format stamina and concentration block");
   if (pressureShare < 20 && ordered.length >= 6) blocks.push("Short match-pressure blocks");
   if (sideImbalance !== null && sideImbalance >= 15) blocks.push("Left/right balancing block");
   if (risk === "aggressive") {
@@ -10099,6 +10181,7 @@ function computeTournamentPrepPlan(logs = []) {
   return {
     daysRemaining,
     format,
+    formatProfile,
     focus,
     risk,
     minutes,
@@ -10165,7 +10248,7 @@ function renderPredictorContributionModel() {
 
   const selected = $("statsRoutineSelect")?.value || "all";
   const routines = activeRoutines()
-    .filter(r => selected === "all" || String(r.id) === String(selected))
+    .filter(r => isSystemAll(selected) || String(r.id) === String(selected))
     .map(r => ({routine:r, model:predictorModelForRoutine(r)}))
     .filter(x => x.model)
     .sort((a,b)=>b.model.total-a.model.total)
@@ -10261,6 +10344,7 @@ function tournamentPrepPlannerHtml(logs = []) {
       </div>
 
       <div class="tournament-plan-summary">
+        ${metric("Format", plan.formatProfile?.label || plan.format)}
         ${metric("Intensity", plan.intensity)}
         ${metric("Daily duration", `${plan.minutes} min`)}
         ${metric("Logs in scope", String(plan.evidenceLogs), `${plan.recentLogs} recent`)}
@@ -10341,7 +10425,7 @@ function renderPlateauDiagnostics() {
   if (!box) return;
 
   const selected = $("statsRoutineSelect")?.value || "all";
-  const routines = activeRoutines().filter(r => selected === "all" || String(r.id) === String(selected));
+  const routines = activeRoutines().filter(r => isSystemAll(selected) || String(r.id) === String(selected));
 
   const html = routines.slice(0, 6).map(r => {
     const logs = (data.logs || []).filter(l => l.routineId === r.id);
@@ -10655,9 +10739,12 @@ function cancelPressureSession() {
   $("pressureSessionPanel")?.classList.add("hidden");
 }
 
+let pressureOverlayBound = false;
 function bindPressureOverlay() {
   renderPressureRoutineOptions();
   hydratePressureSessionDraft();
+  if (pressureOverlayBound) return;
+  pressureOverlayBound = true;
   $("startPressureSessionBtn")?.addEventListener("click", startPressureSession);
   $("pressureMadeBtn")?.addEventListener("click", () => recordPressure("make"));
   $("pressureMissBtn")?.addEventListener("click", () => recordPressure("miss"));

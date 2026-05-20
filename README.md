@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.5.16
+# Snooker Practice PWA v5.5.17
 
-## v5.5.16 — Performance Cache Pass
+## v5.5.17 — UX Integrity Hardening
 
 This release keeps the v5.5.14 security baseline and adds targeted performance improvements: routine log grouping, capped heavy analytics windows, capped history-table rendering, and debounced filter inputs.
 
@@ -27,7 +27,7 @@ Built from the working v5.4.2 UI language foundation.
 - Technical model terminology remains available in Analytical mode.
 
 ### Integrity
-- Version: v5.5.16
+- Version: v5.5.17
 - Build timestamp: 2026-05-19 12:22 CEST
 - No analytics engine changes.
 - No storage schema changes.
@@ -47,15 +47,15 @@ Build: 2026-05-19 12:22 CEST
 - No analytics, storage, hydration, or session schema changes.
 
 
-## v5.5.16 — Security Baseline
+## v5.5.17 — Security Baseline
 
 This release reorganizes the Stats tab into a progressive workflow: Core, Advanced, and Research. It adds scope chips, a section-purpose header, collapsible advanced filters, collapsed diagnostics in the overview, and mobile-first stats grouping to reduce analytics overload while preserving the full analytical stack.
 
 
-### v5.5.16 maintenance correction
+### v5.5.17 maintenance correction
 - Removed the redundant Core / Advanced / Research explanatory strip below the Stats navigation. The Stats tab now has one navigation hierarchy only, followed by active scope chips, filters, and the selected analytics content.
 
-### v5.5.16 storage/runtime hardening
+### v5.5.17 storage/runtime hardening
 - Fixed cross-tab storage sync ping-pong risk by making storage-event hydration read-only.
 - Added service-worker version guard and dynamic cache versioning.
 - Closed active IndexedDB handles before database deletion/recovery.

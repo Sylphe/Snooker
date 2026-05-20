@@ -1,21 +1,31 @@
+function monotonicNow() {
+  try {
+    if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
+  } catch(e) {}
+  return Date.now();
+}
+
 export function makeTimerState(timerStartMs, elapsedBeforeStartMs) {
   return {
     timerStartMs: timerStartMs || null,
     elapsedBeforeStartMs: Number(elapsedBeforeStartMs || 0),
     isRunning: !!timerStartMs,
+    clockType: timerStartMs ? "monotonic" : "paused",
     savedAt: new Date().toISOString()
   };
 }
 
 const MAX_TIMER_ELAPSED_MS = 24 * 60 * 60 * 1000;
 
-export function elapsedMsFromState(timerStartMs, elapsedBeforeStartMs, now = Date.now()) {
+export function elapsedMsFromState(timerStartMs, elapsedBeforeStartMs, now = monotonicNow()) {
   const baseRaw = Number(elapsedBeforeStartMs || 0);
   const startRaw = Number(timerStartMs || 0);
   const nowRaw = Number(now || 0);
   const base = Number.isFinite(baseRaw) ? Math.max(0, baseRaw) : 0;
-  const currentRun = startRaw && Number.isFinite(startRaw) && Number.isFinite(nowRaw)
-    ? Math.max(0, nowRaw - startRaw)
+  const looksLikeWallClock = startRaw > 1000000000000;
+  const comparableNow = looksLikeWallClock ? Date.now() : nowRaw;
+  const currentRun = startRaw && Number.isFinite(startRaw) && Number.isFinite(comparableNow)
+    ? Math.max(0, comparableNow - startRaw)
     : 0;
   return Math.min(MAX_TIMER_ELAPSED_MS, Math.max(0, base + currentRun));
 }

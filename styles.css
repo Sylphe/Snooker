@@ -4305,7 +4305,7 @@ body.session-focus-active #activeSession .live-perf > div:first-child{
 body.wake-lock-active .wake-lock-indicator{display:flex}
 body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 
-/* ===== v5.5.16 Performance cache/pass paint containment ===== */
+/* ===== v5.5.17 Performance cache/pass paint containment ===== */
 .history-table,
 .routine-item-clean,
 .folder-group,
@@ -4329,4 +4329,21 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
   margin-left: 8px;
   padding: 5px 9px;
   font-size: .78rem;
+}
+
+/* ===== v5.5.17 UX integrity hardening ===== */
+.item-title strong,
+.routine-item-clean .item-title strong{
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  min-width:0;
+}
+@media (max-width: 760px), (pointer: coarse){
+  .sticky-log-actions,
+  body.session-focus-active .sticky-log-actions,
+  body.session-focus-active .focus-numpad-panel,
+  .mobile-bottom-nav{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
 }
