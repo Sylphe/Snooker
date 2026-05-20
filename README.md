@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.6.2
+# Snooker Practice PWA v5.6.3
 
-## v5.6.2 — AI Coaching Export
+## v5.6.3 — AI Coaching Export
 
 Built from the working v5.6.1 external editing workflow.
 
@@ -101,7 +101,7 @@ These templates define the early pack format for curated routine libraries and e
 Planned follow-up releases:
 
 - v5.6.1 — CSV reimport and external editing workflow ✅
-- v5.6.2 — curated snooker routine pack v1
+- v5.6.3 — curated snooker routine pack v1
 - v5.6.3 — adaptive target calibration engine
 - v5.6.4 — inferred skill-level profiles
 - v5.6.5 — recommendation integration with routine intelligence

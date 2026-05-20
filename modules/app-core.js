@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.2";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.3";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.2";
+} from "./utils.js?v=5.6.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.2";
+} from "./settings.js?v=5.6.3";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.2";
+} from "./analytics.js?v=5.6.3";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.2";
+} from "./bayesian.js?v=5.6.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.2";
+} from "./session.js?v=5.6.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.2";
+} from "./pressure.js?v=5.6.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.2";
+} from "./recommendations.js?v=5.6.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.2";
+} from "./store.js?v=5.6.3";
 
 
 
@@ -8482,36 +8482,125 @@ function aiLearningBandForRoutine(routine) {
   return {low:55, high:75, rationale:"Technical potting routines are usually most productive in a moderate success band."};
 }
 
+function aiRoutineMaturityForLogs(logs, routine=null) {
+  const n = Array.isArray(logs) ? logs.length : 0;
+  const vals = (logs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const volatility = vals.length >= 3 ? stdDev(vals) : null;
+  const recent = vals.length ? vals.slice(-Math.min(10, vals.length)) : [];
+  const recentAverage = recent.length ? avg(recent) : null;
+  const confidence = n >= 10 ? "high" : n >= 6 ? "medium" : n >= 4 ? "low" : "insufficient";
+  const label = n >= 10 ? "Mature" : n >= 6 ? "Usable baseline" : n >= 4 ? "Early baseline" : "Insufficient evidence";
+  return {n, confidence, label, recentAverage, volatility};
+}
+
+function aiRoutineSchemaFlags(routine, logs) {
+  const flags = [];
+  const routineScoring = String(routine?.scoring || "");
+  const seen = new Set((logs || []).map(l => String(l?.scoring || "")).filter(Boolean));
+  if (seen.size > 1) flags.push({type:"mixed_scoring_logs", severity:"medium", detail:`Historical logs use multiple scoring modes: ${Array.from(seen).join(", ")}. Interpret trend and target hit rate cautiously.`});
+  if (seen.size && routineScoring && !seen.has(routineScoring)) flags.push({type:"routine_log_scoring_mismatch", severity:"medium", detail:`Routine currently uses ${routineScoring}, but recent logs use ${Array.from(seen).join(", ")}.`});
+  const legacyPoints = (logs || []).filter(l => String(l?.scoring || "") === "points" && ["success_rate", "progressive_completion"].includes(routineScoring)).length;
+  if (legacyPoints) flags.push({type:"legacy_points_logs", severity:"low", detail:`${legacyPoints} older log(s) use points-style scoring under a ${routineScoring} routine. Keep target advice conservative.`});
+  return flags;
+}
+
 function aiTargetHealthForRoutine(routine, logs) {
   const hit = targetHitRate(logs);
   const band = aiLearningBandForRoutine(routine);
-  const n = logs.length;
-  if (n < 5 || hit === null || band.low === null) return {state:"insufficient_data", label:"Insufficient data", hitRate:hit, band, recommendation:"Collect more logs before adjusting this snooker routine target."};
-  if (hit < band.low - 15) return {state:"too_hard", label:"Too hard", hitRate:hit, band, recommendation:"Consider lowering the target or simplifying one constraint; failure is currently too frequent for productive repetition."};
-  if (hit < band.low) return {state:"stretching", label:"Difficult stretch", hitRate:hit, band, recommendation:"Keep or slightly reduce the target depending on player confidence and volatility."};
-  if (hit <= band.high) return {state:"productive", label:"Productive band", hitRate:hit, band, recommendation:"Hold the current target and continue collecting evidence."};
-  if (hit <= band.high + 15) return {state:"getting_easy", label:"Getting easy", hitRate:hit, band, recommendation:"Consider increasing the stretch target or adding one constraint if recent form is stable."};
-  return {state:"too_easy", label:"Too easy", hitRate:hit, band, recommendation:"Increase difficulty, raise target, or progress to a harder snooker routine."};
+  const maturity = aiRoutineMaturityForLogs(logs, routine);
+  const values = (logs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const recent = values.slice(-Math.min(10, values.length));
+  const recentAverage = recent.length ? avg(recent) : null;
+  if (maturity.n < 6 || hit === null || band.low === null) {
+    return {
+      state:"insufficient_data",
+      label:"Insufficient data",
+      hitRate:hit,
+      band,
+      maturity,
+      recentAverage,
+      confidence:"low",
+      recommendation:"Collect at least 6 comparable snooker logs before changing this routine target. Keep the setup stable so the baseline becomes meaningful."
+    };
+  }
+  const highVol = Number.isFinite(maturity.volatility) && maturity.volatility > 18;
+  if (highVol && maturity.n < 10) {
+    return {
+      state:"volatile",
+      label:"Volatile / noisy",
+      hitRate:hit,
+      band,
+      maturity,
+      recentAverage,
+      confidence:"low",
+      recommendation:"Performance is too volatile for an aggressive target change. Repeat the same setup before recalibrating."
+    };
+  }
+  const confidence = maturity.n >= 10 && !highVol ? "high" : maturity.n >= 6 ? "medium" : "low";
+  if (hit < band.low - 15) return {state:"too_hard", label:"Too hard", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Lower the target one controlled step or simplify one constraint; failure is currently too frequent for productive snooker repetition."};
+  if (hit < band.low) return {state:"stretching", label:"Difficult stretch", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Keep the drill stable or lower the target slightly if confidence is dropping."};
+  if (hit <= band.high) return {state:"productive", label:"Productive band", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Hold the current target. This routine is in the productive snooker training band."};
+  if (hit <= band.high + 15) return {state:"getting_easy", label:"Getting easy", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Consider increasing the stretch target or adding one small constraint if form is stable."};
+  return {state:"too_easy", label:"Too easy", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Increase difficulty gradually or progress to a harder snooker routine."};
+}
+
+function aiTargetStepSize(current, scoring, attempts) {
+  const c = Number(current);
+  if (!Number.isFinite(c) || c <= 0) return 1;
+  if (scoring === "highest_break") return Math.max(2, Math.round(c * 0.15));
+  if (attempts > 0 && attempts <= 15) return 1;
+  if (attempts > 0 && attempts <= 30) return 2;
+  return Math.max(2, Math.round(c * 0.12));
 }
 
 function aiSuggestedTargetForRoutine(routine, logs, health) {
-  const current = Number(routine?.target || 0);
+  const current = Number(routine?.target ?? 0);
   const attempts = Number(routine?.attempts || routine?.attemptsPerSession || routine?.totalUnits || 0);
+  const scoring = String(routine?.scoring || "");
   const hit = Number(health?.hitRate);
   const band = health?.band || aiLearningBandForRoutine(routine);
+  const maturity = health?.maturity || aiRoutineMaturityForLogs(logs, routine);
   if (!Number.isFinite(current) || current <= 0 || !Number.isFinite(hit) || band.low === null) return null;
+  if ((maturity?.n || 0) < 6 || ["insufficient_data", "volatile"].includes(health?.state)) return null;
+
+  const values = (logs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const recent = values.slice(-Math.min(10, values.length));
+  const recentAverage = recent.length ? avg(recent) : null;
+  const step = aiTargetStepSize(current, scoring, attempts);
   let suggested = current;
-  if (hit < band.low - 15) suggested = Math.max(1, Math.round(current * 0.75));
-  else if (hit < band.low) suggested = Math.max(1, Math.round(current * 0.9));
-  else if (hit > band.high + 15) suggested = Math.round(current * 1.2);
-  else if (hit > band.high) suggested = Math.round(current * 1.1);
-  if (attempts > 0 && ["success_rate", "progressive_completion"].includes(routine?.scoring)) suggested = Math.min(attempts, suggested);
+  let direction = "hold";
+
+  if (hit < band.low - 15) {
+    const evidenceTarget = Number.isFinite(recentAverage) ? Math.round(recentAverage + Math.max(2, step)) : current - step;
+    suggested = Math.max(current - step * 2, Math.min(current - step, evidenceTarget));
+    direction = "reduce";
+  } else if (hit < band.low) {
+    suggested = current - step;
+    direction = "reduce_slightly";
+  } else if (hit > band.high + 15 && health?.confidence !== "low") {
+    suggested = current + step * 2;
+    direction = "raise";
+  } else if (hit > band.high && health?.confidence !== "low") {
+    suggested = current + step;
+    direction = "raise_slightly";
+  }
+
+  const minFloor = scoring === "highest_break" ? Math.max(6, Math.round(current * 0.5)) : attempts > 0 ? Math.max(1, Math.round(attempts * 0.15)) : Math.max(1, Math.round(current * 0.5));
+  const maxCeiling = attempts > 0 && ["success_rate", "progressive_completion"].includes(scoring) ? attempts : Math.max(suggested, Math.round(current * 1.5));
+  suggested = Math.max(minFloor, Math.min(maxCeiling, Math.round(suggested)));
   if (suggested === current) return null;
+
+  const stretchGap = scoring === "highest_break" ? Math.max(3, Math.round(suggested * 0.15)) : Math.max(1, Math.round(suggested * 0.15));
+  const suggestedStretch = attempts > 0 && ["success_rate", "progressive_completion"].includes(scoring) ? Math.min(attempts, suggested + stretchGap) : suggested + stretchGap;
   return {
     currentTarget: current,
     suggestedTarget: suggested,
-    suggestedStretchTarget: attempts > 0 ? Math.min(attempts, Math.max(suggested + 1, Math.round(suggested * 1.15))) : Math.round(suggested * 1.15),
-    rationale: health.recommendation,
+    suggestedStretchTarget: Math.max(suggested, suggestedStretch),
+    direction,
+    confidence: health?.confidence || maturity?.confidence || "medium",
+    routineMaturity: maturity,
+    recentAverageLast10: Number.isFinite(recentAverage) ? recentAverage : null,
+    rationale: `${health.recommendation} Suggested as a one-step calibration, not a permanent downgrade.`,
     applyAsNewTargetProfile: true
   };
 }
@@ -8542,6 +8631,8 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
   const stats = aiTry("routineStats", () => routineStats(routine, groupedLogs), {});
   const health = aiTargetHealthForRoutine(routine, logs);
   const suggested = aiSuggestedTargetForRoutine(routine, logs, health);
+  const maturity = aiRoutineMaturityForLogs(logs, routine);
+  const schemaFlags = aiRoutineSchemaFlags(routine, logs);
   const values = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
   const successLogs = logs.filter(l => l.scoring === "success_rate" || routine.scoring === "success_rate");
   return {
@@ -8576,7 +8667,9 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
       volatility: values.length >= 3 ? stdDev(values) : null,
       targetHitRate: targetHitRate(logs),
       metrics: aiSafeValue(metricsForLogs(logs)),
-      routineStats: stats
+      routineStats: stats,
+      maturity,
+      schemaFlags
     },
     analyses: {
       bayesianSuccessRate: aiTry("bayesianStatsForRoutine", () => bayesianStatsForRoutine(routine), null),
@@ -8596,7 +8689,9 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
     },
     targetCalibration: {
       health,
-      suggestion: suggested
+      suggestion: suggested,
+      maturity,
+      schemaFlags
     },
     recentEvidence: aiRecentEvidenceLogs(logs, 20)
   };
@@ -8629,6 +8724,29 @@ function buildAiSkillProfile(routineSnapshots) {
   })).sort((a,b) => b.logCount - a.logCount);
 }
 
+
+function buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates) {
+  const mature = routineSnapshots.filter(r => Number(r.statisticalSnapshot?.logCount || 0) >= 6);
+  const tooHard = mature.filter(r => r.targetCalibration?.health?.state === "too_hard");
+  const productive = mature.filter(r => r.targetCalibration?.health?.state === "productive");
+  const volatile = routineSnapshots.filter(r => r.targetCalibration?.health?.state === "volatile");
+  const insufficient = routineSnapshots.filter(r => r.targetCalibration?.health?.state === "insufficient_data");
+  const schemaFlags = routineSnapshots.flatMap(r => (r.statisticalSnapshot?.schemaFlags || []).map(f => ({routineId:r.routine.id, routineName:r.routine.name, ...f})));
+  const topRecalibration = targetCalibrationCandidates
+    .filter(c => c.suggestion && c.confidence !== "low")
+    .slice(0, 8);
+  return {
+    summary: "Snooker coaching snapshot generated for routine target calibration, skill prioritization, and next-block planning.",
+    maturityCounts: {mature:mature.length, insufficient:insufficient.length, volatile:volatile.length},
+    targetHealthCounts: {tooHard:tooHard.length, productive:productive.length, candidates:targetCalibrationCandidates.length},
+    warningFlags: schemaFlags.slice(0, 20),
+    topRecalibrationCandidates: topRecalibration,
+    recommendation: playerProfile?.globalTargetHitRate !== null && Number(playerProfile.globalTargetHitRate) < 25
+      ? "Most targets are currently above the productive range. Prioritize repeatable core routines and one-step target reductions, not broad routine expansion."
+      : "Targets appear broadly usable. Prioritize stable repetition and only recalibrate mature routines."
+  };
+}
+
 function buildAiCoachingSnapshot(options = {}) {
   const includeRawRecentLogs = options.includeRawRecentLogs !== false;
   const routines = activeRoutines();
@@ -8646,7 +8764,10 @@ function buildAiCoachingSnapshot(options = {}) {
       suggestion: r.targetCalibration.suggestion,
       recentAverageLast10: r.statisticalSnapshot.recentAverageLast10,
       targetHitRate: r.statisticalSnapshot.targetHitRate,
-      logCount: r.statisticalSnapshot.logCount
+      logCount: r.statisticalSnapshot.logCount,
+      confidence: r.targetCalibration.suggestion?.confidence || r.targetCalibration.health?.confidence || "low",
+      maturity: r.targetCalibration.maturity || r.statisticalSnapshot.maturity || null,
+      schemaFlags: r.targetCalibration.schemaFlags || []
     }));
   const globalValues = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
   const playerProfile = {
@@ -8669,6 +8790,7 @@ function buildAiCoachingSnapshot(options = {}) {
     forecast: aiTry("globalForecast", () => forecastWithConfidence(logs, 5), null)
   };
   const skillProfile = buildAiSkillProfile(routineSnapshots);
+  const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
     schemaVersion: "1.0",
@@ -8685,12 +8807,14 @@ function buildAiCoachingSnapshot(options = {}) {
       context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals.",
       task: "Analyze the player's snooker routine performance and recommend target adjustments, routine prioritization, skill focus, and next-session structure.",
       interpretationRules: [
-        "Do not recommend changing a routine target if sample size is too small or volatility is very high.",
+        "Do not recommend changing a snooker routine target if sample size is too small, the routine is immature, or volatility is very high.",
         "For technical potting drills, prefer targets that keep recent success roughly in the 55% to 75% band.",
         "For safety/tactical snooker drills, a productive band is often closer to 50% to 70% because quality of leave matters, not only success count.",
         "For pressure drills, productive success may be 35% to 60%; do not treat lower success as automatically bad.",
         "For progressive completion or break-building routines, judge improvement using trend, consistency, and total-units context rather than one isolated score.",
         "Preserve historical target versions. Recommend creating a new target profile rather than overwriting old logs.",
+        "Prefer one-step target changes. Do not collapse a target from 50 to 10 unless the evidence is mature and the routine design itself is inappropriate.",
+        "When mixed scoring modes or legacy points logs are flagged, treat target advice as conservative and mention the data-quality caveat.",
         "Distinguish between global player level and skill-specific level. A player can be strong at break-building but weak at safety or long potting.",
         "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores."
       ],
@@ -8702,6 +8826,7 @@ function buildAiCoachingSnapshot(options = {}) {
         "Identify tags/metadata that appear inconsistent or missing."
       ]
     },
+    coachingSummary,
     playerProfile,
     skillProfile,
     targetCalibrationCandidates,
@@ -8719,7 +8844,7 @@ async function exportAiCoachingSnapshot() {
   const payload = buildAiCoachingSnapshot({includeRawRecentLogs:true});
   const filename = `snooker-ai-coaching-export-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
   await exportFile(filename, JSON.stringify(payload), "application/json");
-  showTransientNotice("AI coaching export created.", "ok");
+  showTransientNotice("Target calibration v2 created.", "ok");
 }
 
 async function importRoutinePackFile(event) {
