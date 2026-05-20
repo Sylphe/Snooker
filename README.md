@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.5.25
+# Snooker Practice PWA v5.5.26
 
-## v5.5.25 — Skill Alias Memoization
+## v5.5.26 — Routine Stats Cache
 
 Built from the working v5.5.23 lightweight core serialization release.
 

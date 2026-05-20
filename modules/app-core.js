@@ -280,9 +280,15 @@ let logsByRoutineCacheSignature = "";
 let logsByRoutineCache = null;
 const analyticsMemoCache = new Map();
 const rankRoutineMemoCache = new Map();
+const routineStatsMemoCache = new Map();
+let undertrainedAllocationCacheKey = "";
+let undertrainedAllocationCache = null;
 function clearPerformanceMemoCaches() {
   analyticsMemoCache.clear();
   rankRoutineMemoCache.clear();
+  routineStatsMemoCache.clear();
+  undertrainedAllocationCacheKey = "";
+  undertrainedAllocationCache = null;
 }
 function memoKeyForLogs(label, logs, extra = "") {
   return `${label}|${extra}|${logsSignature(logs || [])}`;
@@ -9466,6 +9472,8 @@ function routineStats(routineId, groupedLogs = null) {
   const routine = routineById(routineId);
   const logMap = groupedLogs || getLogsByRoutineMap(data.logs || []);
   const logs = (logMap[String(routineId)] || []).slice();
+  const cacheKey = `${routineId}|${recommendationMode(routine)}|${recommendationRecencyCap(routine)}|${recommendationUndertrainingMultiplier(routine)}|${logsSignature(logs)}`;
+  if (routineStatsMemoCache.has(cacheKey)) return routineStatsMemoCache.get(cacheKey);
   const vals = logs.map(l => Number(l.normalizedScore || 0));
   const hit = targetHitRate(logs);
   const recent = vals.length ? avg(vals.slice(-3)) : null;
@@ -9480,10 +9488,13 @@ function routineStats(routineId, groupedLogs = null) {
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
   const bayesian = bayesianStatsForRoutine(routineId);
   const contextSignal = recommendationContextSignal(routineId);
-  return {
+  const result = {
     logs, vals, hit, recent, prior, bayesian, contextSignal,
     score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0) + Number(contextSignal.bonus || 0)
   };
+  if (routineStatsMemoCache.size > 200) routineStatsMemoCache.clear();
+  routineStatsMemoCache.set(cacheKey, result);
+  return result;
 }
 
 function daysSince(dateIso) {
@@ -9492,11 +9503,19 @@ function daysSince(dateIso) {
   return Math.max(0, Math.floor((now-d)/86400000));
 }
 
+function recentAllocationForRecommendation() {
+  const logs = data.logs || [];
+  const cacheKey = logsSignature(logs);
+  if (undertrainedAllocationCache && undertrainedAllocationCacheKey === cacheKey) return undertrainedAllocationCache;
+  const recent = logs.slice().sort((a,b)=>Date.parse(b.createdAt || 0)-Date.parse(a.createdAt || 0)).slice(0,30);
+  undertrainedAllocationCache = computeAllocation(recent);
+  undertrainedAllocationCacheKey = cacheKey;
+  return undertrainedAllocationCache;
+}
 function undertrainedCategoryBonus(routineId) {
   const routine = routineById(routineId);
   if (!routine || recommendationMode(routine) === "excluded") return 0;
-  const recent = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,30);
-  const alloc = computeAllocation(recent);
+  const alloc = recentAllocationForRecommendation();
   const cat = alloc.find(a => a.cat === routine.category);
   if (!cat) return 12;
   if (cat.pct < 15) return 14;
