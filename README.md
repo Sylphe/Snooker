@@ -1,4 +1,21 @@
-# Snooker Practice PWA v5.6.4
+# Snooker Practice PWA v5.6.6
+
+## v5.6.6 — Scoring Archetype Cleanup
+
+Built from the working v5.6.4 curated routine library package.
+
+This release clarifies scoring semantics for the curated routine library and AI coaching exports. It removes ambiguity around progressive drills by making line-ups and break-building continuations use `highest_break` targets, while reserving progressive completion for true station/ladder routines and displaying it as **Steps completed**.
+
+### Main changes
+
+- Converted curated line-up / continuation routines from `progressive_completion` to `highest_break` where appropriate.
+- Added `targetMeaning` and `scoringArchetype` metadata to curated routines.
+- Relabelled `progressive_completion` in the UI as **Steps completed**.
+- Removed time-density semantics from the scoring concept: time remains useful for training volume and fatigue, not performance speed.
+- Updated curated target profiles so break-building targets represent highest break, not completed steps.
+- Updated AI coaching instructions so external AI interprets `highest_break`, `success_rate`, `points`, and `steps completed` correctly.
+- Updated routine-pack schema notes and curated library documentation.
+
 
 ## v5.6.4 — Curated Routine Library v1
 

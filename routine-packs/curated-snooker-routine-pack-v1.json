@@ -3,12 +3,12 @@
     "schema": "snookerRoutinePack",
     "schemaVersion": "1.0",
     "name": "Curated Snooker Routine Library v1",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "Snooker Practice PWA",
     "createdAt": "2026-05-20T14:20:00.000Z",
-    "appVersion": "5.6.4-curated-routine-library-v1",
+    "appVersion": "5.6.6-scoring-archetype-cleanup",
     "routineCount": 50,
-    "description": "A compact curated snooker training library with level-based targets, skill maps, transfer tags, and productive-difficulty target profiles for club to advanced players.",
+    "description": "Curated snooker training library v1.1 with clarified scoring archetypes: line-ups and continuation routines use highest-break targets; progressive/steps-completed is reserved for station or ladder drills.",
     "levels": [
       "sub30",
       "break30",
@@ -17,7 +17,14 @@
       "century",
       "pro"
     ],
-    "recommendedUse": "Import as catalogue routines, then duplicate/edit personal copies where needed."
+    "recommendedUse": "Import as catalogue routines, then duplicate/edit personal copies where needed.",
+    "scoringArchetypeNotes": {
+      "success_rate": "Successful snooker shots/safeties out of configured attempts.",
+      "highest_break": "Best snooker break achieved across configured visits/attempts. Default for line-ups, T-drills, and continuation routines.",
+      "progressive_completion": "Steps completed in non-break station/ladder drills only. Displayed to users as Steps completed.",
+      "points": "Cumulative points for tactical/review drills where scoring is contextual.",
+      "max_streak": "Longest consecutive successful repetitions, where used."
+    }
   },
   "taxonomyVersion": "v4.26",
   "routines": [
@@ -164,7 +171,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-001-straight-reds"
+      "activeTargetProfileId": "target-curated-pot-001-straight-reds",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-002-long-blue",
@@ -311,7 +320,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-002-long-blue"
+      "activeTargetProfileId": "target-curated-pot-002-long-blue",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-003-long-reds",
@@ -454,7 +465,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-003-long-reds"
+      "activeTargetProfileId": "target-curated-pot-003-long-reds",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-004-black-cushion",
@@ -599,7 +612,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-004-black-cushion"
+      "activeTargetProfileId": "target-curated-pot-004-black-cushion",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-005-pink-middle",
@@ -744,7 +759,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-005-pink-middle"
+      "activeTargetProfileId": "target-curated-pot-005-pink-middle",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-006-thin-cuts",
@@ -889,7 +906,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-006-thin-cuts"
+      "activeTargetProfileId": "target-curated-pot-006-thin-cuts",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-007-stun-straight",
@@ -1034,7 +1053,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-007-stun-straight"
+      "activeTargetProfileId": "target-curated-pot-007-stun-straight",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-008-awkward-bridging",
@@ -1179,7 +1200,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-008-awkward-bridging"
+      "activeTargetProfileId": "target-curated-pot-008-awkward-bridging",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-009-rest-pots",
@@ -1326,7 +1349,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-009-rest-pots"
+      "activeTargetProfileId": "target-curated-pot-009-rest-pots",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-pot-010-recovery-pot",
@@ -1471,7 +1496,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-pot-010-recovery-pot"
+      "activeTargetProfileId": "target-curated-pot-010-recovery-pot",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-001-pink-clockwise",
@@ -1544,7 +1571,7 @@
         {
           "level": "pro",
           "target": 10,
-          "stretchTarget": 12
+          "stretchTarget": 10
         }
       ],
       "targetProfiles": [
@@ -1555,7 +1582,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break30",
@@ -1564,7 +1592,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break50",
@@ -1573,7 +1602,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break70",
@@ -1582,7 +1612,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "century",
@@ -1591,7 +1622,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "pro",
@@ -1600,7 +1632,8 @@
           "attemptsPerSession": 10,
           "totalUnits": 10,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Route"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         }
       ],
       "targetHistory": [
@@ -1611,12 +1644,16 @@
           "stretchTarget": 6,
           "totalUnits": 10,
           "attemptsPerSession": 10,
-          "difficultyLabel": "Route",
+          "difficultyLabel": "Steps-completed target",
           "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-001-pink-clockwise"
+      "activeTargetProfileId": "target-curated-cb-001-pink-clockwise",
+      "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score.",
+      "scoringArchetype": "completion_count",
+      "displayScoring": "Steps completed"
     },
     {
       "id": "curated-cb-002-blue-cannon-colours",
@@ -1700,7 +1737,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break30",
@@ -1709,7 +1747,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break50",
@@ -1718,7 +1757,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "break70",
@@ -1727,7 +1767,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "century",
@@ -1736,7 +1777,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         },
         {
           "level": "pro",
@@ -1745,7 +1787,8 @@
           "attemptsPerSession": 30,
           "totalUnits": 20,
           "scoring": "progressive_completion",
-          "difficultyLabel": "Cannon"
+          "difficultyLabel": "Steps-completed target",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         }
       ],
       "targetHistory": [
@@ -1756,12 +1799,16 @@
           "stretchTarget": 12,
           "totalUnits": 20,
           "attemptsPerSession": 30,
-          "difficultyLabel": "Cannon",
+          "difficultyLabel": "Steps-completed target",
           "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score."
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-002-blue-cannon-colours"
+      "activeTargetProfileId": "target-curated-cb-002-blue-cannon-colours",
+      "targetMeaning": "Steps completed in a station/ladder drill. Use this only when each completed step is not naturally represented by a snooker break score.",
+      "scoringArchetype": "completion_count",
+      "displayScoring": "Steps completed"
     },
     {
       "id": "curated-cb-003-cushion-stun-return",
@@ -1906,7 +1953,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-003-cushion-stun-return"
+      "activeTargetProfileId": "target-curated-cb-003-cushion-stun-return",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-004-short-side-recovery",
@@ -2053,7 +2102,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-004-short-side-recovery"
+      "activeTargetProfileId": "target-curated-cb-004-short-side-recovery",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-005-blue-to-black",
@@ -2198,7 +2249,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-005-blue-to-black"
+      "activeTargetProfileId": "target-curated-cb-005-blue-to-black",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-006-screw-control",
@@ -2343,7 +2396,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-006-screw-control"
+      "activeTargetProfileId": "target-curated-cb-006-screw-control",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-007-pace-ladder",
@@ -2488,7 +2543,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-007-pace-ladder"
+      "activeTargetProfileId": "target-curated-cb-007-pace-ladder",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-008-cannon-cluster",
@@ -2633,7 +2690,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-008-cannon-cluster"
+      "activeTargetProfileId": "target-curated-cb-008-cannon-cluster",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-009-baulk-line-control",
@@ -2778,7 +2837,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-009-baulk-line-control"
+      "activeTargetProfileId": "target-curated-cb-009-baulk-line-control",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-cb-010-side-spin-ladder",
@@ -2923,7 +2984,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-cb-010-side-spin-ladder"
+      "activeTargetProfileId": "target-curated-cb-010-side-spin-ladder",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-bb-001-three-red-blue",
@@ -3068,7 +3131,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-001-three-red-blue"
+      "activeTargetProfileId": "target-curated-bb-001-three-red-blue",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session.",
+      "scoringArchetype": "highest_break"
     },
     {
       "id": "curated-bb-002-three-red-black",
@@ -3213,7 +3278,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-002-three-red-black"
+      "activeTargetProfileId": "target-curated-bb-002-three-red-black",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session.",
+      "scoringArchetype": "highest_break"
     },
     {
       "id": "curated-bb-003-five-reds-under-black",
@@ -3358,7 +3425,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-003-five-reds-under-black"
+      "activeTargetProfileId": "target-curated-bb-003-five-reds-under-black",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session.",
+      "scoringArchetype": "highest_break"
     },
     {
       "id": "curated-bb-004-realistic-lineup",
@@ -3370,14 +3439,14 @@
       "folder": "Curated v1 / Break-building",
       "subfolder": "Line-up",
       "category": "Curated v1 / Break-building",
-      "scoring": "progressive_completion",
+      "scoring": "highest_break",
       "attempts": 10,
       "attemptsPerSession": 10,
       "duration": "",
-      "target": 5,
-      "stretchTarget": 7,
-      "totalUnits": 15,
-      "difficultyLabel": "Realistic",
+      "target": 25,
+      "stretchTarget": 35,
+      "totalUnits": "",
+      "difficultyLabel": "Highest-break target",
       "description": "Line-up with balls off-centre; count balls cleared or successful red-colour pairs.",
       "setupDescription": "Line-up with balls off-centre; count balls cleared or successful red-colour pairs.",
       "trainingIntent": "acquisition",
@@ -3405,105 +3474,115 @@
       "levelTargets": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4
-        },
-        {
-          "level": "break30",
-          "target": 3,
-          "stretchTarget": 5
-        },
-        {
-          "level": "break50",
-          "target": 5,
-          "stretchTarget": 7
-        },
-        {
-          "level": "break70",
-          "target": 7,
-          "stretchTarget": 9
-        },
-        {
-          "level": "century",
-          "target": 10,
+          "target": 8,
           "stretchTarget": 12
         },
         {
+          "level": "break30",
+          "target": 14,
+          "stretchTarget": 18
+        },
+        {
+          "level": "break50",
+          "target": 25,
+          "stretchTarget": 31
+        },
+        {
+          "level": "break70",
+          "target": 38,
+          "stretchTarget": 44
+        },
+        {
+          "level": "century",
+          "target": 55,
+          "stretchTarget": 65
+        },
+        {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15
+          "target": 75,
+          "stretchTarget": 85
         }
       ],
       "targetProfiles": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4,
+          "target": 8,
+          "stretchTarget": 12,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break30",
-          "target": 3,
-          "stretchTarget": 5,
+          "target": 14,
+          "stretchTarget": 18,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break50",
-          "target": 5,
-          "stretchTarget": 7,
+          "target": 25,
+          "stretchTarget": 31,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break70",
-          "target": 7,
-          "stretchTarget": 9,
+          "target": 38,
+          "stretchTarget": 44,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "century",
-          "target": 10,
-          "stretchTarget": 12,
+          "target": 55,
+          "stretchTarget": 65,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15,
+          "target": 75,
+          "stretchTarget": 85,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Realistic"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
       "targetHistory": [
         {
           "id": "target-curated-bb-004-realistic-lineup",
           "effectiveFrom": "2026-05-20T00:00:00.000Z",
-          "target": 5,
-          "stretchTarget": 7,
-          "totalUnits": 15,
+          "target": 25,
+          "stretchTarget": 35,
+          "totalUnits": "",
           "attemptsPerSession": 10,
-          "difficultyLabel": "Realistic",
-          "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "difficultyLabel": "Highest-break target",
+          "scoring": "highest_break",
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-004-realistic-lineup"
+      "activeTargetProfileId": "target-curated-bb-004-realistic-lineup",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed.",
+      "scoringArchetype": "highest_break",
+      "attemptsMeaning": "Configured visits/tries at the routine; the score is the best break achieved in those visits."
     },
     {
       "id": "curated-bb-005-v-routine",
@@ -3515,14 +3594,14 @@
       "folder": "Curated v1 / Break-building",
       "subfolder": "Line-up",
       "category": "Curated v1 / Break-building",
-      "scoring": "progressive_completion",
+      "scoring": "highest_break",
       "attempts": 10,
       "attemptsPerSession": 10,
       "duration": "",
-      "target": 6,
-      "stretchTarget": 8,
-      "totalUnits": 15,
-      "difficultyLabel": "Pattern",
+      "target": 24,
+      "stretchTarget": 34,
+      "totalUnits": "",
+      "difficultyLabel": "Highest-break target",
       "description": "Clear balls from a V pattern around pink/black area; count successful units.",
       "setupDescription": "Clear balls from a V pattern around pink/black area; count successful units.",
       "trainingIntent": "acquisition",
@@ -3550,105 +3629,115 @@
       "levelTargets": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4
+          "target": 8,
+          "stretchTarget": 12
         },
         {
           "level": "break30",
-          "target": 4,
-          "stretchTarget": 6
+          "target": 14,
+          "stretchTarget": 18
         },
         {
           "level": "break50",
-          "target": 6,
-          "stretchTarget": 8
+          "target": 24,
+          "stretchTarget": 30
         },
         {
           "level": "break70",
-          "target": 8,
-          "stretchTarget": 10
+          "target": 36,
+          "stretchTarget": 42
         },
         {
           "level": "century",
-          "target": 11,
-          "stretchTarget": 13
+          "target": 52,
+          "stretchTarget": 62
         },
         {
           "level": "pro",
-          "target": 14,
-          "stretchTarget": 16
+          "target": 70,
+          "stretchTarget": 80
         }
       ],
       "targetProfiles": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4,
+          "target": 8,
+          "stretchTarget": 12,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break30",
-          "target": 4,
-          "stretchTarget": 6,
+          "target": 14,
+          "stretchTarget": 18,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break50",
-          "target": 6,
-          "stretchTarget": 8,
+          "target": 24,
+          "stretchTarget": 30,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break70",
-          "target": 8,
-          "stretchTarget": 10,
+          "target": 36,
+          "stretchTarget": 42,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "century",
-          "target": 11,
-          "stretchTarget": 13,
+          "target": 52,
+          "stretchTarget": 62,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "pro",
-          "target": 14,
-          "stretchTarget": 16,
+          "target": 70,
+          "stretchTarget": 80,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
       "targetHistory": [
         {
           "id": "target-curated-bb-005-v-routine",
           "effectiveFrom": "2026-05-20T00:00:00.000Z",
-          "target": 6,
-          "stretchTarget": 8,
-          "totalUnits": 15,
+          "target": 24,
+          "stretchTarget": 34,
+          "totalUnits": "",
           "attemptsPerSession": 10,
-          "difficultyLabel": "Pattern",
-          "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "difficultyLabel": "Highest-break target",
+          "scoring": "highest_break",
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-005-v-routine"
+      "activeTargetProfileId": "target-curated-bb-005-v-routine",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed.",
+      "scoringArchetype": "highest_break",
+      "attemptsMeaning": "Configured visits/tries at the routine; the score is the best break achieved in those visits."
     },
     {
       "id": "curated-bb-006-t-lineup-pink",
@@ -3660,14 +3749,14 @@
       "folder": "Curated v1 / Break-building",
       "subfolder": "T pattern",
       "category": "Curated v1 / Break-building",
-      "scoring": "progressive_completion",
+      "scoring": "highest_break",
       "attempts": 10,
       "attemptsPerSession": 10,
       "duration": "",
-      "target": 5,
-      "stretchTarget": 7,
-      "totalUnits": 15,
-      "difficultyLabel": "T pattern",
+      "target": 25,
+      "stretchTarget": 35,
+      "totalUnits": "",
+      "difficultyLabel": "Highest-break target",
       "description": "Clear a T pattern using pink as the main colour; count red-colour pairs.",
       "setupDescription": "Clear a T pattern using pink as the main colour; count red-colour pairs.",
       "trainingIntent": "acquisition",
@@ -3695,105 +3784,115 @@
       "levelTargets": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4
-        },
-        {
-          "level": "break30",
-          "target": 3,
-          "stretchTarget": 5
-        },
-        {
-          "level": "break50",
-          "target": 5,
-          "stretchTarget": 7
-        },
-        {
-          "level": "break70",
-          "target": 7,
-          "stretchTarget": 9
-        },
-        {
-          "level": "century",
-          "target": 10,
+          "target": 8,
           "stretchTarget": 12
         },
         {
+          "level": "break30",
+          "target": 14,
+          "stretchTarget": 18
+        },
+        {
+          "level": "break50",
+          "target": 25,
+          "stretchTarget": 31
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 50
+        },
+        {
+          "level": "century",
+          "target": 60,
+          "stretchTarget": 70
+        },
+        {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15
+          "target": 80,
+          "stretchTarget": 90
         }
       ],
       "targetProfiles": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4,
+          "target": 8,
+          "stretchTarget": 12,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break30",
-          "target": 3,
-          "stretchTarget": 5,
+          "target": 14,
+          "stretchTarget": 18,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break50",
-          "target": 5,
-          "stretchTarget": 7,
+          "target": 25,
+          "stretchTarget": 31,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break70",
-          "target": 7,
-          "stretchTarget": 9,
+          "target": 40,
+          "stretchTarget": 50,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "century",
-          "target": 10,
-          "stretchTarget": 12,
+          "target": 60,
+          "stretchTarget": 70,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15,
+          "target": 80,
+          "stretchTarget": 90,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
       "targetHistory": [
         {
           "id": "target-curated-bb-006-t-lineup-pink",
           "effectiveFrom": "2026-05-20T00:00:00.000Z",
-          "target": 5,
-          "stretchTarget": 7,
-          "totalUnits": 15,
+          "target": 25,
+          "stretchTarget": 35,
+          "totalUnits": "",
           "attemptsPerSession": 10,
-          "difficultyLabel": "T pattern",
-          "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "difficultyLabel": "Highest-break target",
+          "scoring": "highest_break",
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-006-t-lineup-pink"
+      "activeTargetProfileId": "target-curated-bb-006-t-lineup-pink",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed.",
+      "scoringArchetype": "highest_break",
+      "attemptsMeaning": "Configured visits/tries at the routine; the score is the best break achieved in those visits."
     },
     {
       "id": "curated-bb-007-t-lineup-black",
@@ -3805,14 +3904,14 @@
       "folder": "Curated v1 / Break-building",
       "subfolder": "T pattern",
       "category": "Curated v1 / Break-building",
-      "scoring": "progressive_completion",
+      "scoring": "highest_break",
       "attempts": 10,
       "attemptsPerSession": 10,
       "duration": "",
-      "target": 5,
-      "stretchTarget": 7,
-      "totalUnits": 15,
-      "difficultyLabel": "T pattern",
+      "target": 25,
+      "stretchTarget": 35,
+      "totalUnits": "",
+      "difficultyLabel": "Highest-break target",
       "description": "Clear a T pattern using black as the main colour; count red-black pairs.",
       "setupDescription": "Clear a T pattern using black as the main colour; count red-black pairs.",
       "trainingIntent": "acquisition",
@@ -3840,105 +3939,115 @@
       "levelTargets": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4
-        },
-        {
-          "level": "break30",
-          "target": 3,
-          "stretchTarget": 5
-        },
-        {
-          "level": "break50",
-          "target": 5,
-          "stretchTarget": 7
-        },
-        {
-          "level": "break70",
-          "target": 7,
-          "stretchTarget": 9
-        },
-        {
-          "level": "century",
-          "target": 10,
+          "target": 8,
           "stretchTarget": 12
         },
         {
+          "level": "break30",
+          "target": 14,
+          "stretchTarget": 18
+        },
+        {
+          "level": "break50",
+          "target": 25,
+          "stretchTarget": 31
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 50
+        },
+        {
+          "level": "century",
+          "target": 60,
+          "stretchTarget": 70
+        },
+        {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15
+          "target": 80,
+          "stretchTarget": 90
         }
       ],
       "targetProfiles": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4,
+          "target": 8,
+          "stretchTarget": 12,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break30",
-          "target": 3,
-          "stretchTarget": 5,
+          "target": 14,
+          "stretchTarget": 18,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break50",
-          "target": 5,
-          "stretchTarget": 7,
+          "target": 25,
+          "stretchTarget": 31,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break70",
-          "target": 7,
-          "stretchTarget": 9,
+          "target": 40,
+          "stretchTarget": 50,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "century",
-          "target": 10,
-          "stretchTarget": 12,
+          "target": 60,
+          "stretchTarget": 70,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "pro",
-          "target": 13,
-          "stretchTarget": 15,
+          "target": 80,
+          "stretchTarget": 90,
           "attemptsPerSession": 10,
-          "totalUnits": 15,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "T pattern"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
       "targetHistory": [
         {
           "id": "target-curated-bb-007-t-lineup-black",
           "effectiveFrom": "2026-05-20T00:00:00.000Z",
-          "target": 5,
-          "stretchTarget": 7,
-          "totalUnits": 15,
+          "target": 25,
+          "stretchTarget": 35,
+          "totalUnits": "",
           "attemptsPerSession": 10,
-          "difficultyLabel": "T pattern",
-          "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "difficultyLabel": "Highest-break target",
+          "scoring": "highest_break",
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-007-t-lineup-black"
+      "activeTargetProfileId": "target-curated-bb-007-t-lineup-black",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed.",
+      "scoringArchetype": "highest_break",
+      "attemptsMeaning": "Configured visits/tries at the routine; the score is the best break achieved in those visits."
     },
     {
       "id": "curated-bb-008-colour-clearance",
@@ -4083,7 +4192,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-008-colour-clearance"
+      "activeTargetProfileId": "target-curated-bb-008-colour-clearance",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-bb-009-red-colour-repeat",
@@ -4095,14 +4206,14 @@
       "folder": "Curated v1 / Break-building",
       "subfolder": "Continuation",
       "category": "Curated v1 / Break-building",
-      "scoring": "progressive_completion",
+      "scoring": "highest_break",
       "attempts": 10,
       "attemptsPerSession": 10,
       "duration": "",
-      "target": 6,
-      "stretchTarget": 8,
-      "totalUnits": 12,
-      "difficultyLabel": "Continuation",
+      "target": 24,
+      "stretchTarget": 34,
+      "totalUnits": "",
+      "difficultyLabel": "Highest-break target",
       "description": "Repeat red-colour pairs from realistic red spread; count completed pairs.",
       "setupDescription": "Repeat red-colour pairs from realistic red spread; count completed pairs.",
       "trainingIntent": "stabilization",
@@ -4130,105 +4241,115 @@
       "levelTargets": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4
-        },
-        {
-          "level": "break30",
-          "target": 4,
-          "stretchTarget": 6
-        },
-        {
-          "level": "break50",
-          "target": 6,
-          "stretchTarget": 8
-        },
-        {
-          "level": "break70",
           "target": 8,
-          "stretchTarget": 10
-        },
-        {
-          "level": "century",
-          "target": 10,
           "stretchTarget": 12
         },
         {
+          "level": "break30",
+          "target": 14,
+          "stretchTarget": 18
+        },
+        {
+          "level": "break50",
+          "target": 24,
+          "stretchTarget": 30
+        },
+        {
+          "level": "break70",
+          "target": 36,
+          "stretchTarget": 42
+        },
+        {
+          "level": "century",
+          "target": 52,
+          "stretchTarget": 62
+        },
+        {
           "level": "pro",
-          "target": 12,
-          "stretchTarget": 14
+          "target": 70,
+          "stretchTarget": 80
         }
       ],
       "targetProfiles": [
         {
           "level": "sub30",
-          "target": 2,
-          "stretchTarget": 4,
+          "target": 8,
+          "stretchTarget": 12,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break30",
-          "target": 4,
-          "stretchTarget": 6,
+          "target": 14,
+          "stretchTarget": 18,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break50",
-          "target": 6,
-          "stretchTarget": 8,
+          "target": 24,
+          "stretchTarget": 30,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "break70",
-          "target": 8,
-          "stretchTarget": 10,
+          "target": 36,
+          "stretchTarget": 42,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "century",
-          "target": 10,
-          "stretchTarget": 12,
+          "target": 52,
+          "stretchTarget": 62,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         },
         {
           "level": "pro",
-          "target": 12,
-          "stretchTarget": 14,
+          "target": 70,
+          "stretchTarget": 80,
           "attemptsPerSession": 10,
-          "totalUnits": 12,
-          "scoring": "progressive_completion",
-          "difficultyLabel": "Continuation"
+          "totalUnits": "",
+          "scoring": "highest_break",
+          "difficultyLabel": "Highest-break target",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
       "targetHistory": [
         {
           "id": "target-curated-bb-009-red-colour-repeat",
           "effectiveFrom": "2026-05-20T00:00:00.000Z",
-          "target": 6,
-          "stretchTarget": 8,
-          "totalUnits": 12,
+          "target": 24,
+          "stretchTarget": 34,
+          "totalUnits": "",
           "attemptsPerSession": 10,
-          "difficultyLabel": "Continuation",
-          "scoring": "progressive_completion",
-          "source": "curated_library_v1"
+          "difficultyLabel": "Highest-break target",
+          "scoring": "highest_break",
+          "source": "curated_library_v1_1_scoring_cleanup",
+          "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed."
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-009-red-colour-repeat"
+      "activeTargetProfileId": "target-curated-bb-009-red-colour-repeat",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session, not steps completed.",
+      "scoringArchetype": "highest_break",
+      "attemptsMeaning": "Configured visits/tries at the routine; the score is the best break achieved in those visits."
     },
     {
       "id": "curated-bb-010-30-break-builder",
@@ -4375,7 +4496,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-bb-010-30-break-builder"
+      "activeTargetProfileId": "target-curated-bb-010-30-break-builder",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session.",
+      "scoringArchetype": "highest_break"
     },
     {
       "id": "curated-saf-001-baulk-return",
@@ -4520,7 +4643,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-001-baulk-return"
+      "activeTargetProfileId": "target-curated-saf-001-baulk-return",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-002-shot-to-nothing",
@@ -4667,7 +4792,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-002-shot-to-nothing"
+      "activeTargetProfileId": "target-curated-saf-002-shot-to-nothing",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-003-figure-eight-safety",
@@ -4812,7 +4939,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-003-figure-eight-safety"
+      "activeTargetProfileId": "target-curated-saf-003-figure-eight-safety",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-004-thin-contact",
@@ -4957,7 +5086,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-004-thin-contact"
+      "activeTargetProfileId": "target-curated-saf-004-thin-contact",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-005-escape-one-cushion",
@@ -5102,7 +5233,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-005-escape-one-cushion"
+      "activeTargetProfileId": "target-curated-saf-005-escape-one-cushion",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-006-escape-two-cushion",
@@ -5247,7 +5380,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-006-escape-two-cushion"
+      "activeTargetProfileId": "target-curated-saf-006-escape-two-cushion",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-007-covering-reds",
@@ -5392,7 +5527,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-007-covering-reds"
+      "activeTargetProfileId": "target-curated-saf-007-covering-reds",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-saf-008-safety-pressure-frame",
@@ -5537,7 +5674,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-saf-008-safety-pressure-frame"
+      "activeTargetProfileId": "target-curated-saf-008-safety-pressure-frame",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-prs-001-must-pot-black",
@@ -5682,7 +5821,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-001-must-pot-black"
+      "activeTargetProfileId": "target-curated-prs-001-must-pot-black",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-prs-002-last-red-colour",
@@ -5827,7 +5968,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-002-last-red-colour"
+      "activeTargetProfileId": "target-curated-prs-002-last-red-colour",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-prs-003-frame-winning-colours",
@@ -5972,7 +6115,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-003-frame-winning-colours"
+      "activeTargetProfileId": "target-curated-prs-003-frame-winning-colours",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-prs-004-one-chance-lineup",
@@ -6117,7 +6262,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-004-one-chance-lineup"
+      "activeTargetProfileId": "target-curated-prs-004-one-chance-lineup",
+      "targetMeaning": "Highest break achieved across the configured visits/attempts. Record the best break from the session.",
+      "scoringArchetype": "highest_break"
     },
     {
       "id": "curated-prs-005-comeback-safety",
@@ -6262,7 +6409,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-005-comeback-safety"
+      "activeTargetProfileId": "target-curated-prs-005-comeback-safety",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-prs-006-focus-reset-routine",
@@ -6407,7 +6556,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-prs-006-focus-reset-routine"
+      "activeTargetProfileId": "target-curated-prs-006-focus-reset-routine",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-001-rest-long-blue",
@@ -6552,7 +6703,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-001-rest-long-blue"
+      "activeTargetProfileId": "target-curated-rec-001-rest-long-blue",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-002-rest-position",
@@ -6697,7 +6850,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-002-rest-position"
+      "activeTargetProfileId": "target-curated-rec-002-rest-position",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-003-recovery-from-side",
@@ -6842,7 +6997,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-003-recovery-from-side"
+      "activeTargetProfileId": "target-curated-rec-003-recovery-from-side",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-004-fatigue-maintenance",
@@ -6987,7 +7144,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-004-fatigue-maintenance"
+      "activeTargetProfileId": "target-curated-rec-004-fatigue-maintenance",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-005-confidence-builder",
@@ -7132,7 +7291,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-005-confidence-builder"
+      "activeTargetProfileId": "target-curated-rec-005-confidence-builder",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     },
     {
       "id": "curated-rec-006-match-shot-selection",
@@ -7277,7 +7438,9 @@
           "source": "curated_library_v1"
         }
       ],
-      "activeTargetProfileId": "target-curated-rec-006-match-shot-selection"
+      "activeTargetProfileId": "target-curated-rec-006-match-shot-selection",
+      "targetMeaning": "Successful shots/safeties out of configured attempts; target is a success percentage.",
+      "scoringArchetype": "binary_attempt"
     }
   ],
   "skillMaps": [

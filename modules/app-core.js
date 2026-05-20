@@ -2707,7 +2707,7 @@ function fmtScoring(type) {
     highest_break:"Highest break",
     points:"Points system",
     score_per_minute:"Time-based score",
-    progressive_completion:"Progressive completion"
+    progressive_completion:"Steps completed"
   }[type] || type;
 }
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
@@ -7838,7 +7838,7 @@ function renderDateView(logs) {
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
-  ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Progressive completion:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
+  ${progressiveStatsForLogs(sourceLogs) ? `<div class="analytics-note"><strong>Steps completed:</strong><span class="pc-kpi">Avg completion ${progressiveStatsForLogs(sourceLogs).avgCompletion.toFixed(1)}%</span><span class="pc-kpi">Best attempt ${progressiveStatsForLogs(sourceLogs).bestAttempt}</span><span class="pc-kpi">Completions ${progressiveStatsForLogs(sourceLogs).completionCount}</span><span class="pc-kpi">Highest break ${progressiveStatsForLogs(sourceLogs).highestBreak || "N/A"}</span></div>` : ""}
   ${renderTargetProfileSummary(sourceLogs)}
   ${rowLimitNote}
   <div class="history-table-scroll" role="region" aria-label="Log history table" tabindex="0"><table class="history-table"><thead><tr><th>Time</th><th>Session</th><th>Exercise</th><th>Type</th><th>Score</th><th>Performance</th><th>Target version</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${displayLogs.map(l => renderDateLogRow(l)).join("")}</tbody></table></div>`;
@@ -8473,7 +8473,7 @@ function aiTry(label, fn, fallback = null) {
 
 function aiLearningBandForRoutine(routine) {
   const scoring = routine?.scoring || "raw";
-  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Progressive snooker routines should be challenging enough to expose break-building limits without creating constant failure."};
+  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Steps-completed routines should be used only for station/ladder drills where the score is completed positions, not break value."};
   if (scoring === "points") return {low:null, high:null, rationale:"Points-based tactical/safety routines need contextual interpretation rather than a fixed percentage band."};
   const skills = new Set(normalizeSkillList([...(getRoutineSkillMap(routine)?.secondarySkills || []), ...(getRoutineSkillMap(routine)?.transferTags || []), getRoutineSkillMap(routine)?.primarySkill]));
   if (skills.has("pressure_resilience")) return {low:35, high:60, rationale:"Pressure drills can be productive at lower success rates than technical potting drills."};
@@ -8804,14 +8804,14 @@ function buildAiCoachingSnapshot(options = {}) {
     },
     instructionsForAI: {
       sport: "snooker",
-      context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals.",
+      context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals. Interpret highest_break as the best snooker break achieved during the configured attempts/visits; interpret success_rate as successful shots or safeties out of attempts; interpret progressive_completion as steps completed only for station/ladder drills.",
       task: "Analyze the player's snooker routine performance and recommend target adjustments, routine prioritization, skill focus, and next-session structure.",
       interpretationRules: [
         "Do not recommend changing a snooker routine target if sample size is too small, the routine is immature, or volatility is very high.",
         "For technical potting drills, prefer targets that keep recent success roughly in the 55% to 75% band.",
         "For safety/tactical snooker drills, a productive band is often closer to 50% to 70% because quality of leave matters, not only success count.",
         "For pressure drills, productive success may be 35% to 60%; do not treat lower success as automatically bad.",
-        "For progressive completion or break-building routines, judge improvement using trend, consistency, and total-units context rather than one isolated score.",
+        "For snooker line-up and break-building routines, highest_break usually means the best break achieved across the configured visits. Use progressive/steps-completed scoring only for station or ladder drills where each non-break step is explicitly completed.",
         "Preserve historical target versions. Recommend creating a new target profile rather than overwriting old logs.",
         "Prefer one-step target changes. Do not collapse a target from 50 to 10 unless the evidence is mature and the routine design itself is inappropriate.",
         "When mixed scoring modes or legacy points logs are flagged, treat target advice as conservative and mention the data-quality caveat.",
