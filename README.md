@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.5.26
+# Snooker Practice PWA v5.5.27
 
-## v5.5.26 — Routine Stats Cache
+## v5.5.27 — Cache Stability Pass
 
 Built from the working v5.5.23 lightweight core serialization release.
 

@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.25";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.25";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.27";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.27";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.25";
+} from "./utils.js?v=5.5.27";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.25";
+} from "./settings.js?v=5.5.27";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.25";
+} from "./analytics.js?v=5.5.27";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.25";
+} from "./bayesian.js?v=5.5.27";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.25";
+} from "./session.js?v=5.5.27";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.25";
+} from "./pressure.js?v=5.5.27";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.25";
+} from "./recommendations.js?v=5.5.27";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.25";
+} from "./store.js?v=5.5.27";
 
 
 
@@ -283,12 +283,15 @@ const rankRoutineMemoCache = new Map();
 const routineStatsMemoCache = new Map();
 let undertrainedAllocationCacheKey = "";
 let undertrainedAllocationCache = null;
+let routineStatsWarmSignature = "";
+let performanceCacheWarmInProgress = false;
 function clearPerformanceMemoCaches() {
   analyticsMemoCache.clear();
   rankRoutineMemoCache.clear();
   routineStatsMemoCache.clear();
   undertrainedAllocationCacheKey = "";
   undertrainedAllocationCache = null;
+  routineStatsWarmSignature = "";
 }
 function memoKeyForLogs(label, logs, extra = "") {
   return `${label}|${extra}|${logsSignature(logs || [])}`;
@@ -558,6 +561,7 @@ async function bootstrapIndexedDBStorage() {
     try { logAppError(error, "bootstrapIndexedDBStorage hydrate"); } catch (_) { console.error(error); }
   }
   if (!hydrated && indexedDBUnavailable) {
+    warmRoutineStatsCache("bootstrap fallback warm routine stats");
     await safeRenderAll("bootstrap renderAll fallback");
     return;
   }
@@ -568,6 +572,7 @@ async function bootstrapIndexedDBStorage() {
     scheduleIndexedDBSync("bootstrap memory migration sync", true);
     saveCoreData("bootstrap memory migration core save");
   }
+  warmRoutineStatsCache("bootstrap warm routine stats");
   safeRenderAll("bootstrap renderAll");
 }
 
@@ -2593,7 +2598,7 @@ function saveData(options = {}) {
     return true;
   }
   data.updatedAt = new Date().toISOString();
-  invalidateLogsByRoutineCache();
+  if (!opts.skipPerformanceInvalidation) invalidateLogsByRoutineCache();
   data.interfaceSettings = data.interfaceSettings || {};
   data.interfaceSettings.themeMode = getThemeModeSetting();
   data.interfaceSettings.sessionFocusMode = getSessionFocusSetting();
@@ -9497,6 +9502,28 @@ function routineStats(routineId, groupedLogs = null) {
   return result;
 }
 
+function warmRoutineStatsCache(reason="warmRoutineStatsCache") {
+  try {
+    const logs = data.logs || [];
+    const routines = activeRoutines();
+    const signature = `${logsSignature(logs)}|${(data.routines || []).length}|${data?.updatedAt || ""}`;
+    if (performanceCacheWarmInProgress || routineStatsWarmSignature === signature) return false;
+    performanceCacheWarmInProgress = true;
+    const grouped = getLogsByRoutineMap(logs);
+    routines.forEach(r => {
+      try { routineStats(r.id, grouped); }
+      catch(e) { logAppError?.(e, `${reason} routineStats ${r?.id || "unknown"}`); }
+    });
+    routineStatsWarmSignature = signature;
+    return true;
+  } catch(e) {
+    logAppError?.(e, reason);
+    return false;
+  } finally {
+    performanceCacheWarmInProgress = false;
+  }
+}
+
 function daysSince(dateIso) {
   const d = new Date(dateIso);
   const now = new Date();
@@ -9707,7 +9734,6 @@ function interfaceWriteSetting(storageKey, dataKey, value) {
     data.interfaceSettings = data.interfaceSettings || {};
     data.interfaceSettings[dataKey] = clean;
     data.updatedAt = new Date().toISOString();
-  invalidateLogsByRoutineCache();
     if (typeof saveCoreData === "function") saveCoreData("interface setting core save");
     else localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeCoreData(data)));
   } catch(e) { if (typeof logAppError === "function") logAppError(e, "interfaceWriteSetting main data"); }
@@ -11059,7 +11085,7 @@ window.addEventListener("storage", e => {
       externalStorageSyncInProgress = true;
       data = loadData();
       hydrateIndexedDBData(false, {readOnlySync:true})
-        .then(() => { ensureTablesDatabase?.(); renderAll(); })
+        .then(() => { ensureTablesDatabase?.(); warmRoutineStatsCache("storage sync warm routine stats"); renderAll(); })
         .catch(err => logAppError(err, "storage sync hydrate"))
         .finally(() => { externalStorageSyncInProgress = false; });
     } catch(err) {
@@ -11076,7 +11102,7 @@ function runDeferredExternalStorageSyncIfSafe() {
     externalStorageSyncInProgress = true;
     data = loadData();
     hydrateIndexedDBData(false, {readOnlySync:true})
-      .then(() => { ensureTablesDatabase?.(); renderAll(); })
+      .then(() => { ensureTablesDatabase?.(); warmRoutineStatsCache("storage sync warm routine stats"); renderAll(); })
       .catch(err => logAppError(err, "deferred storage sync hydrate"))
       .finally(() => { externalStorageSyncInProgress = false; });
   } catch(err) {

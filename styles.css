@@ -4347,3 +4347,31 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
     -webkit-backdrop-filter:none!important;
   }
 }
+
+/* ===== v5.5.27 Cache stability pass ===== */
+.stats-panel,
+.insight-card,
+.smart-card,
+.recommendation-card,
+.planned-box,
+.intervention-card,
+.table-stats,
+#smartRecommendation,
+#phaseOneInsights,
+#statsOverview,
+#trainingLoadBox,
+#weeklyReviewBox,
+#tableStatsBox {
+  contain: layout paint;
+}
+#smartRecommendation,
+#phaseOneInsights,
+#statsOverview {
+  min-height: 96px;
+}
+.stat-card,
+.overview-mini-card,
+.insight-card,
+.smart-card {
+  min-height: 72px;
+}
