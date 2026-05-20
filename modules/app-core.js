@@ -2647,6 +2647,9 @@ function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible
 }
 function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
   renderStatsIfVisible(reason);
+  if (shouldRenderStatsPanel()) {
+    safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
+  }
   renderStatsHeavyPanelsIfVisible(reason);
 }
 

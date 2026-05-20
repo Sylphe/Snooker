@@ -32,3 +32,8 @@ This release adds the first in-app Adaptive Target Engine. The goal is to make t
 
 Adaptive target changes are never applied silently. The user must explicitly accept a recommendation, and the app records the change as a new target profile so older logs remain historically comparable.
 
+
+
+## v5.6.5 fixed — Adaptive Target Engine render hook
+
+Patch note: wired `renderAdaptiveTargetEngine()` into `renderStatsBundleIfVisible()` so the Adaptive Target Engine panel populates when opening the Stats tab via normal tab navigation.
