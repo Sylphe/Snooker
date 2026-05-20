@@ -1,0 +1,46 @@
+{
+  "name": "Snooker Practice Log",
+  "short_name": "Snooker Log",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f2",
+  "theme_color": "#102b22",
+  "description": "Snooker practice log with adaptive coaching analytics and mobile-first practice navigation.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Practice",
+      "short_name": "Practice",
+      "url": "./index.html#practice",
+      "description": "Open the practice command center"
+    },
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "url": "./index.html#templates",
+      "description": "Open exercise and skill library"
+    },
+    {
+      "name": "Stats",
+      "short_name": "Stats",
+      "url": "./index.html#stats",
+      "description": "Open stats overview"
+    }
+  ],
+  "categories": [
+    "sports",
+    "productivity",
+    "health_and_fitness"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}
