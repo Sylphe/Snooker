@@ -1,0 +1,14 @@
+{
+  "exportType": "snooker_ai_coaching_snapshot",
+  "schemaVersion": "1.0",
+  "purpose": "AI-readable snooker practice coaching export for target calibration, routine prioritization and skill-gap analysis.",
+  "topLevelKeys": [
+    "instructionsForAI",
+    "playerProfile",
+    "skillProfile",
+    "targetCalibrationCandidates",
+    "routineSnapshots",
+    "recentLogs"
+  ],
+  "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement."
+}

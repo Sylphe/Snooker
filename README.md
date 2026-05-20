@@ -1,4 +1,36 @@
-# Snooker Practice PWA v5.6.1
+# Snooker Practice PWA v5.6.2
+
+## v5.6.2 — AI Coaching Export
+
+Built from the working v5.6.1 external editing workflow.
+
+This release adds an AI-readable coaching export designed specifically for snooker practice analysis. It is not a generic backup: it produces a compact decision package for target calibration, routine prioritization, skill-gap diagnosis, and next-session recommendations.
+
+### Added
+
+- Export AI Coaching Snapshot JSON from the Data / Import-Export panel.
+- Snooker-specific AI instructions embedded directly in the export.
+- Routine catalogue snapshot with canonical IDs, scoring modes, targets, skills, transfer tags, and target history.
+- Per-routine statistical snapshot including averages, volatility, target hit rate, routine stats, and recent evidence logs.
+- Available analytical outputs included where calculable: Bayesian success-rate estimates, target credible intervals, dynamic difficulty, current form, change-point signal, performance stability, fatigue slope, plateau/overtraining checks, difficulty ladder, forecast, progressive-completion stats, context normalization, and transfer value.
+- Global player profile with total routines/logs/sessions, total practice time, target hit rate, current form, fatigue, plateau, overtraining, change-point, and forecast signals.
+- Skill profile summary aggregated by primary/secondary/transfer skills.
+- Target calibration candidates with suggested target changes and rationale.
+- Recent evidence section limited for AI readability.
+
+### Intended use
+
+Export `snooker-ai-coaching-export-*.json`, upload or paste it into an AI tool, and ask for snooker-specific recommendations on:
+
+- which routines are too hard, too easy, or in the productive learning band;
+- how to adjust targets without corrupting historical stats;
+- which skills are undertrained or volatile;
+- which routines should be prioritized in the next training block;
+- whether routine metadata, tags, or transfer skills need cleanup.
+
+### Notes
+
+This export can include notes, timestamps, and detailed performance data. Share it only with AI tools or people you trust.
 
 ## v5.6.1 — External Editing Workflow
 

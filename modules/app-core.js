@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.1";
+} from "./utils.js?v=5.6.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.1";
+} from "./settings.js?v=5.6.2";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.1";
+} from "./analytics.js?v=5.6.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.1";
+} from "./bayesian.js?v=5.6.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.1";
+} from "./session.js?v=5.6.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.1";
+} from "./pressure.js?v=5.6.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.1";
+} from "./recommendations.js?v=5.6.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.1";
+} from "./store.js?v=5.6.2";
 
 
 
@@ -8444,6 +8444,284 @@ function exportRoutineLibraryCsv() {
   return exportFile(filename, rows.join("\n"), "text/csv");
 }
 
+
+function aiSafeValue(value, depth = 0) {
+  if (depth > 5) return null;
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? Number(value.toFixed(4)) : null;
+  if (typeof value === "string") return value.length > 1200 ? value.slice(0, 1200) : value;
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.slice(0, 200).map(v => aiSafeValue(v, depth + 1));
+  if (typeof value === "object") {
+    const out = {};
+    Object.entries(value).slice(0, 80).forEach(([k, v]) => {
+      if (["logs", "trajectory", "eventHistory"].includes(k)) return;
+      out[k] = aiSafeValue(v, depth + 1);
+    });
+    return out;
+  }
+  return String(value);
+}
+
+function aiTry(label, fn, fallback = null) {
+  try { return aiSafeValue(fn()); }
+  catch (e) {
+    try { logAppError?.(e, `aiCoachingExport ${label}`); } catch (_) {}
+    return fallback;
+  }
+}
+
+function aiLearningBandForRoutine(routine) {
+  const scoring = routine?.scoring || "raw";
+  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Progressive snooker routines should be challenging enough to expose break-building limits without creating constant failure."};
+  if (scoring === "points") return {low:null, high:null, rationale:"Points-based tactical/safety routines need contextual interpretation rather than a fixed percentage band."};
+  const skills = new Set(normalizeSkillList([...(getRoutineSkillMap(routine)?.secondarySkills || []), ...(getRoutineSkillMap(routine)?.transferTags || []), getRoutineSkillMap(routine)?.primarySkill]));
+  if (skills.has("pressure_resilience")) return {low:35, high:60, rationale:"Pressure drills can be productive at lower success rates than technical potting drills."};
+  if (skills.has("safety") || skills.has("tactical_awareness")) return {low:50, high:70, rationale:"Safety and tactical snooker drills should stay difficult but not random."};
+  if (skills.has("break_building") || skills.has("cue_ball_control")) return {low:45, high:70, rationale:"Positional and break-building routines need a wider productive band because transfer value matters."};
+  return {low:55, high:75, rationale:"Technical potting routines are usually most productive in a moderate success band."};
+}
+
+function aiTargetHealthForRoutine(routine, logs) {
+  const hit = targetHitRate(logs);
+  const band = aiLearningBandForRoutine(routine);
+  const n = logs.length;
+  if (n < 5 || hit === null || band.low === null) return {state:"insufficient_data", label:"Insufficient data", hitRate:hit, band, recommendation:"Collect more logs before adjusting this snooker routine target."};
+  if (hit < band.low - 15) return {state:"too_hard", label:"Too hard", hitRate:hit, band, recommendation:"Consider lowering the target or simplifying one constraint; failure is currently too frequent for productive repetition."};
+  if (hit < band.low) return {state:"stretching", label:"Difficult stretch", hitRate:hit, band, recommendation:"Keep or slightly reduce the target depending on player confidence and volatility."};
+  if (hit <= band.high) return {state:"productive", label:"Productive band", hitRate:hit, band, recommendation:"Hold the current target and continue collecting evidence."};
+  if (hit <= band.high + 15) return {state:"getting_easy", label:"Getting easy", hitRate:hit, band, recommendation:"Consider increasing the stretch target or adding one constraint if recent form is stable."};
+  return {state:"too_easy", label:"Too easy", hitRate:hit, band, recommendation:"Increase difficulty, raise target, or progress to a harder snooker routine."};
+}
+
+function aiSuggestedTargetForRoutine(routine, logs, health) {
+  const current = Number(routine?.target || 0);
+  const attempts = Number(routine?.attempts || routine?.attemptsPerSession || routine?.totalUnits || 0);
+  const hit = Number(health?.hitRate);
+  const band = health?.band || aiLearningBandForRoutine(routine);
+  if (!Number.isFinite(current) || current <= 0 || !Number.isFinite(hit) || band.low === null) return null;
+  let suggested = current;
+  if (hit < band.low - 15) suggested = Math.max(1, Math.round(current * 0.75));
+  else if (hit < band.low) suggested = Math.max(1, Math.round(current * 0.9));
+  else if (hit > band.high + 15) suggested = Math.round(current * 1.2);
+  else if (hit > band.high) suggested = Math.round(current * 1.1);
+  if (attempts > 0 && ["success_rate", "progressive_completion"].includes(routine?.scoring)) suggested = Math.min(attempts, suggested);
+  if (suggested === current) return null;
+  return {
+    currentTarget: current,
+    suggestedTarget: suggested,
+    suggestedStretchTarget: attempts > 0 ? Math.min(attempts, Math.max(suggested + 1, Math.round(suggested * 1.15))) : Math.round(suggested * 1.15),
+    rationale: health.recommendation,
+    applyAsNewTargetProfile: true
+  };
+}
+
+function aiRecentEvidenceLogs(logs, limit = 20) {
+  return (logs || []).slice(-limit).map(l => ({
+    id: l.id,
+    createdAt: l.createdAt,
+    routineId: l.routineId,
+    routineName: getRoutineName(l),
+    scoring: l.scoring,
+    score: Number(l.score || 0),
+    attempts: Number(l.attempts || 0),
+    normalizedScore: Number(l.normalizedScore || 0),
+    performance: l.performance || "N/A",
+    targetAtLog: l.targetAtLog ?? null,
+    stretchTargetAtLog: l.stretchTargetAtLog ?? null,
+    timeMinutes: Number(l.timeMinutes || 0),
+    sessionRating: l.sessionRating || "",
+    tags: l.sessionTags || "",
+    notes: l.notes ? String(l.notes).slice(0, 300) : ""
+  }));
+}
+
+function buildAiRoutineSnapshot(routine, groupedLogs) {
+  const logs = (groupedLogs[String(routine.id)] || []).slice();
+  const skillMap = normalizeRoutineSkillMap(routine, getRoutineSkillMap(routine));
+  const stats = aiTry("routineStats", () => routineStats(routine, groupedLogs), {});
+  const health = aiTargetHealthForRoutine(routine, logs);
+  const suggested = aiSuggestedTargetForRoutine(routine, logs, health);
+  const values = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const successLogs = logs.filter(l => l.scoring === "success_rate" || routine.scoring === "success_rate");
+  return {
+    routine: {
+      id: routine.id,
+      canonicalId: getRoutineCanonicalId(routine),
+      name: routine.name || "Exercise",
+      folder: routine.folder || routine.category || "",
+      subfolder: routine.subfolder || "",
+      scoring: routine.scoring || "raw",
+      attempts: routine.attempts || routine.attemptsPerSession || "",
+      duration: routine.duration || "",
+      target: routine.target || "",
+      stretchTarget: routine.stretchTarget || "",
+      totalUnits: routine.totalUnits || "",
+      difficultyLabel: routine.difficultyLabel || "",
+      description: routine.description || "",
+      primarySkill: skillMap.primarySkill || "",
+      secondarySkills: normalizeSkillList(skillMap.secondarySkills),
+      transferSkills: normalizeSkillList(skillMap.transferTags),
+      targetHistory: Array.isArray(routine.targetHistory) ? routine.targetHistory.slice(-8).map(aiSafeValue) : [],
+      activeTargetProfileId: routine.activeTargetProfileId || ""
+    },
+    statisticalSnapshot: {
+      logCount: logs.length,
+      firstPracticedAt: logs[0]?.createdAt || null,
+      lastPracticedAt: logs[logs.length - 1]?.createdAt || null,
+      allTimeAverage: values.length ? avg(values) : null,
+      recentAverageLast5: values.length ? avg(values.slice(-5)) : null,
+      recentAverageLast10: values.length ? avg(values.slice(-10)) : null,
+      bestNormalizedScore: values.length ? safeMax(values, null) : null,
+      volatility: values.length >= 3 ? stdDev(values) : null,
+      targetHitRate: targetHitRate(logs),
+      metrics: aiSafeValue(metricsForLogs(logs)),
+      routineStats: stats
+    },
+    analyses: {
+      bayesianSuccessRate: aiTry("bayesianStatsForRoutine", () => bayesianStatsForRoutine(routine), null),
+      targetCredibleInterval: aiTry("targetCredibleIntervalForRoutine", () => targetCredibleIntervalForRoutine(routine), null),
+      dynamicDifficulty: aiTry("dynamicDifficultyAdjustmentForLogs", () => dynamicDifficultyAdjustmentForLogs(logs, routine), null),
+      currentForm: aiTry("estimateCurrentFormForLogs", () => estimateCurrentFormForLogs(logs), null),
+      changePoint: aiTry("detectSeriesChangePoint", () => detectSeriesChangePoint(values, {minN:8, maxWindow:150}), null),
+      performanceStability: aiTry("performanceStabilityIndex", () => performanceStabilityIndex(logs, 10), null),
+      fatigueSlope: aiTry("fatigueSlope", () => cachedFatigueSlope(logs), null),
+      plateau: aiTry("plateauDetector", () => plateauDetector(logs, 8), null),
+      overtraining: aiTry("overtrainingSignal", () => overtrainingSignal(logs, 8), null),
+      difficultyLadder: aiTry("difficultyLadderRecommendation", () => difficultyLadderRecommendation(logs), null),
+      forecast: aiTry("forecastWithConfidence", () => forecastWithConfidence(logs, 5), null),
+      progressiveCompletion: aiTry("progressiveStatsForLogs", () => routine.scoring === "progressive_completion" ? progressiveStatsForLogs(logs) : null, null),
+      contextNormalization: aiTry("routineContextNormalizationSignal", () => routineContextNormalizationSignal(routine), null),
+      transferValue: aiTry("routineTransferValue", () => routineTransferValue(routine), null)
+    },
+    targetCalibration: {
+      health,
+      suggestion: suggested
+    },
+    recentEvidence: aiRecentEvidenceLogs(logs, 20)
+  };
+}
+
+function buildAiSkillProfile(routineSnapshots) {
+  const skillRows = Object.create(null);
+  routineSnapshots.forEach(row => {
+    const skills = [row.routine.primarySkill, ...(row.routine.secondarySkills || []), ...(row.routine.transferSkills || [])].filter(Boolean);
+    skills.forEach(skill => {
+      skillRows[skill] ||= {skill, routines:0, logCount:0, avgValues:[], hitRates:[], tooHard:0, tooEasy:0, productive:0};
+      const rec = skillRows[skill];
+      rec.routines += 1;
+      rec.logCount += Number(row.statisticalSnapshot.logCount || 0);
+      if (Number.isFinite(Number(row.statisticalSnapshot.allTimeAverage))) rec.avgValues.push(Number(row.statisticalSnapshot.allTimeAverage));
+      if (Number.isFinite(Number(row.statisticalSnapshot.targetHitRate))) rec.hitRates.push(Number(row.statisticalSnapshot.targetHitRate));
+      if (row.targetCalibration?.health?.state === "too_hard") rec.tooHard += 1;
+      if (row.targetCalibration?.health?.state === "too_easy") rec.tooEasy += 1;
+      if (row.targetCalibration?.health?.state === "productive") rec.productive += 1;
+    });
+  });
+  return Object.values(skillRows).map(s => ({
+    skill: s.skill,
+    label: skillLabel(s.skill),
+    routineCount: s.routines,
+    logCount: s.logCount,
+    averageScore: s.avgValues.length ? avg(s.avgValues) : null,
+    averageTargetHitRate: s.hitRates.length ? avg(s.hitRates) : null,
+    targetHealthMix: {tooHard:s.tooHard, tooEasy:s.tooEasy, productive:s.productive}
+  })).sort((a,b) => b.logCount - a.logCount);
+}
+
+function buildAiCoachingSnapshot(options = {}) {
+  const includeRawRecentLogs = options.includeRawRecentLogs !== false;
+  const routines = activeRoutines();
+  const logs = (data.logs || []).slice().sort((a,b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
+  const grouped = getLogsByRoutineMap(logs);
+  const routineSnapshots = routines.map(r => buildAiRoutineSnapshot(r, grouped));
+  const targetCalibrationCandidates = routineSnapshots
+    .filter(r => r.targetCalibration?.suggestion)
+    .map(r => ({
+      routineId: r.routine.id,
+      canonicalId: r.routine.canonicalId,
+      routineName: r.routine.name,
+      scoring: r.routine.scoring,
+      health: r.targetCalibration.health,
+      suggestion: r.targetCalibration.suggestion,
+      recentAverageLast10: r.statisticalSnapshot.recentAverageLast10,
+      targetHitRate: r.statisticalSnapshot.targetHitRate,
+      logCount: r.statisticalSnapshot.logCount
+    }));
+  const globalValues = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  const playerProfile = {
+    totalRoutines: routines.length,
+    totalLogs: logs.length,
+    totalSessions: (data.sessions || []).length,
+    totalPracticeMinutes: logs.reduce((sum,l)=>sum + Number(l.timeMinutes || 0), 0),
+    firstLogAt: logs[0]?.createdAt || null,
+    lastLogAt: logs[logs.length - 1]?.createdAt || null,
+    globalAverage: globalValues.length ? avg(globalValues) : null,
+    globalVolatility: globalValues.length >= 3 ? stdDev(globalValues) : null,
+    globalTargetHitRate: targetHitRate(logs),
+    currentForm: aiTry("globalCurrentForm", () => estimateCurrentFormForLogs(logs), null),
+    performanceStability: aiTry("globalPerformanceStability", () => performanceStabilityIndex(logs, 10), null),
+    fatigueSlope: aiTry("globalFatigueSlope", () => cachedFatigueSlope(logs), null),
+    plateau: aiTry("globalPlateau", () => plateauDetector(logs, 8), null),
+    overtraining: aiTry("globalOvertraining", () => overtrainingSignal(logs, 8), null),
+    targetCredibleInterval: aiTry("globalTargetCredibleInterval", () => targetCredibleIntervalForLogs(logs), null),
+    changePoint: aiTry("globalChangePoint", () => detectSeriesChangePoint(globalValues, {minN:10, maxWindow:150}), null),
+    forecast: aiTry("globalForecast", () => forecastWithConfidence(logs, 5), null)
+  };
+  const skillProfile = buildAiSkillProfile(routineSnapshots);
+  return {
+    exportType: "snooker_ai_coaching_snapshot",
+    schemaVersion: "1.0",
+    exportedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, and training-plan recommendations.",
+    privacy: {
+      localOnlySource: true,
+      containsPersonalPracticeData: true,
+      recommendation: "Share only with AI/tools you trust. This file may include notes, timestamps, and performance history."
+    },
+    instructionsForAI: {
+      sport: "snooker",
+      context: "The data describes snooker practice routines, logs, scoring modes, targets, cue-ball/control skills, safety/tactical skills, break-building, pressure practice, and match-preparation signals.",
+      task: "Analyze the player's snooker routine performance and recommend target adjustments, routine prioritization, skill focus, and next-session structure.",
+      interpretationRules: [
+        "Do not recommend changing a routine target if sample size is too small or volatility is very high.",
+        "For technical potting drills, prefer targets that keep recent success roughly in the 55% to 75% band.",
+        "For safety/tactical snooker drills, a productive band is often closer to 50% to 70% because quality of leave matters, not only success count.",
+        "For pressure drills, productive success may be 35% to 60%; do not treat lower success as automatically bad.",
+        "For progressive completion or break-building routines, judge improvement using trend, consistency, and total-units context rather than one isolated score.",
+        "Preserve historical target versions. Recommend creating a new target profile rather than overwriting old logs.",
+        "Distinguish between global player level and skill-specific level. A player can be strong at break-building but weak at safety or long potting.",
+        "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores."
+      ],
+      requestedOutputFormat: [
+        "Summarize current strengths and weaknesses by snooker skill category.",
+        "List routines that are too hard, too easy, or in the productive band.",
+        "Recommend target changes with current target, suggested target, rationale, and confidence.",
+        "Recommend 5-10 priority routines for the next training block.",
+        "Identify tags/metadata that appear inconsistent or missing."
+      ]
+    },
+    playerProfile,
+    skillProfile,
+    targetCalibrationCandidates,
+    routineSnapshots,
+    recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, 100) : [],
+    metadata: {
+      routinePackSchemaVersion: ROUTINE_PACK_SCHEMA_VERSION,
+      exportLimits: {globalRecentLogs:100, perRoutineRecentLogs:20, targetHistoryPerRoutine:8},
+      generatedBy: "Snooker Practice PWA AI Coaching Export"
+    }
+  };
+}
+
+async function exportAiCoachingSnapshot() {
+  const payload = buildAiCoachingSnapshot({includeRawRecentLogs:true});
+  const filename = `snooker-ai-coaching-export-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
+  await exportFile(filename, JSON.stringify(payload), "application/json");
+  showTransientNotice("AI coaching export created.", "ok");
+}
+
 async function importRoutinePackFile(event) {
   const input = event?.target;
   const file = input?.files?.[0];
@@ -8503,6 +8781,7 @@ safeOn("exportCsvBtn", "click", async () => {
 });
 safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
 safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
+safeOn("exportAiCoachingBtn", "click", exportAiCoachingSnapshot);
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));
