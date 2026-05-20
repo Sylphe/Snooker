@@ -1,16 +1,17 @@
-# Snooker Practice PWA v5.5.21
+# Snooker Practice PWA v5.5.22
 
-## v5.5.21 — Lazy Stats Rendering Pass
+## v5.5.22 — Table Repair Isolation Pass
 
-Build timestamp: 2026-05-20 10:56 CEST
+Build timestamp: 2026-05-20 11:08 CEST
 
-This release is built from the stable v5.5.20.1 low-risk performance package. It applies Optimization 4 only: hidden/heavy Stats analytics are deferred unless the Stats tab is active.
+This release is built from the stable v5.5.21 lazy stats rendering package. It applies Optimization 35 only: legacy table-link repair is isolated from hot lookup helpers so table lookups no longer scan historical logs repeatedly.
 
 Included changes:
-- Stats rendering is skipped during global `renderAll()` when the Stats panel is not active.
-- Heavy Stats side panels are gated behind the active Stats tab.
-- Opening the Stats tab explicitly renders the Stats bundle.
-- No serialization rewrite, migration relocation, recommendation-cache rewrite, or table-repair changes were included.
+- Removed the historical log repair sweep from `tableById()`, `tableByName()`, and normal table-select rendering paths.
+- Added a one-time `repairLegacyTableLinksOnce()` migration helper for legacy logs with `venueTable` but no `tableId`.
+- Bootstrap now calls `ensureTablesDatabase({ repairLegacy: true })` after IndexedDB hydration, before reference refresh/render.
+- Normal table helpers now remain O(1)/small-array lookups instead of triggering full log scans.
+- No serialization rewrite, recommendation-cache rewrite, hidden-stats gating changes, or table-default behavior changes were introduced beyond this targeted optimization.
 
 Validation performed:
 - JavaScript syntax checks.

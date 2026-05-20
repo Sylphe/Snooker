@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.21";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.21";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.22";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.22";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.21";
+} from "./utils.js?v=5.5.22";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.21";
+} from "./settings.js?v=5.5.22";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.21";
+} from "./analytics.js?v=5.5.22";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.21";
+} from "./bayesian.js?v=5.5.22";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.21";
+} from "./session.js?v=5.5.22";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.21";
+} from "./pressure.js?v=5.5.22";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.21";
+} from "./recommendations.js?v=5.5.22";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.21";
+} from "./store.js?v=5.5.22";
 
 
 
@@ -541,7 +541,7 @@ async function bootstrapIndexedDBStorage() {
     return;
   }
   let bootstrapMutated = false;
-  safeCall("bootstrap ensureTablesDatabase", () => { bootstrapMutated = !!ensureTablesDatabase?.() || bootstrapMutated; });
+  safeCall("bootstrap ensureTablesDatabase", () => { bootstrapMutated = !!ensureTablesDatabase?.({repairLegacy:true}) || bootstrapMutated; });
   safeCall("bootstrap refreshReferenceNames", () => { bootstrapMutated = !!refreshReferenceNames?.() || bootstrapMutated; });
   if (bootstrapMutated) {
     scheduleIndexedDBSync("bootstrap memory migration sync", true);
@@ -4601,7 +4601,23 @@ const DEFAULT_TABLE_DEFINITIONS = [
   {id:"default-club-table-4", name:"Club table 4", type:"Club"},
   {id:"default-other-table", name:"Other", type:"Other"}
 ];
-function ensureTablesDatabase() {
+let tableLegacyRepairApplied = false;
+function repairLegacyTableLinksOnce() {
+  if (tableLegacyRepairApplied) return false;
+  tableLegacyRepairApplied = true;
+  let mutated = false;
+  const tables = Array.isArray(data.tables) ? data.tables : [];
+  const byName = Object.create(null);
+  tables.forEach(t => { if (t?.name && t?.id) byName[t.name] = t; });
+  (data.logs || []).forEach(l => {
+    if (l.venueTable && !l.tableId) {
+      const found = byName[l.venueTable];
+      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; mutated = true; }
+    }
+  });
+  return mutated;
+}
+function ensureTablesDatabase(options = {}) {
   let mutated = false;
   data.systemMeta = data.systemMeta || {};
   const hadTables = Array.isArray(data.tables) && data.tables.length > 0;
@@ -4615,16 +4631,11 @@ function ensureTablesDatabase() {
     data.systemMeta.defaultTablesInitialized = true;
     mutated = true;
   }
-  (data.logs || []).forEach(l => {
-    if (l.venueTable && !l.tableId) {
-      const found = data.tables.find(t => t.name === l.venueTable);
-      if (found) { l.tableId = found.id; l.venueTableSnapshot = l.venueTable; mutated = true; }
-    }
-  });
+  if (options?.repairLegacy === true) mutated = repairLegacyTableLinksOnce() || mutated;
   return mutated;
 }
-function tableById(id){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.id===id); }
-function tableByName(name){ ensureTablesDatabase(); return (data.tables||[]).find(t=>t.name===name); }
+function tableById(id){ return (data.tables||[]).find(t=>t.id===id); }
+function tableByName(name){ return (data.tables||[]).find(t=>t.name===name); }
 function getTableName(logOrId){ const id=typeof logOrId==="string"?logOrId:(logOrId?.tableId||""); const fallback=typeof logOrId==="string"?"":(logOrId?.venueTable||logOrId?.venueTableSnapshot||""); return tableById(id)?.name || fallback || "Not specified"; }
 function getLastTableId(){ return localStorage.getItem("snookerPracticePWA.lastTableId") || ""; }
 function rememberTableId(tableId,note){ if(tableId!==undefined) localStorage.setItem("snookerPracticePWA.lastTableId",tableId||""); if(note!==undefined) localStorage.setItem(LAST_TABLE_NOTE_KEY,note||""); }
