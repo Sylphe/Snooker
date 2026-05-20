@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.19";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.19";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.20.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.20.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.19";
+} from "./utils.js?v=5.5.20.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.19";
+} from "./settings.js?v=5.5.20.1";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.19";
+} from "./analytics.js?v=5.5.20.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.19";
+} from "./bayesian.js?v=5.5.20.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.19";
+} from "./session.js?v=5.5.20.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.19";
+} from "./pressure.js?v=5.5.20.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.19";
+} from "./recommendations.js?v=5.5.20.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.19";
+} from "./store.js?v=5.5.20.1";
 
 
 
@@ -303,7 +303,7 @@ function getLogsByRoutineMap(logs = data.logs || []) {
     if (!grouped[rid]) grouped[rid] = [];
     grouped[rid].push(log);
   });
-  Object.keys(grouped).forEach(rid => grouped[rid].sort((a,b)=>new Date(a?.createdAt||0)-new Date(b?.createdAt||0)));
+  // Parent log arrays are maintained chronologically; grouping in iteration order preserves sequence without per-routine resorting.
   logsByRoutineCacheSignature = sig;
   logsByRoutineCache = grouped;
   return grouped;
@@ -1799,7 +1799,7 @@ function normalizeFocusNumpadTarget(id) {
 
 function setFocusNumpadTarget(id) {
   focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
-  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${CSS.escape(focusNumpadTargetId)}`)));
+  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${cssEscapeSafe(focusNumpadTargetId)}`)));
   const panel = document.querySelector(".focus-score-cockpit");
   if (panel) {
     const row = $(focusNumpadTargetId)?.closest("div");
@@ -2930,7 +2930,7 @@ function activateTab(tabId) {
   if (!panel) return;
   document.querySelectorAll(".tab, .mobile-nav-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(`[data-tab="${CSS.escape(tabId)}"]`).forEach(b => {
+  document.querySelectorAll(`[data-tab="${cssEscapeSafe(tabId)}"]`).forEach(b => {
     if (b.classList.contains("tab") || b.classList.contains("mobile-nav-btn")) b.classList.add("active");
   });
   if (tabId === "plans") {
@@ -6308,19 +6308,22 @@ function miniSparkline(values, width=110, height=30) {
   </svg>`;
 }
 function renderSwipeableHistoryCards(logs) {
-  const sorted = logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const sorted = (Array.isArray(logs) ? logs.slice() : [])
+    .sort((a,b)=>Date.parse(b?.createdAt || 0)-Date.parse(a?.createdAt || 0))
+    .slice(0, 10);
   if (!sorted.length) return "";
+  const grouped = getLogsByRoutineMap(data.logs || []);
   return `<div class="swipe-history-wrap">
-    <div class="swipe-history-title">Swipeable drill history</div>
+    <div class="swipe-history-title">Swipeable drill history <span class="muted">latest ${sorted.length}</span></div>
     <div class="swipe-history-cards">
       ${sorted.map(l => {
-        const rLogs = (data.logs || []).filter(x => x.routineId === l.routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).slice(-8);
+        const rLogs = (grouped[String(l.routineId || "")] || []).slice(-8);
         const values = rLogs.map(x=>Number(x.normalizedScore||0));
         return `<div class="history-card">
           <div class="history-card-top">
             <div>
               <strong>${escapeHtml(getRoutineName(l))}</strong>
-              <div class="muted">${new Date(l.createdAt).toLocaleString()} · ${escapeHtml(l.category || "")}</div>
+              <div class="muted">${safeDateString(l.createdAt)} · ${escapeHtml(l.category || "")}</div>
             </div>
             <span class="badge">${escapeHtml(l.performance || "N/A")}</span>
           </div>
