@@ -6,11 +6,16 @@ function monotonicNow() {
 }
 
 export function makeTimerState(timerStartMs, elapsedBeforeStartMs) {
+  const running = !!timerStartMs;
+  const nowMono = monotonicNow();
+  const elapsedCurrentRun = running ? Math.max(0, nowMono - Number(timerStartMs || 0)) : 0;
+  const wallClockStartMs = running ? Math.max(0, Date.now() - elapsedCurrentRun) : null;
   return {
-    timerStartMs: timerStartMs || null,
+    timerStartMs: running ? Number(timerStartMs) : null,
+    wallClockStartMs,
     elapsedBeforeStartMs: Number(elapsedBeforeStartMs || 0),
-    isRunning: !!timerStartMs,
-    clockType: timerStartMs ? "monotonic" : "paused",
+    isRunning: running,
+    clockType: running ? "monotonic+wall" : "paused",
     savedAt: new Date().toISOString()
   };
 }

@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.17";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.17";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.18";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.18";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.17";
+} from "./utils.js?v=5.5.18";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.17";
+} from "./settings.js?v=5.5.18";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.17";
+} from "./analytics.js?v=5.5.18";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.17";
+} from "./bayesian.js?v=5.5.18";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.17";
+} from "./session.js?v=5.5.18";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.17";
+} from "./pressure.js?v=5.5.18";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.17";
+} from "./recommendations.js?v=5.5.18";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.17";
+} from "./store.js?v=5.5.18";
 
 
 
@@ -158,12 +158,23 @@ function enterStorageReadOnlyMode(context="storage") {
 function serializeCoreData(d) {
   const core = structuredCloneSafe(d || {});
   if (indexedDBUnavailable || !indexedDBReady) {
+    const fullSize = estimateSerializedBytes(JSON.stringify(core));
+    if (indexedDBUnavailable && fullSize >= LOCALSTORAGE_HARD_STOP_BYTES) {
+      core.logs = [];
+      core.sessions = [];
+      core.indexedDBFallbackBuffer = {
+        memoryOnly:true,
+        omittedLogCount:Array.isArray(d?.logs) ? d.logs.length : 0,
+        omittedSessionCount:Array.isArray(d?.sessions) ? d.sessions.length : 0,
+        reason:"IndexedDB unavailable and full fallback would exceed safe localStorage quota. Keep the tab open and export a backup before adding more data."
+      };
+    }
     core.indexedDBStorage = {
       enabled: false,
       stores: [],
       migratedAt: localStorage.getItem(INDEXEDDB_MIGRATION_KEY) || "",
       note: indexedDBUnavailable
-        ? "IndexedDB is unavailable; full data is temporarily stored in localStorage fallback mode."
+        ? "IndexedDB is unavailable; high-volume logs/sessions are kept in memory if localStorage fallback is unsafe."
         : "IndexedDB is still hydrating; full data is preserved in localStorage until IndexedDB is confirmed ready."
     };
     return core;
@@ -511,19 +522,23 @@ async function hydrateIndexedDBData(retryAfterReset=false, options={}) {
     }
     indexedDBUnavailable = true;
     indexedDBHydrating = false;
-    notifyUser("IndexedDB could not initialize. Using localStorage fallback for this session; export a backup before adding many logs.", "warn");
-    const fallbackOk = saveCoreData("hydrateIndexedDBData fallback core save");
-    if (!fallbackOk) enterStorageReadOnlyMode("hydrateIndexedDBData fallback failed");
-    return false;
+    notifyUser("IndexedDB could not initialize. Continuing in memory/export mode; export a backup before adding more logs.", "warn");
+    saveCoreData("hydrateIndexedDBData memory-safe fallback core save");
+    throw e;
   }
 }
 async function bootstrapIndexedDBStorage() {
+  let hydrated = false;
   try {
-    await hydrateIndexedDBData();
+    hydrated = await hydrateIndexedDBData();
   } catch (error) {
     indexedDBUnavailable = true;
     indexedDBHydrating = false;
     try { logAppError(error, "bootstrapIndexedDBStorage hydrate"); } catch (_) { console.error(error); }
+  }
+  if (!hydrated && indexedDBUnavailable) {
+    await safeRenderAll("bootstrap renderAll fallback");
+    return;
   }
   const bootstrapLogsBefore = JSON.stringify(data.logs || []);
   const bootstrapSessionsBefore = JSON.stringify(data.sessions || []);
@@ -4009,10 +4024,13 @@ function restoreTimerStateFromActiveSession() {
   if (!ts) return false;
   stopTimer();
   elapsedBeforeStartMs = Number(ts.elapsedBeforeStartMs || 0);
-  timerStartMs = ts.isRunning && ts.timerStartMs ? Number(ts.timerStartMs) : null;
-  if (timerStartMs && ts.clockType === "monotonic") {
-    timerStartMs = null;
+  timerStartMs = null;
+  if (ts.isRunning && ts.wallClockStartMs) {
+    const recoveredRun = Math.max(0, Date.now() - Number(ts.wallClockStartMs || 0));
+    elapsedBeforeStartMs = Math.min(MAX_TIMER_ELAPSED_MS, Math.max(0, elapsedBeforeStartMs + recoveredRun));
     if ($("timerState")) $("timerState").textContent = "timer restored paused";
+  } else if (ts.isRunning && ts.timerStartMs && ts.clockType !== "monotonic") {
+    timerStartMs = Number(ts.timerStartMs);
   }
   if (timerStartMs) {
     timerInterval = setInterval(updateTimerDisplay, 1000);
@@ -4225,7 +4243,7 @@ function displayScore(l) {
 }
 
 function getPeriodRange(period, dateKey) {
-  const d = dateKey ? new Date(dateKey + "T00:00:00") : new Date();
+  const d = dateKey ? (localDateFromKey(dateKey) || new Date()) : new Date();
   let start, end, label;
   if (period === "daily" || period === "exercise") {
     start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -7421,7 +7439,9 @@ function renderEditLogForm(l) {
   </div>`;
 }
 function toDateTimeLocal(iso) {
+  if (!iso) return "";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   const pad = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -8038,9 +8058,9 @@ function confirmDeleteAction(label, callback) {
   if (confirm(msg)) callback();
 }
 function updateTagHistoryFromInput(raw) {
-  const recent = new Set((data.tagHistory || []).slice(-50).map(t => sanitizeTagToken(t)).filter(Boolean));
+  const recent = new Set((data.tagHistory || []).map(t => sanitizeTagToken(t)).filter(Boolean));
   String(raw || "").split(",").map(t => sanitizeTagToken(t)).filter(Boolean).forEach(t => recent.add(t));
-  data.tagHistory = Array.from(recent).slice(-200).sort();
+  data.tagHistory = Array.from(recent).sort().slice(-200);
 }
 function renderTagSuggestions() {
   const dl = $("tagSuggestions");

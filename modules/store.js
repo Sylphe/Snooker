@@ -58,6 +58,13 @@ async function putStoreRowsChunked(db, storeName, rows, chunkSize = IDB_REPLACE_
   return true;
 }
 
+function putRowsIntoStore(tx, storeName, rows) {
+  const store = tx.objectStore(storeName);
+  (rows || []).forEach(row => {
+    if (row && row.id) store.put(row);
+  });
+}
+
 const SCHEMA_MIGRATIONS = {
   1(db) { ensureObjectStores(db); },
   2(db) { ensureObjectStores(db); }
@@ -178,8 +185,8 @@ export async function idbReplaceAll(storeName, rows) {
   const db = await openSnookerDB();
   await idbTransactionComplete(db, storeName, "readwrite", tx => {
     tx.objectStore(storeName).clear();
+    putRowsIntoStore(tx, storeName, rows);
   });
-  await putStoreRowsChunked(db, storeName, rows);
   return true;
 }
 
@@ -210,9 +217,9 @@ export async function idbReplaceStores(logRows = [], sessionRows = []) {
   await idbTransactionComplete(db, [INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE], "readwrite", tx => {
     tx.objectStore(INDEXEDDB_LOG_STORE).clear();
     tx.objectStore(INDEXEDDB_SESSION_STORE).clear();
+    putRowsIntoStore(tx, INDEXEDDB_LOG_STORE, logRows);
+    putRowsIntoStore(tx, INDEXEDDB_SESSION_STORE, sessionRows);
   });
-  await putStoreRowsChunked(db, INDEXEDDB_LOG_STORE, logRows);
-  await putStoreRowsChunked(db, INDEXEDDB_SESSION_STORE, sessionRows);
   return true;
 }
 

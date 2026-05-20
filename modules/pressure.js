@@ -107,7 +107,7 @@ function updateFatigueRisk(s) {
   return s;
 }
 
-export function recordPressureEvent(session, type) {
+export function recordPressureEvent(session, type, options = {}) {
   if (!session?.active) return session;
   const s = cloneSession(session);
   const clutchBefore = isClutchZone(s);
@@ -119,7 +119,7 @@ export function recordPressureEvent(session, type) {
   }
   s.eventHistory.push({
     type,
-    at:new Date().toISOString(),
+    at:options.at || new Date().toISOString(),
     streak:s.streak,
     livesRemaining:s.livesRemaining,
     recoveryMode:!!s.recoveryMode,
@@ -187,7 +187,7 @@ export function undoPressureEvent(session) {
   });
   initial.startedAt = session.startedAt || initial.startedAt;
   history.pop();
-  return history.reduce((s, ev) => recordPressureEvent(s, ev.type), initial);
+  return history.reduce((s, ev) => recordPressureEvent(s, ev.type, {at: ev.at}), initial);
 }
 
 export function calculatePressureScore(session) {

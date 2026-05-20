@@ -1,23 +1,24 @@
-const CACHE_VERSION = "5.5.17-ux-integrity-hardening";
+const CACHE_VERSION = "5.5.18-storage-sw-timer-hardening";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
-  "./index.html?v=5.5.17",
-  "./styles.css?v=5.5.17",
-  "./app.js?v=5.5.17",
-  "./modules/app-core.js?v=5.5.17",
-  "./modules/version.js?v=5.5.17",
-  "./modules/store.js?v=5.5.17",
-  "./modules/utils.js?v=5.5.17",
-  "./modules/settings.js?v=5.5.17",
-  "./modules/analytics.js?v=5.5.17",
-  "./modules/bayesian.js?v=5.5.17",
-  "./modules/session.js?v=5.5.17",
-  "./modules/pressure.js?v=5.5.17",
-  "./modules/recommendations.js?v=5.5.17",
-  "./modules/render.js?v=5.5.17",
-  "./modules/inference.js?v=5.5.17",
-  "./manifest.json?v=5.5.17",
-  "./icon.svg?v=5.5.17"
+  "./index.html?v=5.5.18",
+  "./styles.css?v=5.5.18",
+  "./app.js?v=5.5.18",
+  "./early-theme.js?v=5.5.18",
+  "./modules/app-core.js?v=5.5.18",
+  "./modules/version.js?v=5.5.18",
+  "./modules/store.js?v=5.5.18",
+  "./modules/utils.js?v=5.5.18",
+  "./modules/settings.js?v=5.5.18",
+  "./modules/analytics.js?v=5.5.18",
+  "./modules/bayesian.js?v=5.5.18",
+  "./modules/session.js?v=5.5.18",
+  "./modules/pressure.js?v=5.5.18",
+  "./modules/recommendations.js?v=5.5.18",
+  "./modules/render.js?v=5.5.18",
+  "./modules/inference.js?v=5.5.18",
+  "./manifest.json?v=5.5.18",
+  "./icon.svg?v=5.5.18"
 ];
 
 self.addEventListener("install", event => {
@@ -71,6 +72,23 @@ function responseHasExpectedType(url, response) {
   return expected.split("|").some(part => contentType.includes(part.toLowerCase()));
 }
 
+
+function offlineFallbackResponse(url) {
+  if (url.pathname.endsWith(".js")) {
+    return new Response('console.warn("Snooker Practice offline: uncached script unavailable.");', {status:503, headers:{"Content-Type":"application/javascript","Cache-Control":"no-store"}});
+  }
+  if (url.pathname.endsWith(".css")) {
+    return new Response("", {status:503, headers:{"Content-Type":"text/css","Cache-Control":"no-store"}});
+  }
+  if (url.pathname.endsWith("manifest.json")) {
+    return new Response("{}", {status:503, headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+  }
+  if (url.pathname.endsWith("icon.svg")) {
+    return new Response("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"></svg>", {status:503, headers:{"Content-Type":"image/svg+xml","Cache-Control":"no-store"}});
+  }
+  return new Response("<!doctype html><title>Offline</title><main><h1>Snooker Practice is offline</h1><p>The requested app file is not cached yet. Reconnect once, then reopen the app.</p></main>", {status:503, headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store"}});
+}
+
 function cacheResponse(request, response) {
   const url = new URL(request.url);
   if (!response || response.status !== 200 || response.type === "error") return response;
@@ -95,11 +113,11 @@ self.addEventListener("fetch", event => {
       caches.match(request, {ignoreSearch:true}).then(cached => {
         const networkFetch = fetch(request, {cache:"no-store"})
           .then(response => cacheResponse(request, response))
-          .catch(() => null);
-        return cached || networkFetch;
+          .catch(() => offlineFallbackResponse(url));
+        return cached || networkFetch || offlineFallbackResponse(url);
       })
     );
     return;
   }
-  event.respondWith(caches.match(request, { ignoreSearch: true }).then(cached => cached || fetch(request)));
+  event.respondWith(caches.match(request, { ignoreSearch: true }).then(cached => cached || fetch(request).catch(() => new Response("Offline", {status:503, headers:{"Content-Type":"text/plain","Cache-Control":"no-store"}}))));
 });
