@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.5.29";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.5.29";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.0";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.0";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.5.29";
+} from "./utils.js?v=5.6.0";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.5.29";
+} from "./settings.js?v=5.6.0";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.5.29";
+} from "./analytics.js?v=5.6.0";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.5.29";
+} from "./bayesian.js?v=5.6.0";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.5.29";
+} from "./session.js?v=5.6.0";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.5.29";
+} from "./pressure.js?v=5.6.0";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.5.29";
+} from "./recommendations.js?v=5.6.0";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.5.29";
+} from "./store.js?v=5.6.0";
 
 
 
@@ -1787,6 +1787,7 @@ const defaultData = {
   routineSkillMap: {},
   skillTrendCache: {},
   recommendationFeedback: [],
+  routinePackImports: [],
   smartSessionBuilder: {version:"v2"}
 };
 
@@ -2449,12 +2450,18 @@ function setStatsRoutineFilter(value, options = {}) {
 
 function migrateData(d) {
   d.appVersion = APP_VERSION;
+  d.routinePackImports = Array.isArray(d.routinePackImports) ? d.routinePackImports : [];
   d.routines = (d.routines || []).map(r => ({
     ...r,
     folder: r.folder || r.category || "Unfiled",
     subfolder: r.subfolder || "General",
     category: r.category || "uncategorized",
     stretchTarget: r.stretchTarget || "",
+    canonicalId: normalizeRoutineCanonicalId(r.canonicalId || r.catalogueId || r.packRoutineId || r.id || r.name),
+    routinePackSource: r.routinePackSource || r.packSource || "",
+    routinePackVersion: r.routinePackVersion || r.packVersion || "",
+    metadataVersion: Number(r.metadataVersion || 1),
+    isCatalogueRoutine: !!(r.isCatalogueRoutine || r.canonicalId || r.catalogueId),
     isDeleted: !!r.isDeleted,
     deletedAt: r.deletedAt || "",
     sideMode: normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit || "none"),
@@ -3293,6 +3300,11 @@ safeOn("saveRoutineBtn", "click", () => {
 
   const routine = {
     id: $("routineEditId").value || uuid(),
+    canonicalId: normalizeRoutineCanonicalId($("routineCanonicalId")?.value || name),
+    metadataVersion: 1,
+    isCatalogueRoutine: !!$("routineCanonicalId")?.value,
+    routinePackSource: $("routinePackSource")?.value || "",
+    routinePackVersion: $("routinePackVersion")?.value || "",
     name,
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
@@ -8016,6 +8028,272 @@ function renderRollingChart(logs, rollingVals) {
 }
 
 
+
+const ROUTINE_PACK_SCHEMA_VERSION = "1.0";
+const ROUTINE_LEVEL_KEYS = ["sub30", "break30", "break50", "break70", "century", "pro"];
+
+function slugifyToken(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function normalizeRoutineCanonicalId(value) {
+  const slug = slugifyToken(value);
+  return slug || `routine-${uuid()}`;
+}
+
+function getRoutineCanonicalId(routine) {
+  if (!routine) return "";
+  const existing = normalizeRoutineCanonicalId(routine.canonicalId || routine.catalogueId || routine.packRoutineId || "");
+  if (existing && !existing.startsWith("routine-id-")) return existing;
+  const prefix = slugifyToken(routine.category || routine.folder || "routine") || "routine";
+  return normalizeRoutineCanonicalId(`${prefix}-${routine.name || routine.id || uuid()}`);
+}
+
+function routinePackMetaDefaults(overrides = {}) {
+  return {
+    schema: "snookerRoutinePack",
+    schemaVersion: ROUTINE_PACK_SCHEMA_VERSION,
+    name: overrides.name || "Snooker Practice Routine Pack",
+    version: overrides.version || APP_VERSION,
+    author: overrides.author || "Snooker Practice PWA",
+    createdAt: overrides.createdAt || new Date().toISOString(),
+    appVersion: APP_VERSION,
+    notes: overrides.notes || ""
+  };
+}
+
+function exportableRoutineRecord(routine) {
+  const r = structuredCloneSafe(routine || {});
+  const canonicalId = getRoutineCanonicalId(r);
+  const skillMap = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
+  return {
+    ...r,
+    canonicalId,
+    metadataVersion: Number(r.metadataVersion || 1),
+    isCatalogueRoutine: !!r.isCatalogueRoutine,
+    skillMap,
+    primarySkill: skillMap.primarySkill,
+    secondarySkills: normalizeSkillList(skillMap.secondarySkills),
+    transferTags: normalizeSkillList(skillMap.transferTags),
+    targetProfiles: Array.isArray(r.targetHistory) ? structuredCloneSafe(r.targetHistory) : [],
+    activeTargetProfileId: r.activeTargetProfileId || ""
+  };
+}
+
+function buildRoutinePack() {
+  const routines = (data.routines || [])
+    .filter(r => r && !r.isDeleted)
+    .map(exportableRoutineRecord);
+  return {
+    packMeta: routinePackMetaDefaults({
+      name: `Snooker Practice Routine Library — ${new Date().toISOString().slice(0,10)}`,
+      version: APP_VERSION
+    }),
+    taxonomyVersion: data.skillTaxonomy?.version || "1.0",
+    skillTaxonomy: normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy()),
+    routines,
+    skillMaps: routines.map(r => ({canonicalId:r.canonicalId, routineId:r.id, ...normalizeRoutineSkillMap(r, r.skillMap)})),
+    targetProfiles: routines.map(r => ({
+      canonicalId: r.canonicalId,
+      routineId: r.id,
+      activeTargetProfileId: r.activeTargetProfileId || "",
+      targetHistory: Array.isArray(r.targetHistory) ? structuredCloneSafe(r.targetHistory) : []
+    }))
+  };
+}
+
+function validateRoutinePack(pack) {
+  const errors = [];
+  const warnings = [];
+  if (!pack || typeof pack !== "object" || Array.isArray(pack)) errors.push("Pack must be a JSON object.");
+  const routines = Array.isArray(pack?.routines) ? pack.routines : [];
+  if (!routines.length) errors.push("Pack contains no routines.");
+  const seen = new Set();
+  const allowedScoring = new Set(["raw","success_rate","points","score_per_minute","progressive_completion"]);
+  routines.forEach((r, idx) => {
+    const label = `Routine ${idx + 1}`;
+    if (!r || typeof r !== "object") { errors.push(`${label} is not an object.`); return; }
+    if (!String(r.name || "").trim()) errors.push(`${label} is missing a name.`);
+    const canonicalId = normalizeRoutineCanonicalId(r.canonicalId || r.id || r.name);
+    if (seen.has(canonicalId)) errors.push(`Duplicate canonicalId: ${canonicalId}`);
+    seen.add(canonicalId);
+    if (r.scoring && !allowedScoring.has(String(r.scoring))) errors.push(`${label} has unsupported scoring mode: ${r.scoring}`);
+    const skillMap = normalizeRoutineSkillMap(r, r.skillMap || {});
+    if (!skillMap.primarySkill) warnings.push(`${label} has no primary skill; it will be inferred.`);
+    ["target","stretchTarget","attempts","duration","totalUnits","attemptsPerSession"].forEach(field => {
+      if (r[field] !== "" && r[field] !== undefined && r[field] !== null && !Number.isFinite(Number(r[field]))) warnings.push(`${label} has non-numeric ${field}; it will be normalized.`);
+    });
+  });
+  return {ok: errors.length === 0, errors, warnings, routineCount: routines.length};
+}
+
+function mergeRoutinePack(pack, options = {}) {
+  const validation = validateRoutinePack(pack);
+  if (!validation.ok) return {ok:false, ...validation, added:0, updated:0, skipped:0};
+  const preserveUserTargets = options.preserveUserTargets !== false;
+  const preserveUserDescriptions = options.preserveUserDescriptions !== false;
+  const now = new Date().toISOString();
+  data.routines = data.routines || [];
+  data.routineSkillMap = data.routineSkillMap || {};
+  const byCanonical = new Map((data.routines || []).map(r => [getRoutineCanonicalId(r), r]));
+  const byId = new Map((data.routines || []).map(r => [String(r.id), r]));
+  let added = 0, updated = 0, skipped = 0;
+  (pack.routines || []).forEach(source => {
+    const canonicalId = normalizeRoutineCanonicalId(source.canonicalId || source.id || source.name);
+    const existing = byCanonical.get(canonicalId) || byId.get(String(source.id || ""));
+    const skillMap = normalizeRoutineSkillMap(source, source.skillMap || {});
+    const incoming = {
+      ...structuredCloneSafe(source),
+      id: existing?.id || (source.id && !byId.has(String(source.id)) ? String(source.id) : uuid()),
+      canonicalId,
+      routinePackSource: pack.packMeta?.name || "Imported routine pack",
+      routinePackVersion: pack.packMeta?.version || "",
+      metadataVersion: Number(source.metadataVersion || 1),
+      isCatalogueRoutine: true,
+      name: String(source.name || "Imported routine").trim(),
+      scoring: source.scoring || "raw",
+      category: source.category || source.folder || "uncategorized",
+      folder: source.folder || source.category || "Imported",
+      subfolder: source.subfolder || "General",
+      description: source.description || "",
+      target: source.target === "" || source.target === undefined ? "" : Number(source.target),
+      stretchTarget: source.stretchTarget === "" || source.stretchTarget === undefined ? "" : Number(source.stretchTarget),
+      attempts: source.attempts === "" || source.attempts === undefined ? "" : Number(source.attempts),
+      duration: source.duration === "" || source.duration === undefined ? "" : Number(source.duration),
+      totalUnits: source.totalUnits === "" || source.totalUnits === undefined ? "" : Number(source.totalUnits),
+      attemptsPerSession: source.attemptsPerSession === "" || source.attemptsPerSession === undefined ? "" : Number(source.attemptsPerSession),
+      sideMode: normalizeSideMode(source.sideMode || "none"),
+      attemptMode: normalizeSideMode(source.sideMode || "none") === "left_right" ? normalizeAttemptMode(source.attemptMode || "shared") : "shared",
+      skillMap,
+      isDeleted: false,
+      deletedAt: ""
+    };
+    if (existing) {
+      const merged = {
+        ...existing,
+        ...incoming,
+        id: existing.id,
+        createdAt: existing.createdAt || incoming.createdAt || now,
+        updatedAt: now,
+        description: preserveUserDescriptions && existing.description ? existing.description : incoming.description,
+        targetHistory: preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
+          ? existing.targetHistory
+          : (Array.isArray(source.targetHistory) ? structuredCloneSafe(source.targetHistory) : existing.targetHistory || []),
+        activeTargetProfileId: preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || "")
+      };
+      data.routines = data.routines.map(r => r.id === existing.id ? ensureTargetHistory(merged) : r);
+      data.routineSkillMap[existing.id] = normalizeRoutineSkillMap(merged, skillMap);
+      updated += 1;
+    } else {
+      const normalized = ensureTargetHistory(incoming);
+      data.routines.push(normalized);
+      data.routineSkillMap[normalized.id] = normalizeRoutineSkillMap(normalized, skillMap);
+      added += 1;
+    }
+  });
+  data.routinePackImports = data.routinePackImports || [];
+  data.routinePackImports.unshift({
+    name: pack.packMeta?.name || "Imported routine pack",
+    version: pack.packMeta?.version || "",
+    importedAt: now,
+    added,
+    updated,
+    skipped
+  });
+  data.routinePackImports = data.routinePackImports.slice(0, 20);
+  return {ok:true, ...validation, added, updated, skipped};
+}
+
+function exportRoutinePackJson() {
+  const pack = buildRoutinePack();
+  const filename = `snooker-routine-pack-${new Date().toISOString().slice(0,10)}.json`;
+  return exportFile(filename, JSON.stringify(pack), "application/json");
+}
+
+function exportRoutineLibraryCsv() {
+  const headers = [
+    "canonicalId","id","name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget",
+    "primarySkill","secondarySkills","transferTags","sideMode","attemptMode","totalUnits","attemptsPerSession","unitType",
+    "difficultyLabel","description"
+  ];
+  const rows = [headers.join(",")];
+  (data.routines || []).filter(r => !r.isDeleted).forEach(r => {
+    const skillMap = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
+    const row = {
+      canonicalId: getRoutineCanonicalId(r),
+      id: r.id || "",
+      name: r.name || "",
+      folder: r.folder || "",
+      subfolder: r.subfolder || "",
+      category: r.category || "",
+      scoring: r.scoring || "",
+      attempts: r.attempts || "",
+      duration: r.duration || "",
+      target: r.target || "",
+      stretchTarget: r.stretchTarget || "",
+      primarySkill: skillMap.primarySkill || "",
+      secondarySkills: normalizeSkillList(skillMap.secondarySkills).join("|"),
+      transferTags: normalizeSkillList(skillMap.transferTags).join("|"),
+      sideMode: normalizeSideMode(r.sideMode || "none"),
+      attemptMode: getRoutineAttemptMode(r),
+      totalUnits: r.totalUnits || "",
+      attemptsPerSession: r.attemptsPerSession || "",
+      unitType: r.unitType || "",
+      difficultyLabel: r.difficultyLabel || "",
+      description: r.description || ""
+    };
+    rows.push(headers.map(h => csvEscape(row[h])).join(","));
+  });
+  const filename = `snooker-routine-library-${new Date().toISOString().slice(0,10)}.csv`;
+  return exportFile(filename, rows.join("\n"), "text/csv");
+}
+
+async function importRoutinePackFile(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  const maxBytes = 8 * 1024 * 1024;
+  const lowerName = String(file.name || "").toLowerCase();
+  if (file.size > maxBytes) {
+    input.value = "";
+    return alert("Routine pack is too large. Maximum size is 8MB.");
+  }
+  if (!lowerName.endsWith(".json") && file.type !== "application/json") {
+    input.value = "";
+    return alert("Invalid routine pack type. Please select a .json routine pack file.");
+  }
+  try {
+    const pack = JSON.parse(await file.text());
+    const validation = validateRoutinePack(pack);
+    if (!validation.ok) {
+      return alert(`Routine pack validation failed:\n${validation.errors.slice(0,8).join("\n")}`);
+    }
+    const preview = [
+      `${validation.routineCount} routine(s) found.`,
+      validation.warnings.length ? `${validation.warnings.length} warning(s). First: ${validation.warnings[0]}` : "No validation warnings.",
+      "Import will add missing catalogue routines and merge metadata into existing routines by canonical ID. Existing user target histories are preserved."
+    ].join("\n");
+    if (!confirm(`${preview}\n\nContinue import?`)) return;
+    const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true});
+    if (!result.ok) return alert(`Routine pack import failed:\n${result.errors.join("\n")}`);
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice(`Routine pack imported: ${result.added} added, ${result.updated} updated.`, "ok");
+  } catch(error) {
+    logAppError(error, "importRoutinePackFile");
+    alert("Could not import this routine pack. Export Debug Info if the issue persists.");
+  } finally {
+    if (input) input.value = "";
+  }
+}
+
+
 function exportValue(log, field) {
   if (field === "currentRoutineName") return getRoutineName(log);
   if (field === "currentPlanName") return getPlanName(log);
@@ -8034,6 +8312,9 @@ safeOn("exportCsvBtn", "click", async () => {
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
+safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
+safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
+safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));
 safeOn("runRegretBtn", "click", runRegretComparison);
 ["periodizationPhase","periodizationHorizon","competitionDate"].forEach(id => safeOn(id, "change", event => {
