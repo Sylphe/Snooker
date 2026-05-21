@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.11";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.11";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.12";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.12";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.11";
+} from "./utils.js?v=5.6.12";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.11";
+} from "./settings.js?v=5.6.12";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.11";
+} from "./analytics.js?v=5.6.12";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.11";
+} from "./bayesian.js?v=5.6.12";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.11";
+} from "./session.js?v=5.6.12";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.11";
+} from "./pressure.js?v=5.6.12";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.11";
+} from "./recommendations.js?v=5.6.12";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.11";
+} from "./store.js?v=5.6.12";
 
 
 
@@ -1786,23 +1786,111 @@ function routineLogsFor(routine){
   const rid = String(routine?.id || "");
   return (data.logs || []).filter(l => String(l.routineId || "") === rid).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
 }
+function globalRoutineCompletionProfile(routine, routines=activeRoutines(), logs=(data.logs || [])){
+  const map = getRoutineSkillMap(routine);
+  const primary = map.primarySkill;
+  const localId = String(routine?.id || "");
+  const comparableIds = new Set((routines || []).filter(r => {
+    if(!r) return false;
+    const rm = getRoutineSkillMap(r);
+    const sameSkill = primary && rm.primarySkill === primary;
+    const similar = String(r.id || "") !== localId && routineSimilarityScore(routine, r) >= 0.25;
+    return sameSkill || similar;
+  }).map(r => String(r.id || "")));
+  const comparableLogs = (logs || []).filter(l => comparableIds.has(String(l.routineId || "")));
+  const values = comparableLogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const hitValues = comparableLogs.map(l => Number(l.hitTarget ?? l.targetHit ?? NaN)).filter(Number.isFinite);
+  const mean = values.length ? avg(values) : null;
+  const hitRate = hitValues.length ? avg(hitValues) : (values.length ? values.filter(v => v >= 70).length / values.length * 100 : null);
+  return {
+    comparableRoutineCount: comparableIds.size,
+    n: values.length,
+    mean: mean === null ? null : Math.round(mean * 10) / 10,
+    completionRate: hitRate === null ? null : Math.round(hitRate * 10) / 10,
+    evidence: evidenceStrength(values.length)
+  };
+}
+function playerLevelFitForRoutine(routine, skillProfile=inferLatentSkillLevels()){
+  const weights = routineSkillWeights(routine);
+  const domains = Object.values(INFERRED_SKILL_DOMAINS || {});
+  const rows = domains.map(domain => {
+    const relevant = Object.entries(weights || {}).reduce((sum, [skill, weight]) => sum + (inferredSkillDomainForSkill(skill) === domain.id ? Number(weight || 0) : 0), 0);
+    const level = Number(skillProfile?.domains?.[domain.id]?.level || 3);
+    return {domain:domain.id, label:domain.label, relevant, level};
+  }).filter(x => x.relevant > 0);
+  const weightedLevel = rows.length ? rows.reduce((s,x)=>s + x.level * x.relevant,0) / Math.max(0.001, rows.reduce((s,x)=>s+x.relevant,0)) : Number(skillProfile?.overallLevel || 3);
+  return {weightedLevel:Math.round(weightedLevel*10)/10, rows};
+}
 function latentRoutineDifficultyEstimate(routine, logs=routineLogsFor(routine)){
   const arr = logs || [];
   const values = arr.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const n = values.length;
-  const evidence = evidenceStrength(n);
-  const mean = n ? avg(values) : 55;
-  const recent = n ? avg(values.slice(-Math.min(6,n))) : mean;
+  const localEvidence = evidenceStrength(n);
+  const localMean = n ? avg(values) : 55;
+  const recent = n ? avg(values.slice(-Math.min(6,n))) : localMean;
   const volatility = n >= 3 ? stdDev(values) : null;
-  const hit = targetHitRate(arr);
+  const localHit = targetHitRate(arr);
+  const globalProfile = globalRoutineCompletionProfile(routine);
+  const skillProfile = inferLatentSkillLevels(data.logs || [], activeRoutines());
+  const playerFit = playerLevelFitForRoutine(routine, skillProfile);
+  const targetHealth = targetHealthForRoutine ? targetHealthForRoutine(routine, arr) : null;
   const declaredTarget = Number(routine?.target || 0);
-  const targetGap = Number.isFinite(hit) && hit !== null ? Math.max(-18, Math.min(18, 55 - Number(hit))) : (declaredTarget ? Math.max(-12, Math.min(12, declaredTarget - mean)) * 0.35 : 0);
+  const localCompletion = Number.isFinite(Number(localHit)) ? Number(localHit) : (n ? values.filter(v => declaredTarget ? v >= declaredTarget : v >= 70).length / Math.max(1,n) * 100 : null);
+  const globalCompletion = Number.isFinite(Number(globalProfile.completionRate)) ? Number(globalProfile.completionRate) : null;
+  const completionBlend = localCompletion === null && globalCompletion === null ? 55 : (
+    localCompletion === null ? globalCompletion : globalCompletion === null ? localCompletion : localCompletion * Math.max(0.35, localEvidence.factor) + globalCompletion * (1 - Math.max(0.35, localEvidence.factor))
+  );
+  const completionLoad = Math.max(-22, Math.min(28, 62 - Number(completionBlend || 55))) * 0.70;
+  const performanceLoad = Math.max(-18, Math.min(24, 64 - Number(localMean || 55))) * 0.45;
+  const varianceLoad = volatility === null ? 2 : Math.max(0, Number(volatility || 0) - 13) * 0.55;
+  const levelLoad = Math.max(-12, Math.min(16, 4 - Number(playerFit.weightedLevel || 3))) * 2.7;
+  const targetLoad = targetHealth?.state === "too_hard" ? 7 : targetHealth?.state === "too_easy" ? -6 : targetHealth?.state === "healthy" ? -1 : 0;
   const formatLoad = String(routine?.scoring||"") === "progressive_completion" ? 5 : String(routine?.scoring||"") === "success_rate" ? 2 : 0;
   const attemptLoad = Number(routine?.attempts || routine?.attemptsPerSession || 0) >= 20 ? 3 : 0;
-  const raw = 100 - mean + targetGap + formatLoad + attemptLoad + Math.max(0, Number(volatility||0) - 16) * 0.18;
-  const latentDifficulty = Math.round(Math.max(5, Math.min(95, shrinkTowardPrior(raw, 50, Math.max(0.15, evidence.factor)))) * 10) / 10;
+  const raw = 50 + completionLoad + performanceLoad + varianceLoad + levelLoad + targetLoad + formatLoad + attemptLoad;
+  const globalEvidence = globalProfile?.evidence?.factor || 0;
+  const evidenceFactor = Math.max(0.18, Math.min(0.92, localEvidence.factor * 0.72 + globalEvidence * 0.28));
+  const latentDifficulty = Math.round(Math.max(5, Math.min(95, shrinkTowardPrior(raw, 50, evidenceFactor))) * 10) / 10;
   const band = latentDifficulty >= 68 ? "hard" : latentDifficulty <= 38 ? "easy" : "productive";
-  return {routineId:routine?.id||"", routineName:routine?.name||"Exercise", n, evidence, mean:Math.round(mean*10)/10, recent:Math.round(recent*10)/10, volatility:volatility===null?null:Math.round(volatility*10)/10, targetHitRate:hit, latentDifficulty, band};
+  const rating = latentDifficulty >= 82 ? "very hard" : latentDifficulty >= 68 ? "hard" : latentDifficulty >= 54 ? "challenging" : latentDifficulty >= 38 ? "productive" : "easy";
+  return {
+    version:DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION,
+    routineId:routine?.id||"",
+    routineName:routine?.name||"Exercise",
+    n,
+    evidence:localEvidence,
+    globalEvidence:globalProfile.evidence,
+    mean:Math.round(localMean*10)/10,
+    recent:Math.round(recent*10)/10,
+    volatility:volatility===null?null:Math.round(volatility*10)/10,
+    targetHitRate:localHit,
+    localCompletionRate:localCompletion===null?null:Math.round(localCompletion*10)/10,
+    globalCompletionRate:globalCompletion,
+    comparableRoutineCount:globalProfile.comparableRoutineCount,
+    inferredPlayerLevel:playerFit.weightedLevel,
+    targetHealth:targetHealth?.state || "unknown",
+    latentDifficulty,
+    difficultyRating:rating,
+    band,
+    components:{completionLoad:Math.round(completionLoad*10)/10, performanceLoad:Math.round(performanceLoad*10)/10, varianceLoad:Math.round(varianceLoad*10)/10, playerLevelLoad:Math.round(levelLoad*10)/10, targetLoad, formatLoad, attemptLoad}
+  };
+}
+function dynamicRoutineDifficultyInsight(logs){
+  const rows = activeRoutines().map(r => ({routine:r, difficulty:latentRoutineDifficultyEstimate(r, routineLogsFor(r))}))
+    .sort((a,b)=>Number(b.difficulty.latentDifficulty||0)-Number(a.difficulty.latentDifficulty||0));
+  const hard = rows.filter(x=>x.difficulty.band === "hard").slice(0,2);
+  const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
+  const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
+  const selected = [...hard, ...productive, ...easy].slice(0,4);
+  if(!selected.length) return `<div class="insight-card watch"><strong>Dynamic Routine Difficulty Model</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
+  return `<div class="insight-card watch"><strong>Dynamic Routine Difficulty Model</strong>
+    <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
+    ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.difficulty.difficultyRating)} · local ${htmlText(String(x.difficulty.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty.latentDifficulty).toFixed(1)}</strong><span>${htmlText(x.difficulty.band)}</span></div>`).join("")}
+  </div>`;
+}
+function dynamicRoutineDifficultyReasonForRoutine(routine){
+  const d = latentRoutineDifficultyEstimate(routine);
+  return `dynamic difficulty: ${d.difficultyRating} (${Number(d.latentDifficulty).toFixed(1)}), local ${d.localCompletionRate ?? "n/a"}% vs comparable ${d.globalCompletionRate ?? "n/a"}%`;
 }
 function routineSimilarityGraph(routines=activeRoutines()){
   const nodes = (routines || []).map(r => ({id:r.id, name:r.name || "Exercise", skill:getRoutineSkillMap(r).primarySkill, difficulty:latentRoutineDifficultyEstimate(r)}));
@@ -1814,7 +1902,7 @@ function routineSimilarityGraph(routines=activeRoutines()){
     }
   }
   edges.sort((a,b)=>b.similarity-a.similarity);
-  return {version:"v5.6.11", nodes, edges:edges.slice(0,40)};
+  return {version:"v5.6.12", nodes, edges:edges.slice(0,40)};
 }
 function nearestRoutineNeighbors(routine, routines=activeRoutines(), limit=3){
   return (routines || []).filter(r=>String(r.id)!==String(routine?.id)).map(r=>({routine:r, similarity:routineSimilarityScore(routine,r), difficulty:latentRoutineDifficultyEstimate(r)})).sort((a,b)=>b.similarity-a.similarity).slice(0,limit);
@@ -1857,10 +1945,10 @@ function crossUserCalibrationDescriptor(routine){
 }
 function buildRoutineIntelligenceProfile(routines=activeRoutines()){
   const graph = routineSimilarityGraph(routines);
-  return {version:"v5.6.11", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
+  return {version:"v5.6.12", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
 }
 
-const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
+const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.12";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -1980,7 +2068,7 @@ function inferredSkillLevelInsight(logs){
   const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
   const main = weakestLinks[0];
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
+  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Dynamic Routine Difficulty Model")}</strong>
     <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
@@ -6189,7 +6277,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + Number(transferCoach.score || 0) * 0.85 + (routineIntel?.latentDifficulty?.band === "productive" ? 2 : routineIntel?.latentDifficulty?.band === "hard" ? -1 : 0) + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(inferredSkillFit.score || 0) * 0.90 + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + Number(transferCoach.score || 0) * 0.85 + (routineIntel?.latentDifficulty?.band === "productive" ? 2 : routineIntel?.latentDifficulty?.band === "hard" ? -1 : 0) + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(inferredSkillFit.score || 0) * 0.90 + (latentRoutineDifficultyEstimate(routine)?.band === "productive" ? 1.4 : latentRoutineDifficultyEstimate(routine)?.band === "hard" ? -0.8 : 0) + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
   const thompsonSampling = thompsonRecommendationSample({
@@ -6206,6 +6294,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(transferAwareReasonText(routine, transferNeed));
   reasons.push(transferAwareCoachingReasonForRoutine(routine));
   reasons.push(routineIntelligenceReasonForRoutine(routine));
+  reasons.push(dynamicRoutineDifficultyReasonForRoutine(routine));
   reasons.push(inferredSkillReasonForRoutine(routine));
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
@@ -6224,7 +6313,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + (latentRoutineDifficultyEstimate(routine)?.band === "productive" ? 1.0 : 0) + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
     thompsonSampling,
@@ -6710,6 +6799,7 @@ function renderPhaseOneInsights() {
     ${transferModelInsight(logs)}
     ${transferAwareCoachingInsight(logs)}
     ${routineIntelligenceInsight(logs)}
+    ${dynamicRoutineDifficultyInsight(logs)}
     ${inferredSkillLevelInsight(logs)}
     ${changePointInsight(analyticsWindow(logs))}
     ${currentFormInsight(analyticsWindow(logs))}
