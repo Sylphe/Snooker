@@ -1,15 +1,15 @@
-# Snooker Practice PWA v5.6.16
+# Snooker Practice PWA v5.6.17
 
-## v5.6.16 — Cross-Routine Skill Graph
+## v5.6.17 — AI Coaching Layer v2
 
-Built from the working v5.6.15 probabilistic coaching layer.
+Adds a higher-level coaching interpretation layer on top of the existing inference, probabilistic, match simulation, and cross-routine skill graph systems.
 
-Adds a latent cross-routine skill dependency layer:
+Included:
+- Natural-language coaching summary.
+- Weekly coaching report using recent logs with fallback to recent sample.
+- AI-generated 60 / 90 / 180 minute session plans.
+- AI-adjusted target suggestions using target health and 70% true-performance intervals.
+- Explainability layer: why the app recommends a skill, routine, target adjustment, or bridge block.
+- AI export schema v1.4 with AI Coaching Layer v2 profile.
 
-- skill dependency graph across mapped skill domains;
-- lagged dependency signals over 7, 14, 21, and 28 day windows;
-- bottleneck analysis for upstream skills limiting downstream progression;
-- bridge routine generation for connected skill pairs;
-- AI coaching export support for dependency graph and bottleneck profiles.
-
-The release is additive: it does not modify startup, storage hydration, tab routing, or logging flows.
+Startup, storage, hydration, and tab initialization were not changed.

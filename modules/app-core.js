@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.16";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.16";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.16";
+} from "./utils.js?v=5.6.17";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.16";
+} from "./settings.js?v=5.6.17";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.16";
+} from "./analytics.js?v=5.6.17";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.16";
+} from "./bayesian.js?v=5.6.17";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.16";
+} from "./session.js?v=5.6.17";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.16";
+} from "./pressure.js?v=5.6.17";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.16";
+} from "./recommendations.js?v=5.6.17";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.16";
+} from "./store.js?v=5.6.17";
 
 
 
@@ -1784,8 +1784,8 @@ function probabilisticCoachingLayerInsight(logs){
 }
 /* ===== end v5.6.15 Probabilistic Coaching Layer ===== */
 
-/* ===== v5.6.16 Cross-Routine Skill Graph ===== */
-const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.16";
+/* ===== v5.6.17 Cross-Routine Skill Graph ===== */
+const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.17";
 const CROSS_ROUTINE_LAG_WINDOWS = [7, 14, 21, 28];
 function crossRoutineLogDate(log){
   const d = new Date(log?.createdAt || log?.date || log?.timestamp || 0);
@@ -1950,7 +1950,134 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
   if(edge && (routineSupportsSkill(routine, edge.sourceSkill) || routineSupportsSkill(routine, edge.targetSkill))) return `skill graph: bridge candidate for ${edge.sourceLabel} → ${edge.targetLabel}`;
   return "skill graph: secondary priority for current dependency bottleneck";
 }
-/* ===== end v5.6.16 Cross-Routine Skill Graph ===== */
+/* ===== end v5.6.17 Cross-Routine Skill Graph ===== */
+
+/* ===== v5.6.17 AI Coaching Layer v2 ===== */
+const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
+function aiCoachLogScore(log){
+  const v = Number(log?.normalizedScore ?? normalizeScore(log));
+  return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : null;
+}
+function aiCoachRecentDelta(rows){
+  const vals = (rows || []).map(aiCoachLogScore).filter(Number.isFinite);
+  if(vals.length < 6) return {delta:0, direction:"stable", evidence:"low", recent:null, prior:null};
+  const n = Math.min(8, Math.max(3, Math.floor(vals.length/3)));
+  const recent = avg(vals.slice(-n));
+  const prior = avg(vals.slice(Math.max(0, vals.length - n*2), vals.length - n));
+  const delta = recent - prior;
+  const evidence = vals.length >= 20 ? "strong" : vals.length >= 10 ? "moderate" : "low";
+  const direction = delta >= 4 ? "improved" : delta <= -4 ? "declined" : "stable";
+  return {delta, direction, evidence, recent, prior};
+}
+function buildAiCoachingNarrative(logs=null){
+  const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+  const skillProfile = inferLatentSkillLevels(scoped, activeRoutines());
+  const probabilistic = probabilisticTrendDiagnosis(scoped);
+  const graph = skillGraphBottleneckAnalysis(scoped);
+  const weakest = skillProfile?.weakest;
+  const strongest = skillProfile?.strongest;
+  const uncertaintyRows = probabilisticSkillUncertaintyRows(scoped).slice(0,7);
+  const bottleneck = graph?.bottlenecks?.[0] || null;
+  const bySkill = new Map();
+  (scoped || []).forEach(log => crossRoutineSkillsForLog(log).forEach(skill => {
+    if(!bySkill.has(skill)) bySkill.set(skill, []);
+    bySkill.get(skill).push(log);
+  }));
+  const trendRows = [...bySkill.entries()].map(([skill, rows]) => ({skill, label:skillLabel(skill), n:rows.length, ...aiCoachRecentDelta(rows)}))
+    .filter(x=>x.n>=4).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,5);
+  const improved = trendRows.find(x=>x.direction === "improved");
+  const declined = trendRows.find(x=>x.direction === "declined");
+  const mainSentence = improved && (bottleneck || weakest)
+    ? `${improved.label} has improved recently, but ${(bottleneck?.label || weakest?.label || "a connected skill")} remains the main constraint.`
+    : weakest && strongest
+      ? `${strongest.label} is currently stronger than ${weakest.label}; training should connect the strong domain into the weak one.`
+      : "Current evidence is sufficient for coaching guidance, but the skill profile should still be treated as directional.";
+  const why = [];
+  if(weakest) why.push(`${weakest.label} is the lowest inferred domain (${weakest.level}, ${weakest.confidence} confidence).`);
+  if(bottleneck) why.push(`${bottleneck.label} has high downstream bottleneck value in the skill graph.`);
+  if(probabilistic?.status) why.push(`Probabilistic trend state: ${probabilistic.status}.`);
+  if(declined) why.push(`${declined.label} is showing a recent negative delta of ${declined.delta.toFixed(1)} pts.`);
+  if(!why.length) why.push("Recommendation strength is limited because sample size or skill mapping evidence is still developing.");
+  const confidence = uncertaintyRows.length ? uncertaintyRows.map(x=>`${x.label}: ${x.level}, ${x.uncertaintyConfidence} confidence`).join(" · ") : "Skill-level uncertainty is still calibrating.";
+  return {version:AI_COACHING_LAYER_V2_VERSION, summary:mainSentence, why, confidence, weakest, strongest, bottleneck, trendRows, uncertaintyRows};
+}
+function aiTargetSuggestionRows(logs=null){
+  const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+  const grouped = getLogsByRoutineMap(scoped);
+  return activeRoutines().map(r => {
+    const rLogs = grouped[String(r.id)] || [];
+    const interval = routineTruePerformanceInterval(rLogs, 0.70);
+    const targetInfo = dynamicTargetGenerationForRoutine(r);
+    const health = targetHealthForRoutine(r, rLogs);
+    const currentTarget = Number(r.target ?? r.targetScore ?? r.defaultTarget ?? targetInfo?.currentTarget ?? NaN);
+    let action = "hold";
+    let suggestedTarget = Number(targetInfo?.suggestedTarget || currentTarget || NaN);
+    if(health?.state === "too_hard" && Number.isFinite(currentTarget)) { action = "simplify"; suggestedTarget = Math.max(1, Math.round(currentTarget * 0.85)); }
+    else if(health?.state === "too_easy" && Number.isFinite(currentTarget)) { action = "increase"; suggestedTarget = Math.round(currentTarget * 1.10); }
+    else if(targetInfo?.suggestedTarget && String(targetInfo.suggestedTarget) !== "hold") { action = "adjust"; }
+    const confidence = interval?.n >= 12 ? "moderate" : interval?.n >= 6 ? "low" : "very low";
+    return {routine:r, rLogs, interval, health, currentTarget, suggestedTarget, action, confidence, score:(interval?.n||0) + (health?.state && health.state !== "insufficient_data" ? 4 : 0)};
+  }).filter(x => x.rLogs.length >= 4 && x.action !== "hold").sort((a,b)=>b.score-a.score).slice(0,5);
+}
+function aiGeneratedSessionPlan(logs=null, minutes=90){
+  const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+  const graph = skillGraphBottleneckAnalysis(scoped);
+  const skillProfile = inferLatentSkillLevels(scoped, activeRoutines());
+  const weak = skillProfile?.weakest?.id;
+  const bottleneck = graph?.bottlenecks?.[0]?.id || weak;
+  const routines = activeRoutines().filter(r=>!r.archived);
+  const candidates = routines.map(r=>{
+    const fit = Math.max(routineSupportsSkill(r, bottleneck), weak ? routineSupportsSkill(r, weak) : 0);
+    const diff = typeof latentRoutineDifficultyEstimate === "function" ? latentRoutineDifficultyEstimate(r) : {latentDifficulty:50, band:"productive"};
+    const transfer = typeof transferReadinessForRoutine === "function" ? transferReadinessForRoutine(r) : null;
+    return {routine:r, fit, difficulty:Number(diff.latentDifficulty||50), transferScore:Number(transfer?.score||0), score:fit*55 + (1-Math.abs(Number(diff.latentDifficulty||50)-55)/70)*25 + Number(transfer?.score||0)*0.2};
+  }).sort((a,b)=>b.score-a.score);
+  const pick = (from, fallbackIndex=0) => from?.routine || candidates[fallbackIndex]?.routine || routines[fallbackIndex] || null;
+  const warm = pick(candidates.filter(x=>x.difficulty<=55),0);
+  const peak = pick(candidates.filter(x=>x.difficulty>=45 && x.fit>0),1);
+  const transfer = pick(candidates.filter(x=>x.transferScore>=30 || x.fit>0),2);
+  const cool = pick(candidates.filter(x=>x.difficulty<=50),3);
+  const blocks = [
+    {phase:"Warm-up", minutes:minutes>=180?25:minutes>=90?15:10, routine:warm, reason:"low cognitive load and calibration before scored work"},
+    {phase:"Peak skill block", minutes:minutes>=180?55:minutes>=90?30:20, routine:peak, reason:`highest-value work for ${skillLabel(bottleneck || weak || "current constraint")}`},
+    {phase:"Transfer block", minutes:minutes>=180?55:minutes>=90?30:20, routine:transfer, reason:"bridge the technical constraint into a more frame-relevant pattern"},
+    {phase:"Cooldown", minutes:minutes>=180?25:minutes>=90?15:10, routine:cool, reason:"confidence recovery and stable execution"}
+  ].filter(b=>b.routine);
+  return {version:AI_COACHING_LAYER_V2_VERSION, minutes, generatedFrom:"AI coaching layer v2", blocks};
+}
+function weeklyAiCoachingReport(logs=null){
+  const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+  const now = new Date();
+  const weekStart = new Date(now.getTime() - 7*86400000);
+  const recent = scoped.filter(l => { const d = crossRoutineLogDate(l); return d && d >= weekStart; });
+  const base = recent.length >= 3 ? recent : scoped.slice(-20);
+  const narrative = buildAiCoachingNarrative(base);
+  const values = base.map(aiCoachLogScore).filter(Number.isFinite);
+  const totalMinutes = base.reduce((sum,l)=>sum+Number(l.timeMinutes||0),0);
+  return {version:AI_COACHING_LAYER_V2_VERSION, logs:base.length, minutes:Math.round(totalMinutes), average:values.length?avg(values):null, scope:recent.length>=3?"last 7 days":"recent sample fallback", narrative};
+}
+function aiCoachingLayerV2Insight(logs){
+  try{
+    const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+    const narrative = buildAiCoachingNarrative(scoped);
+    const report = weeklyAiCoachingReport(scoped);
+    const plan = aiGeneratedSessionPlan(scoped, 90);
+    const targets = aiTargetSuggestionRows(scoped).slice(0,3);
+    return `<div class="insight-card watch ai-coaching-v2-card"><strong>AI coaching layer v2</strong>
+      <div class="adaptive-rationale"><strong>Summary:</strong> ${htmlText(narrative.summary)}</div>
+      <div class="adaptive-rationale"><strong>Why:</strong> ${narrative.why.map(htmlText).join(" · ")}</div>
+      <div class="adaptive-rationale"><strong>Weekly report:</strong> ${htmlText(report.scope)} · ${report.logs} logs · ${report.minutes} min${Number.isFinite(report.average)?` · avg ${report.average.toFixed(1)}`:""}</div>
+      ${plan.blocks.length?`<div class="adaptive-rationale"><strong>90-min AI session plan:</strong> ${plan.blocks.map(b=>`${htmlText(b.phase)} — ${htmlText(b.routine.name)} (${b.minutes}m)`).join(" · ")}</div>`:`<div class="muted small">Session plan needs more active routines.</div>`}
+      ${targets.length?`<div class="adaptive-rationale"><strong>AI-adjusted target suggestions:</strong> ${targets.map(t=>`${htmlText(t.routine.name)}: ${htmlText(t.action)}${Number.isFinite(t.suggestedTarget)?` → ${htmlText(String(t.suggestedTarget))}`:""} (${htmlText(t.confidence)})`).join(" · ")}</div>`:`<div class="adaptive-rationale"><strong>AI-adjusted targets:</strong> no immediate target change; hold current calibration.</div>`}
+      <div class="muted small"><strong>Uncertainty:</strong> ${htmlText(narrative.confidence)}</div>
+    </div>`;
+  }catch(err){
+    console.warn("AI coaching layer v2 skipped", err);
+    return `<div class="insight-card watch"><strong>AI coaching layer v2</strong><div class="muted small">AI coaching summary unavailable for this scope.</div></div>`;
+  }
+}
+/* ===== end v5.6.17 AI Coaching Layer v2 ===== */
+
 
 
 
@@ -7300,6 +7427,7 @@ function renderPhaseOneInsights() {
     ${currentFormInsight(analyticsWindow(logs))}
     ${probabilisticCoachingLayerInsight(analyticsWindow(logs))}
     ${crossRoutineSkillGraphInsight(analyticsWindow(logs))}
+    ${aiCoachingLayerV2Insight(analyticsWindow(logs))}
     ${targetCredibleIntervalInsight(analyticsWindow(logs))}
     ${dynamicDifficultyInsight(analyticsWindow(logs))}
     ${recommendationLearningInsight()}
@@ -10153,15 +10281,21 @@ function buildAiCoachingSnapshot(options = {}) {
   }), null);
   const crossRoutineSkillGraphProfile = aiTry("crossRoutineSkillGraphProfile", () => buildCrossRoutineSkillGraph(logs, routines), null);
   const crossRoutineBottleneckProfile = aiTry("crossRoutineBottleneckProfile", () => skillGraphBottleneckAnalysis(logs), null);
+  const aiCoachingLayerV2Profile = aiTry("aiCoachingLayerV2Profile", () => ({
+    narrative: buildAiCoachingNarrative(logs),
+    weeklyReport: weeklyAiCoachingReport(logs),
+    generatedSessionPlans: [60,90,180].map(m => aiGeneratedSessionPlan(logs, m)),
+    adjustedTargetSuggestions: aiTargetSuggestionRows(logs).map(x => ({routineId:x.routine.id, routineName:x.routine.name, currentTarget:x.currentTarget, suggestedTarget:x.suggestedTarget, action:x.action, confidence:x.confidence, interval:x.interval, health:x.health}))
+  }), null);
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
-    schemaVersion: "1.3",
+    schemaVersion: "1.4",
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, and skill-specific latent level inference.",
+    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, skill-specific latent level inference, and AI coaching layer v2 explainability.",
     privacy: {
       localOnlySource: true,
       containsPersonalPracticeData: true,
@@ -10203,7 +10337,8 @@ function buildAiCoachingSnapshot(options = {}) {
         "Recommend a coherent next-session block structure rather than a flat list of unrelated drills.",
         "Recommend one short match-simulation block only if the relevant scenario readiness is developing or ready.",
         "Report skill uncertainty and confidence intervals when making target or level recommendations.",
-        "Use the cross-routine skill graph to identify upstream bottlenecks, downstream skill effects, lagged dependencies, and bridge routines."
+        "Use the cross-routine skill graph to identify upstream bottlenecks, downstream skill effects, lagged dependencies, and bridge routines.",
+        "Write natural-language coaching summaries with clear why-explanations, uncertainty caveats, weekly report logic, generated session blocks, and target suggestions."
       ]
     },
     coachingSummary,
@@ -10217,6 +10352,7 @@ function buildAiCoachingSnapshot(options = {}) {
     probabilisticCoachingProfile,
     crossRoutineSkillGraphProfile,
     crossRoutineBottleneckProfile,
+    aiCoachingLayerV2Profile,
     inferredSkillLevelProfile,
     weakestLinkProfile,
     targetCalibrationCandidates,
