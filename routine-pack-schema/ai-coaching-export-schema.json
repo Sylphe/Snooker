@@ -16,7 +16,7 @@
     "recentLogs"
   ],
   "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement.",
-  "version": "5.6.13.1",
+  "version": "5.6.13.2",
   "transferAwareCoachingEngine": {
     "hiddenWeaknessDetection": "supported",
     "transferRecommendations": "supported",
@@ -57,7 +57,7 @@
     "smartBlockGeneration"
   ],
   "sessionArchitecture": {
-    "version": "v5.6.13.1",
+    "version": "v5.6.13.2",
     "durations": [
       60,
       90,

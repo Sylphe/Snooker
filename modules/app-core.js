@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.13.1";
+} from "./utils.js?v=5.6.13.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.13.1";
+} from "./settings.js?v=5.6.13.2";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.13.1";
+} from "./analytics.js?v=5.6.13.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.13.1";
+} from "./bayesian.js?v=5.6.13.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.13.1";
+} from "./session.js?v=5.6.13.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.13.1";
+} from "./pressure.js?v=5.6.13.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.13.1";
+} from "./recommendations.js?v=5.6.13.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.13.1";
+} from "./store.js?v=5.6.13.2";
 
 
 
@@ -1833,7 +1833,7 @@ function latentRoutineDifficultyEstimate(routine, logs=routineLogsFor(routine)){
   const globalProfile = globalRoutineCompletionProfile(routine);
   const skillProfile = inferLatentSkillLevels(data.logs || [], activeRoutines());
   const playerFit = playerLevelFitForRoutine(routine, skillProfile);
-  const targetHealth = targetHealthForRoutine ? targetHealthForRoutine(routine, arr) : null;
+  const targetHealth = (typeof targetHealthForRoutine !== "undefined" && typeof targetHealthForRoutine === "function") ? targetHealthForRoutine(routine, arr) : null;
   const declaredTarget = Number(routine?.target || 0);
   const localCompletion = Number.isFinite(Number(localHit)) ? Number(localHit) : (n ? values.filter(v => declaredTarget ? v >= declaredTarget : v >= 70).length / Math.max(1,n) * 100 : null);
   const globalCompletion = Number.isFinite(Number(globalProfile.completionRate)) ? Number(globalProfile.completionRate) : null;
@@ -1876,17 +1876,26 @@ function latentRoutineDifficultyEstimate(routine, logs=routineLogsFor(routine)){
   };
 }
 function dynamicRoutineDifficultyInsight(logs){
-  const rows = activeRoutines().map(r => ({routine:r, difficulty:latentRoutineDifficultyEstimate(r, routineLogsFor(r))}))
-    .sort((a,b)=>Number(b.difficulty.latentDifficulty||0)-Number(a.difficulty.latentDifficulty||0));
-  const hard = rows.filter(x=>x.difficulty.band === "hard").slice(0,2);
-  const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
-  const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
-  const selected = [...hard, ...productive, ...easy].slice(0,4);
-  if(!selected.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
-  return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong>
-    <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
-    ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.difficulty.difficultyRating)} · local ${htmlText(String(x.difficulty.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty.latentDifficulty).toFixed(1)}</strong><span>${htmlText(x.difficulty.band)}</span></div>`).join("")}
-  </div>`;
+  try {
+    const routines = activeRoutines();
+    if(!routines.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
+    const rows = routines.map(r => {
+      try { return {routine:r, difficulty:latentRoutineDifficultyEstimate(r, routineLogsFor(r))}; }
+      catch(err) { console.warn("Routine difficulty estimate skipped", r?.name, err); return null; }
+    }).filter(Boolean).sort((a,b)=>Number(b.difficulty?.latentDifficulty||0)-Number(a.difficulty?.latentDifficulty||0));
+    const hard = rows.filter(x=>x.difficulty.band === "hard").slice(0,2);
+    const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
+    const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
+    const selected = [...hard, ...productive, ...easy].slice(0,4);
+    if(!selected.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">Difficulty model is available, but no routine has enough safe calibration data in this scope.</div></div>`;
+    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong>
+      <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
+      ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}<br><span class="muted">${htmlText(x.difficulty?.difficultyRating || "calibrating")} · local ${htmlText(String(x.difficulty?.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty?.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty?.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty?.latentDifficulty || 50).toFixed(1)}</strong><span>${htmlText(x.difficulty?.band || "calibrating")}</span></div>`).join("")}
+    </div>`;
+  } catch(err) {
+    console.warn("Dynamic routine difficulty insight failed", err);
+    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">Difficulty calibration is initializing. Existing stats remain available.</div></div>`;
+  }
 }
 function dynamicRoutineDifficultyReasonForRoutine(routine){
   const d = latentRoutineDifficultyEstimate(routine);
@@ -1950,7 +1959,7 @@ function buildRoutineIntelligenceProfile(routines=activeRoutines()){
 
 const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
 const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
-const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.1";
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.2";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -2065,31 +2074,48 @@ function skillRadarSvg(profile){
   return `<svg class="skill-radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="Inferred skill radar">${rings}${axes}<polygon points="${poly}" class="skill-radar-area"></polygon>${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="skill-radar-point"></circle>`).join("")}${labels}</svg>`;
 }
 function inferredSkillLevelInsight(logs){
-  const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
-  const weakestLinks = detectWeakestLink(profile);
-  const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
-  const main = weakestLinks[0];
-  const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
-    <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
-    ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
-    ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
-  </div>`;
+  try {
+    const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
+    const weakestLinks = detectWeakestLink(profile);
+    const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${Number(x.n || 0)} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
+    const main = weakestLinks[0];
+    const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
+    const radar = skillRadarSvg(profile) || `<div class="skill-radar-fallback">${(profile.profile || []).map(x=>`<div class="context-row"><span>${htmlText(x.label)}</span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)}</span></div>`).join("")}</div>`;
+    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
+      <div class="skill-radar-wrap">${radar}<div>${rows}</div></div>
+      ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
+      ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine?.name || "Exercise")} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
+    </div>`;
+  } catch(err) {
+    console.warn("Inferred skill level insight failed", err);
+    const fallback = ["Long Potting","Cue-ball Control","Safety","Pressure","Break-building","Rest Play","Tactical"].map(label=>`<div class="context-row"><span>${htmlText(label)}</span><strong>L?</strong><span>calibrating</span></div>`).join("");
+    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong><div class="adaptive-rationale">Skill inference is initializing from the current log scope.</div>${fallback}</div>`;
+  }
 }
 function inferredSkillReasonForRoutine(routine){
   return inferredSkillRecommendationForRoutine(routine).reason;
 }
 function routineIntelligenceInsight(logs){
-  const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
-  const graph = routineSimilarityGraph(activeRoutines());
-  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).sort((a,b)=>Number(b.target.latentDifficulty?.latentDifficulty||0)-Number(a.target.latentDifficulty?.latentDifficulty||0)).slice(0,3);
-  const topEdges = graph.edges.slice(0,3);
-  return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
-    <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
-    ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName)} ↔ ${htmlText(e.targetName)} (${Number(e.similarity).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
-    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target.latentDifficulty.latentDifficulty).toFixed(1)} · ${htmlText(x.target.latentDifficulty.band)}</span></span><strong>${htmlText(String(x.target.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target.rationale)}</span></div>`).join("")}
-    ${plan.actions.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
-  </div>`;
+  try {
+    const routines = activeRoutines();
+    if(!routines.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong><div class="muted small">No active routines available.</div></div>`;
+    const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
+    const graph = routineSimilarityGraph(routines);
+    const targetRows = routines.map(r=>{
+      try { return {routine:r, target:dynamicTargetGenerationForRoutine(r)}; }
+      catch(err) { console.warn("Dynamic target row skipped", r?.name, err); return null; }
+    }).filter(Boolean).sort((a,b)=>Number(b.target?.latentDifficulty?.latentDifficulty||0)-Number(a.target?.latentDifficulty?.latentDifficulty||0)).slice(0,3);
+    const topEdges = (graph.edges || []).slice(0,3);
+    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
+      <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
+      ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName || "Routine")} ↔ ${htmlText(e.targetName || "Routine")} (${Number(e.similarity || 0).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
+      ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}<br><span class="muted">latent difficulty ${Number(x.target?.latentDifficulty?.latentDifficulty || 50).toFixed(1)} · ${htmlText(x.target?.latentDifficulty?.band || "calibrating")}</span></span><strong>${htmlText(String(x.target?.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target?.rationale || "Maintain current target until more evidence accumulates.")}</span></div>`).join("")}
+      ${plan?.actions?.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
+    </div>`;
+  } catch(err) {
+    console.warn("Routine intelligence insight failed", err);
+    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong><div class="muted small">Routine intelligence is initializing. Existing insight cards remain available.</div></div>`;
+  }
 }
 function routineIntelligenceReasonForRoutine(routine){
   const d = latentRoutineDifficultyEstimate(routine);
