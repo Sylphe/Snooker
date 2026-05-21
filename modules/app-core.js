@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.12";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.12";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.12";
+} from "./utils.js?v=5.6.13";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.12";
+} from "./settings.js?v=5.6.13";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.12";
+} from "./analytics.js?v=5.6.13";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.12";
+} from "./bayesian.js?v=5.6.13";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.12";
+} from "./session.js?v=5.6.13";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.12";
+} from "./pressure.js?v=5.6.13";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.12";
+} from "./recommendations.js?v=5.6.13";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.12";
+} from "./store.js?v=5.6.13";
 
 
 
@@ -1814,7 +1814,7 @@ function routineSimilarityGraph(routines=activeRoutines()){
     }
   }
   edges.sort((a,b)=>b.similarity-a.similarity);
-  return {version:"v5.6.12", nodes, edges:edges.slice(0,40)};
+  return {version:"v5.6.13", nodes, edges:edges.slice(0,40)};
 }
 function nearestRoutineNeighbors(routine, routines=activeRoutines(), limit=3){
   return (routines || []).filter(r=>String(r.id)!==String(routine?.id)).map(r=>({routine:r, similarity:routineSimilarityScore(routine,r), difficulty:latentRoutineDifficultyEstimate(r)})).sort((a,b)=>b.similarity-a.similarity).slice(0,limit);
@@ -1857,10 +1857,10 @@ function crossUserCalibrationDescriptor(routine){
 }
 function buildRoutineIntelligenceProfile(routines=activeRoutines()){
   const graph = routineSimilarityGraph(routines);
-  return {version:"v5.6.12", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
+  return {version:"v5.6.13", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
 }
 
-const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.12";
+const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.13";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -2007,8 +2007,8 @@ function routineIntelligenceReasonForRoutine(routine){
   return `routine intelligence: ${d.band} difficulty (${Number(d.latentDifficulty).toFixed(1)}); target ${target.suggestedTarget || "hold"}`;
 }
 
-/* ===== v5.6.12 Dynamic Routine Difficulty Model ===== */
-const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
+/* ===== v5.6.13 Dynamic Routine Difficulty Model ===== */
+const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.13";
 function routineDifficultyCategoryKey(routine){
   const skill = normalizeSkillId(routine?.primarySkill || getRoutineSkillMap(routine).primarySkill || routine?.category || routine?.folder || "general");
   const folder = normalizeSkillId(routine?.folder || routine?.category || "general");
@@ -2123,9 +2123,95 @@ function renderDynamicRoutineDifficultyModel(){
     <div class="adaptive-rationale">${htmlText(row.action || "Collect more logs before changing difficulty.")}</div>
   </div>`).join("");
   const cats = model.categories.slice(0,5).map(c=>`<span class="pill">${htmlText(skillLabel(c.category))}: ${numText(c.averageDifficulty)} · ${htmlText(c.band)}</span>`).join("");
-  box.innerHTML = `<div class="card nested routine-difficulty-model-card"><div class="section-head"><div><h3>Dynamic Routine Difficulty Model</h3><p class="muted">Estimates the real difficulty of each routine from target hit-rate, volatility, recent average, latent difficulty and category context. This is additive and does not replace the skill radar.</p></div><span class="pill">v5.6.12</span></div><div class="analytics-note"><strong>Category context:</strong> ${cats || "Collect more routine history for category normalization."}</div>${model.actions.length?`<div class="adaptive-rationale"><strong>Model actions:</strong> ${model.actions.map(htmlText).join(" · ")}</div>`:""}<div class="target-engine-list">${cards || `<div class="muted small">No routines available for difficulty modelling.</div>`}</div></div>`;
+  box.innerHTML = `<div class="card nested routine-difficulty-model-card"><div class="section-head"><div><h3>Dynamic Routine Difficulty Model</h3><p class="muted">Estimates the real difficulty of each routine from target hit-rate, volatility, recent average, latent difficulty and category context. This is additive and does not replace the skill radar.</p></div><span class="pill">v5.6.13</span></div><div class="analytics-note"><strong>Category context:</strong> ${cats || "Collect more routine history for category normalization."}</div>${model.actions.length?`<div class="adaptive-rationale"><strong>Model actions:</strong> ${model.actions.map(htmlText).join(" · ")}</div>`:""}<div class="target-engine-list">${cards || `<div class="muted small">No routines available for difficulty modelling.</div>`}</div></div>`;
 }
-/* ===== end v5.6.12 Dynamic Routine Difficulty Model ===== */
+/* ===== end v5.6.13 Dynamic Routine Difficulty Model ===== */
+
+/* ===== v5.6.13 Session Architecture Engine ===== */
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13";
+function sessionArchitectureSkillSet(routine){
+  const skills = [];
+  try {
+    const map = typeof getRoutineSkillMap === "function" ? getRoutineSkillMap(routine) : {};
+    skills.push(routine?.primarySkill, map?.primarySkill);
+    (routine?.secondarySkills || map?.secondarySkills || []).forEach(s => skills.push(s));
+    (routine?.transferSkills || map?.transferSkills || []).forEach(s => skills.push(s));
+  } catch(_) {}
+  return [...new Set(skills.map(s => normalizeSkillId(s)).filter(Boolean))];
+}
+function sessionArchitectureRoutineProfile(routine, logs=null){
+  try {
+    const rlogs = Array.isArray(logs) ? logs : routineLogsFor(routine);
+    const difficulty = (typeof routineDifficultyModelForRoutine === "function") ? routineDifficultyModelForRoutine(routine, rlogs, null) : null;
+    const skills = sessionArchitectureSkillSet(routine);
+    const scoring = String(routine?.scoring || "");
+    const intent = String(routine?.trainingIntent || routine?.intent || routine?.routineIntent || "").toLowerCase();
+    const fatigue = Number(routine?.fatigueCost ?? routine?.fatigue ?? 2);
+    const pressure = Number(routine?.pressureValue ?? routine?.pressure ?? 0);
+    const tactical = Number(routine?.tacticalValue ?? routine?.tactical ?? 0);
+    const logCount = rlogs?.length || 0;
+    const hit = targetHitRate(rlogs || []);
+    const recentVals = (rlogs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite).slice(-8);
+    const recentAvg = recentVals.length ? avg(recentVals) : null;
+    const primary = skills[0] || routineDifficultyCategoryKey(routine) || "general";
+    let block = "acquisition";
+    if (intent.includes("maintenance") || String(difficulty?.band || "") === "easy" || String(difficulty?.band || "") === "light") block = "maintenance";
+    if (intent.includes("pressure") || pressure >= 65 || scoring.includes("pressure")) block = "pressure";
+    if (intent.includes("recovery") || String(difficulty?.band || "") === "overload") block = "recovery";
+    if (skills.includes("break_building") || skills.includes("transition_play") || skills.includes("positional_play")) block = block === "pressure" ? "pressure" : "transfer";
+    if (logCount < 3) block = "acquisition";
+    const energy = Math.max(1, Math.min(5, Math.round((Number.isFinite(fatigue)?fatigue:2) + (pressure>=70?1:0) + (String(difficulty?.band||"")==="overload"?1:0))));
+    const transferScore = Math.min(100, Math.max(0, (skills.length * 12) + (skills.includes("break_building")?18:0) + (skills.includes("cue_ball_control")?14:0) + (skills.includes("safety")?12:0) + Math.min(20, pressure/5) + Math.min(16, tactical/6)));
+    const readiness = logCount >= 6 && Number.isFinite(Number(hit)) && Number(hit) >= 25 && String(difficulty?.band || "") !== "overload" ? "ready" : logCount >= 3 ? "developing" : "early";
+    return {routineId:routine?.id||"", routineName:routine?.name||"Exercise", primarySkill:primary, skills, scoring, logCount, recentAvg, targetHitRate:hit, difficultyBand:difficulty?.band || "unknown", latentDifficulty:difficulty?.latentDifficulty ?? null, block, energy, transferScore:Math.round(transferScore), readiness, fatigueCost:Number.isFinite(fatigue)?fatigue:null, pressureValue:Number.isFinite(pressure)?pressure:null, tacticalValue:Number.isFinite(tactical)?tactical:null};
+  } catch(err) {
+    logAppError?.(err, "sessionArchitectureRoutineProfile");
+    return {routineId:routine?.id||"", routineName:routine?.name||"Exercise", block:"acquisition", energy:2, transferScore:0, readiness:"early", skills:[]};
+  }
+}
+function sessionBlockMinutes(totalMinutes, blockKey){
+  const total = Number(totalMinutes || 90);
+  const ratios = {warmup:0.12, acquisition:0.28, transfer:0.28, pressure:0.20, recovery:0.12};
+  return Math.max(5, Math.round(total * (ratios[blockKey] || 0.2) / 5) * 5);
+}
+function pickSessionArchitectureRoutines(profiles, blockKey, maxItems=3){
+  const preferred = (profiles || []).filter(p => p.block === blockKey);
+  const fallback = (profiles || []).filter(p => blockKey === "warmup" ? ["maintenance","acquisition"].includes(p.block) : true);
+  const pool = (preferred.length ? preferred : fallback).slice();
+  return pool.sort((a,b) => {
+    if(blockKey === "warmup" || blockKey === "recovery") return (a.energy-b.energy) || (b.logCount-a.logCount);
+    if(blockKey === "transfer") return (b.transferScore-a.transferScore) || (b.logCount-a.logCount);
+    if(blockKey === "pressure") return Number(b.pressureValue||0)-Number(a.pressureValue||0) || (b.transferScore-a.transferScore);
+    return (b.latentDifficulty||0)-(a.latentDifficulty||0) || (b.logCount-a.logCount);
+  }).slice(0, maxItems);
+}
+function buildSessionArchitecturePlan(totalMinutes=90, routines=activeRoutines(), logs=data.logs || []){
+  const grouped = getLogsByRoutineMap(logs || []);
+  const profiles = (routines || []).map(r => sessionArchitectureRoutineProfile(r, grouped[String(r.id)] || []));
+  const blocks = [
+    {key:"warmup", label:"Warm-up / calibration", purpose:"low-friction cueing and table-speed calibration"},
+    {key:"acquisition", label:"Acquisition block", purpose:"work the main technical gap before fatigue accumulates"},
+    {key:"transfer", label:"Transfer block", purpose:"bridge isolated skills into break-building or frame-like execution"},
+    {key:"pressure", label:"Pressure block", purpose:"test the most transferable skill under consequence"},
+    {key:"recovery", label:"Cooldown / confidence recovery", purpose:"finish with stable execution and low cognitive load"}
+  ].map(block => ({...block, minutes:sessionBlockMinutes(totalMinutes, block.key), routines:pickSessionArchitectureRoutines(profiles, block.key, block.key==="pressure"?2:3)}));
+  const energyLoad = blocks.reduce((sum,b)=>sum + b.routines.reduce((s,r)=>s+Number(r.energy||0),0),0);
+  const transferFocus = profiles.slice().sort((a,b)=>b.transferScore-a.transferScore).slice(0,5).map(p=>p.routineName);
+  const warnings = [];
+  if(blocks.find(b=>b.key==="pressure")?.routines?.some(r=>r.readiness==="early")) warnings.push("Pressure block includes immature routines; keep consequences light.");
+  if(energyLoad > 42) warnings.push("High session energy load; use longer rests or reduce pressure volume.");
+  if(!blocks.find(b=>b.key==="transfer")?.routines?.length) warnings.push("Transfer block is thin; add routines with cue-ball-control or break-building transfer tags.");
+  return {version:SESSION_ARCHITECTURE_ENGINE_VERSION, generatedAt:new Date().toISOString(), totalMinutes:Number(totalMinutes||90), blocks, profiles, energyLoad, transferFocus, warnings};
+}
+function renderSessionArchitectureEngine(){
+  const box = $("sessionArchitecturePanel");
+  if(!box) return;
+  const plan = buildSessionArchitecturePlan(90, activeRoutines(), data.logs || []);
+  const blocks = plan.blocks.map(block => `<div class="session-architecture-block session-block-${safeClassToken(block.key)}"><div class="section-head"><div><h4>${htmlText(block.label)}</h4><p class="muted tiny">${htmlText(block.purpose)}</p></div><span class="pill">${numText(block.minutes)} min</span></div><div class="session-routine-stack">${block.routines.length ? block.routines.map(r => `<div class="context-row"><span><strong>${htmlText(r.routineName)}</strong><br><span class="muted">${htmlText(skillLabel(r.primarySkill))} · ${htmlText(r.difficultyBand)} · ${htmlText(r.readiness)} · transfer ${numText(r.transferScore)}</span></span><strong>${htmlText(r.block)}</strong><span>Energy ${numText(r.energy)}/5</span></div>`).join("") : `<div class="muted small">No suitable routine identified for this block yet.</div>`}</div></div>`).join("");
+  box.innerHTML = `<div class="card nested session-architecture-card"><div class="section-head"><div><h3>Session Architecture Engine</h3><p class="muted">Structures practice into warm-up, acquisition, transfer, pressure, and recovery blocks using fatigue, difficulty, transfer value, and readiness. Additive layer; existing stats and radar remain unchanged.</p></div><span class="pill">v5.6.13</span></div>${plan.warnings.length?`<div class="analytics-note"><strong>Sequencing warnings:</strong> ${plan.warnings.map(htmlText).join(" · ")}</div>`:""}<div class="analytics-note"><strong>Transfer focus:</strong> ${plan.transferFocus.map(htmlText).join(" · ") || "Collect more routine evidence."}</div><div class="session-architecture-grid">${blocks}</div></div>`;
+}
+/* ===== end v5.6.13 Session Architecture Engine ===== */
+
 
 function transferModelInsight(logs){
   const summary = skillPerformanceSummary(logs || data.logs || []);
@@ -3100,6 +3186,7 @@ function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
   if (shouldRenderStatsPanel()) {
     safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
     safeCall(`${reason} renderDynamicRoutineDifficultyModel`, renderDynamicRoutineDifficultyModel);
+    safeCall(`${reason} renderSessionArchitectureEngine`, renderSessionArchitectureEngine);
   }
   renderStatsHeavyPanelsIfVisible(reason);
 }
@@ -3486,6 +3573,7 @@ function renderAll() {
     ["renderStats", () => renderStatsIfVisible("renderAll")],
     ["renderAdaptiveTargetEngine", () => { if (shouldRenderStatsPanel()) renderAdaptiveTargetEngine(); }],
     ["renderDynamicRoutineDifficultyModel", () => { if (shouldRenderStatsPanel()) renderDynamicRoutineDifficultyModel(); }],
+    ["renderSessionArchitectureEngine", () => { if (shouldRenderStatsPanel()) renderSessionArchitectureEngine(); }],
     ["renderToday", renderToday],
     ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
@@ -9659,6 +9747,7 @@ function buildAiCoachingSnapshot(options = {}) {
   const transferReadinessProfile = buildAiTransferReadinessProfile(routineSnapshots);
   const routineIntelligenceProfile = buildRoutineIntelligenceProfile(routines);
   const dynamicRoutineDifficultyProfile = buildDynamicRoutineDifficultyModel(routines, logs);
+  const sessionArchitectureProfile = buildSessionArchitecturePlan(90, routines, logs);
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
@@ -9702,7 +9791,9 @@ function buildAiCoachingSnapshot(options = {}) {
         "Identify the best bridge routines for transfer into realistic frames or pressure practice.",
         "Diagnose latent skill levels by long potting, cue-ball control, safety, pressure, break-building, rest play, and tactical domains.",
         "Use the dynamic routine difficulty profile to separate hard-but-useful stretch drills from routines that need target simplification.",
-        "Identify tags/metadata that appear inconsistent or missing."
+        "Use the session architecture profile to sequence routines: warm-up first, technical acquisition before fatigue, transfer drills before pressure, and confidence recovery last.",
+        "Identify tags/metadata that appear inconsistent or missing.",
+        "Recommend a coherent next-session block structure rather than a flat list of unrelated drills."
       ]
     },
     coachingSummary,
@@ -9711,6 +9802,7 @@ function buildAiCoachingSnapshot(options = {}) {
     transferReadinessProfile,
     routineIntelligenceProfile,
     dynamicRoutineDifficultyProfile,
+    sessionArchitectureProfile,
     inferredSkillLevelProfile,
     weakestLinkProfile,
     targetCalibrationCandidates,
