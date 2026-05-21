@@ -1,6 +1,6 @@
 {
-  "name": "Snooker Practice Log v5.6.13.4",
-  "short_name": "Snooker v5.6.13.4",
+  "name": "Snooker Practice Log",
+  "short_name": "Snooker Log",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

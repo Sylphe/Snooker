@@ -4462,15 +4462,3 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
     margin:0 auto;
   }
 }
-
-
-/* v5.6.12 Dynamic Routine Difficulty Model */
-.insight-card .context-row strong{font-variant-numeric:tabular-nums;}
-
-
-/* v5.6.13 Session Architecture Engine */
-.session-architecture-summary{border-left:3px solid var(--accent, #94a3b8); padding-left:10px;}
-.session-preset-row{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px;}
-.session-preset-badge{font-size:0.78rem;}
-.smart-block-card[data-block-type="warmup"]{scroll-margin-top:90px;}
-.smart-block-card[data-block-type="pressure"] .badge{font-variant-numeric:tabular-nums;}

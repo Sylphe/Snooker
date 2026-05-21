@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.11";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.11";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.13.4";
+} from "./utils.js?v=5.6.11";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.13.4";
+} from "./settings.js?v=5.6.11";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.13.4";
+} from "./analytics.js?v=5.6.11";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.13.4";
+} from "./bayesian.js?v=5.6.11";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.13.4";
+} from "./session.js?v=5.6.11";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.13.4";
+} from "./pressure.js?v=5.6.11";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.13.4";
+} from "./recommendations.js?v=5.6.11";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.13.4";
+} from "./store.js?v=5.6.11";
 
 
 
@@ -1784,132 +1784,25 @@ function routineSimilarityScore(a, b){
 }
 function routineLogsFor(routine){
   const rid = String(routine?.id || "");
-  const name = String(routine?.name || "").trim().toLowerCase();
-  return (data.logs || []).filter(l => {
-    if (rid && String(l.routineId || "") === rid) return true;
-    if (!name) return false;
-    return [l.routineName, l.exercise, l.exerciseName, l.name].filter(Boolean).some(v => String(v).trim().toLowerCase() === name);
-  }).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
-}
-function nonRecursivePlayerLevelFitForRoutine(routine, logs){
-  const values = (Array.isArray(logs) ? logs : []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-  const mean = values.length ? avg(values) : 50;
-  const inferred = Math.max(1, Math.min(7, Math.round((mean + 8) / 14)));
-  return {weightedLevel:Math.round(inferred*10)/10, rows:[]};
-}
-function globalRoutineCompletionProfile(routine, routines=activeRoutines(), logs=(data.logs || [])){
-  const map = getRoutineSkillMap(routine);
-  const primary = map.primarySkill;
-  const localId = String(routine?.id || "");
-  const comparableIds = new Set((routines || []).filter(r => {
-    if(!r) return false;
-    const rm = getRoutineSkillMap(r);
-    const sameSkill = primary && rm.primarySkill === primary;
-    const similar = String(r.id || "") !== localId && routineSimilarityScore(routine, r) >= 0.25;
-    return sameSkill || similar;
-  }).map(r => String(r.id || "")));
-  const comparableLogs = (logs || []).filter(l => comparableIds.has(String(l.routineId || "")));
-  const values = comparableLogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-  const hitValues = comparableLogs.map(l => Number(l.hitTarget ?? l.targetHit ?? NaN)).filter(Number.isFinite);
-  const mean = values.length ? avg(values) : null;
-  const hitRate = hitValues.length ? avg(hitValues) : (values.length ? values.filter(v => v >= 70).length / values.length * 100 : null);
-  return {
-    comparableRoutineCount: comparableIds.size,
-    n: values.length,
-    mean: mean === null ? null : Math.round(mean * 10) / 10,
-    completionRate: hitRate === null ? null : Math.round(hitRate * 10) / 10,
-    evidence: evidenceStrength(values.length)
-  };
-}
-function playerLevelFitForRoutine(routine, skillProfile=inferLatentSkillLevels()){
-  const weights = routineSkillWeights(routine);
-  const domains = Object.values(INFERRED_SKILL_DOMAINS || {});
-  const rows = domains.map(domain => {
-    const relevant = Object.entries(weights || {}).reduce((sum, [skill, weight]) => sum + (inferredSkillDomainForSkill(skill) === domain.id ? Number(weight || 0) : 0), 0);
-    const level = Number(skillProfile?.domains?.[domain.id]?.level || 3);
-    return {domain:domain.id, label:domain.label, relevant, level};
-  }).filter(x => x.relevant > 0);
-  const weightedLevel = rows.length ? rows.reduce((s,x)=>s + x.level * x.relevant,0) / Math.max(0.001, rows.reduce((s,x)=>s+x.relevant,0)) : Number(skillProfile?.overallLevel || 3);
-  return {weightedLevel:Math.round(weightedLevel*10)/10, rows};
+  return (data.logs || []).filter(l => String(l.routineId || "") === rid).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
 }
 function latentRoutineDifficultyEstimate(routine, logs=routineLogsFor(routine)){
   const arr = logs || [];
   const values = arr.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const n = values.length;
-  const localEvidence = evidenceStrength(n);
-  const localMean = n ? avg(values) : 55;
-  const recent = n ? avg(values.slice(-Math.min(6,n))) : localMean;
+  const evidence = evidenceStrength(n);
+  const mean = n ? avg(values) : 55;
+  const recent = n ? avg(values.slice(-Math.min(6,n))) : mean;
   const volatility = n >= 3 ? stdDev(values) : null;
-  const localHit = targetHitRate(arr);
-  const globalProfile = globalRoutineCompletionProfile(routine);
-  const playerFit = nonRecursivePlayerLevelFitForRoutine(routine, arr);
-  const targetHealth = (typeof targetHealthForRoutine !== "undefined" && typeof targetHealthForRoutine === "function") ? targetHealthForRoutine(routine, arr) : null;
+  const hit = targetHitRate(arr);
   const declaredTarget = Number(routine?.target || 0);
-  const localCompletion = Number.isFinite(Number(localHit)) ? Number(localHit) : (n ? values.filter(v => declaredTarget ? v >= declaredTarget : v >= 70).length / Math.max(1,n) * 100 : null);
-  const globalCompletion = Number.isFinite(Number(globalProfile.completionRate)) ? Number(globalProfile.completionRate) : null;
-  const completionBlend = localCompletion === null && globalCompletion === null ? 55 : (
-    localCompletion === null ? globalCompletion : globalCompletion === null ? localCompletion : localCompletion * Math.max(0.35, localEvidence.factor) + globalCompletion * (1 - Math.max(0.35, localEvidence.factor))
-  );
-  const completionLoad = Math.max(-22, Math.min(28, 62 - Number(completionBlend || 55))) * 0.70;
-  const performanceLoad = Math.max(-18, Math.min(24, 64 - Number(localMean || 55))) * 0.45;
-  const varianceLoad = volatility === null ? 2 : Math.max(0, Number(volatility || 0) - 13) * 0.55;
-  const levelLoad = Math.max(-12, Math.min(16, 4 - Number(playerFit.weightedLevel || 3))) * 2.7;
-  const targetLoad = targetHealth?.state === "too_hard" ? 7 : targetHealth?.state === "too_easy" ? -6 : targetHealth?.state === "healthy" ? -1 : 0;
+  const targetGap = Number.isFinite(hit) && hit !== null ? Math.max(-18, Math.min(18, 55 - Number(hit))) : (declaredTarget ? Math.max(-12, Math.min(12, declaredTarget - mean)) * 0.35 : 0);
   const formatLoad = String(routine?.scoring||"") === "progressive_completion" ? 5 : String(routine?.scoring||"") === "success_rate" ? 2 : 0;
   const attemptLoad = Number(routine?.attempts || routine?.attemptsPerSession || 0) >= 20 ? 3 : 0;
-  const raw = 50 + completionLoad + performanceLoad + varianceLoad + levelLoad + targetLoad + formatLoad + attemptLoad;
-  const globalEvidence = globalProfile?.evidence?.factor || 0;
-  const evidenceFactor = Math.max(0.18, Math.min(0.92, localEvidence.factor * 0.72 + globalEvidence * 0.28));
-  const latentDifficulty = Math.round(Math.max(5, Math.min(95, shrinkTowardPrior(raw, 50, evidenceFactor))) * 10) / 10;
+  const raw = 100 - mean + targetGap + formatLoad + attemptLoad + Math.max(0, Number(volatility||0) - 16) * 0.18;
+  const latentDifficulty = Math.round(Math.max(5, Math.min(95, shrinkTowardPrior(raw, 50, Math.max(0.15, evidence.factor)))) * 10) / 10;
   const band = latentDifficulty >= 68 ? "hard" : latentDifficulty <= 38 ? "easy" : "productive";
-  const rating = latentDifficulty >= 82 ? "very hard" : latentDifficulty >= 68 ? "hard" : latentDifficulty >= 54 ? "challenging" : latentDifficulty >= 38 ? "productive" : "easy";
-  return {
-    version:DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION,
-    routineId:routine?.id||"",
-    routineName:routine?.name||"Exercise",
-    n,
-    evidence:localEvidence,
-    globalEvidence:globalProfile.evidence,
-    mean:Math.round(localMean*10)/10,
-    recent:Math.round(recent*10)/10,
-    volatility:volatility===null?null:Math.round(volatility*10)/10,
-    targetHitRate:localHit,
-    localCompletionRate:localCompletion===null?null:Math.round(localCompletion*10)/10,
-    globalCompletionRate:globalCompletion,
-    comparableRoutineCount:globalProfile.comparableRoutineCount,
-    inferredPlayerLevel:playerFit.weightedLevel,
-    targetHealth:targetHealth?.state || "unknown",
-    latentDifficulty,
-    difficultyRating:rating,
-    band,
-    components:{completionLoad:Math.round(completionLoad*10)/10, performanceLoad:Math.round(performanceLoad*10)/10, varianceLoad:Math.round(varianceLoad*10)/10, playerLevelLoad:Math.round(levelLoad*10)/10, targetLoad, formatLoad, attemptLoad}
-  };
-}
-function dynamicRoutineDifficultyInsight(logs){
-  try {
-    const routines = activeRoutines();
-    if(!routines.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
-    const rows = routines.map(r => {
-      try { return {routine:r, difficulty:latentRoutineDifficultyEstimate(r, routineLogsFor(r))}; }
-      catch(err) { console.warn("Routine difficulty estimate skipped", r?.name, err); return null; }
-    }).filter(Boolean).sort((a,b)=>Number(b.difficulty?.latentDifficulty||0)-Number(a.difficulty?.latentDifficulty||0));
-    const hard = rows.filter(x=>x.difficulty.band === "hard").slice(0,2);
-    const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
-    const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
-    const selected = [...hard, ...productive, ...easy].slice(0,4);
-    if(!selected.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">Difficulty model is available, but no routine has enough safe calibration data in this scope.</div></div>`;
-    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong>
-      <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
-      ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}<br><span class="muted">${htmlText(x.difficulty?.difficultyRating || "calibrating")} · local ${htmlText(String(x.difficulty?.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty?.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty?.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty?.latentDifficulty || 50).toFixed(1)}</strong><span>${htmlText(x.difficulty?.band || "calibrating")}</span></div>`).join("")}
-    </div>`;
-  } catch(err) {
-    console.warn("Dynamic routine difficulty insight failed", err);
-    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">Difficulty calibration is initializing. Existing stats remain available.</div></div>`;
-  }
-}
-function dynamicRoutineDifficultyReasonForRoutine(routine){
-  const d = latentRoutineDifficultyEstimate(routine);
-  return `dynamic difficulty: ${d.difficultyRating} (${Number(d.latentDifficulty).toFixed(1)}), local ${d.localCompletionRate ?? "n/a"}% vs comparable ${d.globalCompletionRate ?? "n/a"}%`;
+  return {routineId:routine?.id||"", routineName:routine?.name||"Exercise", n, evidence, mean:Math.round(mean*10)/10, recent:Math.round(recent*10)/10, volatility:volatility===null?null:Math.round(volatility*10)/10, targetHitRate:hit, latentDifficulty, band};
 }
 function routineSimilarityGraph(routines=activeRoutines()){
   const nodes = (routines || []).map(r => ({id:r.id, name:r.name || "Exercise", skill:getRoutineSkillMap(r).primarySkill, difficulty:latentRoutineDifficultyEstimate(r)}));
@@ -1921,7 +1814,7 @@ function routineSimilarityGraph(routines=activeRoutines()){
     }
   }
   edges.sort((a,b)=>b.similarity-a.similarity);
-  return {version:"v5.6.10", nodes, edges:edges.slice(0,40)};
+  return {version:"v5.6.11", nodes, edges:edges.slice(0,40)};
 }
 function nearestRoutineNeighbors(routine, routines=activeRoutines(), limit=3){
   return (routines || []).filter(r=>String(r.id)!==String(routine?.id)).map(r=>({routine:r, similarity:routineSimilarityScore(routine,r), difficulty:latentRoutineDifficultyEstimate(r)})).sort((a,b)=>b.similarity-a.similarity).slice(0,limit);
@@ -1964,12 +1857,10 @@ function crossUserCalibrationDescriptor(routine){
 }
 function buildRoutineIntelligenceProfile(routines=activeRoutines()){
   const graph = routineSimilarityGraph(routines);
-  return {version:"v5.6.10", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
+  return {version:"v5.6.11", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
 }
 
 const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
-const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
-const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.4";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -1995,37 +1886,30 @@ function domainRoutineRelevance(routine, domain){
   return Math.max(0, Math.min(2.2, direct + transfer * 0.65));
 }
 function inferredSkillEvidenceForDomain(domain, logs=(data.logs || []), routines=activeRoutines()){
-  const scoped = Array.isArray(logs) ? logs : [];
-  const byRoutine = getLogsByRoutineMap(scoped);
+  const byRoutine = getLogsByRoutineMap(logs || []);
   const rows = [];
   (routines || []).forEach(routine => {
-    try {
-      const relevance = domainRoutineRelevance(routine, domain);
-      if(relevance <= 0.08) return;
-      let rlogs = (byRoutine[String(routine.id)] || []);
-      if(!rlogs.length) rlogs = routineLogsFor(routine).filter(l => !scoped.length || scoped.includes(l));
-      rlogs = rlogs.slice(-30);
-      const vals = rlogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-      const mean = vals.length ? avg(vals) : null;
-      const recent = vals.length ? avg(vals.slice(-Math.min(6, vals.length))) : mean;
-      const volatility = vals.length >= 3 ? stdDev(vals) : null;
-      const hit = vals.length ? targetHitRate(rlogs) : null;
-      const consistency = volatility === null ? 50 : Math.max(0, Math.min(100, 100 - volatility * 2.4));
-      let diff = {latentDifficulty:50, band:"calibrating"};
-      try { if (vals.length) diff = latentRoutineDifficultyEstimate(routine, rlogs); } catch(err) { console.warn("Difficulty skipped for skill inference", routine?.name, err); }
-      let health = null;
-      try { health = vals.length && typeof targetHealthForRoutine === "function" ? targetHealthForRoutine(routine, rlogs) : null; } catch(err) { health = null; }
-      const targetScore = hit === null ? 55 : Math.max(0, Math.min(100, 45 + (Number(hit) - 50) * 0.70));
-      const difficultyCredit = Math.max(-10, Math.min(14, (Number(diff.latentDifficulty || 50) - 50) * 0.18));
-      const healthPenalty = health?.state === "too_hard" ? -8 : health?.state === "too_easy" ? 4 : health?.state === "unstable" ? -4 : 0;
-      const metadataFloor = vals.length ? 0 : 44 + relevance * 8;
-      const raw = vals.length ? ((Number(mean ?? 55) * 0.36) + (Number(recent ?? mean ?? 55) * 0.22) + (targetScore * 0.20) + (consistency * 0.14) + 8 + difficultyCredit + healthPenalty) : metadataFloor;
-      rows.push({routineId:routine.id, routineName:routine.name || "Exercise", relevance, n:vals.length, mean, recent, volatility, targetHitRate:hit, consistency, latentDifficulty:diff.latentDifficulty, difficultyBand:diff.band, dynamicTarget:"", targetHealth:health?.state || "unknown", evidence:evidenceStrength(vals.length), rawScore:raw});
-    } catch(err) {
-      console.warn("Skill inference routine skipped", routine?.name, err);
-    }
+    const relevance = domainRoutineRelevance(routine, domain);
+    if(relevance <= 0.08) return;
+    const rlogs = (byRoutine[String(routine.id)] || []).slice(-30);
+    if(!rlogs.length) return;
+    const diff = latentRoutineDifficultyEstimate(routine, rlogs);
+    const dtarget = dynamicTargetGenerationForRoutine(routine);
+    const health = (typeof targetHealthForRoutine !== "undefined" && typeof targetHealthForRoutine === "function") ? targetHealthForRoutine(routine, rlogs) : null;
+    const vals = rlogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+    const mean = vals.length ? avg(vals) : null;
+    const recent = vals.length ? avg(vals.slice(-Math.min(6, vals.length))) : mean;
+    const volatility = vals.length >= 3 ? stdDev(vals) : null;
+    const hit = targetHitRate(rlogs);
+    const evidence = evidenceStrength(vals.length);
+    const consistency = volatility === null ? 50 : Math.max(0, Math.min(100, 100 - volatility * 2.4));
+    const targetScore = hit === null ? 55 : Math.max(0, Math.min(100, 45 + (Number(hit) - 50) * 0.70));
+    const difficultyCredit = Math.max(-10, Math.min(14, (Number(diff.latentDifficulty || 50) - 50) * 0.18));
+    const healthPenalty = health?.state === "too_hard" ? -8 : health?.state === "too_easy" ? 4 : health?.state === "unstable" ? -4 : 0;
+    const raw = (Number(mean ?? 55) * 0.36) + (Number(recent ?? mean ?? 55) * 0.22) + (targetScore * 0.20) + (consistency * 0.14) + 8 + difficultyCredit + healthPenalty;
+    rows.push({routineId:routine.id, routineName:routine.name || "Exercise", relevance, n:vals.length, mean, recent, volatility, targetHitRate:hit, consistency, latentDifficulty:diff.latentDifficulty, difficultyBand:diff.band, dynamicTarget:dtarget?.suggestedTarget || "", targetHealth:health?.state || "unknown", evidence, rawScore:raw});
   });
-  return rows.sort((a,b)=>(b.relevance*Math.max(1,b.n||0))-(a.relevance*Math.max(1,a.n||0)));
+  return rows.sort((a,b)=>(b.relevance*b.n)-(a.relevance*a.n));
 }
 function inferLatentSkillLevels(logs=(data.logs || []), routines=activeRoutines()){
   const profile = INFERRED_SKILL_DOMAINS.map(domain => {
@@ -2091,50 +1975,31 @@ function skillRadarSvg(profile){
   return `<svg class="skill-radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="Inferred skill radar">${rings}${axes}<polygon points="${poly}" class="skill-radar-area"></polygon>${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="skill-radar-point"></circle>`).join("")}${labels}</svg>`;
 }
 function inferredSkillLevelInsight(logs){
-  try {
-    const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
-    const weakestLinks = detectWeakestLink(profile);
-    const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${Number(x.n || 0)} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
-    const main = weakestLinks[0];
-    const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-    const radar = skillRadarSvg(profile) || `<div class="skill-radar-fallback">${(profile.profile || []).map(x=>`<div class="context-row"><span>${htmlText(x.label)}</span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)}</span></div>`).join("")}</div>`;
-    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
-      <div class="skill-radar-wrap">${radar}<div>${rows}</div></div>
-      ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
-      ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine?.name || "Exercise")} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
-    </div>`;
-  } catch(err) {
-    console.warn("Inferred skill level insight failed", err);
-    const fallbackProfile = {profile: INFERRED_SKILL_DOMAINS.map(d => ({label:d.label, level:"L3", score:50, band:"calibrating", confidence:"metadata-only", n:0}))};
-    const radar = skillRadarSvg(fallbackProfile);
-    const fallback = fallbackProfile.profile.map(x=>`<div class="context-row"><span>${htmlText(x.label)}</span><strong>${htmlText(x.level)}</strong><span>calibrating</span></div>`).join("");
-    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong><div class="adaptive-rationale">Skill inference is using routine metadata while calibrated evidence accumulates.</div><div class="skill-radar-wrap">${radar}<div>${fallback}</div></div></div>`;
-  }
+  const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
+  const weakestLinks = detectWeakestLink(profile);
+  const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
+  const main = weakestLinks[0];
+  const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
+  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
+    <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
+    ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
+    ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
+  </div>`;
 }
 function inferredSkillReasonForRoutine(routine){
   return inferredSkillRecommendationForRoutine(routine).reason;
 }
 function routineIntelligenceInsight(logs){
-  try {
-    const routines = activeRoutines();
-    if(!routines.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong><div class="muted small">No active routines available.</div></div>`;
-    const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
-    const graph = routineSimilarityGraph(routines);
-    const targetRows = routines.map(r=>{
-      try { return {routine:r, target:dynamicTargetGenerationForRoutine(r)}; }
-      catch(err) { console.warn("Dynamic target row skipped", r?.name, err); return null; }
-    }).filter(Boolean).sort((a,b)=>Number(b.target?.latentDifficulty?.latentDifficulty||0)-Number(a.target?.latentDifficulty?.latentDifficulty||0)).slice(0,3);
-    const topEdges = (graph.edges || []).slice(0,3);
-    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
-      <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
-      ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName || "Routine")} ↔ ${htmlText(e.targetName || "Routine")} (${Number(e.similarity || 0).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
-      ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine?.name || "Exercise")}<br><span class="muted">latent difficulty ${Number(x.target?.latentDifficulty?.latentDifficulty || 50).toFixed(1)} · ${htmlText(x.target?.latentDifficulty?.band || "calibrating")}</span></span><strong>${htmlText(String(x.target?.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target?.rationale || "Maintain current target until more evidence accumulates.")}</span></div>`).join("")}
-      ${plan?.actions?.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
-    </div>`;
-  } catch(err) {
-    console.warn("Routine intelligence insight failed", err);
-    return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong><div class="muted small">Routine intelligence is initializing. Existing insight cards remain available.</div></div>`;
-  }
+  const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
+  const graph = routineSimilarityGraph(activeRoutines());
+  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).sort((a,b)=>Number(b.target.latentDifficulty?.latentDifficulty||0)-Number(a.target.latentDifficulty?.latentDifficulty||0)).slice(0,3);
+  const topEdges = graph.edges.slice(0,3);
+  return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
+    <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
+    ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName)} ↔ ${htmlText(e.targetName)} (${Number(e.similarity).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
+    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target.latentDifficulty.latentDifficulty).toFixed(1)} · ${htmlText(x.target.latentDifficulty.band)}</span></span><strong>${htmlText(String(x.target.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target.rationale)}</span></div>`).join("")}
+    ${plan.actions.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
+  </div>`;
 }
 function routineIntelligenceReasonForRoutine(routine){
   const d = latentRoutineDifficultyEstimate(routine);
@@ -5535,158 +5400,13 @@ function flattenAdaptiveRoutineIds(blocks) {
   }));
   return ids;
 }
-
-function sessionPhaseForBlockType(blockType="completion") {
-  const order = {warmup:"warmup", recovery:"warmup", primary:"peak", transfer:"peak", pressure:"peak", confidence:"cooldown", completion:"cooldown"};
-  return order[blockType] || "cooldown";
-}
-function sessionArchitectureProfileForState(state, phase="peak") {
-  const energy = routineEnergyProfile(state);
-  const map = getRoutineSkillMap(state?.routine || {});
-  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
-  const difficulty = typeof latentRoutineDifficultyEstimate === "function" ? latentRoutineDifficultyEstimate(state?.routine || {}, state?.logs || routineLogsFor(state?.routine || {})) : null;
-  const diffScore = Number(difficulty?.latentDifficulty || 50);
-  const precision = skills.has("long_potting") || skills.has("cueing") || skills.has("cue_ball_control") || skills.has("pace_control") || skills.has("rest_play");
-  const tactical = skills.has("safety") || skills.has("tactical_decision_making") || skills.has("escape_shots") || skills.has("cluster_management");
-  const pressure = skills.has("pressure_resilience") || skills.has("focus_consistency") || String(state?.routine?.category || "").toLowerCase().includes("mental");
-  const highFocus = energy.cognitive >= 4 || diffScore >= 68 || pressure;
-  let load = energy.cognitive + energy.fatigue + energy.confidence;
-  if (phase === "warmup") load = Math.max(1, load - 2);
-  if (phase === "peak") load += diffScore >= 68 ? 2 : diffScore >= 54 ? 1 : 0;
-  if (phase === "cooldown") load = Math.max(1, load - (diffScore <= 45 ? 2 : 0));
-  return {
-    version:SESSION_ARCHITECTURE_ENGINE_VERSION,
-    phase,
-    highFocus,
-    load:Math.max(1, Math.min(18, Math.round(load))),
-    precision,
-    tactical,
-    pressure,
-    energy,
-    difficulty:diffScore,
-    skillGroup:skillGroupForRoutine(state?.routine || {}),
-    primarySkill:map.primarySkill || ""
-  };
-}
-function transferSequencingScore(prevState, nextState) {
-  if (!prevState || !nextState) return 0;
-  const a = getRoutineSkillMap(prevState.routine || {});
-  const b = getRoutineSkillMap(nextState.routine || {});
-  const prevSkills = new Set([a.primarySkill, ...(a.secondarySkills || []), ...(a.transferTags || [])].filter(Boolean));
-  const nextSkills = new Set([b.primarySkill, ...(b.secondarySkills || []), ...(b.transferTags || [])].filter(Boolean));
-  let score = 0;
-  if (prevSkills.has("long_potting") && (nextSkills.has("cue_ball_control") || nextSkills.has("positional_play") || nextSkills.has("pace_control"))) score += 8;
-  if ((prevSkills.has("cue_ball_control") || prevSkills.has("positional_play") || prevSkills.has("pace_control")) && nextSkills.has("break_building")) score += 10;
-  if (prevSkills.has("safety") && (nextSkills.has("tactical_decision_making") || nextSkills.has("escape_shots"))) score += 7;
-  if (prevSkills.has("cueing") && (nextSkills.has("long_potting") || nextSkills.has("rest_play"))) score += 6;
-  if ([...prevSkills].some(x => nextSkills.has(x))) score += 3;
-  if (skillGroupForRoutine(prevState.routine) === skillGroupForRoutine(nextState.routine)) score += 2;
-  return score;
-}
-function phaseFitScore(state, phase) {
-  const profile = sessionArchitectureProfileForState(state, phase);
-  let score = 0;
-  if (phase === "warmup") {
-    if (state?.routine?.isAnchor || Number(state?.logs?.length || 0) >= 4) score += 8;
-    if (profile.load <= 8) score += 7;
-    if (profile.difficulty <= 55) score += 5;
-    if (profile.highFocus) score -= 7;
-  } else if (phase === "peak") {
-    score += Number(state?.adaptiveScore || 0) * 0.08;
-    if (profile.difficulty >= 48 && profile.difficulty <= 76) score += 8;
-    if (profile.highFocus) score += 4;
-    if (Number(state?.transferValue || routineTransferValue(state?.routine)) >= 65) score += 5;
-  } else if (phase === "cooldown") {
-    if (profile.load <= 9) score += 8;
-    if (Number(state?.logs?.length || 0) >= 3) score += 4;
-    if (["maintain","recover","baseline"].includes(state?.phase)) score += 6;
-    if (profile.pressure || profile.difficulty >= 68) score -= 8;
-  }
-  return score;
-}
-function sequenceSessionPicks(picks, phase="peak") {
-  const pool = (picks || []).map(p => p?.state ? p.state : p).filter(Boolean);
-  const sequenced = [];
-  const remaining = pool.slice().sort((a,b)=>phaseFitScore(b, phase)-phaseFitScore(a, phase));
-  while (remaining.length) {
-    const prev = sequenced[sequenced.length-1] || null;
-    let bestIndex = 0;
-    let bestScore = -Infinity;
-    remaining.forEach((candidate, idx) => {
-      const profile = sessionArchitectureProfileForState(candidate, phase);
-      const prevProfile = prev ? sessionArchitectureProfileForState(prev, phase) : null;
-      let score = phaseFitScore(candidate, phase) + transferSequencingScore(prev, candidate);
-      if (prevProfile?.highFocus && profile.highFocus) score -= 14;
-      if (prevProfile && prevProfile.skillGroup === profile.skillGroup && profile.highFocus) score -= 3;
-      if (prevProfile?.precision && profile.precision && phase === "peak") score -= 5;
-      if (phase === "cooldown" && profile.highFocus) score -= 10;
-      if (score > bestScore) { bestScore = score; bestIndex = idx; }
-    });
-    sequenced.push(remaining.splice(bestIndex,1)[0]);
-  }
-  return sequenced.map(s => normalizeAdaptivePick(s, 1));
-}
-function architectureBalancePlan(blocks, targetMinutes) {
-  const flat = [];
-  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
-    const state = pick.state || pick;
-    const phase = sessionPhaseForBlockType(block.blockType);
-    flat.push({block:block.blockType || "completion", phase, state, profile:sessionArchitectureProfileForState(state, phase), reps:Math.max(1, Number(pick.reps || 1))});
-  }));
-  const load = flat.reduce((a,x)=>a + x.profile.load * x.reps,0);
-  const highFocusRuns = flat.reduce((acc,x,idx,arr)=> acc + (idx>0 && x.profile.highFocus && arr[idx-1].profile.highFocus ? 1 : 0), 0);
-  const phaseMinutes = {warmup:0, peak:0, cooldown:0};
-  (blocks || []).forEach(block => { phaseMinutes[sessionPhaseForBlockType(block.blockType)] += Number(block.minutes || adaptiveBlockExpectedMinutes(block) || 0); });
-  const target = {warmup:Math.round(targetMinutes*0.16), peak:Math.round(targetMinutes*0.64), cooldown:Math.round(targetMinutes*0.20)};
-  const warnings = [];
-  if (highFocusRuns) warnings.push(`${highFocusRuns} consecutive high-focus pairing${highFocusRuns === 1 ? "" : "s"} detected`);
-  if (phaseMinutes.warmup < target.warmup*0.55) warnings.push("warm-up phase is light");
-  if (phaseMinutes.cooldown < target.cooldown*0.50) warnings.push("cooldown/confidence recovery phase is light");
-  return {version:SESSION_ARCHITECTURE_ENGINE_VERSION, target, phaseMinutes, totalLoad:load, highFocusRuns, warnings};
-}
-function optimizeSessionArchitectureBlocks(blocks, ranked, targetMinutes) {
-  const optimized = (blocks || []).map(block => {
-    const phase = sessionPhaseForBlockType(block.blockType);
-    const picks = sequenceSessionPicks(block.picks || [], phase);
-    return {...block, architecturePhase:phase, picks};
-  });
-  const peakBlocks = optimized.filter(b => sessionPhaseForBlockType(b.blockType) === "peak");
-  for (let i=1;i<peakBlocks.length;i++) {
-    const prevPick = peakBlocks[i-1].picks?.slice(-1)[0]?.state;
-    const first = peakBlocks[i].picks?.[0]?.state;
-    if (prevPick && first && sessionArchitectureProfileForState(prevPick,"peak").highFocus && sessionArchitectureProfileForState(first,"peak").highFocus) {
-      const altIdx = (peakBlocks[i].picks || []).findIndex(p => !sessionArchitectureProfileForState(p.state || p,"peak").highFocus);
-      if (altIdx > 0) {
-        const alt = peakBlocks[i].picks.splice(altIdx,1)[0];
-        peakBlocks[i].picks.unshift(alt);
-      }
-    }
-  }
-  const balance = architectureBalancePlan(optimized, targetMinutes);
-  return {blocks:optimized, balance};
-}
-function sessionArchitectureInsight(plan) {
-  const balance = plan?.architectureBalance || architectureBalancePlan(plan?.blocks || [], plan?.targetMinutes || 60);
-  const phase = balance.phaseMinutes || {};
-  const warningText = balance.warnings?.length ? balance.warnings.join(" · ") : "sequencing avoids consecutive high-focus overload and preserves warm-up/peak/cooldown structure";
-  return `<div class="adaptive-rationale session-architecture-summary"><strong>Session architecture:</strong> warm-up ${formatDurationHuman(phase.warmup || 0)} · peak ${formatDurationHuman(phase.peak || 0)} · cooldown ${formatDurationHuman(phase.cooldown || 0)} · load ${Number(balance.totalLoad || 0)}. ${escapeHtml(warningText)}</div>`;
-}
-function sessionPlanPresets(plan) {
-  const durations = [60,90,180];
-  return durations.map(min => {
-    const label = min === 180 ? "3h" : `${min}m`;
-    const warm = Math.round(min*0.15), peak = Math.round(min*0.65), cool = Math.max(10, min-warm-peak);
-    return `<span class="badge session-preset-badge">${escapeHtml(label)}: ${formatDurationHuman(warm)} warm-up · ${formatDurationHuman(peak)} peak · ${formatDurationHuman(cool)} cooldown</span>`;
-  }).join("");
-}
-
 function fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes) {
   if (!ranked.length) return blocks;
   let expected = adaptivePlanExpectedMinutes(blocks);
   let guard = 0;
   let completion = blocks.find(b => b.name === "Completion block");
   if (!completion) {
-    completion = {name:"Completion block", blockType:"completion", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
+    completion = {name:"Completion block", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
     blocks.push(completion);
   }
   while (expected < targetMinutes * 0.92 && guard < 40) {
@@ -5938,10 +5658,7 @@ function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
   const transfer = routineTransferValue(state.routine);
   const energy = routineEnergyProfile(state);
   const ctx = contextualFitForRoutine(state.routine, {logs:state.logs || [], vals:(state.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:state.hit}, inferTrainingStateMode());
-  const architecture = sessionArchitectureProfileForState(state, "peak");
   let score = baseScore + transfer * 0.18 + ctx.score * 0.65;
-  if (architecture.highFocus && ctx.volatility.level === "high") score -= 3;
-  if (architecture.difficulty >= 45 && architecture.difficulty <= 72) score += 3;
   if (goal === "recovery") {
     if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
     score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.45;
@@ -6146,7 +5863,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
     const transferValue = routineTransferValue(s.routine);
     const energyProfile = routineEnergyProfile(s);
-    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `architecture load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3), `session phase fit warm-up ${phaseFitScore(s,"warmup").toFixed(0)} / peak ${phaseFitScore(s,"peak").toFixed(0)} / cooldown ${phaseFitScore(s,"cooldown").toFixed(0)}`]};
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -6241,15 +5958,12 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
 
   blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
   blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
-  const architecture = optimizeSessionArchitectureBlocks(blocks, ranked, targetMinutes);
-  blocks = architecture.blocks;
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
   const budgetUsage = budgetUsageForBlocks(blocks);
-  const architectureBalance = architectureBalancePlan(blocks, targetMinutes);
-  return {version:SESSION_ARCHITECTURE_ENGINE_VERSION, effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, architectureBalance};
+  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage};
 }
 
 function renderAdaptiveSession() {
@@ -6277,15 +5991,13 @@ function renderAdaptiveSession() {
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("targetDuration"))}: ${formatDurationHuman(plan.targetMinutes)} · ${escapeHtml(uiLabel("loadedEstimate"))}: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} ${escapeHtml(uiLabel("drillSlots"))} · ${escapeHtml(uiLabel("recommendationMode"))}: ${escapeHtml(smartRecommendationModeLabel(mode))}</div>
     ${budgetHtml}
-    ${sessionArchitectureInsight(plan)}
-    <div class="session-preset-row">${sessionPlanPresets(plan)}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("feedbackTracked"))}: ${feedback.accepted} ${escapeHtml(uiLabel("accepted"))} · ${feedback.skipped} ${escapeHtml(uiLabel("skipped"))} · ${feedback.completed} ${escapeHtml(uiLabel("completed"))}. ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Completed picks help the app learn what works next time.":"Completed recommendations capture score-after and improvement-after-recommendation once logged.")}</div>
   </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase smart-block-card" data-block-type="${attrText(block.blockType || "")}">
-    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)} · ${escapeHtml(block.architecturePhase || sessionPhaseForBlockType(block.blockType))}</h4>
+    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
     <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
-    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); const arch = sessionArchitectureProfileForState(p, block.architecturePhase || sessionPhaseForBlockType(block.blockType)); return `<div class="routine-row">
+    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); return `<div class="routine-row">
       <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
-        <div class="adaptive-rationale">${escapeHtml(getInsightLanguageSetting()==="friendly"?"Mode":"Phase")}: ${escapeHtml(p.phase)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Next":"Action")}: ${escapeHtml(adaptiveActionForState(p))} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Time":"Est.")} ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Carryover":"Transfer")} ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · ${escapeHtml(uiLabel("mentalLoad"))} ${energy.cognitive} · ${escapeHtml(uiLabel("energyCost"))} ${energy.fatigue} · ${escapeHtml(uiLabel("confidenceRisk"))} ${energy.confidence} · ${escapeHtml("phase load")} ${arch.load}${arch.highFocus ? " · high focus" : ""}</div>
+        <div class="adaptive-rationale">${escapeHtml(getInsightLanguageSetting()==="friendly"?"Mode":"Phase")}: ${escapeHtml(p.phase)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Next":"Action")}: ${escapeHtml(adaptiveActionForState(p))} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Time":"Est.")} ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Carryover":"Transfer")} ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · ${escapeHtml(uiLabel("mentalLoad"))} ${energy.cognitive} · ${escapeHtml(uiLabel("energyCost"))} ${energy.fatigue} · ${escapeHtml(uiLabel("confidenceRisk"))} ${energy.confidence}</div>
         <ul class="reason-list">${(p.reasons || []).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
         ${renderFeedbackButtons(p.routine.id, "smart_session_builder")}
         ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
@@ -6477,7 +6189,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + Number(transferCoach.score || 0) * 0.85 + (routineIntel?.latentDifficulty?.band === "productive" ? 2 : routineIntel?.latentDifficulty?.band === "hard" ? -1 : 0) + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(inferredSkillFit.score || 0) * 0.90 + (latentRoutineDifficultyEstimate(routine)?.band === "productive" ? 1.4 : latentRoutineDifficultyEstimate(routine)?.band === "hard" ? -0.8 : 0) + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + Number(transferCoach.score || 0) * 0.85 + (routineIntel?.latentDifficulty?.band === "productive" ? 2 : routineIntel?.latentDifficulty?.band === "hard" ? -1 : 0) + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(inferredSkillFit.score || 0) * 0.90 + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
   const thompsonSampling = thompsonRecommendationSample({
@@ -6494,7 +6206,6 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.push(transferAwareReasonText(routine, transferNeed));
   reasons.push(transferAwareCoachingReasonForRoutine(routine));
   reasons.push(routineIntelligenceReasonForRoutine(routine));
-  reasons.push(dynamicRoutineDifficultyReasonForRoutine(routine));
   reasons.push(inferredSkillReasonForRoutine(routine));
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
@@ -6513,7 +6224,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + (latentRoutineDifficultyEstimate(routine)?.band === "productive" ? 1.0 : 0) + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
     thompsonSampling,
@@ -6976,52 +6687,38 @@ function renderForecastInsight(logs){
   </div>`;
 }
 
-function renderInsightCardSafely(label, renderer) {
-  try {
-    const html = renderer();
-    if (typeof html === "string" && html.trim()) return html;
-    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">No signal available for the current scope.</div></div>`;
-  } catch (err) {
-    console.warn(`${label} insight skipped`, err);
-    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">This insight could not be rendered, but the rest of the Insights page remains available.</div></div>`;
-  }
-}
-
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
   const scope = getStatsScope();
-  const logs = (typeof getScopedStatsLogs === "function" ? getScopedStatsLogs() : (data.logs || []));
+  const logs = getScopedStatsLogs();
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
-  const scopedWindow = () => analyticsWindow(logs);
-  const cards = [
-    ["Expected vs actual", () => renderResidualInsights(logs)],
-    ["Peak window", () => renderPeakWindowInsight(logs)],
-    ["Context effects", () => renderContextEffects(logs)],
-    ["Context normalization", () => contextNormalizationInsight(scopedWindow())],
-    ["Forecast", () => renderForecastInsight(scopedWindow())],
-    ["Reflection patterns", () => reflectionPatternInsight(logs)],
-    ["Reflection intelligence", () => reflectionIntelligenceSummary(logs)],
-    ["Skill mix", () => skillMapInsight(logs)],
-    ["Maintenance scheduler", () => maintenanceSchedulerInsight(logs)],
-    ["Adaptive periodization", () => adaptiveSessionPeriodizationInsight(logs)],
-    ["Transfer model", () => transferModelInsight(logs)],
-    ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
-    ["Routine intelligence", () => routineIntelligenceInsight(logs)],
-    ["Dynamic routine difficulty", () => dynamicRoutineDifficultyInsight(logs)],
-    ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
-    ["Change-point detection", () => changePointInsight(scopedWindow())],
-    ["Current form", () => currentFormInsight(scopedWindow())],
-    ["Target credible intervals", () => targetCredibleIntervalInsight(scopedWindow())],
-    ["Dynamic difficulty adjustment", () => dynamicDifficultyInsight(scopedWindow())],
-    ["Recommendation learning", () => recommendationLearningInsight()],
-    ["Bayesian optimization", () => bayesianOptimizationInsight(scopedWindow())],
-    ["Personalized priors", () => personalizedPriorsInsight()]
-  ];
-  const html = `<div class="insight-grid">${cards.map(([label, fn]) => renderInsightCardSafely(label, fn)).join("")}</div>`;
+  const html = `<div class="insight-grid">
+    ${renderResidualInsights(logs)}
+    ${renderPeakWindowInsight(logs)}
+    ${renderContextEffects(logs)}
+    ${contextNormalizationInsight(analyticsWindow(logs))}
+    ${renderForecastInsight(analyticsWindow(logs))}
+    ${reflectionPatternInsight(logs)}
+    ${reflectionIntelligenceSummary(logs)}
+    ${skillMapInsight(logs)}
+    ${maintenanceSchedulerInsight(logs)}
+    ${adaptiveSessionPeriodizationInsight(logs)}
+    ${transferModelInsight(logs)}
+    ${transferAwareCoachingInsight(logs)}
+    ${routineIntelligenceInsight(logs)}
+    ${inferredSkillLevelInsight(logs)}
+    ${changePointInsight(analyticsWindow(logs))}
+    ${currentFormInsight(analyticsWindow(logs))}
+    ${targetCredibleIntervalInsight(analyticsWindow(logs))}
+    ${dynamicDifficultyInsight(analyticsWindow(logs))}
+    ${recommendationLearningInsight()}
+    ${bayesianOptimizationInsight(analyticsWindow(logs))}
+    ${personalizedPriorsInsight()}
+  </div>`;
   box.innerHTML = uiInsightLanguageHtml(html);
 }
 

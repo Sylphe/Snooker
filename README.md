@@ -1,23 +1,28 @@
-# Snooker Practice PWA — v5.6.13.4 Insights Restoration Fix
+# Snooker Practice PWA v5.6.11
 
-Built from the working v5.6.12 dynamic routine difficulty package.
+## v5.6.11 — Inferred Skill Level System
 
-## Fixed in v5.6.13.4
-- Restored the Stats > Insights page by making the Phase 1 / intelligence insight renderer fault-tolerant.
-- One failed advanced card can no longer blank the full insights panel.
-- Corrected mislabeled Dynamic Routine Difficulty and Inferred Skill cards.
+This release adds the first true skill-specific latent level layer. The app no longer treats the player as one global level only; it now estimates separate inferred levels for long potting, cue-ball control, safety, pressure, break-building, rest play, and tactical play.
 
-## Added in v5.6.13.4
+### Added
 
-- Session Architecture Engine with warm-up, peak, and cooldown energy curves.
-- Fatigue sequencing to reduce consecutive high-focus drills and avoid overloading precision systems.
-- Transfer sequencing logic, including patterns such as long potting → cue-ball transition → break-building.
-- Smart block generation for 60-minute, 90-minute, and 3-hour practice structures.
-- Session architecture summary in the Smart Session Builder: phase time, total load, and overload warnings.
-- Routine-row explanations now include phase load and high-focus flags.
+- Skill inference engine using calibrated targets, routine difficulty, volatility, target-health signals, transfer-weighted evidence, and consistency.
+- Per-domain skill levels from L1 to L7 with evidence counts, confidence labels, and score bands.
+- Skill radar visualization inside the advanced insights flow.
+- Weakest-link detection, including bottleneck messages such as cue-ball transition instability suppressing break-building progression.
+- Recommendation integration: routines now receive a skill-level fit score and reason, allowing advice such as “train recovery angles to unlock higher break-building consistency” instead of generic break-building prompts.
+- AI coaching export now includes `inferredSkillLevelProfile` and `weakestLinkProfile`.
 
-## Validation
+### Preserved from v5.6.10
 
-- JavaScript syntax check passed.
-- JSON files parsed successfully.
-- Package generated as v5.6.13.4 insights and radar restoration fix.
+- Routine similarity graph.
+- Latent routine difficulty estimates.
+- Cross-user calibration descriptors for future support.
+- Dynamic target generation.
+- Automated routine balancing.
+
+### Technical notes
+
+- Cache, service worker, app shell, schema, and version markers updated to `5.6.11-inferred-skill-level-system`.
+- The new layer is additive and does not change the IndexedDB/localStorage storage model.
+- Existing target calibration, transfer-aware coaching, routine intelligence, and recommendation learning logic remain intact.
