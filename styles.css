@@ -4419,3 +4419,46 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
     justify-content: flex-start;
   }
 }
+
+/* v5.6.11 Inferred Skill Level System */
+.inferred-skill-card .skill-radar-wrap{
+  display:grid;
+  grid-template-columns:minmax(180px, 240px) 1fr;
+  gap:.85rem;
+  align-items:center;
+  margin-top:.6rem;
+}
+.skill-radar{
+  width:100%;
+  max-width:240px;
+  min-height:200px;
+}
+.skill-radar-ring,
+.skill-radar-axis{
+  fill:none;
+  stroke:var(--border);
+  stroke-width:1;
+  opacity:.9;
+}
+.skill-radar-area{
+  fill:var(--accent-soft, rgba(36, 99, 235, .16));
+  stroke:var(--accent, #2563eb);
+  stroke-width:2;
+  opacity:.95;
+}
+.skill-radar-point{
+  fill:var(--accent, #2563eb);
+}
+.skill-radar-label{
+  fill:var(--muted);
+  font-size:9px;
+  letter-spacing:-.02em;
+}
+@media (max-width: 760px){
+  .inferred-skill-card .skill-radar-wrap{
+    grid-template-columns:1fr;
+  }
+  .skill-radar{
+    margin:0 auto;
+  }
+}

@@ -1,25 +1,22 @@
 {
   "exportType": "snooker_ai_coaching_snapshot",
-  "schemaVersion": "1.1",
-  "purpose": "AI-readable snooker practice coaching export for calibrated target recommendations, routine maturity checks, skill-gap analysis, and next-block planning.",
+  "schemaVersion": "1.2",
+  "purpose": "AI-readable snooker practice coaching export for calibrated target recommendations, routine maturity checks, skill-gap analysis, latent skill-level inference, and next-block planning.",
   "topLevelKeys": [
     "instructionsForAI",
     "coachingSummary",
     "playerProfile",
     "skillProfile",
+    "transferReadinessProfile",
+    "routineIntelligenceProfile",
+    "inferredSkillLevelProfile",
+    "weakestLinkProfile",
     "targetCalibrationCandidates",
     "routineSnapshots",
     "recentLogs"
   ],
   "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement.",
-  "v5_6_3_additions": [
-    "coachingSummary",
-    "routine maturity score",
-    "schema flags for mixed scoring logs",
-    "one-step target calibration suggestions",
-    "confidence per target recommendation"
-  ],
-  "version": "5.6.10",
+  "version": "5.6.11",
   "transferAwareCoachingEngine": {
     "hiddenWeaknessDetection": "supported",
     "transferRecommendations": "supported",
@@ -32,5 +29,12 @@
     "crossUserCalibrationSupport": "export-ready anonymized routine descriptors",
     "dynamicTargetGeneration": "supported",
     "automatedRoutineBalancing": "supported"
+  },
+  "inferredSkillLevelSystem": {
+    "skillDomains": ["long_potting", "cue_ball_control", "safety", "pressure_resilience", "break_building", "rest_play", "tactical_decision_making"],
+    "perSkillLatentLevels": "L1-L7 domain estimates using calibrated targets, routine difficulty, volatility, target health, transfer-weighted evidence, and consistency",
+    "skillRadar": "supported in app insights",
+    "weakestLinkDetection": "supported",
+    "recommendationIntegration": "recommendations receive skill-level fit reasons and scoring weight"
   }
 }

@@ -1,42 +1,28 @@
-# Snooker Practice PWA v5.6.10
+# Snooker Practice PWA v5.6.11
 
-## v5.6.10 — Transfer-Readiness Coaching Layer
+## v5.6.11 — Inferred Skill Level System
 
-Built from the working v5.6.7 Context-Aware Calibration branch.
+This release adds the first true skill-specific latent level layer. The app no longer treats the player as one global level only; it now estimates separate inferred levels for long potting, cue-ball control, safety, pressure, break-building, rest play, and tactical play.
 
-This release adds a first explicit transfer-readiness layer on top of the existing adaptive target and AI coaching export system. The goal is to separate pure acquisition drills from drills that are mature enough to act as bridge routines into pressure practice, frame-like play, or match transfer.
+### Added
 
-### Main changes
+- Skill inference engine using calibrated targets, routine difficulty, volatility, target-health signals, transfer-weighted evidence, and consistency.
+- Per-domain skill levels from L1 to L7 with evidence counts, confidence labels, and score bands.
+- Skill radar visualization inside the advanced insights flow.
+- Weakest-link detection, including bottleneck messages such as cue-ball transition instability suppressing break-building progression.
+- Recommendation integration: routines now receive a skill-level fit score and reason, allowing advice such as “train recovery angles to unlock higher break-building consistency” instead of generic break-building prompts.
+- AI coaching export now includes `inferredSkillLevelProfile` and `weakestLinkProfile`.
 
-- Adds routine-level transfer-readiness scoring in the AI coaching snapshot.
-- Classifies routines as:
-  - ready_to_transfer;
-  - build_transfer_base;
-  - not_ready_yet.
-- Uses log count, recent normalized performance, target-hit rate, target health, and linked destination routines to estimate whether a routine can currently drive carryover.
-- Adds linked destination detection from transfer tags and adjacent routine skill tags.
-- Adds metadata warnings for missing transfer tags, routines with no linked destination, low evidence, and targets that are too hard to support transfer.
-- Adds a top-level transferReadinessProfile to the AI coaching export with counts, top bridge routines, and metadata gaps.
-- Extends AI export instructions so external AI analysis can distinguish acquisition drills, bridge drills, and match-transfer candidates.
-- Updates cache/version markers to v5.6.10-transfer-readiness-coaching.
+### Preserved from v5.6.10
 
-### Design intent
+- Routine similarity graph.
+- Latent routine difficulty estimates.
+- Cross-user calibration descriptors for future support.
+- Dynamic target generation.
+- Automated routine balancing.
 
-The engine now distinguishes between:
+### Technical notes
 
-- a routine that is useful for isolated technical acquisition;
-- a routine that should be paired with adjacent drills before expecting match transfer;
-- a routine mature enough to feed pressure blocks or frame-like work;
-- a routine whose metadata is too weak for transfer claims.
-
-This is an intermediate coaching layer before a heavier Transfer-Aware Coaching Engine. It does not yet run a full transfer optimization model; it makes transfer readiness explicit and exportable.
-
-
-## v5.6.10 — Transfer-Aware Coaching Engine
-
-Adds hidden weakness detection, transfer-aware routine recommendations, routine-level “likely improves X” explanations, and bridge drill suggestions connecting strong domains to weak domains. Built on existing routine metadata, skill inference, target semantics, and the transfer graph.
-
-
-## v5.6.10 — Routine Intelligence Layer
-
-Adds a routine similarity graph, latent difficulty estimates, export-ready cross-user calibration descriptors, dynamic target generation, and automated routine balancing. This layer uses routine metadata, inferred skill maps, transfer relationships, and target semantics while preserving all historical targets.
+- Cache, service worker, app shell, schema, and version markers updated to `5.6.11-inferred-skill-level-system`.
+- The new layer is additive and does not change the IndexedDB/localStorage storage model.
+- Existing target calibration, transfer-aware coaching, routine intelligence, and recommendation learning logic remain intact.
