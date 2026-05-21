@@ -1,4 +1,4 @@
-## v5.6.19 — Player rating and scoring-change safety
+## v5.6.20 — Selective library import and import-source tagging
 
 - Success-rate routines now display targets as percentages in routine cards and live-session metadata.
 - Exercise creation/edit form now shows a soft success-rate percentage hint beside target and stretch target inputs.
@@ -28,3 +28,9 @@ Startup, storage, hydration, and tab initialization were not changed.
 - Deduplicated target profile history during migration/import.
 - Added orphan-session cleanup during migration to prevent empty sessions from skewing summaries.
 - Preserved active-session table deletion guard and existing storage/import integrity fixes.
+
+
+## v5.6.20
+- Added selective routine-pack import preview with checkboxes, search, select all/none, and import-selected flow.
+- Imported routines are tagged with source, version, batch, and timestamp metadata.
+- Exercise database can filter by import source and shows imported-from badges on imported routines.

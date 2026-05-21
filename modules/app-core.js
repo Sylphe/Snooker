@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.19";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.19";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.20";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.20";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.19";
+} from "./utils.js?v=5.6.20";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.19";
+} from "./settings.js?v=5.6.20";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.19";
+} from "./analytics.js?v=5.6.20";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.19";
+} from "./bayesian.js?v=5.6.20";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.19";
+} from "./session.js?v=5.6.20";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.19";
+} from "./pressure.js?v=5.6.20";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.19";
+} from "./recommendations.js?v=5.6.20";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.19";
+} from "./store.js?v=5.6.20";
 
 
 
@@ -4117,13 +4117,25 @@ function localDateKey(dateLike = new Date()) {
 function sameDate(log, dateKey) { return localDateKey(log.createdAt) === dateKey; }
 const SYSTEM_ALL_VALUE = "__SYSTEM_ALL__";
 function isSystemAll(value) { return value === "all" || value === SYSTEM_ALL_VALUE || value === "" || value === null || value === undefined; }
-function visibleRoutines(typeFilter="all", folderFilter="all", search="") {
-  const q = search.trim().toLowerCase();
+function routineImportSourceLabel(routine) {
+  const source = String(routine?.routinePackSource || routine?.packSource || "").trim();
+  const version = String(routine?.routinePackVersion || routine?.packVersion || "").trim();
+  if (!source) return "Manual / no import source";
+  return version ? `${source} v${version}` : source;
+}
+function routineImportSources() {
+  return [...new Set((data.routines || [])
+    .filter(r => !r.isDeleted && String(r.routinePackSource || "").trim())
+    .map(r => routineImportSourceLabel(r)))].sort((a,b)=>a.localeCompare(b));
+}
+function visibleRoutines(typeFilter="all", folderFilter="all", search="", importSourceFilter="all") {
+  const q = String(search || "").trim().toLowerCase();
   return activeRoutines()
     .filter(r => isSystemAll(typeFilter) || (r.category || "uncategorized") === typeFilter)
     .filter(r => isSystemAll(folderFilter) || (r.folder || "Unfiled") === folderFilter)
-    .filter(r => !q || r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q))
-    .sort((a,b) => (a.folder||"").localeCompare(b.folder||"") || (a.subfolder||"").localeCompare(b.subfolder||"") || a.name.localeCompare(b.name));
+    .filter(r => isSystemAll(importSourceFilter) || routineImportSourceLabel(r) === importSourceFilter)
+    .filter(r => !q || String(r.name || "").toLowerCase().includes(q) || String(r.description || "").toLowerCase().includes(q) || routineImportSourceLabel(r).toLowerCase().includes(q))
+    .sort((a,b) => (a.folder||"").localeCompare(b.folder||"") || (a.subfolder||"").localeCompare(b.subfolder||"") || String(a.name || "").localeCompare(String(b.name || "")));
 }
 function setSelectOptions(select, values, allLabel, selected="all") {
   if (!select) return;
@@ -4240,6 +4252,7 @@ function renderRoutineSelects() {
 
   setSelectOptions($("exerciseTypeFilter"), cats, "All types", $("exerciseTypeFilter")?.value || "all");
   setSelectOptions($("exerciseFolderFilter"), flds, "All folders", $("exerciseFolderFilter")?.value || "all");
+  setSelectOptions($("exerciseImportSourceFilter"), routineImportSources(), "All import sources", $("exerciseImportSourceFilter")?.value || "all");
   setSelectOptions($("planTypeFilter"), cats, "All types", $("planTypeFilter")?.value || "all");
   setSelectOptions($("planFolderFilter"), flds, "All folders", $("planFolderFilter")?.value || "all");
   setSelectOptions($("randomTypeFilter"), cats, "All types", $("randomTypeFilter")?.value || "all");
@@ -4267,7 +4280,7 @@ function renderRoutineSelects() {
 
   if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
 }
-["exerciseTypeFilter","exerciseFolderFilter","exerciseSearch"].forEach(id => {
+["exerciseTypeFilter","exerciseFolderFilter","exerciseImportSourceFilter","exerciseSearch"].forEach(id => {
   safeOn(id, "input", debouncedRenderRoutineList);
   safeOn(id, "change", debouncedRenderRoutineList);
 });
@@ -4277,7 +4290,7 @@ function renderRoutineSelects() {
 });
 
 function renderRoutineList() {
-  const routines = visibleRoutines($("exerciseTypeFilter").value || "all", $("exerciseFolderFilter").value || "all", $("exerciseSearch").value || "");
+  const routines = visibleRoutines($("exerciseTypeFilter")?.value || "all", $("exerciseFolderFilter")?.value || "all", $("exerciseSearch")?.value || "", $("exerciseImportSourceFilter")?.value || "all");
   if (!routines.length) { $("routineList").innerHTML = "<p>No exercises match the current filters.</p>"; return; }
 
   const grouped = Object.create(null);
@@ -4306,8 +4319,10 @@ function renderRoutineItem(r) {
     r.attempts ? `${numText(r.attempts)} reps` : "",
     r.scoring === "progressive_completion" && r.totalUnits ? `Progressive ${numText(r.totalUnits)} ${htmlText(progressiveUnitLabel(r))}` : ""
   ].filter(Boolean).join(" · ");
+  const importSource = String(r.routinePackSource || "").trim();
   const statusBadges = [
     r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : "",
+    importSource ? `<span class="badge routine-import-badge">Imported from: ${htmlText(routineImportSourceLabel(r))}</span>` : "",
     recommendationMode(r) !== "active" ? `<span class="badge routine-status-badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""
   ].filter(Boolean).join("");
   return `<div class="item routine-item-clean">
@@ -4352,6 +4367,8 @@ function editRoutine(id) {
   applyExerciseFormMode("advanced");
   $("routineFormTitle").textContent = "Edit exercise";
   $("routineEditId").value = r.id;
+  if ($("routinePackSource")) $("routinePackSource").value = r.routinePackSource || "";
+  if ($("routinePackVersion")) $("routinePackVersion").value = r.routinePackVersion || "";
   $("routineName").value = r.name;
   $("routineScoring").value = r.scoring;
   $("routineCategorySelect").value = categories().includes(r.category) ? r.category : "all";
@@ -4386,7 +4403,7 @@ function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   applyExerciseFormMode(getExerciseFormMode());
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription"].forEach(id => { if ($(id)) $(id).value = ""; });
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("routineScoring").value = "raw";
   if ($("routineSideMode")) $("routineSideMode").value = "none";
   if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
@@ -9391,6 +9408,10 @@ function mergeRoutinePack(pack, options = {}) {
   if (!validation.ok) return {ok:false, ...validation, added:0, updated:0, skipped:0};
   const preserveUserTargets = options.preserveUserTargets !== false;
   const preserveUserDescriptions = options.preserveUserDescriptions !== false;
+  const selectedCanonicalIds = options.selectedCanonicalIds instanceof Set ? options.selectedCanonicalIds : null;
+  const importSourceName = String(options.importSourceName || pack.packMeta?.name || "Imported routine pack").trim() || "Imported routine pack";
+  const importSourceVersion = String(options.importSourceVersion || pack.packMeta?.version || "").trim();
+  const importBatchId = options.importBatchId || `import-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   const now = new Date().toISOString();
   data.routines = data.routines || [];
   data.routineSkillMap = data.routineSkillMap || {};
@@ -9399,14 +9420,17 @@ function mergeRoutinePack(pack, options = {}) {
   let added = 0, updated = 0, skipped = 0;
   (pack.routines || []).forEach(source => {
     const canonicalId = normalizeRoutineCanonicalId(source.canonicalId || source.id || source.name);
+    if (selectedCanonicalIds && !selectedCanonicalIds.has(canonicalId)) { skipped += 1; return; }
     const existing = byCanonical.get(canonicalId) || byId.get(String(source.id || ""));
     const skillMap = normalizeRoutineSkillMap(source, source.skillMap || {});
     const incoming = {
       ...structuredCloneSafe(source),
       id: existing?.id || (source.id && !byId.has(String(source.id)) ? String(source.id) : uuid()),
       canonicalId,
-      routinePackSource: pack.packMeta?.name || "Imported routine pack",
-      routinePackVersion: pack.packMeta?.version || "",
+      routinePackSource: importSourceName,
+      routinePackVersion: importSourceVersion,
+      routinePackImportBatchId: importBatchId,
+      routinePackImportedAt: now,
       metadataVersion: Number(source.metadataVersion || 1),
       isCatalogueRoutine: true,
       name: String(source.name || "Imported routine").trim(),
@@ -9452,8 +9476,9 @@ function mergeRoutinePack(pack, options = {}) {
   });
   data.routinePackImports = data.routinePackImports || [];
   data.routinePackImports.unshift({
-    name: pack.packMeta?.name || "Imported routine pack",
-    version: pack.packMeta?.version || "",
+    name: importSourceName,
+    version: importSourceVersion,
+    importBatchId,
     importedAt: now,
     added,
     updated,
@@ -10590,37 +10615,113 @@ async function loadBundledCuratedRoutinePack() {
   }
 }
 
+
+function closeRoutinePackImportPreview() {
+  document.getElementById("routinePackImportPreviewOverlay")?.remove();
+}
+function routinePackPreviewSkillText(routine) {
+  try {
+    const sm = normalizeRoutineSkillMap(routine, routine.skillMap || {});
+    return sm.primarySkill ? skillLabel(sm.primarySkill) : "Skill inferred";
+  } catch(e) { return "Skill inferred"; }
+}
+function openRoutinePackImportPreview(pack, options = {}) {
+  const validation = validateRoutinePack(pack);
+  if (!validation.ok) {
+    alert(`Routine pack validation failed:\n${validation.errors.slice(0,10).join("\n")}`);
+    return;
+  }
+  const sourceName = String(options.sourceName || pack.packMeta?.name || "Imported routine pack").trim() || "Imported routine pack";
+  const sourceVersion = String(options.sourceVersion || pack.packMeta?.version || "").trim();
+  const importLabel = sourceVersion ? `${sourceName} v${sourceVersion}` : sourceName;
+  const routines = (pack.routines || []).map((r, idx) => {
+    const canonicalId = normalizeRoutineCanonicalId(r.canonicalId || r.id || r.name || `routine-${idx}`);
+    const exists = (data.routines || []).some(existing => getRoutineCanonicalId(existing) === canonicalId || String(existing.id || "") === String(r.id || ""));
+    return {routine:r, idx, canonicalId, exists};
+  });
+  const existing = document.getElementById("routinePackImportPreviewOverlay");
+  if (existing) existing.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "routinePackImportPreviewOverlay";
+  overlay.className = "modal-backdrop active routine-pack-import-preview";
+  overlay.innerHTML = `
+    <div class="modal-card routine-pack-preview-card" role="dialog" aria-modal="true" aria-labelledby="routinePackPreviewTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="routinePackPreviewTitle">Select exercises to import</h2>
+          <p class="muted small">${htmlText(importLabel)} · ${routines.length} exercise(s). Imported exercises will be tagged as <strong>Imported from: ${htmlText(importLabel)}</strong>.</p>
+        </div>
+        <button type="button" class="secondary" id="routinePackPreviewCloseBtn">Close</button>
+      </div>
+      <div class="routine-pack-preview-toolbar row">
+        <button type="button" class="secondary" id="routinePackPreviewSelectAllBtn">Select all</button>
+        <button type="button" class="secondary" id="routinePackPreviewSelectNoneBtn">Select none</button>
+        <input id="routinePackPreviewSearch" placeholder="Filter by name, folder, skill..." />
+      </div>
+      ${validation.warnings.length ? `<div class="analytics-note warning">${htmlText(validation.warnings.length)} metadata warning(s). First: ${htmlText(validation.warnings[0])}</div>` : ""}
+      <div class="routine-pack-preview-list" id="routinePackPreviewList">
+        ${routines.map(item => {
+          const r = item.routine;
+          const meta = [r.folder || r.category || "Imported", r.subfolder || "General", fmtScoring(r.scoring || "raw"), routinePackPreviewSkillText(r), item.exists ? "Will update existing" : "New"].filter(Boolean).join(" · ");
+          return `<label class="routine-pack-preview-row" data-search="${attrText([r.name,r.description,r.folder,r.subfolder,r.category,meta].join(" ").toLowerCase())}">
+            <input type="checkbox" class="routine-pack-preview-check" value="${attrText(item.canonicalId)}" checked />
+            <span class="routine-pack-preview-main"><strong>${htmlText(r.name || "Imported exercise")}</strong><span>${htmlText(meta)}</span>${r.description ? `<small>${htmlText(String(r.description).slice(0,180))}</small>` : ""}</span>
+          </label>`;
+        }).join("")}
+      </div>
+      <div class="modal-footer row">
+        <span class="muted small" id="routinePackPreviewCount">${routines.length} selected</span>
+        <button type="button" id="routinePackPreviewImportBtn">Import selected exercises</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const updateCount = () => {
+    const count = overlay.querySelectorAll(".routine-pack-preview-check:checked").length;
+    const countEl = overlay.querySelector("#routinePackPreviewCount");
+    if (countEl) countEl.textContent = `${count} selected`;
+    const importBtn = overlay.querySelector("#routinePackPreviewImportBtn");
+    if (importBtn) importBtn.disabled = count === 0;
+  };
+  overlay.querySelector("#routinePackPreviewCloseBtn")?.addEventListener("click", closeRoutinePackImportPreview);
+  overlay.addEventListener("click", event => { if (event.target === overlay) closeRoutinePackImportPreview(); });
+  overlay.querySelector("#routinePackPreviewSelectAllBtn")?.addEventListener("click", () => { overlay.querySelectorAll(".routine-pack-preview-check").forEach(cb => { if (!cb.closest(".routine-pack-preview-row")?.classList.contains("hidden")) cb.checked = true; }); updateCount(); });
+  overlay.querySelector("#routinePackPreviewSelectNoneBtn")?.addEventListener("click", () => { overlay.querySelectorAll(".routine-pack-preview-check").forEach(cb => cb.checked = false); updateCount(); });
+  overlay.querySelector("#routinePackPreviewSearch")?.addEventListener("input", event => {
+    const q = String(event.target.value || "").trim().toLowerCase();
+    overlay.querySelectorAll(".routine-pack-preview-row").forEach(row => row.classList.toggle("hidden", !!q && !String(row.dataset.search || "").includes(q)));
+  });
+  overlay.querySelectorAll(".routine-pack-preview-check").forEach(cb => cb.addEventListener("change", updateCount));
+  overlay.querySelector("#routinePackPreviewImportBtn")?.addEventListener("click", () => {
+    const selected = new Set([...overlay.querySelectorAll(".routine-pack-preview-check:checked")].map(cb => cb.value));
+    if (!selected.size) return alert("Select at least one exercise to import.");
+    const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true, selectedCanonicalIds:selected, importSourceName:sourceName, importSourceVersion:sourceVersion});
+    if (!result.ok) return alert(`Routine pack import failed:\n${result.errors.slice(0,10).join("\n")}`);
+    if (options.afterImport) options.afterImport(result, validation);
+    closeRoutinePackImportPreview();
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice(`Routine pack imported: ${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`, "ok");
+  });
+  updateCount();
+}
+
 async function installBundledCuratedRoutinePack() {
   const pack = await loadBundledCuratedRoutinePack();
   if (!pack) return;
-  const validation = validateRoutinePack(pack);
-  if (!validation.ok) {
-    alert(`Bundled curated library validation failed:\n${validation.errors.slice(0,10).join("\n")}`);
-    return;
-  }
-  const preview = [
-    `${pack.packMeta?.name || "Curated routine library"}`,
-    `${validation.routineCount} curated snooker routine(s) found.`,
-    validation.warnings.length ? `${validation.warnings.length} metadata warning(s). First: ${validation.warnings[0]}` : "No validation warnings.",
-    "Existing user target histories and descriptions will be preserved.",
-    "Catalogue routines will be added or merged by canonical ID."
-  ].join("\n");
-  if (!confirm(`${preview}\n\nImport curated library now?`)) return;
-  const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true});
-  if (!result.ok) {
-    alert(`Curated library import failed:\n${result.errors.slice(0,10).join("\n")}`);
-    return;
-  }
-  data.curatedRoutineLibrary = {
-    name: pack.packMeta?.name || "Curated Snooker Routine Library v1",
-    version: pack.packMeta?.version || "1.0.0",
-    installedAt: new Date().toISOString(),
-    added: result.added,
-    updated: result.updated,
-    routineCount: validation.routineCount
-  };
-  saveData({render:"all", immediateIDB:true});
-  showTransientNotice(`Curated library imported: ${result.added} added, ${result.updated} updated.`, "ok");
+  openRoutinePackImportPreview(pack, {
+    sourceName: pack.packMeta?.name || "Curated Snooker Routine Library v1",
+    sourceVersion: pack.packMeta?.version || "1.0.0",
+    afterImport: (result, validation) => {
+      data.curatedRoutineLibrary = {
+        name: pack.packMeta?.name || "Curated Snooker Routine Library v1",
+        version: pack.packMeta?.version || "1.0.0",
+        installedAt: new Date().toISOString(),
+        added: result.added,
+        updated: result.updated,
+        skipped: result.skipped,
+        routineCount: validation.routineCount
+      };
+    }
+  });
 }
 
 async function downloadBundledCuratedRoutinePack() {
@@ -10651,16 +10752,10 @@ async function importRoutinePackFile(event) {
     if (!validation.ok) {
       return alert(`Routine pack validation failed:\n${validation.errors.slice(0,8).join("\n")}`);
     }
-    const preview = [
-      `${validation.routineCount} routine(s) found.`,
-      validation.warnings.length ? `${validation.warnings.length} warning(s). First: ${validation.warnings[0]}` : "No validation warnings.",
-      "Import will add missing catalogue routines and merge metadata into existing routines by canonical ID. Existing user target histories are preserved."
-    ].join("\n");
-    if (!confirm(`${preview}\n\nContinue import?`)) return;
-    const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true});
-    if (!result.ok) return alert(`Routine pack import failed:\n${result.errors.join("\n")}`);
-    saveData({render:"all", immediateIDB:true});
-    showTransientNotice(`Routine pack imported: ${result.added} added, ${result.updated} updated.`, "ok");
+    openRoutinePackImportPreview(pack, {
+      sourceName: pack.packMeta?.name || file.name.replace(/\.json$/i, "") || "Imported routine pack",
+      sourceVersion: pack.packMeta?.version || ""
+    });
   } catch(error) {
     logAppError(error, "importRoutinePackFile");
     alert("Could not import this routine pack. Export Debug Info if the issue persists.");
