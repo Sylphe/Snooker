@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.2";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.3";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.13.2";
+} from "./utils.js?v=5.6.13.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.13.2";
+} from "./settings.js?v=5.6.13.3";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.13.2";
+} from "./analytics.js?v=5.6.13.3";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.13.2";
+} from "./bayesian.js?v=5.6.13.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.13.2";
+} from "./session.js?v=5.6.13.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.13.2";
+} from "./pressure.js?v=5.6.13.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.13.2";
+} from "./recommendations.js?v=5.6.13.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.13.2";
+} from "./store.js?v=5.6.13.3";
 
 
 
@@ -285,6 +285,10 @@ let undertrainedAllocationCacheKey = "";
 let undertrainedAllocationCache = null;
 let routineStatsWarmSignature = "";
 let performanceCacheWarmInProgress = false;
+const inferredSkillProfileMemoCache = new Map();
+let phaseOneInsightsRenderTimer = null;
+let phaseOneInsightsCacheKey = "";
+let phaseOneInsightsCacheHtml = "";
 function clearPerformanceMemoCaches() {
   analyticsMemoCache.clear();
   rankRoutineMemoCache.clear();
@@ -292,6 +296,9 @@ function clearPerformanceMemoCaches() {
   undertrainedAllocationCacheKey = "";
   undertrainedAllocationCache = null;
   routineStatsWarmSignature = "";
+  inferredSkillProfileMemoCache.clear();
+  phaseOneInsightsCacheKey = "";
+  phaseOneInsightsCacheHtml = "";
 }
 function memoKeyForLogs(label, logs, extra = "") {
   return `${label}|${extra}|${logsSignature(logs || [])}`;
@@ -1959,7 +1966,7 @@ function buildRoutineIntelligenceProfile(routines=activeRoutines()){
 
 const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
 const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
-const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.2";
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.3";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -1984,53 +1991,119 @@ function domainRoutineRelevance(routine, domain){
   });
   return Math.max(0, Math.min(2.2, direct + transfer * 0.65));
 }
-function inferredSkillEvidenceForDomain(domain, logs=(data.logs || []), routines=activeRoutines()){
-  const byRoutine = getLogsByRoutineMap(logs || []);
+function getRoutineScopedLogs(byRoutine, routine, logs=(data.logs || [])){
+  const ids = [routine?.id, routine?.canonicalId, routine?.name].filter(Boolean).map(x => String(x));
+  for (const id of ids) {
+    if (byRoutine[id]?.length) return byRoutine[id];
+  }
+  const name = String(routine?.name || "").trim().toLowerCase();
+  if (!name) return [];
+  return (Array.isArray(logs) ? logs : []).filter(l => {
+    const candidates = [l?.routineId, l?.routineName, l?.exercise, l?.exerciseName, l?.name].filter(Boolean).map(x => String(x).trim().toLowerCase());
+    return candidates.includes(name);
+  });
+}
+function safeLatentRoutineDifficultyForInference(routine, rlogs){
+  try {
+    if (typeof latentRoutineDifficultyEstimate === "function") return latentRoutineDifficultyEstimate(routine, rlogs);
+  } catch(err) { console.warn("Skill inference difficulty fallback", routine?.name, err); }
+  const vals = (rlogs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  const mean = vals.length ? avg(vals) : 50;
+  const volatility = vals.length >= 3 ? stdDev(vals) : 18;
+  const latentDifficulty = Math.max(20, Math.min(90, 65 - mean * 0.25 + volatility * 0.35));
+  return {latentDifficulty, band:latentDifficulty >= 68 ? "hard" : latentDifficulty <= 38 ? "easy" : "productive"};
+}
+function skillInferenceFallbackRowsForDomain(domain, logs=(data.logs || []), routines=activeRoutines()){
+  const arr = Array.isArray(logs) ? logs : [];
   const rows = [];
   (routines || []).forEach(routine => {
-    const relevance = domainRoutineRelevance(routine, domain);
-    if(relevance <= 0.08) return;
-    const rlogs = (byRoutine[String(routine.id)] || []).slice(-30);
-    if(!rlogs.length) return;
-    const diff = latentRoutineDifficultyEstimate(routine, rlogs);
-    const dtarget = dynamicTargetGenerationForRoutine(routine);
-    const health = (typeof targetHealthForRoutine !== "undefined" && typeof targetHealthForRoutine === "function") ? targetHealthForRoutine(routine, rlogs) : null;
-    const vals = rlogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
-    const mean = vals.length ? avg(vals) : null;
-    const recent = vals.length ? avg(vals.slice(-Math.min(6, vals.length))) : mean;
-    const volatility = vals.length >= 3 ? stdDev(vals) : null;
-    const hit = targetHitRate(rlogs);
-    const evidence = evidenceStrength(vals.length);
-    const consistency = volatility === null ? 50 : Math.max(0, Math.min(100, 100 - volatility * 2.4));
-    const targetScore = hit === null ? 55 : Math.max(0, Math.min(100, 45 + (Number(hit) - 50) * 0.70));
-    const difficultyCredit = Math.max(-10, Math.min(14, (Number(diff.latentDifficulty || 50) - 50) * 0.18));
-    const healthPenalty = health?.state === "too_hard" ? -8 : health?.state === "too_easy" ? 4 : health?.state === "unstable" ? -4 : 0;
-    const raw = (Number(mean ?? 55) * 0.36) + (Number(recent ?? mean ?? 55) * 0.22) + (targetScore * 0.20) + (consistency * 0.14) + 8 + difficultyCredit + healthPenalty;
-    rows.push({routineId:routine.id, routineName:routine.name || "Exercise", relevance, n:vals.length, mean, recent, volatility, targetHitRate:hit, consistency, latentDifficulty:diff.latentDifficulty, difficultyBand:diff.band, dynamicTarget:dtarget?.suggestedTarget || "", targetHealth:health?.state || "unknown", evidence, rawScore:raw});
+    const weights = routineSkillWeights(routine);
+    const relevance = Math.max(0, ...(domain.skills || []).map(skill => Number(weights[normalizeSkillId(skill)] || 0)));
+    if(relevance <= 0.05) return;
+    const relatedLogs = arr.filter(l => String(l?.routineId || "") === String(routine?.id || "") || String(l?.routineName || "") === String(routine?.name || ""));
+    const vals = relatedLogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+    rows.push({
+      routineId:routine.id,
+      routineName:routine.name || "Exercise",
+      relevance,
+      n:vals.length,
+      mean:vals.length ? avg(vals) : null,
+      recent:vals.length ? avg(vals.slice(-Math.min(6, vals.length))) : null,
+      volatility:vals.length >= 3 ? stdDev(vals) : null,
+      targetHitRate:vals.length ? targetHitRate(relatedLogs) : null,
+      consistency:vals.length >= 3 ? Math.max(0, Math.min(100, 100 - stdDev(vals) * 2.4)) : 50,
+      latentDifficulty:50,
+      difficultyBand:"calibrating",
+      dynamicTarget:"",
+      targetHealth:"unknown",
+      evidence:evidenceStrength(vals.length),
+      rawScore:vals.length ? Math.max(5, Math.min(95, avg(vals))) : 50
+    });
   });
-  return rows.sort((a,b)=>(b.relevance*b.n)-(a.relevance*a.n));
+  return rows;
+}
+function inferredSkillEvidenceForDomain(domain, logs=(data.logs || []), routines=activeRoutines()){
+  const scopedLogs = Array.isArray(logs) ? logs : [];
+  const byRoutine = getLogsByRoutineMap(scopedLogs);
+  const rows = [];
+  (routines || []).forEach(routine => {
+    try {
+      const relevance = domainRoutineRelevance(routine, domain);
+      if(relevance <= 0.08) return;
+      const rlogs = getRoutineScopedLogs(byRoutine, routine, scopedLogs).slice(-30);
+      if(!rlogs.length) return;
+      const diff = safeLatentRoutineDifficultyForInference(routine, rlogs) || {latentDifficulty:50, band:"calibrating"};
+      let dtarget = null;
+      try { dtarget = typeof dynamicTargetGenerationForRoutine === "function" ? dynamicTargetGenerationForRoutine(routine) : null; } catch(err) { dtarget = null; }
+      let health = null;
+      try { health = (typeof targetHealthForRoutine === "function") ? targetHealthForRoutine(routine, rlogs) : null; } catch(err) { health = null; }
+      const vals = rlogs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+      const mean = vals.length ? avg(vals) : null;
+      const recent = vals.length ? avg(vals.slice(-Math.min(6, vals.length))) : mean;
+      const volatility = vals.length >= 3 ? stdDev(vals) : null;
+      const hit = targetHitRate(rlogs);
+      const evidence = evidenceStrength(vals.length);
+      const consistency = volatility === null ? 50 : Math.max(0, Math.min(100, 100 - volatility * 2.4));
+      const targetScore = hit === null ? 55 : Math.max(0, Math.min(100, 45 + (Number(hit) - 50) * 0.70));
+      const difficultyCredit = Math.max(-10, Math.min(14, (Number(diff.latentDifficulty || 50) - 50) * 0.18));
+      const healthPenalty = health?.state === "too_hard" ? -8 : health?.state === "too_easy" ? 4 : health?.state === "unstable" ? -4 : 0;
+      const raw = (Number(mean ?? 55) * 0.36) + (Number(recent ?? mean ?? 55) * 0.22) + (targetScore * 0.20) + (consistency * 0.14) + 8 + difficultyCredit + healthPenalty;
+      rows.push({routineId:routine.id, routineName:routine.name || "Exercise", relevance, n:vals.length, mean, recent, volatility, targetHitRate:hit, consistency, latentDifficulty:diff.latentDifficulty, difficultyBand:diff.band, dynamicTarget:dtarget?.suggestedTarget || "", targetHealth:health?.state || "unknown", evidence, rawScore:raw});
+    } catch(err) {
+      console.warn("Skill inference routine skipped", routine?.name, err);
+    }
+  });
+  const finalRows = rows.length ? rows : skillInferenceFallbackRowsForDomain(domain, scopedLogs, routines);
+  return finalRows.sort((a,b)=>(b.relevance*Math.max(1,b.n||0))-(a.relevance*Math.max(1,a.n||0)));
 }
 function inferLatentSkillLevels(logs=(data.logs || []), routines=activeRoutines()){
+  const scopedLogs = Array.isArray(logs) ? logs : [];
+  const routineSig = (Array.isArray(routines) ? routines : []).map(r=>`${r?.id || ""}:${r?.updatedAt || ""}:${r?.name || ""}`).join("|");
+  const cacheKey = `${logsSignature(scopedLogs)}|${routineSig}|skill-level-v5.6.13.3`;
+  if (inferredSkillProfileMemoCache.has(cacheKey)) return inferredSkillProfileMemoCache.get(cacheKey);
   const profile = INFERRED_SKILL_DOMAINS.map(domain => {
-    const rows = inferredSkillEvidenceForDomain(domain, logs, routines);
+    const rows = inferredSkillEvidenceForDomain(domain, scopedLogs, routines);
     const totalWeight = rows.reduce((a,r)=>a + Number(r.relevance || 0) * Math.max(0.35, evidenceStrength(r.n).factor), 0);
     const score = totalWeight ? rows.reduce((a,r)=>a + Number(r.rawScore || 0) * Number(r.relevance || 0) * Math.max(0.35, evidenceStrength(r.n).factor), 0) / totalWeight : 50;
     const n = rows.reduce((a,r)=>a + Number(r.n || 0), 0);
     const e = evidenceStrength(n);
-    const shrunk = shrinkTowardPrior(score, 50, n, 10);
-    const levelNum = Math.max(1, Math.min(7, Math.round(Number(shrunk || 50) / 14)));
+    const shrunk = shrinkTowardPrior(score, 50, n, 8);
+    const levelNum = Math.max(1, Math.min(7, Math.round((Number(shrunk || 50) + 8) / 14)));
     const level = `L${levelNum}`;
     const band = levelNum >= 6 ? "advanced" : levelNum >= 4 ? "developing" : levelNum >= 3 ? "foundation" : "limiter";
     const volatility = rows.length ? rows.map(r=>r.volatility).filter(Number.isFinite) : [];
     const avgVolatility = volatility.length ? avg(volatility) : null;
     const consistency = rows.length ? avg(rows.map(r=>Number(r.consistency || 50))) : 50;
-    const confidence = n >= 35 && e.factor >= 0.78 ? "high" : n >= 14 ? "moderate" : n >= 5 ? "low" : "very low";
+    const confidence = n >= 35 && e.factor >= 0.78 ? "high" : n >= 14 ? "moderate" : n >= 5 ? "low" : rows.length ? "metadata-only" : "very low";
     const topRoutines = rows.slice(0,4).map(r => ({routineId:r.routineId, routineName:r.routineName, relevance:Math.round(r.relevance*100)/100, n:r.n, mean:r.mean===null?null:Math.round(r.mean*10)/10, targetHitRate:r.targetHitRate, latentDifficulty:r.latentDifficulty, targetHealth:r.targetHealth}));
     return {id:domain.id, label:domain.label, level, levelNum, score:Math.round(Number(shrunk || 50)*10)/10, band, confidence, n, evidence:e, consistency:Math.round(consistency*10)/10, volatility:avgVolatility===null?null:Math.round(avgVolatility*10)/10, topRoutines, rawEvidence:rows.slice(0,12)};
   });
   const weaknessRank = profile.slice().sort((a,b)=>(a.levelNum-b.levelNum) || (a.score-b.score));
   const strengthRank = profile.slice().sort((a,b)=>(b.levelNum-a.levelNum) || (b.score-a.score));
-  return {version:INFERRED_SKILL_LEVEL_SYSTEM_VERSION, generatedAt:new Date().toISOString(), profile, weakest:weaknessRank[0] || null, strongest:strengthRank[0] || null};
+  const result = {version:INFERRED_SKILL_LEVEL_SYSTEM_VERSION, generatedAt:new Date().toISOString(), profile, weakest:weaknessRank[0] || null, strongest:strengthRank[0] || null};
+  if (inferredSkillProfileMemoCache.size > 24) inferredSkillProfileMemoCache.clear();
+  inferredSkillProfileMemoCache.set(cacheKey, result);
+  return result;
 }
 function detectWeakestLink(skillProfile=inferLatentSkillLevels()){
   const p = skillProfile?.profile || [];
@@ -2079,7 +2152,12 @@ function inferredSkillLevelInsight(logs){
     const weakestLinks = detectWeakestLink(profile);
     const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${Number(x.n || 0)} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
     const main = weakestLinks[0];
-    const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
+    let bridge = [];
+    try {
+      const weakSkill = INFERRED_SKILL_DOMAINS.find(d=>d.id===main?.limiter?.id)?.skills?.[0] || main?.limiter?.id;
+      const strongSkill = INFERRED_SKILL_DOMAINS.find(d=>d.id===main?.affected?.id)?.skills?.[0] || main?.affected?.id;
+      bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(strongSkill, weakSkill).slice(0,2) : [];
+    } catch(err) { bridge = []; }
     const radar = skillRadarSvg(profile) || `<div class="skill-radar-fallback">${(profile.profile || []).map(x=>`<div class="context-row"><span>${htmlText(x.label)}</span><strong>${htmlText(x.level)}</strong><span>${Number(x.score || 50).toFixed(1)}</span></div>`).join("")}</div>`;
     return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
       <div class="skill-radar-wrap">${radar}<div>${rows}</div></div>
@@ -2088,8 +2166,10 @@ function inferredSkillLevelInsight(logs){
     </div>`;
   } catch(err) {
     console.warn("Inferred skill level insight failed", err);
-    const fallback = ["Long Potting","Cue-ball Control","Safety","Pressure","Break-building","Rest Play","Tactical"].map(label=>`<div class="context-row"><span>${htmlText(label)}</span><strong>L?</strong><span>calibrating</span></div>`).join("");
-    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong><div class="adaptive-rationale">Skill inference is initializing from the current log scope.</div>${fallback}</div>`;
+    const fallbackProfile = {profile: INFERRED_SKILL_DOMAINS.map(d => ({label:d.label, level:"L3", score:50, band:"calibrating", confidence:"metadata-only", n:0}))};
+    const radar = skillRadarSvg(fallbackProfile);
+    const fallback = fallbackProfile.profile.map(x=>`<div class="context-row"><span>${htmlText(x.label)}</span><strong>${htmlText(x.level)}</strong><span>calibrating</span></div>`).join("");
+    return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong><div class="adaptive-rationale">Skill inference is using routine metadata while calibrated evidence accumulates.</div><div class="skill-radar-wrap">${radar}<div>${fallback}</div></div></div>`;
   }
 }
 function inferredSkillReasonForRoutine(routine){
@@ -6652,7 +6732,10 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
 safeOn("statsDateSelect", "change", renderStats);
-safeOn("statsPeriodSelect", "change", () => { safeCall("statsPeriod renderStats", renderStats); safeCall("statsPeriod renderPhaseOneInsights", renderPhaseOneInsights); });
+safeOn("statsPeriodSelect", "change", () => {
+  safeCall("statsPeriod renderStats", renderStats);
+  schedulePhaseOneInsightsRender("statsPeriod change");
+});
 safeOn("rollingWindowInput", "input", debouncedRenderStats);
 safeOn("benchmarkWindowInput", "input", debouncedRenderStats);
 if ($("statsDetailMode")) {
@@ -6968,11 +7051,23 @@ function renderInsightCardSafely(label, renderer) {
   }
 }
 
+function schedulePhaseOneInsightsRender(reason="schedulePhaseOneInsightsRender") {
+  if (phaseOneInsightsRenderTimer) clearTimeout(phaseOneInsightsRenderTimer);
+  phaseOneInsightsRenderTimer = setTimeout(() => {
+    phaseOneInsightsRenderTimer = null;
+    safeCall(`${reason} renderPhaseOneInsights`, renderPhaseOneInsights);
+  }, 0);
+}
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
   const scope = getStatsScope();
   const logs = (typeof getScopedStatsLogs === "function" ? getScopedStatsLogs() : (data.logs || []));
+  const cacheKey = `${scope.period}|${scope.rid || "all"}|${scope.dateISO || ""}|${logsSignature(logs)}|${statsMode}|phase-v5.6.13.3`;
+  if (phaseOneInsightsCacheKey === cacheKey && phaseOneInsightsCacheHtml) {
+    box.innerHTML = phaseOneInsightsCacheHtml;
+    return;
+  }
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
@@ -6991,9 +7086,9 @@ function renderPhaseOneInsights() {
     ["Adaptive periodization", () => adaptiveSessionPeriodizationInsight(logs)],
     ["Transfer model", () => transferModelInsight(logs)],
     ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
-    ["Routine intelligence", () => routineIntelligenceInsight(logs)],
-    ["Dynamic routine difficulty", () => dynamicRoutineDifficultyInsight(logs)],
-    ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
+    ["Routine intelligence", () => routineIntelligenceInsight(scopedWindow())],
+    ["Dynamic routine difficulty", () => dynamicRoutineDifficultyInsight(scopedWindow())],
+    ["Inferred skill levels", () => inferredSkillLevelInsight(scopedWindow())],
     ["Change-point detection", () => changePointInsight(scopedWindow())],
     ["Current form", () => currentFormInsight(scopedWindow())],
     ["Target credible intervals", () => targetCredibleIntervalInsight(scopedWindow())],
@@ -7003,7 +7098,9 @@ function renderPhaseOneInsights() {
     ["Personalized priors", () => personalizedPriorsInsight()]
   ];
   const html = `<div class="insight-grid">${cards.map(([label, fn]) => renderInsightCardSafely(label, fn)).join("")}</div>`;
-  box.innerHTML = uiInsightLanguageHtml(html);
+  phaseOneInsightsCacheHtml = uiInsightLanguageHtml(html);
+  phaseOneInsightsCacheKey = cacheKey;
+  box.innerHTML = phaseOneInsightsCacheHtml;
 }
 
 

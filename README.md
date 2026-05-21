@@ -1,13 +1,13 @@
-# Snooker Practice PWA — v5.6.13.2 Insights Restoration Fix
+# Snooker Practice PWA — v5.6.13.3 Insights Radar and Performance Fix
 
 Built from the working v5.6.12 dynamic routine difficulty package.
 
-## Fixed in v5.6.13.2
+## Fixed in v5.6.13.3
 - Restored the Stats > Insights page by making the Phase 1 / intelligence insight renderer fault-tolerant.
 - One failed advanced card can no longer blank the full insights panel.
 - Corrected mislabeled Dynamic Routine Difficulty and Inferred Skill cards.
 
-## Added in v5.6.13.2
+## Added in v5.6.13.3
 
 - Session Architecture Engine with warm-up, peak, and cooldown energy curves.
 - Fatigue sequencing to reduce consecutive high-focus drills and avoid overloading precision systems.
@@ -20,4 +20,4 @@ Built from the working v5.6.12 dynamic routine difficulty package.
 
 - JavaScript syntax check passed.
 - JSON files parsed successfully.
-- Package generated as v5.6.13.2 insights and radar restoration fix.
+- Package generated as v5.6.13.3 insights and radar restoration fix.
