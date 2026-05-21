@@ -29,7 +29,7 @@ export function corrText(r) {
 }
 
 
-function safePercentChange(recent, prior) {
+export function safePercentChange(recent, prior) {
   const r = Number(recent);
   const p = Number(prior);
   if (!Number.isFinite(r) || !Number.isFinite(p)) return 0;
@@ -186,6 +186,15 @@ export function computeRoutineAllocationBalance(logs, routines, options = {}) {
     break_building: 0.20,
     mental: 0.10
   };
+  const normalizeAllocationCategory = value => {
+    const s = String(value || "").toLowerCase().replace(/[\s-]+/g, "_");
+    if (s.includes("cue_ball") || s.includes("cueball") || s.includes("cue_control") || s.includes("position")) return "cue_ball";
+    if (s.includes("break_build") || s.includes("breakbuilding") || s.includes("line_up") || s.includes("lineup")) return "break_building";
+    if (s.includes("safety") || s.includes("tactical") || s.includes("escape") || s.includes("snooker")) return "safety";
+    if (s.includes("mental") || s.includes("pressure") || s.includes("match") || s.includes("focus")) return "mental";
+    if (s.includes("pot") || s.includes("long") || s.includes("black") || s.includes("pink") || s.includes("blue")) return "potting";
+    return s || "uncategorized";
+  };
 
   const totals = Object.create(null);
   let totalLogs = 0;
@@ -194,7 +203,7 @@ export function computeRoutineAllocationBalance(logs, routines, options = {}) {
     const r = (routines || []).find(x => x.id === l.routineId);
     if (!r) return;
 
-    const cat = String(r.category || "uncategorized").toLowerCase();
+    const cat = normalizeAllocationCategory(r.category || r.folder || r.name);
     totals[cat] = (totals[cat] || 0) + 1;
     totalLogs += 1;
   });

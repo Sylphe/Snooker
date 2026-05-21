@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.6";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.6";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.17.4";
+} from "./utils.js?v=5.6.17.6";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.17.4";
+} from "./settings.js?v=5.6.17.6";
 import {
   avg,
   stdDev,
@@ -50,7 +50,8 @@ import {
   performanceDrift,
   plateauDetector,
   overtrainingSignal,
-  fatigueSlope
+  fatigueSlope,
+  safePercentChange
   ,
   detectPlateauState,
   plateauActionRecommendation
@@ -59,7 +60,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.17.4";
+} from "./analytics.js?v=5.6.17.6";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +69,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.17.4";
+} from "./bayesian.js?v=5.6.17.6";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +78,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.17.4";
+} from "./session.js?v=5.6.17.6";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +86,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.17.4";
+} from "./pressure.js?v=5.6.17.6";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +98,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.17.4";
+} from "./recommendations.js?v=5.6.17.6";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +112,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.17.4";
+} from "./store.js?v=5.6.17.6";
 
 
 
@@ -294,7 +295,7 @@ function clearPerformanceMemoCaches() {
   routineStatsWarmSignature = "";
 }
 function memoKeyForLogs(label, logs, extra = "") {
-  return `${label}|${extra}|${logsSignature(logs || [])}`;
+  return `${label}|${extra}|${currentStatsFilterContextKey()}|${logsSignature(logs || [])}`;
 }
 function memoizedAnalytics(label, logs, extra, compute) {
   const windowed = analyticsWindow(logs || []);
@@ -311,6 +312,28 @@ function cachedFatigueSlope(logs) {
 function analyticsWindow(logs, limit = HEAVY_ANALYTICS_LOG_LIMIT) {
   const arr = Array.isArray(logs) ? logs.filter(Boolean) : [];
   return arr.length > limit ? arr.slice(-limit) : arr;
+}
+function safeLogTimestamp(value, fallback = Date.now()) {
+  const t = Date.parse(value || "");
+  return Number.isFinite(t) ? t : fallback;
+}
+function currentStatsFilterContextKey() {
+  try {
+    const fields = [
+      statsMode,
+      $("statsView")?.value,
+      $("statsReferenceDate")?.value,
+      $("statsRoutineSelect")?.value,
+      $("statsDetailMode")?.value,
+      $("rollingWindow")?.value,
+      $("benchmarkWindow")?.value,
+      $("statsGroupBy")?.value,
+      $("statsMetric")?.value
+    ];
+    return fields.map(v => String(v ?? "")).join("~");
+  } catch(_) {
+    return "stats-context-unavailable";
+  }
 }
 function logsSignature(logs) {
   const arr = Array.isArray(logs) ? logs : [];
@@ -514,8 +537,8 @@ async function hydrateIndexedDBData(retryAfterReset=false, options={}) {
     const idbStores = await idbGetStores([INDEXEDDB_LOG_STORE, INDEXEDDB_SESSION_STORE]);
     const idbLogs = idbStores[INDEXEDDB_LOG_STORE] || [];
     const idbSessions = idbStores[INDEXEDDB_SESSION_STORE] || [];
-    const logs = mergeById(pendingPreHydrationLogs, mergeById(idbLogs, localLogs)).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
-    const sessions = mergeById(pendingPreHydrationSessions, mergeById(idbSessions, localSessions)).sort((a,b)=>new Date(a.startedAt||a.endedAt||0)-new Date(b.startedAt||b.endedAt||0));
+    const logs = mergeById(pendingPreHydrationLogs, mergeById(idbLogs, localLogs)).sort((a,b)=>safeLogTimestamp(a?.createdAt, Number.MAX_SAFE_INTEGER)-safeLogTimestamp(b?.createdAt, Number.MAX_SAFE_INTEGER));
+    const sessions = mergeById(pendingPreHydrationSessions, mergeById(idbSessions, localSessions)).sort((a,b)=>safeLogTimestamp(a?.startedAt || a?.endedAt, Number.MAX_SAFE_INTEGER)-safeLogTimestamp(b?.startedAt || b?.endedAt, Number.MAX_SAFE_INTEGER));
     data.logs = logs;
     data.sessions = sessions;
     if (logs.length > 15000) {
@@ -944,13 +967,6 @@ function evidenceBadge(n=0, extra=""){
 function dampenByEvidence(value, n=0){
   const v = Number(value || 0);
   return Math.round(v * evidenceStrength(n).factor * 10) / 10;
-}
-function safePercentChange(recent, prior){
-  const r = Number(recent);
-  const p = Number(prior);
-  if(!Number.isFinite(r) || !Number.isFinite(p)) return 0;
-  if(p === 0) return r > 0 ? 100 : r < 0 ? -100 : 0;
-  return ((r - p) / Math.abs(p)) * 100;
 }
 function wholeNumberOrNull(value){
   if(value === "" || value === null || value === undefined) return null;
@@ -1955,7 +1971,7 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
 /* ===== v5.6.17 AI Coaching Layer v2 ===== */
 const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
 
-// v5.6.17.4 hotfix: bounded AI export defaults.
+// v5.6.17.6 hotfix: bounded AI export defaults.
 // These caps keep the export useful for external AI review without creating
 // unbounded payloads on libraries with many routines/logs.
 const AI_EXPORT_MAX_ROUTINE_SNAPSHOTS = 50;
@@ -7009,7 +7025,14 @@ function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSm
   }).filter(x => recommendationMode(x.routine) !== "excluded");
   let ranked;
   if (mode === "thompson") ranked = base.sort((a,b)=>b.sampledValue-a.sampledValue);
-  else if (mode === "hybrid") ranked = base.map(x => ({...x, hybridScore:(x.score * 0.35) + (x.sampledValue * 0.45) + (Number(x.bayesianOptimization?.score || 0) * 0.20)})).sort((a,b)=>b.hybridScore-a.hybridScore);
+  else if (mode === "hybrid") ranked = base.map(x => {
+    const baseScore = Number.isFinite(Number(x.score)) ? Number(x.score) : 0;
+    const sampled = Number.isFinite(Number(x.sampledValue)) ? Number(x.sampledValue) : baseScore;
+    const boundedSampled = Math.max(baseScore - 12, Math.min(baseScore + 12, sampled));
+    const bayesScore = Number.isFinite(Number(x.bayesianOptimization?.score)) ? Number(x.bayesianOptimization.score) : 0;
+    const hybridScore = (baseScore * 0.45) + (boundedSampled * 0.35) + (bayesScore * 0.20);
+    return {...x, sampledValue:boundedSampled, hybridScore:Number.isFinite(hybridScore) ? hybridScore : baseScore};
+  }).sort((a,b)=>b.hybridScore-a.hybridScore);
   else ranked = base.sort((a,b)=>b.score-a.score);
   if (rankRoutineMemoCache.size > 30) rankRoutineMemoCache.clear();
   rankRoutineMemoCache.set(cacheKey, ranked.slice());
@@ -8976,7 +8999,7 @@ function renderDateView(logs) {
     ? `<div class="analytics-note muted">Showing latest ${displayLogs.length} of ${sourceLogs.length} logs in this table. Use filters or exports for full history. <button type="button" class="secondary small" data-action="show-more-history">Show more</button></div>`
     : "";
   return `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${sourceLogs.length}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(types).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
@@ -9026,7 +9049,7 @@ function renderToday() {
   const hit = targetHitRate(logs);
 
   $("todaySummary").innerHTML = `<div class="stats-grid">
-    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${sourceLogs.length}</div></div>
+    <div class="stat-card"><span>Exercises ${statHelpButton("exercisesCompleted")}</span><div class="value">${logs.length}</div></div>
     <div class="stat-card"><span>Total time ${statHelpButton("totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div></div>
     <div class="stat-card"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div></div>
   </div><p>${Object.entries(byType).map(([k,v]) => `<span class="badge">${escapeHtml(k)}: ${v}</span>`).join("")}</p>
@@ -12132,9 +12155,11 @@ function routineStats(routineOrId, groupedLogs = null) {
   const excludedPenalty = recommendationMode(routine) === "excluded" ? 999 : 0;
   const bayesian = bayesianStatsForRoutine(routine);
   const contextSignal = recommendationContextSignal(routineId);
+  const bayesianDelta = Math.max(-8, Math.min(8, Number(bayesian?.signal?.scoreDelta || 0) * 0.5));
+  const rawScore = lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus - consistencyPenalty - modePenalty - excludedPenalty + bayesianDelta + Number(contextSignal.bonus || 0);
   const result = {
-    logs, vals, hit, recent, prior, bayesian, contextSignal,
-    score: lowHitPenalty + momentumPenalty + undertrainedBonus + recencyBonus + consistencyPenalty - modePenalty - excludedPenalty + (bayesian?.signal?.scoreDelta || 0) + Number(contextSignal.bonus || 0)
+    logs, vals, hit, recent, prior, bayesian, contextSignal, consistencyPenalty, bayesianDelta,
+    score: Number.isFinite(rawScore) ? rawScore : 0
   };
   if (routineStatsMemoCache.size > 200) routineStatsMemoCache.clear();
   routineStatsMemoCache.set(cacheKey, result);
@@ -13041,6 +13066,12 @@ function predictorModelForRoutine(routine) {
   });
 }
 
+function removeBayesianSubsection(selector) {
+  const box = $("bayesianValidationOutput");
+  if (!box || !selector) return;
+  box.querySelectorAll(selector).forEach(el => el.remove());
+}
+
 function renderPredictorContributionModel(logsArg=null) {
   const box = $("bayesianValidationOutput");
   if (!box) return;
@@ -13055,6 +13086,7 @@ function renderPredictorContributionModel(logsArg=null) {
     .sort((a,b)=>b.model.total-a.model.total)
     .slice(0,5);
 
+  removeBayesianSubsection(".predictor-section");
   if (!routines.length) return;
 
   const cards = routines.map(({routine, model}) => {
@@ -13174,7 +13206,8 @@ function tournamentPrepPlannerHtml(logs = []) {
 function renderTournamentPrepPlanner() {
   const host = $("bayesianValidationOutput");
   if (!host) return;
-  host.innerHTML += tournamentPrepPlannerHtml(getTournamentPlannerLogs ? getTournamentPlannerLogs() : (data.logs || []));
+  removeBayesianSubsection(".tournament-prep-planner-section");
+  host.insertAdjacentHTML("beforeend", `<div class="tournament-prep-planner-section">${tournamentPrepPlannerHtml(getTournamentPlannerLogs ? getTournamentPlannerLogs() : (data.logs || []))}</div>`);
 }
 
 function renderAllocationOptimization(logsArg=null) {
@@ -13184,6 +13217,7 @@ function renderAllocationOptimization(logsArg=null) {
   const recentLogs = analyticsWindow(Array.isArray(logsArg) ? logsArg : (data.logs || []), 120);
   const balance = computeRoutineAllocationBalance(recentLogs, activeRoutines());
 
+  removeBayesianSubsection(".allocation-card");
   if (!balance.length) return;
 
   const focus = recommendedAllocationFocus(balance);
@@ -13257,6 +13291,7 @@ function renderPlateauDiagnostics(logsArg=null) {
     </div>`;
   }).filter(Boolean).join("");
 
+  removeBayesianSubsection(".plateau-section");
   if (!html) return;
 
   box.innerHTML += `<div class="plateau-section">

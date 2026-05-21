@@ -1,3 +1,13 @@
+## v5.6.17.6 — Corrective stats and recommendation fix
+
+- Fixed Today tab `sourceLogs` ReferenceError.
+- Normalized curated routine categories for allocation balancing.
+- Corrected recommendation volatility penalty direction and dampened Bayesian score deltas.
+- Clamped hybrid Thompson sampled values to avoid noisy over-selection.
+- Added stats filter/window context to analytics memo keys.
+- Hardened IndexedDB hydration sorting for missing or invalid timestamps.
+- Prevented duplicate Bayesian subpanel appends on repeated renders.
+
 # Snooker Practice PWA v5.6.17.2
 
 ## v5.6.17.2 — Stats Scope and Insights Resilience Fix
