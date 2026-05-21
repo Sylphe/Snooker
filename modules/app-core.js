@@ -1784,8 +1784,8 @@ function probabilisticCoachingLayerInsight(logs){
 }
 /* ===== end v5.6.15 Probabilistic Coaching Layer ===== */
 
-/* ===== v5.6.17 Cross-Routine Skill Graph ===== */
-const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.17";
+/* ===== v5.6.17.1 Cross-Routine Skill Graph ===== */
+const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.17.1";
 const CROSS_ROUTINE_LAG_WINDOWS = [7, 14, 21, 28];
 function crossRoutineLogDate(log){
   const d = new Date(log?.createdAt || log?.date || log?.timestamp || 0);
@@ -1950,10 +1950,10 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
   if(edge && (routineSupportsSkill(routine, edge.sourceSkill) || routineSupportsSkill(routine, edge.targetSkill))) return `skill graph: bridge candidate for ${edge.sourceLabel} → ${edge.targetLabel}`;
   return "skill graph: secondary priority for current dependency bottleneck";
 }
-/* ===== end v5.6.17 Cross-Routine Skill Graph ===== */
+/* ===== end v5.6.17.1 Cross-Routine Skill Graph ===== */
 
-/* ===== v5.6.17 AI Coaching Layer v2 ===== */
-const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
+/* ===== v5.6.17.1 AI Coaching Layer v2 ===== */
+const AI_COACHING_LAYER_V2_VERSION = "v5.6.17.1";
 function aiCoachLogScore(log){
   const v = Number(log?.normalizedScore ?? normalizeScore(log));
   return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : null;
@@ -2076,7 +2076,7 @@ function aiCoachingLayerV2Insight(logs){
     return `<div class="insight-card watch"><strong>AI coaching layer v2</strong><div class="muted small">AI coaching summary unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.6.17 AI Coaching Layer v2 ===== */
+/* ===== end v5.6.17.1 AI Coaching Layer v2 ===== */
 
 
 
@@ -2424,12 +2424,12 @@ function inferredSkillReasonForRoutine(routine){
 function routineIntelligenceInsight(logs){
   const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
   const graph = routineSimilarityGraph(activeRoutines());
-  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).sort((a,b)=>Number(b.target.latentDifficulty?.latentDifficulty||0)-Number(a.target.latentDifficulty?.latentDifficulty||0)).slice(0,3);
+  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).filter(x=>x && x.target).sort((a,b)=>Number(b.target?.latentDifficulty?.latentDifficulty||0)-Number(a.target?.latentDifficulty?.latentDifficulty||0)).slice(0,3);
   const topEdges = graph.edges.slice(0,3);
   return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
     <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
     ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName)} ↔ ${htmlText(e.targetName)} (${Number(e.similarity).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
-    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target.latentDifficulty.latentDifficulty).toFixed(1)} · ${htmlText(x.target.latentDifficulty.band)}</span></span><strong>${htmlText(String(x.target.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target.rationale)}</span></div>`).join("")}
+    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target?.latentDifficulty?.latentDifficulty ?? 50).toFixed(1)} · ${htmlText(x.target?.latentDifficulty?.band || "calibrating")}</span></span><strong>${htmlText(String(x.target?.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target?.rationale || "Collect more routine evidence.")}</span></div>`).join("")}
     ${plan.actions.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
   </div>`;
 }
@@ -7399,41 +7399,65 @@ function renderForecastInsight(logs){
   </div>`;
 }
 
+function safeStatsInsightCard(label, fn) {
+  try {
+    const html = fn();
+    if (typeof html === "string" && html.trim()) return html;
+    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">No usable signal for this scope yet.</div></div>`;
+  } catch (err) {
+    try { logAppError?.(err, `stats insight: ${label}`); } catch (_) {}
+    console.warn("Stats insight skipped", label, err);
+    return `<div class="insight-card watch stats-insight-fallback"><strong>${htmlText(label)}</strong><div class="muted small">This insight could not be rendered for the current scope. The rest of the Stats page remains available.</div></div>`;
+  }
+}
+
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
-  const scope = getStatsScope();
-  const logs = getScopedStatsLogs();
+  let scope;
+  let logs;
+  try {
+    scope = getStatsScope();
+    logs = getScopedStatsLogs();
+  } catch (err) {
+    try { logAppError?.(err, "renderPhaseOneInsights scope"); } catch (_) {}
+    box.innerHTML = `<div class="insight-card watch"><strong>Insights</strong><div class="muted small">Stats scope could not be resolved. Other pages remain available.</div></div>`;
+    return;
+  }
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
-  const html = `<div class="insight-grid">
-    ${renderResidualInsights(logs)}
-    ${renderPeakWindowInsight(logs)}
-    ${renderContextEffects(logs)}
-    ${contextNormalizationInsight(analyticsWindow(logs))}
-    ${renderForecastInsight(analyticsWindow(logs))}
-    ${reflectionPatternInsight(logs)}
-    ${reflectionIntelligenceSummary(logs)}
-    ${skillMapInsight(logs)}
-    ${maintenanceSchedulerInsight(logs)}
-    ${adaptiveSessionPeriodizationInsight(logs)}
-    ${transferModelInsight(logs)}
-    ${transferAwareCoachingInsight(logs)}
-    ${routineIntelligenceInsight(logs)}
-    ${inferredSkillLevelInsight(logs)}
-    ${changePointInsight(analyticsWindow(logs))}
-    ${currentFormInsight(analyticsWindow(logs))}
-    ${probabilisticCoachingLayerInsight(analyticsWindow(logs))}
-    ${crossRoutineSkillGraphInsight(analyticsWindow(logs))}
-    ${aiCoachingLayerV2Insight(analyticsWindow(logs))}
-    ${targetCredibleIntervalInsight(analyticsWindow(logs))}
-    ${dynamicDifficultyInsight(analyticsWindow(logs))}
-    ${recommendationLearningInsight()}
-    ${bayesianOptimizationInsight(analyticsWindow(logs))}
-    ${personalizedPriorsInsight()}
-  </div>`;
+  let windowLogs = logs;
+  try { windowLogs = analyticsWindow(logs); } catch (err) { try { logAppError?.(err, "renderPhaseOneInsights analyticsWindow"); } catch (_) {} }
+  const cards = [
+    safeStatsInsightCard("Above / Below Expectation", () => renderResidualInsights(logs)),
+    safeStatsInsightCard("Best Performance Window", () => renderPeakWindowInsight(logs)),
+    safeStatsInsightCard("Table & Time Effects", () => renderContextEffects(logs)),
+    safeStatsInsightCard("Context-Adjusted Performance", () => contextNormalizationInsight(windowLogs)),
+    safeStatsInsightCard("Performance forecast", () => renderForecastInsight(windowLogs)),
+    safeStatsInsightCard("Session Themes", () => reflectionPatternInsight(logs)),
+    safeStatsInsightCard("Session Feel", () => reflectionIntelligenceSummary(logs)),
+    safeStatsInsightCard("Skill Mix", () => skillMapInsight(logs)),
+    safeStatsInsightCard("Maintenance Plan", () => maintenanceSchedulerInsight(logs)),
+    safeStatsInsightCard("Weekly Balance", () => adaptiveSessionPeriodizationInsight(logs)),
+    safeStatsInsightCard("Skill Transfer", () => transferModelInsight(logs)),
+    safeStatsInsightCard("Transfer-aware coaching", () => transferAwareCoachingInsight(logs)),
+    safeStatsInsightCard("Routine intelligence", () => routineIntelligenceInsight(logs)),
+    safeStatsInsightCard("Inferred skill levels", () => inferredSkillLevelInsight(logs)),
+    safeStatsInsightCard("Performance Shifts", () => changePointInsight(windowLogs)),
+    safeStatsInsightCard("Current Form", () => currentFormInsight(windowLogs)),
+    safeStatsInsightCard("Probabilistic Coaching", () => probabilisticCoachingLayerInsight(windowLogs)),
+    safeStatsInsightCard("Cross-Routine Skill Graph", () => crossRoutineSkillGraphInsight(windowLogs)),
+    safeStatsInsightCard("AI coaching layer v2", () => aiCoachingLayerV2Insight(windowLogs)),
+    safeStatsInsightCard("Expected Target Range", () => targetCredibleIntervalInsight(windowLogs)),
+    safeStatsInsightCard("Difficulty Guidance", () => dynamicDifficultyInsight(windowLogs)),
+    safeStatsInsightCard("Recommendation learning v2", () => recommendationLearningInsight()),
+    safeStatsInsightCard("Smart Practice Balance", () => bayesianOptimizationInsight(windowLogs)),
+    safeStatsInsightCard("Personalized Baselines", () => personalizedPriorsInsight())
+  ];
+  const html = `<div class="insight-grid">${cards.join("
+")}</div>`;
   box.innerHTML = uiInsightLanguageHtml(html);
 }
 
