@@ -44,5 +44,14 @@
     "skillRadar": "supported in app insights",
     "weakestLinkDetection": "supported",
     "recommendationIntegration": "recommendations receive skill-level fit reasons and scoring weight"
+  },
+  "properties": {
+    "matchSimulationProfile": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "v5.6.14 match-simulation scenario readiness and bridge routine profile."
+    }
   }
 }

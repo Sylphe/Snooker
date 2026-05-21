@@ -1,43 +1,33 @@
-# Snooker Practice PWA v5.6.13
+# Snooker Practice PWA v5.6.14
 
-## v5.6.13 — Dynamic Routine Difficulty Model
+## v5.6.14 — Match Simulation Layer
 
-Built from the stable v5.6.13 inferred skill level system. This release is additive and intentionally preserves the existing Stats and Skill Radar rendering paths.
+Built from the stable v5.6.13 Session Architecture Engine release. This release is additive and preserves the existing Stats, Skill Radar, Dynamic Routine Difficulty, and Session Architecture rendering paths.
 
 ### Added
 
-- Dynamic Routine Difficulty Model panel in Stats.
-- Per-routine difficulty estimate using recent score, target hit-rate, volatility, latent difficulty and category context.
-- Difficulty bands: easy, light, productive, hard, overload.
-- Category-relative normalization so a hard long-potting drill is not judged like a safety or maintenance drill.
-- Action guidance for each routine: maintain, progress, simplify, use as stretch/acquisition.
-- AI coaching export now includes `dynamicRoutineDifficultyProfile`.
+- Match Simulation Layer panel in Stats.
+- Frame-like scenario mapping for:
+  - frame-ball pot;
+  - last red + colour;
+  - safety exchange;
+  - snooker escape;
+  - colours clearance;
+  - decider reset.
+- Scenario readiness scoring.
+- Pressure and tactical readiness indicators.
+- Suggested short match-simulation block.
+- Routine-to-scenario bridge drill recommendations.
+- AI coaching export integration through `matchSimulationProfile`.
 
-### Guardrails
+### Preserved
 
-- No replacement of the inferred skill radar.
-- No changes to the radar SVG rendering path.
-- No changes to IndexedDB schema.
-- No changes to routine/log persistence.
+- Existing Stats hierarchy.
+- Existing Skill Radar.
+- Dynamic Routine Difficulty Model.
+- Session Architecture Engine.
+- IndexedDB schema and persistence behavior.
 
-### Validation
+### Notes
 
-- JavaScript syntax check.
-- Manifest JSON validation.
-- Routine-pack JSON validation.
-- Zip integrity check.
-
-
-
-## v5.6.13 — Session Architecture Engine
-
-Adds an additive session-sequencing layer on top of the stable v5.6.13 stats/radar system.
-
-Implemented:
-- warm-up / acquisition / transfer / pressure / recovery block architecture;
-- routine sequencing using fatigue cost, latent difficulty, pressure value, tactical value, transfer score and readiness;
-- 90-minute model session profile in Stats;
-- session architecture profile in AI coaching export;
-- sequencing warnings for high energy load or immature pressure blocks.
-
-This release does not replace the existing Stats flow, Dynamic Routine Difficulty Model, or Inferred Skill Radar.
+The Match Simulation Layer does not simulate full frame outcomes yet. It maps existing routines into practical match scenarios so the app can decide whether a player is ready for frame-ball, safety-exchange, clearance, escape, or decider-style practice.

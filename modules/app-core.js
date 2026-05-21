@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.14";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.14";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.13";
+} from "./utils.js?v=5.6.14";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.13";
+} from "./settings.js?v=5.6.14";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.13";
+} from "./analytics.js?v=5.6.14";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.13";
+} from "./bayesian.js?v=5.6.14";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.13";
+} from "./session.js?v=5.6.14";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.13";
+} from "./pressure.js?v=5.6.14";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.13";
+} from "./recommendations.js?v=5.6.14";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.13";
+} from "./store.js?v=5.6.14";
 
 
 
@@ -1814,7 +1814,7 @@ function routineSimilarityGraph(routines=activeRoutines()){
     }
   }
   edges.sort((a,b)=>b.similarity-a.similarity);
-  return {version:"v5.6.13", nodes, edges:edges.slice(0,40)};
+  return {version:"v5.6.14", nodes, edges:edges.slice(0,40)};
 }
 function nearestRoutineNeighbors(routine, routines=activeRoutines(), limit=3){
   return (routines || []).filter(r=>String(r.id)!==String(routine?.id)).map(r=>({routine:r, similarity:routineSimilarityScore(routine,r), difficulty:latentRoutineDifficultyEstimate(r)})).sort((a,b)=>b.similarity-a.similarity).slice(0,limit);
@@ -1857,10 +1857,10 @@ function crossUserCalibrationDescriptor(routine){
 }
 function buildRoutineIntelligenceProfile(routines=activeRoutines()){
   const graph = routineSimilarityGraph(routines);
-  return {version:"v5.6.13", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
+  return {version:"v5.6.14", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
 }
 
-const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.13";
+const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.14";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -2007,8 +2007,8 @@ function routineIntelligenceReasonForRoutine(routine){
   return `routine intelligence: ${d.band} difficulty (${Number(d.latentDifficulty).toFixed(1)}); target ${target.suggestedTarget || "hold"}`;
 }
 
-/* ===== v5.6.13 Dynamic Routine Difficulty Model ===== */
-const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.13";
+/* ===== v5.6.14 Dynamic Routine Difficulty Model ===== */
+const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.14";
 function routineDifficultyCategoryKey(routine){
   const skill = normalizeSkillId(routine?.primarySkill || getRoutineSkillMap(routine).primarySkill || routine?.category || routine?.folder || "general");
   const folder = normalizeSkillId(routine?.folder || routine?.category || "general");
@@ -2123,12 +2123,12 @@ function renderDynamicRoutineDifficultyModel(){
     <div class="adaptive-rationale">${htmlText(row.action || "Collect more logs before changing difficulty.")}</div>
   </div>`).join("");
   const cats = model.categories.slice(0,5).map(c=>`<span class="pill">${htmlText(skillLabel(c.category))}: ${numText(c.averageDifficulty)} · ${htmlText(c.band)}</span>`).join("");
-  box.innerHTML = `<div class="card nested routine-difficulty-model-card"><div class="section-head"><div><h3>Dynamic Routine Difficulty Model</h3><p class="muted">Estimates the real difficulty of each routine from target hit-rate, volatility, recent average, latent difficulty and category context. This is additive and does not replace the skill radar.</p></div><span class="pill">v5.6.13</span></div><div class="analytics-note"><strong>Category context:</strong> ${cats || "Collect more routine history for category normalization."}</div>${model.actions.length?`<div class="adaptive-rationale"><strong>Model actions:</strong> ${model.actions.map(htmlText).join(" · ")}</div>`:""}<div class="target-engine-list">${cards || `<div class="muted small">No routines available for difficulty modelling.</div>`}</div></div>`;
+  box.innerHTML = `<div class="card nested routine-difficulty-model-card"><div class="section-head"><div><h3>Dynamic Routine Difficulty Model</h3><p class="muted">Estimates the real difficulty of each routine from target hit-rate, volatility, recent average, latent difficulty and category context. This is additive and does not replace the skill radar.</p></div><span class="pill">v5.6.14</span></div><div class="analytics-note"><strong>Category context:</strong> ${cats || "Collect more routine history for category normalization."}</div>${model.actions.length?`<div class="adaptive-rationale"><strong>Model actions:</strong> ${model.actions.map(htmlText).join(" · ")}</div>`:""}<div class="target-engine-list">${cards || `<div class="muted small">No routines available for difficulty modelling.</div>`}</div></div>`;
 }
-/* ===== end v5.6.13 Dynamic Routine Difficulty Model ===== */
+/* ===== end v5.6.14 Dynamic Routine Difficulty Model ===== */
 
-/* ===== v5.6.13 Session Architecture Engine ===== */
-const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13";
+/* ===== v5.6.14 Session Architecture Engine ===== */
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.14";
 function sessionArchitectureSkillSet(routine){
   const skills = [];
   try {
@@ -2208,9 +2208,77 @@ function renderSessionArchitectureEngine(){
   if(!box) return;
   const plan = buildSessionArchitecturePlan(90, activeRoutines(), data.logs || []);
   const blocks = plan.blocks.map(block => `<div class="session-architecture-block session-block-${safeClassToken(block.key)}"><div class="section-head"><div><h4>${htmlText(block.label)}</h4><p class="muted tiny">${htmlText(block.purpose)}</p></div><span class="pill">${numText(block.minutes)} min</span></div><div class="session-routine-stack">${block.routines.length ? block.routines.map(r => `<div class="context-row"><span><strong>${htmlText(r.routineName)}</strong><br><span class="muted">${htmlText(skillLabel(r.primarySkill))} · ${htmlText(r.difficultyBand)} · ${htmlText(r.readiness)} · transfer ${numText(r.transferScore)}</span></span><strong>${htmlText(r.block)}</strong><span>Energy ${numText(r.energy)}/5</span></div>`).join("") : `<div class="muted small">No suitable routine identified for this block yet.</div>`}</div></div>`).join("");
-  box.innerHTML = `<div class="card nested session-architecture-card"><div class="section-head"><div><h3>Session Architecture Engine</h3><p class="muted">Structures practice into warm-up, acquisition, transfer, pressure, and recovery blocks using fatigue, difficulty, transfer value, and readiness. Additive layer; existing stats and radar remain unchanged.</p></div><span class="pill">v5.6.13</span></div>${plan.warnings.length?`<div class="analytics-note"><strong>Sequencing warnings:</strong> ${plan.warnings.map(htmlText).join(" · ")}</div>`:""}<div class="analytics-note"><strong>Transfer focus:</strong> ${plan.transferFocus.map(htmlText).join(" · ") || "Collect more routine evidence."}</div><div class="session-architecture-grid">${blocks}</div></div>`;
+  box.innerHTML = `<div class="card nested session-architecture-card"><div class="section-head"><div><h3>Session Architecture Engine</h3><p class="muted">Structures practice into warm-up, acquisition, transfer, pressure, and recovery blocks using fatigue, difficulty, transfer value, and readiness. Additive layer; existing stats and radar remain unchanged.</p></div><span class="pill">v5.6.14</span></div>${plan.warnings.length?`<div class="analytics-note"><strong>Sequencing warnings:</strong> ${plan.warnings.map(htmlText).join(" · ")}</div>`:""}<div class="analytics-note"><strong>Transfer focus:</strong> ${plan.transferFocus.map(htmlText).join(" · ") || "Collect more routine evidence."}</div><div class="session-architecture-grid">${blocks}</div></div>`;
 }
-/* ===== end v5.6.13 Session Architecture Engine ===== */
+/* ===== end v5.6.14 Session Architecture Engine ===== */
+
+
+/* ===== v5.6.14 Match Simulation Layer ===== */
+const MATCH_SIMULATION_LAYER_VERSION = "v5.6.14";
+function matchSimulationScenarioDefinitions(){
+  return [
+    {key:"frame_ball", label:"Frame-ball pot", purpose:"one decisive pot under consequence", skills:["long_potting","cueing","confidence_stability","pressure_resilience"]},
+    {key:"last_red_colour", label:"Last red + colour", purpose:"convert a half-chance into a frame-winning visit", skills:["break_building","transition_play","cue_ball_control","pressure_resilience"]},
+    {key:"safety_exchange", label:"Safety exchange", purpose:"protect position and win the tactical phase", skills:["safety","tactical_decision_making","cue_ball_control","pace_control"]},
+    {key:"snooker_escape", label:"Snooker escape", purpose:"escape accurately without leaving an easy opener", skills:["escape_shots","safety","pace_control","pressure_resilience"]},
+    {key:"colours_clearance", label:"Colours clearance", purpose:"finish a frame cleanly after the reds", skills:["break_building","positional_play","transition_play","cue_ball_control"]},
+    {key:"decider_reset", label:"Decider reset", purpose:"recover focus after error or pressure spike", skills:["focus_consistency","confidence_stability","pressure_resilience"]}
+  ];
+}
+function matchSimulationRoutineFit(profile, scenario){
+  try{
+    const skills = new Set((profile?.skills || []).map(s=>normalizeSkillId(s)).filter(Boolean));
+    let overlap = 0;
+    (scenario.skills || []).forEach(s => { if(skills.has(normalizeSkillId(s))) overlap += 1; });
+    const base = overlap * 22;
+    const pressure = Math.min(18, Number(profile?.pressureValue || 0) / 5);
+    const tactical = scenario.key.includes("safety") || scenario.key.includes("escape") ? Math.min(16, Number(profile?.tacticalValue || 0) / 6) : 0;
+    const readiness = profile?.readiness === "ready" ? 14 : profile?.readiness === "developing" ? 7 : 0;
+    const difficultyPenalty = profile?.difficultyBand === "overload" ? -18 : profile?.difficultyBand === "hard" ? -8 : profile?.difficultyBand === "easy" ? -4 : 0;
+    const recent = Number(profile?.recentAvg);
+    const form = Number.isFinite(recent) ? Math.max(-8, Math.min(10, (recent - 35) / 4)) : 0;
+    return Math.max(0, Math.min(100, Math.round(base + pressure + tactical + readiness + difficultyPenalty + form)));
+  }catch(_){ return 0; }
+}
+function buildMatchSimulationLayer(totalFrames=6, routines=activeRoutines(), logs=data.logs || []){
+  const grouped = getLogsByRoutineMap(logs || []);
+  const profiles = (routines || []).map(r => sessionArchitectureRoutineProfile(r, grouped[String(r.id)] || []));
+  const scenarios = matchSimulationScenarioDefinitions().map(s => {
+    const candidates = profiles.map(p => ({...p, scenarioFit:matchSimulationRoutineFit(p, s)}))
+      .filter(p => Number(p.scenarioFit || 0) > 0)
+      .sort((a,b) => Number(b.scenarioFit || 0)-Number(a.scenarioFit || 0) || Number(b.transferScore || 0)-Number(a.transferScore || 0))
+      .slice(0,3);
+    const readinessScore = candidates.length ? avg(candidates.map(c=>Number(c.scenarioFit || 0))) : 0;
+    const status = readinessScore >= 70 ? "ready" : readinessScore >= 45 ? "developing" : readinessScore > 0 ? "fragile" : "unmapped";
+    return {...s, candidates, readinessScore:Math.round(readinessScore), status};
+  });
+  const pressureRoutines = profiles.filter(p => p.skills?.includes("pressure_resilience") || Number(p.pressureValue || 0) >= 60 || String(p.scoring || "").includes("pressure"));
+  const tacticalRoutines = profiles.filter(p => p.skills?.includes("safety") || p.skills?.includes("tactical_decision_making") || Number(p.tacticalValue || 0) >= 55);
+  const avgPressureReadiness = pressureRoutines.length ? avg(pressureRoutines.map(p => p.readiness === "ready" ? 75 : p.readiness === "developing" ? 50 : 25)) : null;
+  const avgTacticalReadiness = tacticalRoutines.length ? avg(tacticalRoutines.map(p => p.readiness === "ready" ? 75 : p.readiness === "developing" ? 50 : 25)) : null;
+  const warnings = [];
+  if(!pressureRoutines.length) warnings.push("No explicit pressure routines are mapped yet; use low-consequence match simulations first.");
+  if(scenarios.filter(s=>s.status === "fragile" || s.status === "unmapped").length >= 3) warnings.push("Several frame scenarios have weak routine coverage; add bridge drills before heavy match simulation.");
+  if(Number.isFinite(avgPressureReadiness) && avgPressureReadiness < 45) warnings.push("Pressure readiness is early; keep decider or frame-ball simulations short.");
+  const suggestedFrameBlock = scenarios.map((s, idx)=>({
+    order:idx+1,
+    scenario:s.key,
+    label:s.label,
+    status:s.status,
+    routine:s.candidates[0]?.routineName || null,
+    instruction:s.candidates[0] ? `Use ${s.candidates[0].routineName} as the bridge drill, then play one frame-like repetition.` : "Add a mapped routine before simulating this scenario."
+  }));
+  return {version:MATCH_SIMULATION_LAYER_VERSION, generatedAt:new Date().toISOString(), totalFrames:Number(totalFrames||6), scenarios, pressureReadiness:Number.isFinite(avgPressureReadiness)?Math.round(avgPressureReadiness):null, tacticalReadiness:Number.isFinite(avgTacticalReadiness)?Math.round(avgTacticalReadiness):null, suggestedFrameBlock, warnings};
+}
+function renderMatchSimulationLayer(){
+  const box = $("matchSimulationPanel");
+  if(!box) return;
+  const model = buildMatchSimulationLayer(6, activeRoutines(), data.logs || []);
+  const scenarioCards = model.scenarios.map(s => `<div class="match-sim-scenario match-sim-${safeClassToken(s.status)}"><div class="section-head"><div><h4>${htmlText(s.label)}</h4><p class="muted tiny">${htmlText(s.purpose)}</p></div><span class="pill">${htmlText(s.status)} · ${numText(s.readinessScore)}/100</span></div>${s.candidates.length ? s.candidates.map(c=>`<div class="context-row"><span><strong>${htmlText(c.routineName)}</strong><br><span class="muted">${htmlText(skillLabel(c.primarySkill))} · ${htmlText(c.difficultyBand)} · ${htmlText(c.readiness)} · fit ${numText(c.scenarioFit)}</span></span><strong>${numText(c.transferScore)}</strong><span>Energy ${numText(c.energy)}/5</span></div>`).join("") : `<div class="muted small">No mapped routine yet. Add pressure/tactical transfer tags to improve this scenario.</div>`}</div>`).join("");
+  const framePlan = model.suggestedFrameBlock.slice(0,6).map(x=>`<div class="context-row"><span><strong>${numText(x.order)}. ${htmlText(x.label)}</strong><br><span class="muted">${htmlText(x.instruction)}</span></span><strong>${htmlText(x.status)}</strong></div>`).join("");
+  box.innerHTML = `<div class="card nested match-simulation-card"><div class="section-head"><div><h3>Match Simulation Layer</h3><p class="muted">Maps routines into frame-ball, safety, escape, colours-clearance, and decider scenarios. This is additive and does not alter the existing stats, radar, or session architecture panels.</p></div><span class="pill">v5.6.14</span></div>${model.warnings.length?`<div class="analytics-note"><strong>Match-readiness warnings:</strong> ${model.warnings.map(htmlText).join(" · ")}</div>`:""}<div class="analytics-note"><strong>Readiness:</strong> pressure ${model.pressureReadiness===null?"N/A":numText(model.pressureReadiness)+"/100"} · tactical ${model.tacticalReadiness===null?"N/A":numText(model.tacticalReadiness)+"/100"}</div><div class="match-sim-grid">${scenarioCards}</div><div class="adaptive-rationale"><strong>Suggested frame block:</strong>${framePlan || `<div class="muted small">Collect more routine evidence before generating a match block.</div>`}</div></div>`;
+}
+/* ===== end v5.6.14 Match Simulation Layer ===== */
 
 
 function transferModelInsight(logs){
@@ -3187,6 +3255,7 @@ function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
     safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
     safeCall(`${reason} renderDynamicRoutineDifficultyModel`, renderDynamicRoutineDifficultyModel);
     safeCall(`${reason} renderSessionArchitectureEngine`, renderSessionArchitectureEngine);
+    safeCall(`${reason} renderMatchSimulationLayer`, renderMatchSimulationLayer);
   }
   renderStatsHeavyPanelsIfVisible(reason);
 }
@@ -3574,6 +3643,7 @@ function renderAll() {
     ["renderAdaptiveTargetEngine", () => { if (shouldRenderStatsPanel()) renderAdaptiveTargetEngine(); }],
     ["renderDynamicRoutineDifficultyModel", () => { if (shouldRenderStatsPanel()) renderDynamicRoutineDifficultyModel(); }],
     ["renderSessionArchitectureEngine", () => { if (shouldRenderStatsPanel()) renderSessionArchitectureEngine(); }],
+    ["renderMatchSimulationLayer", () => { if (shouldRenderStatsPanel()) renderMatchSimulationLayer(); }],
     ["renderToday", renderToday],
     ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
@@ -9748,6 +9818,7 @@ function buildAiCoachingSnapshot(options = {}) {
   const routineIntelligenceProfile = buildRoutineIntelligenceProfile(routines);
   const dynamicRoutineDifficultyProfile = buildDynamicRoutineDifficultyModel(routines, logs);
   const sessionArchitectureProfile = buildSessionArchitecturePlan(90, routines, logs);
+  const matchSimulationProfile = buildMatchSimulationLayer(6, routines, logs);
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
@@ -9792,8 +9863,10 @@ function buildAiCoachingSnapshot(options = {}) {
         "Diagnose latent skill levels by long potting, cue-ball control, safety, pressure, break-building, rest play, and tactical domains.",
         "Use the dynamic routine difficulty profile to separate hard-but-useful stretch drills from routines that need target simplification.",
         "Use the session architecture profile to sequence routines: warm-up first, technical acquisition before fatigue, transfer drills before pressure, and confidence recovery last.",
+        "Use the match simulation profile to evaluate frame-ball, safety-exchange, escape, colours-clearance, and decider readiness before prescribing competitive practice.",
         "Identify tags/metadata that appear inconsistent or missing.",
-        "Recommend a coherent next-session block structure rather than a flat list of unrelated drills."
+        "Recommend a coherent next-session block structure rather than a flat list of unrelated drills.",
+        "Recommend one short match-simulation block only if the relevant scenario readiness is developing or ready."
       ]
     },
     coachingSummary,
@@ -9803,6 +9876,7 @@ function buildAiCoachingSnapshot(options = {}) {
     routineIntelligenceProfile,
     dynamicRoutineDifficultyProfile,
     sessionArchitectureProfile,
+    matchSimulationProfile,
     inferredSkillLevelProfile,
     weakestLinkProfile,
     targetCalibrationCandidates,
