@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.5";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.5";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.7";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.7";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.5";
+} from "./utils.js?v=5.6.7";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.5";
+} from "./settings.js?v=5.6.7";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.5";
+} from "./analytics.js?v=5.6.7";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.5";
+} from "./bayesian.js?v=5.6.7";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.5";
+} from "./session.js?v=5.6.7";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.5";
+} from "./pressure.js?v=5.6.7";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.5";
+} from "./recommendations.js?v=5.6.7";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.5";
+} from "./store.js?v=5.6.7";
 
 
 
@@ -8475,15 +8475,75 @@ function aiTry(label, fn, fallback = null) {
   }
 }
 
+function aiRoutineSkillSet(routine) {
+  const map = getRoutineSkillMap(routine) || {};
+  return new Set(normalizeSkillList([
+    map.primarySkill,
+    ...(map.secondarySkills || []),
+    ...(map.transferTags || []),
+    ...(routine?.tags || [])
+  ]));
+}
+
+function aiRoutineTrainingMode(routine) {
+  const raw = [
+    routine?.trainingIntent,
+    routine?.practiceIntent,
+    routine?.difficultyMode,
+    routine?.targetMode,
+    routine?.difficultyLabel,
+    routine?.description
+  ].map(v => String(v || "").toLowerCase()).join(" ");
+  if (/overload|challenge|stretch\+|hard stretch/.test(raw)) return "overload";
+  if (/stretch|development|acquisition/.test(raw)) return "stretch";
+  if (/maintenance|confidence|rebuild|recovery|easy/.test(raw)) return "maintenance";
+  return "normal";
+}
+
+function aiRoutineCategoryKey(routine) {
+  const scoring = String(routine?.scoring || "");
+  const skills = aiRoutineSkillSet(routine);
+  if (skills.has("pressure_resilience") || /pressure/i.test(String(routine?.folder || ""))) return "pressure";
+  if (skills.has("long_potting")) return "long_potting";
+  if (skills.has("safety") || skills.has("tactical_decision_making") || skills.has("tactical_awareness")) return "safety_tactical";
+  if (skills.has("break_building") || scoring === "highest_break") return "break_building";
+  if (skills.has("rest_play") || skills.has("bridging")) return "rest_recovery";
+  if (skills.has("cue_ball_control") || skills.has("pace_control") || skills.has("positional_play") || skills.has("transition_play")) return "cue_ball_control";
+  return "technical";
+}
+
 function aiLearningBandForRoutine(routine) {
-  const scoring = routine?.scoring || "raw";
-  if (scoring === "progressive_completion") return {low:40, high:65, rationale:"Progressive snooker routines should be challenging enough to expose break-building limits without creating constant failure."};
-  if (scoring === "points") return {low:null, high:null, rationale:"Points-based tactical/safety routines need contextual interpretation rather than a fixed percentage band."};
-  const skills = new Set(normalizeSkillList([...(getRoutineSkillMap(routine)?.secondarySkills || []), ...(getRoutineSkillMap(routine)?.transferTags || []), getRoutineSkillMap(routine)?.primarySkill]));
-  if (skills.has("pressure_resilience")) return {low:35, high:60, rationale:"Pressure drills can be productive at lower success rates than technical potting drills."};
-  if (skills.has("safety") || skills.has("tactical_awareness")) return {low:50, high:70, rationale:"Safety and tactical snooker drills should stay difficult but not random."};
-  if (skills.has("break_building") || skills.has("cue_ball_control")) return {low:45, high:70, rationale:"Positional and break-building routines need a wider productive band because transfer value matters."};
-  return {low:55, high:75, rationale:"Technical potting routines are usually most productive in a moderate success band."};
+  const mode = aiRoutineTrainingMode(routine);
+  const category = aiRoutineCategoryKey(routine);
+  let band;
+  if (category === "pressure") band = {low:25, high:55, rationale:"Pressure drills can be productive at lower success rates because the goal is clutch tolerance, not comfortable execution."};
+  else if (category === "long_potting") band = {low:30, high:60, rationale:"Long-potting work can remain productive at lower hit rates than routine technical drills."};
+  else if (category === "safety_tactical") band = {low:50, high:75, rationale:"Safety and tactical snooker drills should be difficult but not random; quality of leave matters."};
+  else if (category === "break_building") band = {low:40, high:70, rationale:"Break-building routines should expose continuation limits without creating constant failure."};
+  else if (category === "rest_recovery") band = {low:35, high:65, rationale:"Rest and awkward-recovery drills tolerate lower success because setup difficulty is structurally high."};
+  else if (category === "cue_ball_control") band = {low:45, high:70, rationale:"Cue-ball and positional routines need enough difficulty to expose control errors without overwhelming repetition."};
+  else band = {low:45, high:70, rationale:"Technical snooker routines are usually most productive in a moderate success band."};
+
+  if (mode === "stretch") band = {...band, low:Math.max(15, band.low - 8), high:Math.max(band.low + 10, band.high - 5), rationale:`Stretch mode: ${band.rationale}`};
+  else if (mode === "overload") band = {...band, low:Math.max(10, band.low - 15), high:Math.max(band.low + 8, band.high - 10), rationale:`Overload mode: lower hit rates can be intentional. ${band.rationale}`};
+  else if (mode === "maintenance") band = {...band, low:Math.min(85, band.low + 10), high:Math.min(95, band.high + 10), rationale:`Maintenance/confidence mode: targets should be easier and more repeatable. ${band.rationale}`};
+
+  return {...band, category, mode};
+}
+
+function aiCategoryCalibrationContext(routine, groupedLogs=null) {
+  const category = aiRoutineCategoryKey(routine);
+  const grouped = groupedLogs || getLogsByRoutineMap(data.logs || []);
+  const rows = activeRoutines().filter(r => aiRoutineCategoryKey(r) === category).map(r => {
+    const logs = grouped[String(r.id)] || [];
+    const hit = targetHitRate(logs);
+    return {routine:r, n:logs.length, hit:Number(hit)};
+  }).filter(x => x.n >= 4 && Number.isFinite(x.hit));
+  const hits = rows.map(x => x.hit);
+  const categoryHitAverage = hits.length ? avg(hits) : null;
+  const band = aiLearningBandForRoutine(routine);
+  const categoryWideHard = hits.length >= 3 && Number.isFinite(categoryHitAverage) && categoryHitAverage < band.low;
+  return {category, comparableRoutineCount:rows.length, categoryHitAverage, categoryWideHard};
 }
 
 function aiRoutineMaturityForLogs(logs, routine=null) {
@@ -8508,9 +8568,10 @@ function aiRoutineSchemaFlags(routine, logs) {
   return flags;
 }
 
-function aiTargetHealthForRoutine(routine, logs) {
+function aiTargetHealthForRoutine(routine, logs, categoryContext=null) {
   const hit = targetHitRate(logs);
   const band = aiLearningBandForRoutine(routine);
+  const context = categoryContext || aiCategoryCalibrationContext(routine);
   const maturity = aiRoutineMaturityForLogs(logs, routine);
   const values = (logs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   const recent = values.slice(-Math.min(10, values.length));
@@ -8540,27 +8601,60 @@ function aiTargetHealthForRoutine(routine, logs) {
       recommendation:"Performance is too volatile for an aggressive target change. Repeat the same setup before recalibrating."
     };
   }
-  const confidence = maturity.n >= 10 && !highVol ? "high" : maturity.n >= 6 ? "medium" : "low";
-  if (hit < band.low - 15) return {state:"too_hard", label:"Too hard", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Lower the target one controlled step or simplify one constraint; failure is currently too frequent for productive snooker repetition."};
-  if (hit < band.low) return {state:"stretching", label:"Difficult stretch", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Keep the drill stable or lower the target slightly if confidence is dropping."};
-  if (hit <= band.high) return {state:"productive", label:"Productive band", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Hold the current target. This routine is in the productive snooker training band."};
-  if (hit <= band.high + 15) return {state:"getting_easy", label:"Getting easy", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Consider increasing the stretch target or adding one small constraint if form is stable."};
-  return {state:"too_easy", label:"Too easy", hitRate:hit, band, maturity, recentAverage, confidence, recommendation:"Increase difficulty gradually or progress to a harder snooker routine."};
+  let confidence = maturity.n >= 10 && !highVol ? "high" : maturity.n >= 6 ? "medium" : "low";
+  if (context?.categoryWideHard && confidence === "high") confidence = "medium";
+  const contextNote = context?.categoryWideHard ? " Similar routines in this category are also scoring low, so reduce cautiously rather than treating this as a pure weakness." : "";
+  if (hit < band.low - 15) return {state:"too_hard", label:"Too hard", hitRate:hit, band, maturity, recentAverage, confidence, categoryContext:context, recommendation:`Lower the target one controlled step or simplify one constraint; failure is currently too frequent for productive snooker repetition.${contextNote}`};
+  if (hit < band.low) return {state:"stretching", label:"Difficult stretch", hitRate:hit, band, maturity, recentAverage, confidence, categoryContext:context, recommendation:"Keep the drill stable or lower the target slightly if confidence is dropping."};
+  if (hit <= band.high) return {state:"productive", label:"Productive band", hitRate:hit, band, maturity, recentAverage, confidence, categoryContext:context, recommendation:"Hold the current target. This routine is in the productive snooker training band."};
+  if (hit <= band.high + 15) return {state:"getting_easy", label:"Getting easy", hitRate:hit, band, maturity, recentAverage, confidence, categoryContext:context, recommendation:"Consider increasing the stretch target or adding one small constraint if form is stable."};
+  return {state:"too_easy", label:"Too easy", hitRate:hit, band, maturity, recentAverage, confidence, categoryContext:context, recommendation:"Increase difficulty gradually or progress to a harder snooker routine."};
+}
+
+function aiTargetScaleType(scoring) {
+  const s = String(scoring || "");
+  if (s === "success_rate") return "percent";
+  if (s === "highest_break") return "break_score";
+  if (s === "progressive_completion") return "completion_count";
+  return "numeric";
 }
 
 function aiTargetStepSize(current, scoring, attempts) {
   const c = Number(current);
   if (!Number.isFinite(c) || c <= 0) return 1;
-  if (scoring === "highest_break") return Math.max(2, Math.round(c * 0.15));
-  if (attempts > 0 && attempts <= 15) return 1;
-  if (attempts > 0 && attempts <= 30) return 2;
-  return Math.max(2, Math.round(c * 0.12));
+  const type = aiTargetScaleType(scoring);
+  if (type === "percent") return Math.max(5, Math.round(c * 0.15 / 5) * 5);
+  if (type === "break_score") return Math.max(3, Math.round(c * 0.15));
+  if (type === "completion_count") return Math.max(1, Math.round(c * 0.15));
+  return Math.max(1, Math.round(c * 0.12));
+}
+
+function aiClampSuggestedTarget(value, current, routine, health) {
+  const scoring = String(routine?.scoring || "");
+  const type = aiTargetScaleType(scoring);
+  const attempts = Number(routine?.attempts || routine?.attemptsPerSession || 0);
+  const totalUnits = Number(routine?.totalUnits || 0);
+  const c = Number(current);
+  let minFloor = 1;
+  let maxCeiling = Math.max(value, Math.round(c * 1.5));
+  if (type === "percent") {
+    minFloor = Math.max(10, Math.round(c * 0.5));
+    maxCeiling = 100;
+  } else if (type === "break_score") {
+    minFloor = Math.max(6, Math.round(c * 0.5));
+    maxCeiling = Math.max(value, Math.round(c * 1.6));
+  } else if (type === "completion_count") {
+    minFloor = 1;
+    maxCeiling = totalUnits > 0 ? totalUnits : attempts > 0 ? attempts : Math.max(value, Math.round(c * 1.5));
+  }
+  return Math.max(minFloor, Math.min(maxCeiling, Math.round(value)));
 }
 
 function aiSuggestedTargetForRoutine(routine, logs, health) {
   const current = Number(routine?.target ?? 0);
   const attempts = Number(routine?.attempts || routine?.attemptsPerSession || routine?.totalUnits || 0);
   const scoring = String(routine?.scoring || "");
+  const type = aiTargetScaleType(scoring);
   const hit = Number(health?.hitRate);
   const band = health?.band || aiLearningBandForRoutine(routine);
   const maturity = health?.maturity || aiRoutineMaturityForLogs(logs, routine);
@@ -8571,31 +8665,47 @@ function aiSuggestedTargetForRoutine(routine, logs, health) {
   const recent = values.slice(-Math.min(10, values.length));
   const recentAverage = recent.length ? avg(recent) : null;
   const step = aiTargetStepSize(current, scoring, attempts);
+  const mode = band.mode || aiRoutineTrainingMode(routine);
+  const context = health?.categoryContext || aiCategoryCalibrationContext(routine);
   let suggested = current;
   let direction = "hold";
+  let rationaleSuffix = "";
 
   if (hit < band.low - 15) {
-    const evidenceTarget = Number.isFinite(recentAverage) ? Math.round(recentAverage + Math.max(2, step)) : current - step;
-    suggested = Math.max(current - step * 2, Math.min(current - step, evidenceTarget));
+    const maxDropPct = mode === "overload" ? 0.20 : context?.categoryWideHard ? 0.25 : 0.35;
+    const evidenceBuffer = type === "percent" ? 10 : type === "break_score" ? Math.max(3, step) : Math.max(1, step);
+    const evidenceTarget = Number.isFinite(recentAverage) ? recentAverage + evidenceBuffer : current - step;
+    const cappedFloor = current * (1 - maxDropPct);
+    suggested = Math.max(cappedFloor, evidenceTarget);
+    suggested = Math.min(suggested, current - step);
     direction = "reduce";
+    rationaleSuffix = context?.categoryWideHard ? " Category-wide results are also low, so this is capped as a cautious calibration rather than a major downgrade." : " Reduction is capped to avoid collapsing the target after one difficult sample window.";
   } else if (hit < band.low) {
-    suggested = current - step;
+    const maxDropPct = mode === "overload" ? 0.10 : 0.20;
+    suggested = Math.max(current * (1 - maxDropPct), current - step);
     direction = "reduce_slightly";
+    rationaleSuffix = " Slight reduction only; this may be an intentional stretch zone.";
   } else if (hit > band.high + 15 && health?.confidence !== "low") {
-    suggested = current + step * 2;
+    const maxRaisePct = mode === "maintenance" ? 0.10 : 0.25;
+    suggested = Math.min(current * (1 + maxRaisePct), current + step * 2);
     direction = "raise";
+    rationaleSuffix = " Increase is capped to preserve continuity and avoid overshooting the learning zone.";
   } else if (hit > band.high && health?.confidence !== "low") {
     suggested = current + step;
     direction = "raise_slightly";
+    rationaleSuffix = " Small increase only; keep the routine comparable for the next few logs.";
   }
 
-  const minFloor = scoring === "highest_break" ? Math.max(6, Math.round(current * 0.5)) : attempts > 0 ? Math.max(1, Math.round(attempts * 0.15)) : Math.max(1, Math.round(current * 0.5));
-  const maxCeiling = attempts > 0 && ["success_rate", "progressive_completion"].includes(scoring) ? attempts : Math.max(suggested, Math.round(current * 1.5));
-  suggested = Math.max(minFloor, Math.min(maxCeiling, Math.round(suggested)));
+  suggested = aiClampSuggestedTarget(suggested, current, routine, health);
   if (suggested === current) return null;
 
-  const stretchGap = scoring === "highest_break" ? Math.max(3, Math.round(suggested * 0.15)) : Math.max(1, Math.round(suggested * 0.15));
-  const suggestedStretch = attempts > 0 && ["success_rate", "progressive_completion"].includes(scoring) ? Math.min(attempts, suggested + stretchGap) : suggested + stretchGap;
+  const stretchGap = type === "percent" ? Math.max(5, Math.round(suggested * 0.15 / 5) * 5) : type === "break_score" ? Math.max(3, Math.round(suggested * 0.15)) : Math.max(1, Math.round(suggested * 0.15));
+  let suggestedStretch = suggested + stretchGap;
+  if (type === "percent") suggestedStretch = Math.min(100, suggestedStretch);
+  if (type === "completion_count") {
+    const totalUnits = Number(routine?.totalUnits || routine?.attempts || 0);
+    if (totalUnits > 0) suggestedStretch = Math.min(totalUnits, suggestedStretch);
+  }
   return {
     currentTarget: current,
     suggestedTarget: suggested,
@@ -8603,8 +8713,11 @@ function aiSuggestedTargetForRoutine(routine, logs, health) {
     direction,
     confidence: health?.confidence || maturity?.confidence || "medium",
     routineMaturity: maturity,
+    categoryContext: context,
+    scoringScale: type,
+    productiveBand: band,
     recentAverageLast10: Number.isFinite(recentAverage) ? recentAverage : null,
-    rationale: `${health.recommendation} Suggested as a one-step calibration, not a permanent downgrade.`,
+    rationale: `${health.recommendation}${rationaleSuffix} Suggested as a one-step calibration, not a permanent downgrade.`,
     applyAsNewTargetProfile: true
   };
 }
@@ -8739,7 +8852,8 @@ function buildAdaptiveTargetCandidates(limit = 12) {
   const grouped = getLogsByRoutineMap(data.logs || []);
   return routines.map(routine => {
     const logs = grouped[String(routine.id)] || [];
-    const health = aiTargetHealthForRoutine(routine, logs);
+    const categoryContext = aiCategoryCalibrationContext(routine, grouped);
+    const health = aiTargetHealthForRoutine(routine, logs, categoryContext);
     const suggestion = aiSuggestedTargetForRoutine(routine, logs, health);
     if (!suggestion) return null;
     const maturity = suggestion.routineMaturity || aiRoutineMaturityForLogs(logs, routine);
@@ -8992,12 +9106,15 @@ function buildAiCoachingSnapshot(options = {}) {
       task: "Analyze the player's snooker routine performance and recommend target adjustments, routine prioritization, skill focus, and next-session structure.",
       interpretationRules: [
         "Do not recommend changing a snooker routine target if sample size is too small, the routine is immature, or volatility is very high.",
-        "For technical potting drills, prefer targets that keep recent success roughly in the 55% to 75% band.",
-        "For safety/tactical snooker drills, a productive band is often closer to 50% to 70% because quality of leave matters, not only success count.",
-        "For pressure drills, productive success may be 35% to 60%; do not treat lower success as automatically bad.",
+        "For long-potting drills, productive success may be roughly 30% to 60%; do not over-downgrade hard long-pot work.",
+        "For safety/tactical snooker drills, a productive band is often closer to 50% to 75% because quality of leave matters, not only success count.",
+        "For break-building routines, a productive band is often roughly 40% to 70%, depending on scoring archetype and routine intent.",
+        "For pressure drills, productive success may be 25% to 55%; do not treat lower success as automatically bad.",
         "For progressive completion or break-building routines, judge improvement using trend, consistency, and total-units context rather than one isolated score.",
         "Preserve historical target versions. Recommend creating a new target profile rather than overwriting old logs.",
-        "Prefer one-step target changes. Do not collapse a target from 50 to 10 unless the evidence is mature and the routine design itself is inappropriate.",
+        "Prefer one-step target changes. Target reductions should normally be capped around 20% to 35% and should not collapse a target from 50 to 10.",
+        "Recognize stretch and overload routines: lower hit rates can be intentional when the drill is designed to test limits.",
+        "Compare routines within the same snooker category before declaring a skill weakness; category-wide low hit rates may mean the category targets are too aggressive.",
         "When mixed scoring modes or legacy points logs are flagged, treat target advice as conservative and mention the data-quality caveat.",
         "Distinguish between global player level and skill-specific level. A player can be strong at break-building but weak at safety or long potting.",
         "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores."

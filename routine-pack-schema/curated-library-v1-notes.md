@@ -1,6 +1,6 @@
 # Curated Snooker Routine Library v1
 
-Included in app version 5.6.5-adaptive-target-engine-v1.
+Included in app version 5.6.7-context-aware-calibration.
 
 Contains 50 curated snooker routines across:
 - Potting
