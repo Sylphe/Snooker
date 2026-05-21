@@ -1,2 +1,2 @@
-// Snooker Practice Log v5.6.17.3 module bootstrap
-import "./modules/app-core.js?v=5.6.17.3";
+canonicalId,id,name,folder,subfolder,category,scoring,attempts,duration,target,stretchTarget,primarySkill,secondarySkills,transferTags,sideMode,attemptMode,totalUnits,attemptsPerSession,unitType,difficultyLabel,description
+pot-long-blue-001,,Long Blue Potting,Potting,Long pots,potting,success_rate,10,10,50,70,long_potting,cue_alignment|delivery,confidence_under_distance,none,shared,,,,Sub-30 target,Ten long blue attempts from a fixed setup.

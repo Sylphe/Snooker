@@ -1,23 +1,72 @@
-(function(){
-      try {
-        var key = "snookerPracticePWA.themeMode";
-        var mode = localStorage.getItem(key);
-        if (!mode) {
-          var raw = localStorage.getItem("snookerPracticePWA.v3");
-          if (raw) mode = (JSON.parse(raw).interfaceSettings || {}).themeMode;
-        }
-        if (["system","light","dark","contrast"].indexOf(mode) < 0) mode = "system";
-        var actual = mode === "system" ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light") : mode;
-        document.documentElement.setAttribute("data-theme-mode", mode);
-        document.documentElement.setAttribute("data-theme", actual);
-        document.documentElement.classList.add("theme-" + mode);
-        document.addEventListener("DOMContentLoaded", function(){
-          if (document.body) {
-            document.body.setAttribute("data-theme-mode", mode);
-            document.body.setAttribute("data-theme", actual);
-            document.body.classList.add("theme-" + mode);
-          }
-        });
-        window.__snookerEarlyThemeMode = mode;
-      } catch(e) {}
-    })();
+{
+  "exportType": "snooker_ai_coaching_snapshot",
+  "schemaVersion": "1.3",
+  "purpose": "AI-readable snooker practice coaching export for calibrated target recommendations, routine maturity checks, skill-gap analysis, latent skill-level inference, match simulation, and probabilistic coaching.",
+  "topLevelKeys": [
+    "instructionsForAI",
+    "coachingSummary",
+    "playerProfile",
+    "skillProfile",
+    "transferReadinessProfile",
+    "routineIntelligenceProfile",
+    "inferredSkillLevelProfile",
+    "weakestLinkProfile",
+    "targetCalibrationCandidates",
+    "routineSnapshots",
+    "recentLogs",
+    "probabilisticCoachingProfile"
+  ],
+  "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement.",
+  "version": "5.6.17.2",
+  "transferAwareCoachingEngine": {
+    "hiddenWeaknessDetection": "supported",
+    "transferRecommendations": "supported",
+    "likelyImproves": "routine-level target skill explanation",
+    "bridgeDrills": "weak-to-strong domain bridge candidates"
+  },
+  "routineIntelligenceLayer": {
+    "routineSimilarityGraph": "supported",
+    "latentDifficultyEstimates": "supported",
+    "crossUserCalibrationSupport": "export-ready anonymized routine descriptors",
+    "dynamicTargetGeneration": "supported",
+    "automatedRoutineBalancing": "supported"
+  },
+  "inferredSkillLevelSystem": {
+    "skillDomains": [
+      "long_potting",
+      "cue_ball_control",
+      "safety",
+      "pressure_resilience",
+      "break_building",
+      "rest_play",
+      "tactical_decision_making"
+    ],
+    "perSkillLatentLevels": "L1-L7 domain estimates using calibrated targets, routine difficulty, volatility, target health, transfer-weighted evidence, and consistency",
+    "skillRadar": "supported in app insights",
+    "weakestLinkDetection": "supported",
+    "recommendationIntegration": "recommendations receive skill-level fit reasons and scoring weight"
+  },
+  "properties": {
+    "matchSimulationProfile": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "v5.6.14 match-simulation scenario readiness and bridge routine profile."
+    },
+    "probabilisticCoachingProfile": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "v5.6.16 cross-routine skill graph diagnostics plus v5.6.17.2 AI Coaching Layer v2 summaries, weekly reports, session plans, target suggestions, and explainability."
+    }
+  },
+  "probabilisticCoachingLayer": {
+    "confidenceIntervals": "70% confidence ranges for routine-level true performance",
+    "skillUncertainty": "per-skill latent level uncertainty bands",
+    "plateauDetection": "separates plateau from variance and regression",
+    "breakthroughDetection": "detects likely improvement while dampening random spikes",
+    "recommendationGuardrails": "uses evidence weighting and shrinkage before advising target changes"
+  }
+}
