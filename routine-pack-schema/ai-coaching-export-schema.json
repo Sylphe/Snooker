@@ -19,11 +19,18 @@
     "one-step target calibration suggestions",
     "confidence per target recommendation"
   ],
-  "version": "5.6.9",
+  "version": "5.6.10",
   "transferAwareCoachingEngine": {
     "hiddenWeaknessDetection": "supported",
     "transferRecommendations": "supported",
     "likelyImproves": "routine-level target skill explanation",
     "bridgeDrills": "weak-to-strong domain bridge candidates"
+  },
+  "routineIntelligenceLayer": {
+    "routineSimilarityGraph": "supported",
+    "latentDifficultyEstimates": "supported",
+    "crossUserCalibrationSupport": "export-ready anonymized routine descriptors",
+    "dynamicTargetGeneration": "supported",
+    "automatedRoutineBalancing": "supported"
   }
 }
