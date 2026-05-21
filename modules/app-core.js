@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.14";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.14";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.15";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.15";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.14";
+} from "./utils.js?v=5.6.15";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.14";
+} from "./settings.js?v=5.6.15";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.14";
+} from "./analytics.js?v=5.6.15";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.14";
+} from "./bayesian.js?v=5.6.15";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.14";
+} from "./session.js?v=5.6.15";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.14";
+} from "./pressure.js?v=5.6.15";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.14";
+} from "./recommendations.js?v=5.6.15";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.14";
+} from "./store.js?v=5.6.15";
 
 
 
@@ -1648,6 +1648,142 @@ function dynamicDifficultyInsight(logs){
   }
 }
 /* ===== end v4.36.2 Dynamic Difficulty Adjustment v1 ===== */
+
+/* ===== v5.6.15 Probabilistic Coaching Layer ===== */
+const PROBABILISTIC_COACHING_LAYER_VERSION = "v5.6.15";
+
+function probabilisticLogScore01(log){
+  const raw = Number(log?.normalizedScore ?? normalizeScore(log));
+  if(!Number.isFinite(raw)) return null;
+  return Math.max(0, Math.min(1, raw / 100));
+}
+
+function normalQuantileForConfidence(confidence=0.7){
+  const c = Math.max(0.5, Math.min(0.95, Number(confidence) || 0.7));
+  if(c >= 0.95) return 1.96;
+  if(c >= 0.9) return 1.645;
+  if(c >= 0.8) return 1.282;
+  if(c >= 0.7) return 1.036;
+  return 0.674;
+}
+
+function probabilisticScoreInterval(logs, confidence=0.7, priorMean=0.5, priorStrength=8){
+  const vals = (logs || []).map(probabilisticLogScore01).filter(Number.isFinite);
+  const n = vals.length;
+  const prior = Math.max(0.02, Math.min(0.98, Number(priorMean) || 0.5));
+  if(!n){
+    const sd = Math.sqrt((prior * (1-prior)) / Math.max(1, priorStrength + 1));
+    const z = normalQuantileForConfidence(confidence);
+    return {n:0, mean:prior, lower:Math.max(0, prior-z*sd), upper:Math.min(1, prior+z*sd), width:2*z*sd, confidence, label:"prior only", evidence:evidenceStrength(0)};
+  }
+  const observedMean = avg(vals);
+  const observedSd = n >= 2 ? stdDev(vals) : Math.sqrt(Math.max(0.0001, observedMean*(1-observedMean)));
+  const w = shrinkageWeight(n, priorStrength);
+  const mean = observedMean*w + prior*(1-w);
+  const pooledVariance = Math.max(0.0001, Math.pow(observedSd || 0.01, 2));
+  const se = Math.sqrt(pooledVariance / Math.max(1, n) + (prior*(1-prior)) / Math.pow(priorStrength+n, 1.25));
+  const z = normalQuantileForConfidence(confidence);
+  const lower = Math.max(0, mean - z * se);
+  const upper = Math.min(1, mean + z * se);
+  return {n, observedMean, mean, lower, upper, width:upper-lower, confidence, sd:observedSd, se, evidence:evidenceStrength(n), label:evidenceStrength(n).label};
+}
+
+function probabilisticRoutineTargetRows(logs){
+  const scoped = Array.isArray(logs) ? logs : [];
+  const grouped = getLogsByRoutineMap(scoped);
+  return activeRoutines().map(r => {
+    const rlogs = grouped[String(r.id || "")] || [];
+    if(rlogs.length < 3) return null;
+    const interval = probabilisticScoreInterval(rlogs, 0.7, 0.5, 8);
+    const target = Number(r.target || getActiveTargetProfile(r)?.target || NaN);
+    const target01 = Number.isFinite(target) ? Math.max(0, Math.min(1, target/100)) : null;
+    const targetPosition = target01 === null ? "unbenchmarked" : interval.lower > target01 ? "above target" : interval.upper < target01 ? "below target" : "around target";
+    return {routine:r, interval, target, targetPosition};
+  }).filter(Boolean).sort((a,b)=>(b.interval.n-a.interval.n) || (b.interval.width-a.interval.width)).slice(0,4);
+}
+
+function probabilisticSkillUncertaintyRows(logs){
+  try{
+    const profile = inferLatentSkillLevels(logs || [], activeRoutines());
+    return (profile.profile || []).map(x => {
+      const n = Number(x.n || 0);
+      const score = Number(x.score || 50);
+      const e = evidenceStrength(n);
+      const halfWidth = Math.max(4, 18 * (1 - Math.min(0.85, e.factor || 0)));
+      const lower = Math.max(0, score - halfWidth);
+      const upper = Math.min(100, score + halfWidth);
+      const confidence = n >= 30 ? "high" : n >= 14 ? "moderate" : n >= 5 ? "low" : "calibrating";
+      return {...x, uncertaintyLower:lower, uncertaintyUpper:upper, uncertaintyWidth:upper-lower, uncertaintyConfidence:confidence};
+    }).sort((a,b)=>Number(b.uncertaintyWidth||0)-Number(a.uncertaintyWidth||0)).slice(0,7);
+  }catch(err){
+    console.warn("Probabilistic skill uncertainty skipped", err);
+    return [];
+  }
+}
+
+function probabilisticTrendDiagnosis(logs){
+  const ordered = (logs || []).slice().sort((a,b)=>new Date(a?.createdAt || 0)-new Date(b?.createdAt || 0));
+  const values = ordered.map(l => Number(l?.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+  if(values.length < 10){
+    return {state:"insufficient", label:"More logs needed", detail:"Need at least 10 scoped logs before separating variance, plateau, regression, and breakthrough.", confidence:"low", probability:0, n:values.length};
+  }
+  const window = Math.max(5, Math.min(10, Math.floor(values.length/3)));
+  const prior = values.slice(-window*2, -window);
+  const recent = values.slice(-window);
+  const priorAvg = avg(prior);
+  const recentAvg = avg(recent);
+  const delta = recentAvg - priorAvg;
+  const recentSd = stdDev(recent);
+  const priorSd = stdDev(prior);
+  const pooledSd = Math.max(4, avg([recentSd || 0, priorSd || 0]) || 4);
+  const effect = delta / pooledSd;
+  const volatility = stdDev(values.slice(-Math.min(values.length, window*2))) || 0;
+  const e = evidenceStrength(values.length);
+  const adjustedEffect = effect * Math.max(0.25, e.factor || 0);
+  let state = "variance";
+  let label = "Variance / noise";
+  let detail = `Recent window ${recentAvg.toFixed(1)} vs prior ${priorAvg.toFixed(1)}; volatility ${volatility.toFixed(1)}. Treat as noise until the interval narrows.`;
+  let probability = Math.min(0.68, Math.abs(adjustedEffect) * 0.45 + Math.max(0, e.factor || 0) * 0.18);
+  if(adjustedEffect >= 0.45 && delta >= Math.max(3, pooledSd*0.25)){
+    state = "breakthrough";
+    label = "Probable breakthrough";
+    detail = `Recent performance is ${delta.toFixed(1)} pts above the prior window after volatility adjustment. Increase difficulty only one step if this repeats.`;
+  } else if(adjustedEffect <= -0.45 && delta <= -Math.max(3, pooledSd*0.25)){
+    state = "regression";
+    label = "Probable regression";
+    detail = `Recent performance is ${Math.abs(delta).toFixed(1)} pts below the prior window after volatility adjustment. Check fatigue/context before simplifying targets.`;
+  } else if(Math.abs(delta) <= Math.max(2.5, pooledSd*0.18) && volatility <= Math.max(8, pooledSd*1.15)){
+    state = "plateau";
+    label = "Likely plateau";
+    detail = `Recent and prior windows are close (${delta.toFixed(1)} pts) with controlled volatility. Use a small constraint change or bridge drill.`;
+    probability = Math.min(0.72, 0.28 + (e.factor || 0) * 0.38);
+  }
+  const confidence = values.length >= 30 && volatility <= 18 ? "high" : values.length >= 14 ? "moderate" : "low";
+  return {state,label,detail,confidence,probability,n:values.length,priorAvg,recentAvg,delta,volatility,evidence:e};
+}
+
+function probabilisticCoachingLayerInsight(logs){
+  try{
+    const scoped = logs || [];
+    const trend = probabilisticTrendDiagnosis(scoped);
+    const routineRows = probabilisticRoutineTargetRows(scoped);
+    const skillRows = probabilisticSkillUncertaintyRows(scoped);
+    const cls = trend.state === "breakthrough" ? "good" : trend.state === "regression" ? "risk" : "watch";
+    const topSkill = skillRows[0];
+    return `<div class="insight-card ${cls} probabilistic-coaching-card"><strong>Probabilistic coaching layer</strong>
+      <div class="adaptive-rationale">Adds 70% confidence ranges, skill-level uncertainty, and guarded plateau/breakthrough detection. It separates noisy variance from probable structural change.</div>
+      <div class="context-row"><span>Trend diagnosis<br><span class="muted">${htmlText(trend.detail)}</span></span><strong>${htmlText(trend.label)}</strong><span>${Math.round((trend.probability || 0)*100)}% · ${htmlText(trend.confidence)} confidence</span></div>
+      ${topSkill?`<div class="context-row"><span>Highest skill uncertainty<br><span class="muted">range ${Number(topSkill.uncertaintyLower).toFixed(0)}–${Number(topSkill.uncertaintyUpper).toFixed(0)} / 100</span></span><strong>${htmlText(topSkill.label || skillLabel(topSkill.id))}</strong><span>${htmlText(topSkill.level || "L?")} · ${htmlText(topSkill.uncertaintyConfidence)}</span></div>`:""}
+      ${routineRows.length?`<div class="adaptive-rationale"><strong>Target confidence ranges:</strong></div>${routineRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">70% confidence true performance ${Math.round(x.interval.lower*100)}–${Math.round(x.interval.upper*100)}%</span></span><strong>${Math.round(x.interval.mean*100)}%</strong><span>${htmlText(x.targetPosition)} · n=${x.interval.n}</span></div>`).join("")}`:`<div class="muted small">Need at least 3 scoped logs per routine to show routine-level confidence ranges.</div>`}
+      ${skillRows.length?`<div class="adaptive-rationale"><strong>Skill uncertainty:</strong> ${skillRows.slice(0,4).map(x=>`${htmlText(x.label || skillLabel(x.id))} ${htmlText(x.level || "L?")} (${Math.round(x.uncertaintyLower)}–${Math.round(x.uncertaintyUpper)})`).join(" · ")}</div>`:""}
+    </div>`;
+  }catch(err){
+    console.warn("Probabilistic coaching layer skipped", err);
+    return `<div class="insight-card watch"><strong>Probabilistic coaching layer</strong><div class="muted small">Probabilistic diagnostics unavailable for this scope.</div></div>`;
+  }
+}
+/* ===== end v5.6.15 Probabilistic Coaching Layer ===== */
+
 
 
 
@@ -6993,6 +7129,7 @@ function renderPhaseOneInsights() {
     ${inferredSkillLevelInsight(logs)}
     ${changePointInsight(analyticsWindow(logs))}
     ${currentFormInsight(analyticsWindow(logs))}
+    ${probabilisticCoachingLayerInsight(analyticsWindow(logs))}
     ${targetCredibleIntervalInsight(analyticsWindow(logs))}
     ${dynamicDifficultyInsight(analyticsWindow(logs))}
     ${recommendationLearningInsight()}
@@ -9819,15 +9956,40 @@ function buildAiCoachingSnapshot(options = {}) {
   const dynamicRoutineDifficultyProfile = buildDynamicRoutineDifficultyModel(routines, logs);
   const sessionArchitectureProfile = buildSessionArchitecturePlan(90, routines, logs);
   const matchSimulationProfile = buildMatchSimulationLayer(6, routines, logs);
+  const probabilisticCoachingProfile = aiTry("probabilisticCoachingProfile", () => ({
+    version: PROBABILISTIC_COACHING_LAYER_VERSION,
+    globalTrend: probabilisticTrendDiagnosis(logs),
+    routineTargetIntervals: probabilisticRoutineTargetRows(logs).map(x => ({
+      routineId: x.routine.id,
+      routineName: x.routine.name,
+      confidence: x.interval.confidence,
+      truePerformanceMean: x.interval.mean,
+      truePerformanceLower: x.interval.lower,
+      truePerformanceUpper: x.interval.upper,
+      evidenceLogs: x.interval.n,
+      target: x.target,
+      targetPosition: x.targetPosition
+    })),
+    skillUncertainty: probabilisticSkillUncertaintyRows(logs).map(x => ({
+      skillId: x.id,
+      skillLabel: x.label,
+      level: x.level,
+      score: x.score,
+      lower: x.uncertaintyLower,
+      upper: x.uncertaintyUpper,
+      confidence: x.uncertaintyConfidence,
+      evidenceLogs: x.n
+    }))
+  }), null);
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
-    schemaVersion: "1.2",
+    schemaVersion: "1.3",
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, and training-plan recommendations, and skill-specific latent level inference.",
+    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, and skill-specific latent level inference.",
     privacy: {
       localOnlySource: true,
       containsPersonalPracticeData: true,
@@ -9852,7 +10014,8 @@ function buildAiCoachingSnapshot(options = {}) {
         "Distinguish between global player level and skill-specific level. A player can be strong at break-building but weak at safety or long potting.",
         "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores.",
         "Use transfer readiness to separate acquisition drills from bridge drills: ready-to-transfer routines can feed pressure/frame-like work, while not-ready routines should stay in acquisition blocks.",
-        "Flag missing transfer tags or unlinked routines as metadata issues before making strong transfer claims."
+        "Flag missing transfer tags or unlinked routines as metadata issues before making strong transfer claims.",
+        "Use probabilistic confidence ranges to separate true improvement from variance, and do not treat one random spike as a breakthrough."
       ],
       requestedOutputFormat: [
         "Summarize current strengths and weaknesses by snooker skill category.",
@@ -9866,7 +10029,8 @@ function buildAiCoachingSnapshot(options = {}) {
         "Use the match simulation profile to evaluate frame-ball, safety-exchange, escape, colours-clearance, and decider readiness before prescribing competitive practice.",
         "Identify tags/metadata that appear inconsistent or missing.",
         "Recommend a coherent next-session block structure rather than a flat list of unrelated drills.",
-        "Recommend one short match-simulation block only if the relevant scenario readiness is developing or ready."
+        "Recommend one short match-simulation block only if the relevant scenario readiness is developing or ready.",
+        "Report skill uncertainty and confidence intervals when making target or level recommendations."
       ]
     },
     coachingSummary,
@@ -9877,6 +10041,7 @@ function buildAiCoachingSnapshot(options = {}) {
     dynamicRoutineDifficultyProfile,
     sessionArchitectureProfile,
     matchSimulationProfile,
+    probabilisticCoachingProfile,
     inferredSkillLevelProfile,
     weakestLinkProfile,
     targetCalibrationCandidates,
