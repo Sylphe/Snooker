@@ -1,23 +1,46 @@
-(function(){
-      try {
-        var key = "snookerPracticePWA.themeMode";
-        var mode = localStorage.getItem(key);
-        if (!mode) {
-          var raw = localStorage.getItem("snookerPracticePWA.v3");
-          if (raw) mode = (JSON.parse(raw).interfaceSettings || {}).themeMode;
-        }
-        if (["system","light","dark","contrast"].indexOf(mode) < 0) mode = "system";
-        var actual = mode === "system" ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light") : mode;
-        document.documentElement.setAttribute("data-theme-mode", mode);
-        document.documentElement.setAttribute("data-theme", actual);
-        document.documentElement.classList.add("theme-" + mode);
-        document.addEventListener("DOMContentLoaded", function(){
-          if (document.body) {
-            document.body.setAttribute("data-theme-mode", mode);
-            document.body.setAttribute("data-theme", actual);
-            document.body.classList.add("theme-" + mode);
-          }
-        });
-        window.__snookerEarlyThemeMode = mode;
-      } catch(e) {}
-    })();
+{
+  "name": "Snooker Practice Log",
+  "short_name": "Snooker Log",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f2",
+  "theme_color": "#102b22",
+  "description": "Snooker practice log with adaptive coaching analytics and mobile-first practice navigation.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Practice",
+      "short_name": "Practice",
+      "url": "./index.html#practice",
+      "description": "Open the practice command center"
+    },
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "url": "./index.html#templates",
+      "description": "Open exercise and skill library"
+    },
+    {
+      "name": "Stats",
+      "short_name": "Stats",
+      "url": "./index.html#stats",
+      "description": "Open stats overview"
+    }
+  ],
+  "categories": [
+    "sports",
+    "productivity",
+    "health_and_fitness"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}
