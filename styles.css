@@ -5150,3 +5150,95 @@ body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-
     padding:0 6px !important;
   }
 }
+
+
+/* ===== v5.7.3 Focus Mode layout correction =====
+   Removes the remaining vertical gap, normalizes field order, restores time visibility,
+   and adds a clear left/right total score tile. */
+body.session-focus-active #activeSession #scoreInputs{
+  margin-bottom:0 !important;
+  row-gap:5px !important;
+}
+body.session-focus-active #activeSession .focus-numpad-panel,
+body.session-focus-active #activeSession .focus-score-cockpit{
+  margin-bottom:0 !important;
+  padding-bottom:0 !important;
+}
+body.session-focus-active #activeSession #sessionExtraFields{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:5px !important;
+  margin-top:5px !important;
+  padding:5px !important;
+  align-self:stretch !important;
+}
+body.session-focus-active #activeSession .focus-quality-block{
+  order:1 !important;
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  margin:0 !important;
+}
+body.session-focus-active #activeSession #focusVenueBlock,
+body.session-focus-active #activeSession .focus-venue-block{
+  order:2 !important;
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  margin:0 !important;
+}
+body.session-focus-active #activeSession .session-focus-optional{
+  order:3 !important;
+}
+body.session-focus-active #activeSession .focus-time-field,
+body.session-focus-active #activeSession #scoreInputs > div:has(#manualTimeValue){
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  grid-column:auto !important;
+  order:20 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+body.session-focus-active #activeSession .focus-time-field input,
+body.session-focus-active #activeSession #manualTimeValue{
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+body.session-focus-active #activeSession .side-split-total-box{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  margin-top:8px !important;
+  padding:9px 10px !important;
+  border-radius:12px !important;
+  background:linear-gradient(180deg,rgba(13,58,41,.72),rgba(7,31,23,.88)) !important;
+  box-shadow:inset 0 0 0 1px rgba(199,167,83,.13) !important;
+}
+body.session-focus-active #activeSession .side-split-total-box span{
+  font-size:10px !important;
+  font-weight:850 !important;
+  text-transform:uppercase !important;
+  letter-spacing:.08em !important;
+  color:rgba(199,167,83,.78) !important;
+}
+body.session-focus-active #activeSession .side-split-total-box strong{
+  font-size:24px !important;
+  line-height:1 !important;
+  font-weight:950 !important;
+  color:#fff !important;
+  font-variant-numeric:tabular-nums !important;
+}
+body.session-focus-active #activeSession .sticky-log-actions,
+body.session-focus-active #activeSession .primary-action-row,
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row{
+  position:sticky !important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 4px) !important;
+  margin-top:6px !important;
+}
+@media (max-width:420px){
+  body.session-focus-active #activeSession #sessionExtraFields{gap:4px !important;margin-top:4px !important;}
+  body.session-focus-active #activeSession .side-split-total-box{padding:8px 9px !important;margin-top:7px !important;}
+  body.session-focus-active #activeSession .side-split-total-box strong{font-size:22px !important;}
+}

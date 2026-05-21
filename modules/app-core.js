@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.3";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.0";
 import {
   uuid,
@@ -4804,18 +4804,18 @@ function renderScoreInputs(r) {
     html += `<div><label>Completions</label><input id="completionCountValue" type="number" min="0" step="1" placeholder="0 if none" inputmode="numeric"></div>`;
     if (Number(r.totalUnits || 0) <= 0) html += `<div class="progressive-total-units-runtime"><label>Completion size / total units</label><input id="sessionTotalUnitsValue" type="number" min="1" step="1" placeholder="Required to save this drill" inputmode="numeric"><p class="muted tiny">This exercise template has no completion size. Enter it here so the log can be saved.</p></div>`;
     if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+    html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else if (r.scoring === "success_rate") {
     if (!routineUsesSideSplit(r)) {
       const madeMax = Number(r.attempts || r.attemptsPerSession || 0) || "";
       html += `<div><label>Made</label><input id="scoreValue" type="number" min="0" ${madeMax ? `max="${numAttr(madeMax)}"` : ""} step="1" placeholder="e.g. 7" inputmode="numeric"></div>`;
     }
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || "")}" placeholder="e.g. 10" inputmode="numeric"></div>`;
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+    html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else {
     html += `<div><label>Score</label><input id="scoreValue" type="number" step="0.01" placeholder="Enter score" inputmode="decimal"></div>`;
     html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || r.attemptsPerSession || "")}" placeholder="optional" inputmode="numeric"></div>`;
-    html += `<div><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+    html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   }
   if (routineUsesSideSplit(r)) {
     const attemptsDefault = Number(r.attempts || r.attemptsPerSession || 0) || "";
@@ -4828,6 +4828,7 @@ function renderScoreInputs(r) {
         <div><label>Left side</label><input id="leftSideScoreValue" type="number" min="0" step="0.01" placeholder="Left" inputmode="decimal"></div>
         <div><label>Right side</label><input id="rightSideScoreValue" type="number" min="0" step="0.01" placeholder="Right" inputmode="decimal"></div>
       </div>
+      <div class="side-split-total-box" aria-live="polite"><span>Total score</span><strong id="sideSplitTotalValue">0</strong></div>
     </div>`;
     if (!html.includes('id="attemptsValue"') && attemptsDefault) html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(attemptsDefault)}" inputmode="numeric"></div>`;
   }
@@ -4850,6 +4851,14 @@ function renderScoreInputs(r) {
     }
     $("scoreValue")?.focus();
   }, 120);
+  const syncSideSplitTotal = () => {
+    const totalBox = $("sideSplitTotalValue");
+    if (!totalBox) return;
+    const left = Number($("leftSideScoreValue")?.value || 0);
+    const right = Number($("rightSideScoreValue")?.value || 0);
+    const total = (Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0);
+    totalBox.textContent = numText(total, "0");
+  };
   const syncScoreMax = () => {
     const attemptsEl = $("attemptsValue");
     if (!attemptsEl || r.scoring !== "success_rate") return;
@@ -4872,7 +4881,10 @@ function renderScoreInputs(r) {
     }
   };
   $("attemptsValue")?.addEventListener("input", syncScoreMax);
+  $("leftSideScoreValue")?.addEventListener("input", syncSideSplitTotal);
+  $("rightSideScoreValue")?.addEventListener("input", syncSideSplitTotal);
   syncScoreMax();
+  syncSideSplitTotal();
   ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
     const el = $(id);
     if (el) {
