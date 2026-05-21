@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.2";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.3";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.17.2";
+} from "./utils.js?v=5.6.17.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.17.2";
+} from "./settings.js?v=5.6.17.3";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.17.2";
+} from "./analytics.js?v=5.6.17.3";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.17.2";
+} from "./bayesian.js?v=5.6.17.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.17.2";
+} from "./session.js?v=5.6.17.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.17.2";
+} from "./pressure.js?v=5.6.17.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.17.2";
+} from "./recommendations.js?v=5.6.17.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.17.2";
+} from "./store.js?v=5.6.17.3";
 
 
 
@@ -3559,6 +3559,16 @@ function migrateData(d) {
     if (!grouped[l.sessionId]) grouped[l.sessionId] = [];
     grouped[l.sessionId].push(l);
   });
+  d.sessions = (d.sessions || []).map(sess => {
+    const validLogIds = (sess.logIds || []).filter(id => (d.logs || []).some(l => l.id === id));
+    return {...sess, logIds: validLogIds};
+  }).filter(sess => {
+    if (!sess || !sess.id) return false;
+    const hasGroupedLogs = Array.isArray(grouped[sess.id]) && grouped[sess.id].length > 0;
+    const hasValidLogIds = Array.isArray(sess.logIds) && sess.logIds.length > 0;
+    const hasPlannedContent = (sess.plannedRoutineIds || sess.routineIds || []).length > 0 && !sess.endedAt;
+    return hasGroupedLogs || hasValidLogIds || hasPlannedContent;
+  });
   Object.entries(grouped).forEach(([sid, logs]) => {
     if (!existingSessionIds.has(sid)) {
       const first = logs.slice().sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))[0];
@@ -6949,18 +6959,22 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (n >= 12 && weakness > 6) reasons.unshift("confirmed weakness with enough evidence");
   if (undertraining >= 7) reasons.unshift("undertrained category");
   if (transferValue >= 70) reasons.unshift("high transfer-value drill");
+  const finalScore = safeRecommendationScore(baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0), baseScore);
+  const safeTrainingValueMean = safeRecommendationScore(trainingValueMean, baseScore);
+  const safeSampledValue = safeRecommendationScore(sampledValue, safeTrainingValueMean);
+  const safeUncertainty = safeRecommendationScore(uncertainty, 12);
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + (routineIntel?.latentDifficulty?.band === "productive" ? 1.5 : 0) + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(inferredSkillFit.score || 0) * 0.65 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
-    trainingValueMean,
+    score: finalScore,
+    trainingValueMean: safeTrainingValueMean,
     bayesianOptimization,
     thompsonSampling,
-    uncertainty,
-    sampledValue,
+    uncertainty: safeUncertainty,
+    sampledValue: safeSampledValue,
     n,
     evidenceLabel: routineEvidenceLabel(n),
-    selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
+    selectionType: safeUncertainty >= 16 && safeSampledValue > safeTrainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
     contextualFit,
     transferNeed,
     transferCoach,
@@ -9294,9 +9308,9 @@ function mergeRoutinePack(pack, options = {}) {
         createdAt: existing.createdAt || incoming.createdAt || now,
         updatedAt: now,
         description: preserveUserDescriptions && existing.description ? existing.description : incoming.description,
-        targetHistory: preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
+        targetHistory: dedupeTargetHistory(preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
           ? existing.targetHistory
-          : (Array.isArray(source.targetHistory) ? structuredCloneSafe(source.targetHistory) : existing.targetHistory || []),
+          : (Array.isArray(source.targetHistory) ? structuredCloneSafe(source.targetHistory) : existing.targetHistory || [])),
         activeTargetProfileId: preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || "")
       };
       data.routines = data.routines.map(r => r.id === existing.id ? ensureTargetHistory(merged) : r);
@@ -10251,11 +10265,27 @@ function buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, target
   };
 }
 
+function prioritizeRoutinesForAiExport(routines, grouped, maxCount = AI_EXPORT_MAX_ROUTINE_SNAPSHOTS) {
+  const arr = Array.isArray(routines) ? routines : [];
+  const limit = Math.max(1, Number(maxCount || AI_EXPORT_MAX_ROUTINE_SNAPSHOTS));
+  return arr.slice().sort((a,b) => {
+    const aLogs = grouped?.[a?.id] || [];
+    const bLogs = grouped?.[b?.id] || [];
+    const aLast = Date.parse(aLogs[aLogs.length - 1]?.createdAt || a?.updatedAt || a?.createdAt || 0) || 0;
+    const bLast = Date.parse(bLogs[bLogs.length - 1]?.createdAt || b?.updatedAt || b?.createdAt || 0) || 0;
+    const aScore = Math.min(100, aLogs.length * 4) + (aLast / 86400000) * 0.001;
+    const bScore = Math.min(100, bLogs.length * 4) + (bLast / 86400000) * 0.001;
+    return bScore - aScore;
+  }).slice(0, limit);
+}
+
 function buildAiCoachingSnapshot(options = {}) {
   const includeRawRecentLogs = options.includeRawRecentLogs !== false;
-  const routines = activeRoutines();
+  const allRoutines = activeRoutines();
   const logs = (data.logs || []).slice().sort((a,b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
   const grouped = getLogsByRoutineMap(logs);
+  const maxRoutineSnapshots = Math.max(1, Number(options.maxRoutineSnapshots || AI_EXPORT_MAX_ROUTINE_SNAPSHOTS));
+  const routines = prioritizeRoutinesForAiExport(allRoutines, grouped, maxRoutineSnapshots);
   const routineSnapshots = routines.map(r => buildAiRoutineSnapshot(r, grouped));
   const targetCalibrationCandidates = routineSnapshots
     .filter(r => r.targetCalibration?.suggestion)
@@ -10275,7 +10305,8 @@ function buildAiCoachingSnapshot(options = {}) {
     }));
   const globalValues = logs.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
   const playerProfile = {
-    totalRoutines: routines.length,
+    totalRoutines: allRoutines.length,
+    exportedRoutineSnapshots: routines.length,
     totalLogs: logs.length,
     totalSessions: (data.sessions || []).length,
     totalPracticeMinutes: logs.reduce((sum,l)=>sum + Number(l.timeMinutes || 0), 0),
@@ -10402,10 +10433,11 @@ function buildAiCoachingSnapshot(options = {}) {
     weakestLinkProfile,
     targetCalibrationCandidates,
     routineSnapshots,
-    recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, 100) : [],
+    recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, AI_EXPORT_MAX_GLOBAL_RECENT_LOGS) : [],
     metadata: {
       routinePackSchemaVersion: ROUTINE_PACK_SCHEMA_VERSION,
-      exportLimits: {globalRecentLogs:100, perRoutineRecentLogs:20, targetHistoryPerRoutine:8},
+      exportLimits: {globalRecentLogs:AI_EXPORT_MAX_GLOBAL_RECENT_LOGS, perRoutineRecentLogs:AI_EXPORT_MAX_PER_ROUTINE_LOGS, targetHistoryPerRoutine:8, routineSnapshots:maxRoutineSnapshots},
+      exportTruncated: allRoutines.length > routines.length,
       generatedBy: "Snooker Practice PWA AI Coaching Export"
     }
   };
@@ -10753,6 +10785,31 @@ function fmtTargetMode(mode) {
 }
 
 
+function targetProfileComparableKey(profile) {
+  if (!profile) return "";
+  return [
+    finiteNumber(profile.target, 0),
+    finiteNumber(profile.stretchTarget, 0),
+    finiteNumber(profile.totalUnits, 0),
+    finiteNumber(profile.attemptsPerSession, 0),
+    String(profile.difficultyLabel || "").trim().toLowerCase(),
+    String(profile.scoring || "raw").trim().toLowerCase()
+  ].join("|");
+}
+
+function dedupeTargetHistory(targetHistory = []) {
+  const seen = new Set();
+  const out = [];
+  (Array.isArray(targetHistory) ? targetHistory : []).forEach(profile => {
+    if (!profile || typeof profile !== "object") return;
+    const key = targetProfileComparableKey(profile);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(profile);
+  });
+  return out;
+}
+
 function makeTargetProfile(routine, label) {
   return {
     id: uuid(),
@@ -10766,7 +10823,7 @@ function makeTargetProfile(routine, label) {
   };
 }
 function ensureTargetHistory(routine) {
-  routine.targetHistory = routine.targetHistory || [];
+  routine.targetHistory = dedupeTargetHistory(routine.targetHistory || []);
   if (!routine.targetHistory.length) {
     routine.targetHistory.push(makeTargetProfile(routine, routine.difficultyLabel || "Base target"));
     routine.activeTargetProfileId = routine.targetHistory[0].id;

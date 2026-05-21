@@ -13,3 +13,12 @@ Included:
 - AI export schema v1.4 with AI Coaching Layer v2 profile.
 
 Startup, storage, hydration, and tab initialization were not changed.
+
+
+## v5.6.17.3 — Hardening fixes
+
+- Capped AI coaching export routine snapshots to reduce export size and memory pressure.
+- Clamped recommendation scores to finite values to prevent NaN ranking/UI leakage.
+- Deduplicated target profile history during migration/import.
+- Added orphan-session cleanup during migration to prevent empty sessions from skewing summaries.
+- Preserved active-session table deletion guard and existing storage/import integrity fixes.

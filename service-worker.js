@@ -1,4 +1,4 @@
-const CACHE_VERSION = "5.6.17.2-stats-scope-resilience";
+const CACHE_VERSION = "5.6.17.3-hardening-fixes";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
   "./index.html?v=5.6.17.2",
