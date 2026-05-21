@@ -4505,3 +4505,12 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 .match-sim-fragile, .match-sim-unmapped { border-color: rgba(248,113,113,0.42); }
 .match-sim-scenario .context-row { align-items: start; gap: 0.5rem; }
 @media (max-width: 720px) { .match-sim-grid { grid-template-columns: 1fr; } .match-sim-scenario { min-height: auto; } }
+
+/* v5.6.19 player rating band */
+.player-rating-card{border:1px solid var(--line);border-radius:14px;padding:10px;margin:8px 0;background:rgba(255,255,255,.65);display:grid;gap:8px;}
+.player-rating-card>div:first-child{display:flex;flex-direction:column;gap:2px;}
+.player-rating-card>div:first-child strong{font-size:1.15rem;}
+.player-rating-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.player-rating-scale span{border:1px solid var(--line);border-radius:999px;padding:5px 6px;text-align:center;font-size:11px;background:var(--card);color:var(--muted);}
+.player-rating-scale span.active{border-color:var(--accent);background:rgba(50,120,85,.12);color:var(--text);font-weight:700;}
+@media(max-width:520px){.player-rating-scale{grid-template-columns:repeat(3,1fr);}.player-rating-scale span{font-size:10.5px;}}

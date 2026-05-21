@@ -1,4 +1,4 @@
-## v5.6.18 — Success-rate target clarity and numeric formatting polish
+## v5.6.19 — Player rating and scoring-change safety
 
 - Success-rate routines now display targets as percentages in routine cards and live-session metadata.
 - Exercise creation/edit form now shows a soft success-rate percentage hint beside target and stretch target inputs.

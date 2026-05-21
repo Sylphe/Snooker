@@ -3,11 +3,11 @@
     "schema": "snookerRoutinePack",
     "schemaVersion": "1.0",
     "name": "Curated Snooker Routine Library v1",
-    "version": "1.0.0",
+    "version": "1.1.0-v5.6.19",
     "author": "Snooker Practice PWA",
     "createdAt": "2026-05-20T14:20:00.000Z",
-    "appVersion": "5.6.9-transfer-aware-coaching-engine",
-    "routineCount": 50,
+    "appVersion": "5.6.19-player-rating-scoring-safety",
+    "routineCount": 57,
     "description": "A compact curated snooker training library with level-based targets, skill maps, transfer tags, and productive-difficulty target profiles for club to advanced players.",
     "levels": [
       "sub30",
@@ -17,7 +17,8 @@
       "century",
       "pro"
     ],
-    "recommendedUse": "Import as catalogue routines, then duplicate/edit personal copies where needed."
+    "recommendedUse": "Import as catalogue routines, then duplicate/edit personal copies where needed.",
+    "updatedAt": "2026-05-21T19:35:00.000Z"
   },
   "taxonomyVersion": "v4.26",
   "routines": [
@@ -7278,6 +7279,891 @@
         }
       ],
       "activeTargetProfileId": "target-curated-rec-006-match-shot-selection"
+    },
+    {
+      "id": "curated-match-breakoff-first-visit",
+      "canonicalId": "match-breakoff-first-visit",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Break-off and first visit",
+      "folder": "Match simulation",
+      "subfolder": "Frame starts",
+      "category": "Match realism",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 15,
+      "target": 40,
+      "stretchTarget": 55,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Play a break-off, then continue from the resulting position and score whether the first visit produced a useful scoring chance or strong control.",
+      "setupDescription": "Start from a normal break-off. After the break, play the first realistic visit from the table you leave yourself.",
+      "trainingIntent": "Bridge technical opening shots into match-realistic first-visit decision making.",
+      "fatigueCost": 3,
+      "pressureValue": 4,
+      "tacticalValue": 5,
+      "primarySkill": "tactical_decision_making",
+      "secondarySkills": [
+        "safety",
+        "pressure_resilience",
+        "break_building"
+      ],
+      "transferSkills": [
+        "match_play",
+        "pressure_resilience",
+        "tactical_decision_making"
+      ],
+      "skillMap": {
+        "primarySkill": "tactical_decision_making",
+        "secondarySkills": [
+          "safety",
+          "pressure_resilience",
+          "break_building"
+        ],
+        "transferTags": [
+          "match_play",
+          "pressure_resilience",
+          "tactical_decision_making"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 25,
+        "break30": 32,
+        "break50": 40,
+        "break70": 55,
+        "pro": 65
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-match-breakoff-first-visit-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 40,
+          "stretchTarget": 55,
+          "scoring": "success_rate",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-match-breakoff-first-visit-base"
+    },
+    {
+      "id": "curated-match-two-shot-sequence",
+      "canonicalId": "match-two-shot-sequence",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Two-shot match sequence",
+      "folder": "Match simulation",
+      "subfolder": "Two-shot patterns",
+      "category": "Match realism",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 12,
+      "target": 45,
+      "stretchTarget": 60,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Set a realistic red-colour or red-position sequence and count success only when both the pot and position are achieved.",
+      "setupDescription": "Use a realistic table layout: awkward red, available colour, and a defined positional zone for the second shot.",
+      "trainingIntent": "Train conversion from one realistic opportunity into the next shot rather than isolated potting.",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 4,
+      "primarySkill": "transition_play",
+      "secondarySkills": [
+        "cue_ball_control",
+        "break_building",
+        "positional_play"
+      ],
+      "transferSkills": [
+        "match_play",
+        "break_building",
+        "cue_ball_control"
+      ],
+      "skillMap": {
+        "primarySkill": "transition_play",
+        "secondarySkills": [
+          "cue_ball_control",
+          "break_building",
+          "positional_play"
+        ],
+        "transferTags": [
+          "match_play",
+          "break_building",
+          "cue_ball_control"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 30,
+        "break30": 37,
+        "break50": 45,
+        "break70": 60,
+        "pro": 70
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 30,
+          "stretchTarget": 37,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 37,
+          "stretchTarget": 45,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 45,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-match-two-shot-sequence-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 45,
+          "stretchTarget": 60,
+          "scoring": "success_rate",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-match-two-shot-sequence-base"
+    },
+    {
+      "id": "curated-match-frame-ball-pressure",
+      "canonicalId": "match-frame-ball-pressure",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Frame-ball pressure pot",
+      "folder": "Match simulation",
+      "subfolder": "Pressure shots",
+      "category": "Match realism",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 10,
+      "target": 40,
+      "stretchTarget": 60,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "One pressure pot to win or protect the frame. Count only clean execution under the pre-shot routine.",
+      "setupDescription": "Place the cue ball awkwardly and nominate a frame-ball pot. Reset fully after each attempt.",
+      "trainingIntent": "Build pressure stability and decision quality on shots that matter.",
+      "fatigueCost": 3,
+      "pressureValue": 5,
+      "tacticalValue": 4,
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "long_potting",
+        "confidence_stability",
+        "tactical_decision_making"
+      ],
+      "transferSkills": [
+        "match_play",
+        "pressure_resilience",
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "pressure_resilience",
+        "secondarySkills": [
+          "long_potting",
+          "confidence_stability",
+          "tactical_decision_making"
+        ],
+        "transferTags": [
+          "match_play",
+          "pressure_resilience",
+          "confidence_stability"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 25,
+        "break30": 32,
+        "break50": 40,
+        "break70": 60,
+        "pro": 70
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-match-frame-ball-pressure-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 40,
+          "stretchTarget": 60,
+          "scoring": "success_rate",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-match-frame-ball-pressure-base"
+    },
+    {
+      "id": "curated-safety-snooker-escape-safe-leave",
+      "canonicalId": "safety-snooker-escape-safe-leave",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Snooker escape + safe leave",
+      "folder": "Safety",
+      "subfolder": "Escapes",
+      "category": "Safety match skills",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 12,
+      "target": 40,
+      "stretchTarget": 55,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Escape a snooker and leave the cue ball or object ball safe. A simple hit is not enough: the leave must also be defensible.",
+      "setupDescription": "Cue ball snookered behind a colour; object ball visible only via cushion escape. Define a safe baulk or distance leave.",
+      "trainingIntent": "Connect escape-shot mechanics with match-quality safety outcomes.",
+      "fatigueCost": 3,
+      "pressureValue": 4,
+      "tacticalValue": 5,
+      "primarySkill": "escape_shots",
+      "secondarySkills": [
+        "safety",
+        "tactical_decision_making",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "match_play",
+        "safety",
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "escape_shots",
+        "secondarySkills": [
+          "safety",
+          "tactical_decision_making",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "match_play",
+          "safety",
+          "pressure_resilience"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 25,
+        "break30": 32,
+        "break50": 40,
+        "break70": 55,
+        "pro": 65
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-safety-snooker-escape-safe-leave-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 40,
+          "stretchTarget": 55,
+          "scoring": "success_rate",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-safety-snooker-escape-safe-leave-base"
+    },
+    {
+      "id": "curated-rest-under-pressure",
+      "canonicalId": "rest-under-pressure",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Rest under pressure",
+      "folder": "Rest play",
+      "subfolder": "Match pressure",
+      "category": "Rest play",
+      "scoring": "success_rate",
+      "attempts": 5,
+      "attemptsPerSession": 5,
+      "duration": 8,
+      "target": 30,
+      "stretchTarget": 45,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Five rest pots from awkward positions under a simple time or routine constraint. Count only clean pots with controlled cueing.",
+      "setupDescription": "Use the rest from realistic awkward angles. Keep the setup compact and reset fully between attempts.",
+      "trainingIntent": "Move rest play from pure mechanics into pressure-context execution.",
+      "fatigueCost": 3,
+      "pressureValue": 4,
+      "tacticalValue": 3,
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "pressure_resilience",
+        "cueing",
+        "confidence_stability"
+      ],
+      "transferSkills": [
+        "match_play",
+        "pressure_resilience",
+        "rest_play"
+      ],
+      "skillMap": {
+        "primarySkill": "rest_play",
+        "secondarySkills": [
+          "pressure_resilience",
+          "cueing",
+          "confidence_stability"
+        ],
+        "transferTags": [
+          "match_play",
+          "pressure_resilience",
+          "rest_play"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 20,
+        "break30": 25,
+        "break50": 30,
+        "break70": 45,
+        "pro": 55
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 45,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 45,
+          "stretchTarget": 53,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 60,
+          "stretchTarget": 65,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-rest-under-pressure-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 30,
+          "stretchTarget": 45,
+          "scoring": "success_rate",
+          "attemptsPerSession": 5,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-rest-under-pressure-base"
+    },
+    {
+      "id": "curated-cue-ball-pace-zone-points",
+      "canonicalId": "cue-ball-pace-zone-points",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Cue-ball pace ladder \u2014 zone points",
+      "folder": "Cue-ball control",
+      "subfolder": "Pace control",
+      "category": "Positional scoring",
+      "scoring": "points",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 12,
+      "target": 30,
+      "stretchTarget": 40,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Score positional control with partial credit: 5 points exact zone, 3 points within one foot, 1 point usable leave, 0 otherwise.",
+      "setupDescription": "Play cue-ball pace routes to pre-defined landing zones. Use points rather than binary success to capture quality.",
+      "trainingIntent": "Give finer feedback on pace control than success/fail scoring.",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 3,
+      "primarySkill": "pace_control",
+      "secondarySkills": [
+        "cue_ball_control",
+        "positional_play"
+      ],
+      "transferSkills": [
+        "break_building",
+        "cue_ball_control"
+      ],
+      "skillMap": {
+        "primarySkill": "pace_control",
+        "secondarySkills": [
+          "cue_ball_control",
+          "positional_play"
+        ],
+        "transferTags": [
+          "break_building",
+          "cue_ball_control"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 20,
+        "break30": 25,
+        "break50": 30,
+        "break70": 40,
+        "pro": 50
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-cue-ball-pace-zone-points-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 30,
+          "stretchTarget": 40,
+          "scoring": "points",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-cue-ball-pace-zone-points-base"
+    },
+    {
+      "id": "curated-baulk-line-control-zone-points",
+      "canonicalId": "baulk-line-control-zone-points",
+      "metadataVersion": 2,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "curated-snooker-v1",
+      "name": "Baulk-line control \u2014 zone points",
+      "folder": "Safety",
+      "subfolder": "Containment",
+      "category": "Positional scoring",
+      "scoring": "points",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": 12,
+      "target": 30,
+      "stretchTarget": 40,
+      "totalUnits": "",
+      "difficultyLabel": "Match-context target",
+      "description": "Score safety control with partial credit: 5 exact baulk zone, 3 safe distance, 1 thin-contact leave, 0 poor leave.",
+      "setupDescription": "Use baulk-line or containing-safety layouts with pre-defined cue-ball/object-ball zones.",
+      "trainingIntent": "Measure safety quality and cue-ball control with graded outcomes.",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 4,
+      "primarySkill": "safety",
+      "secondarySkills": [
+        "cue_ball_control",
+        "tactical_decision_making",
+        "pace_control"
+      ],
+      "transferSkills": [
+        "match_play",
+        "safety",
+        "tactical_decision_making"
+      ],
+      "skillMap": {
+        "primarySkill": "safety",
+        "secondarySkills": [
+          "cue_ball_control",
+          "tactical_decision_making",
+          "pace_control"
+        ],
+        "transferTags": [
+          "match_play",
+          "safety",
+          "tactical_decision_making"
+        ],
+        "source": "curated-v5.6.19",
+        "updatedAt": "2026-05-21T19:35:00.000Z"
+      },
+      "levelTargets": {
+        "sub30": 20,
+        "break30": 25,
+        "break50": 30,
+        "break70": 40,
+        "pro": 50
+      },
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetHistory": [
+        {
+          "id": "curated-baulk-line-control-zone-points-base",
+          "createdAt": "2026-05-21T19:35:00.000Z",
+          "difficultyLabel": "Match-context target",
+          "target": 30,
+          "stretchTarget": 40,
+          "scoring": "points",
+          "attemptsPerSession": 10,
+          "totalUnits": ""
+        }
+      ],
+      "activeTargetProfileId": "curated-baulk-line-control-zone-points-base"
     }
   ],
   "skillMaps": [
@@ -7834,6 +8720,116 @@
       "transferTags": [
         "match_play"
       ]
+    },
+    {
+      "canonicalId": "match-breakoff-first-visit",
+      "primarySkill": "tactical_decision_making",
+      "secondarySkills": [
+        "safety",
+        "pressure_resilience",
+        "break_building"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience",
+        "tactical_decision_making"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "match-two-shot-sequence",
+      "primarySkill": "transition_play",
+      "secondarySkills": [
+        "cue_ball_control",
+        "break_building",
+        "positional_play"
+      ],
+      "transferTags": [
+        "match_play",
+        "break_building",
+        "cue_ball_control"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "match-frame-ball-pressure",
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "long_potting",
+        "confidence_stability",
+        "tactical_decision_making"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience",
+        "confidence_stability"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "safety-snooker-escape-safe-leave",
+      "primarySkill": "escape_shots",
+      "secondarySkills": [
+        "safety",
+        "tactical_decision_making",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "match_play",
+        "safety",
+        "pressure_resilience"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "rest-under-pressure",
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "pressure_resilience",
+        "cueing",
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience",
+        "rest_play"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "cue-ball-pace-zone-points",
+      "primarySkill": "pace_control",
+      "secondarySkills": [
+        "cue_ball_control",
+        "positional_play"
+      ],
+      "transferTags": [
+        "break_building",
+        "cue_ball_control"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
+    },
+    {
+      "canonicalId": "baulk-line-control-zone-points",
+      "primarySkill": "safety",
+      "secondarySkills": [
+        "cue_ball_control",
+        "tactical_decision_making",
+        "pace_control"
+      ],
+      "transferTags": [
+        "match_play",
+        "safety",
+        "tactical_decision_making"
+      ],
+      "source": "curated-v5.6.19",
+      "updatedAt": "2026-05-21T19:35:00.000Z"
     }
   ],
   "targetProfiles": [
@@ -12384,6 +13380,811 @@
           "totalUnits": 12,
           "scoring": "success_rate",
           "difficultyLabel": "Decision"
+        }
+      ]
+    },
+    {
+      "canonicalId": "match-breakoff-first-visit",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "match-two-shot-sequence",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 30,
+          "stretchTarget": 37,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 37,
+          "stretchTarget": 45,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 45,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 30,
+          "stretchTarget": 37,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 37,
+          "stretchTarget": 45,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 45,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "match-frame-ball-pressure",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 60,
+          "stretchTarget": 68,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 75,
+          "stretchTarget": 80,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "safety-snooker-escape-safe-leave",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 25,
+          "stretchTarget": 32,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 32,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 40,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 55,
+          "stretchTarget": 63,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 65,
+          "stretchTarget": 70,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 70,
+          "stretchTarget": 75,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "rest-under-pressure",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 45,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 45,
+          "stretchTarget": 53,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 60,
+          "stretchTarget": 65,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 45,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 45,
+          "stretchTarget": 53,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 60,
+          "stretchTarget": 65,
+          "attemptsPerSession": 5,
+          "totalUnits": "",
+          "scoring": "success_rate",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "cue-ball-pace-zone-points",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        }
+      ]
+    },
+    {
+      "canonicalId": "baulk-line-control-zone-points",
+      "levelTargets": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        }
+      ],
+      "targetProfiles": [
+        {
+          "level": "sub30",
+          "target": 20,
+          "stretchTarget": 25,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break30",
+          "target": 25,
+          "stretchTarget": 30,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break50",
+          "target": 30,
+          "stretchTarget": 40,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "break70",
+          "target": 40,
+          "stretchTarget": 48,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "century",
+          "target": 50,
+          "stretchTarget": 55,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
+        },
+        {
+          "level": "pro",
+          "target": 55,
+          "stretchTarget": 60,
+          "attemptsPerSession": 10,
+          "totalUnits": "",
+          "scoring": "points",
+          "difficultyLabel": "Match-context target"
         }
       ]
     }

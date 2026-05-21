@@ -11,3 +11,8 @@ Contains 50 curated snooker routines across:
 - Rest / recovery
 
 Each routine includes stable canonical IDs, scoring mode, attempts, target/stretch target, level targets for sub-30 / 30 / 50 / 70 / century / pro profiles, primary skill, secondary skills, transfer skills, training intent, fatigue cost, pressure value, and tactical value.
+
+
+## v5.6.19 ontology additions
+
+Added match-realism, recovery-from-snooker, rest-under-pressure, and points-based positional-control routines. Tempo/rhythm drills are intentionally excluded from this release.

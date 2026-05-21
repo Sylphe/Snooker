@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.18";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.18";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.19";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.19";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.18";
+} from "./utils.js?v=5.6.19";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.18";
+} from "./settings.js?v=5.6.19";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.18";
+} from "./analytics.js?v=5.6.19";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.18";
+} from "./bayesian.js?v=5.6.19";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.18";
+} from "./session.js?v=5.6.19";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.18";
+} from "./pressure.js?v=5.6.19";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.18";
+} from "./recommendations.js?v=5.6.19";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.18";
+} from "./store.js?v=5.6.19";
 
 
 
@@ -629,6 +629,7 @@ const DEFAULT_SKILLS = [
   {id:"safety", label:"Safety", group:"Safety / tactical", aliases:["safe","snooker","containing safety"]},
   {id:"tactical_decision_making", label:"Tactical decision-making", group:"Safety / tactical", aliases:["tactics","shot selection","decision making"]},
   {id:"escape_shots", label:"Escape shots", group:"Safety / tactical", aliases:["escape","escapes","snooker escape"]},
+  {id:"match_play", label:"Match play", group:"Safety / tactical", aliases:["match realism","match context","frame simulation","match situations"]},
   {id:"pressure_resilience", label:"Pressure resilience", group:"Mental", aliases:["pressure","match pressure","pressure mode"]},
   {id:"focus_consistency", label:"Focus consistency", group:"Mental", aliases:["focus","concentration","attention"]},
   {id:"confidence_stability", label:"Confidence stability", group:"Mental", aliases:["confidence","belief","confidence control"]},
@@ -1972,7 +1973,7 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
 /* ===== v5.6.17 AI Coaching Layer v2 ===== */
 const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
 
-// v5.6.18: bounded AI export defaults.
+// v5.6.19: bounded AI export defaults.
 // These caps keep the export useful for external AI review without creating
 // unbounded payloads on libraries with many routines/logs.
 const AI_EXPORT_MAX_ROUTINE_SNAPSHOTS = 50;
@@ -2430,6 +2431,55 @@ function skillRadarSvg(profile){
   const poly = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   return `<svg class="skill-radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="Inferred skill radar">${rings}${axes}<polygon points="${poly}" class="skill-radar-area"></polygon>${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="skill-radar-point"></circle>`).join("")}${labels}</svg>`;
 }
+
+function getSkillLevelRow(skillProfile, id){
+  return (skillProfile?.profile || []).find(x => x.id === id) || null;
+}
+function estimateGlobalPlayerRating(skillProfile, logs=(data.logs||[])){
+  const row = id => getSkillLevelRow(skillProfile, id) || {score:50, level:"L?", confidence:"low", n:0};
+  const longPotting = row("long_potting");
+  const cueBall = row("cue_ball_control");
+  const safety = row("safety");
+  const pressure = row("pressure");
+  const breakBuilding = row("break_building");
+  const restPlay = row("rest_play");
+  const tactical = row("tactical");
+  const scoreOf = x => Number.isFinite(Number(x?.score)) ? Number(x.score) : 50;
+  const evidenceN = (skillProfile?.profile || []).reduce((sum,x)=>sum + (Number(x.n)||0),0);
+  const maxBreak = safeMax((logs||[]).map(l => {
+    const candidates = [l.highestBreak, l.bestBreak];
+    if (String(l.scoring||"") === "highest_break") candidates.push(l.score);
+    if (String(l.scoring||"") === "progressive_completion") candidates.push(l.highestBreak);
+    return safeMax(candidates.map(Number).filter(Number.isFinite), null);
+  }).filter(Number.isFinite), 0) || 0;
+  let technical = scoreOf(breakBuilding)*0.26 + scoreOf(cueBall)*0.20 + scoreOf(longPotting)*0.16 + scoreOf(safety)*0.13 + scoreOf(pressure)*0.13 + scoreOf(tactical)*0.08 + scoreOf(restPlay)*0.04;
+  if(maxBreak >= 100) technical = Math.max(technical, 82);
+  else if(maxBreak >= 70) technical = Math.max(technical, 72);
+  else if(maxBreak >= 50) technical = Math.max(technical, 62);
+  else if(maxBreak >= 30) technical = Math.max(technical, 48);
+  const lowestConstraint = safeMin([cueBall, safety, pressure, tactical].map(scoreOf), 50);
+  const constraintCap = lowestConstraint < 32 ? 42 : lowestConstraint < 45 ? 56 : lowestConstraint < 58 ? 70 : 100;
+  const matchStable = Math.min(technical, constraintCap);
+  const bandFor = value => value >= 82 ? {label:"Century-capable", short:"100+"} : value >= 70 ? {label:"70+ breaker", short:"70+"} : value >= 58 ? {label:"50+ breaker", short:"50+"} : value >= 44 ? {label:"30+ breaker", short:"30+"} : {label:"Sub-30 breaker", short:"<30"};
+  const technicalBand = bandFor(technical);
+  const stableBand = bandFor(matchStable);
+  const confidence = evidenceN >= 70 ? "high" : evidenceN >= 30 ? "moderate" : evidenceN >= 10 ? "early" : "low";
+  let reason = `Estimated from break-building, cue-ball control, long potting, safety, pressure, tactical and consistency evidence.`;
+  if(stableBand.label !== technicalBand.label) reason = `Technical potential is ${technicalBand.label}, but match-stable rating is capped by the weakest execution/pressure links.`;
+  if(maxBreak >= 30) reason += ` Logged maximum break evidence supports at least ${bandFor(maxBreak >= 100 ? 82 : maxBreak >= 70 ? 70 : maxBreak >= 50 ? 58 : 44).label} potential.`;
+  return {technicalScore:Math.round(technical), matchScore:Math.round(matchStable), technicalBand, stableBand, confidence, evidenceN, maxBreak, reason, limitingScore:Math.round(lowestConstraint)};
+}
+function globalPlayerRatingInsightBlock(skillProfile, logs){
+  const rating = estimateGlobalPlayerRating(skillProfile, logs);
+  return `<div class="player-rating-card">
+    <div><span class="muted tiny">Global player rating</span><strong>${htmlText(rating.stableBand.label)}</strong><span class="muted">${htmlText(rating.confidence)} confidence · ${numText(rating.evidenceN,"0")} evidence logs</span></div>
+    <div class="player-rating-scale" aria-label="Player rating scale"><span class="${rating.stableBand.short==="<30"?"active":""}">Sub-30</span><span class="${rating.stableBand.short==="30+"?"active":""}">30+</span><span class="${rating.stableBand.short==="50+"?"active":""}">50+</span><span class="${rating.stableBand.short==="70+"?"active":""}">70+</span><span class="${rating.stableBand.short==="100+"?"active":""}">100+</span></div>
+    <div class="context-row"><span>Match-stable rating</span><strong>${htmlText(rating.stableBand.short)}</strong><span>${numText(rating.matchScore)}/100</span></div>
+    <div class="context-row"><span>Technical potential</span><strong>${htmlText(rating.technicalBand.short)}</strong><span>${numText(rating.technicalScore)}/100</span></div>
+    <div class="muted small">${htmlText(rating.reason)}</div>
+  </div>`;
+}
+
 function inferredSkillLevelInsight(logs){
   const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
   const weakestLinks = detectWeakestLink(profile);
@@ -2437,6 +2487,7 @@ function inferredSkillLevelInsight(logs){
   const main = weakestLinks[0];
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
   return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
+    ${globalPlayerRatingInsightBlock(profile, logs || data.logs || [])}
     <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
@@ -4443,6 +4494,16 @@ safeOn("saveRoutineBtn", "click", () => {
   if ($("routineEditId").value) {
     const oldRoutine = data.routines.find(r => r.id === routine.id);
     if (oldRoutine) {
+      const oldScoring = String(oldRoutine.scoring || "raw");
+      const newScoring = String(routine.scoring || "raw");
+      const historicalLogCount = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id)).length;
+      if (historicalLogCount > 0 && oldScoring !== newScoring) {
+        const proceed = confirm(`This changes how historical logs are interpreted. Archive and duplicate instead?
+
+OK = keep this scoring-type change on the existing exercise.
+Cancel = stop so you can archive/duplicate the routine and keep historical logs semantically clean.`);
+        if (!proceed) return;
+      }
       routine.targetHistory = oldRoutine.targetHistory || [];
       routine.activeTargetProfileId = oldRoutine.activeTargetProfileId || "";
       const targetChanged = hasTargetProfileChanged(oldRoutine, routine);
@@ -9307,7 +9368,7 @@ function validateRoutinePack(pack) {
   const routines = Array.isArray(pack?.routines) ? pack.routines : [];
   if (!routines.length) errors.push("Pack contains no routines.");
   const seen = new Set();
-  const allowedScoring = new Set(["raw","success_rate","points","score_per_minute","progressive_completion"]);
+  const allowedScoring = new Set(["raw","success_rate","highest_break","points","score_per_minute","progressive_completion"]);
   routines.forEach((r, idx) => {
     const label = `Routine ${idx + 1}`;
     if (!r || typeof r !== "object") { errors.push(`${label} is not an object.`); return; }
@@ -9495,7 +9556,7 @@ function validateRoutineCsvRows(rows) {
       if (Number.isNaN(rec[field])) errors.push(`Row ${rec.__row}: ${field} is not a valid number.`);
     });
     if (!rec.skillMap.primarySkill) warnings.push(`Row ${rec.__row}: missing primary skill; cueing fallback will be used.`);
-    if (!["raw","success_rate","time","score_per_minute","progressive_completion","points"].includes(rec.scoring)) warnings.push(`Row ${rec.__row}: unknown scoring mode "${rec.scoring}" kept as-is.`);
+    if (!["raw","success_rate","highest_break","time","score_per_minute","progressive_completion","points"].includes(rec.scoring)) warnings.push(`Row ${rec.__row}: unknown scoring mode "${rec.scoring}" kept as-is.`);
   });
   return {ok: errors.length === 0, errors, warnings, records};
 }
