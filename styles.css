@@ -4516,7 +4516,7 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 @media(max-width:520px){.player-rating-scale{grid-template-columns:repeat(3,1fr);}.player-rating-scale span{font-size:10.5px;}}
 
 
-/* v5.6.20 — selective routine-pack import preview */
+/* v5.7.0 — selective routine-pack import preview */
 .routine-import-badge { background: rgba(28, 86, 153, 0.10); border-color: rgba(28, 86, 153, 0.22); color: var(--text); }
 .routine-pack-import-preview { align-items: center; justify-content: center; padding: 16px; }
 .routine-pack-preview-card { width: min(980px, 96vw); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -4536,4 +4536,443 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
   .routine-pack-preview-card { width: 100vw; max-height: 94vh; }
   .routine-pack-preview-toolbar { flex-direction: column; align-items: stretch; }
   .routine-pack-preview-toolbar input { min-width: 0; width: 100%; }
+}
+
+/* v5.7.0 — Focus Mode UX Reset
+   Purpose: replace accumulated focus-mode override debt with one stable, mobile-first cockpit layout.
+   Scope: visual/layout only; no scoring, storage, session, or analytics logic changes. */
+body.session-focus-active{
+  background:#06120e !important;
+  overflow:hidden !important;
+  min-height:100dvh !important;
+  height:100dvh !important;
+}
+body.session-focus-active main{
+  max-width:none !important;
+  width:100% !important;
+  min-height:100dvh !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.session-focus-active main > section:not(#practice),
+body.session-focus-active .app-header,
+body.session-focus-active .tabs,
+body.session-focus-active #backupReminderBanner,
+body.session-focus-active footer,
+body.session-focus-active #practice > .card:not(#activeSession),
+body.session-focus-active #practice > .practice-tab-panel,
+body.session-focus-active #freeNextCard,
+body.session-focus-active #sessionSummary,
+body.session-focus-active .practice-command-card{
+  display:none !important;
+}
+body.session-focus-active #practice{
+  display:block !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.session-focus-active #activeSession{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:40 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  min-height:100dvh !important;
+  overflow-y:auto !important;
+  overscroll-behavior:contain !important;
+  -webkit-overflow-scrolling:touch !important;
+  margin:0 !important;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(10px + env(safe-area-inset-bottom,0px)) !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:linear-gradient(180deg,#07140f 0%,#06100d 100%) !important;
+  color:#ecfdf5 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:10px !important;
+  justify-content:flex-start !important;
+}
+body.session-focus-active #activeSession.hidden{display:none !important;}
+
+body.session-focus-active #activeSession .session-top{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:center !important;
+  gap:10px !important;
+  margin:0 !important;
+  padding:10px 12px !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  border-radius:16px !important;
+  background:rgba(255,255,255,.055) !important;
+  backdrop-filter:blur(4px) !important;
+}
+body.session-focus-active #currentRoutineName{
+  margin:0 !important;
+  color:#f8fafc !important;
+  font-size:clamp(16px,4.4vw,22px) !important;
+  line-height:1.12 !important;
+  font-weight:850 !important;
+  letter-spacing:-.02em !important;
+}
+body.session-focus-active #currentRoutineMeta{
+  margin:4px 0 0 !important;
+  color:rgba(226,232,240,.72) !important;
+  font-size:11px !important;
+  line-height:1.25 !important;
+  white-space:normal !important;
+}
+body.session-focus-active .timer{
+  color:#ecfdf5 !important;
+  text-align:right !important;
+  font-size:clamp(24px,7vw,38px) !important;
+  line-height:1 !important;
+  font-weight:900 !important;
+  font-variant-numeric:tabular-nums !important;
+}
+body.session-focus-active .timer-sub{
+  margin:3px 0 0 !important;
+  color:rgba(226,232,240,.72) !important;
+  text-align:right !important;
+  font-size:10px !important;
+}
+body.session-focus-active #routineDescriptionBox{display:none !important;}
+
+body.session-focus-active #activeSession .focus-timer-action-row,
+body.session-focus-active #activeSession .row.focus-timer-action-row{
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:8px !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  align-items:stretch !important;
+}
+body.session-focus-active #activeSession .focus-timer-action-row > button,
+body.session-focus-active #activeSession #timerStartBtn,
+body.session-focus-active #activeSession #timerPauseBtn,
+body.session-focus-active #activeSession #timerResetBtn,
+body.session-focus-active #activeSession #toggleFocusModeBtn{
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:42px !important;
+  min-height:42px !important;
+  max-height:none !important;
+  padding:0 6px !important;
+  border:0 !important;
+  border-radius:12px !important;
+  color:#fff !important;
+  font-size:12px !important;
+  font-weight:850 !important;
+  line-height:1 !important;
+  box-shadow:none !important;
+}
+body.session-focus-active #timerStartBtn{background:#15803d !important;}
+body.session-focus-active #timerPauseBtn{background:#b45309 !important;}
+body.session-focus-active #timerResetBtn{background:#475569 !important;}
+body.session-focus-active #toggleFocusModeBtn{background:#b91c1c !important;}
+body.session-focus-active #activeSession .focus-timer-action-row button:active{transform:scale(.97) !important;}
+
+body.session-focus-active #activeSession #livePerformanceCard,
+body.session-focus-active #activeSession .live-performance-card{
+  display:block !important;
+  margin:0 !important;
+}
+body.session-focus-active #activeSession .live-perf{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(72px,1fr)) !important;
+  gap:6px !important;
+  padding:8px !important;
+  margin:0 !important;
+  border:1px solid rgba(255,255,255,.07) !important;
+  border-radius:16px !important;
+  background:rgba(0,0,0,.24) !important;
+}
+body.session-focus-active #activeSession .live-perf > div,
+body.session-focus-active #activeSession .live-perf > div:first-child{
+  min-height:46px !important;
+  padding:7px 6px !important;
+  border:1px solid rgba(255,255,255,.06) !important;
+  border-radius:12px !important;
+  background:rgba(255,255,255,.055) !important;
+  text-align:center !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:center !important;
+}
+body.session-focus-active #activeSession .live-perf > div:first-child{
+  grid-column:1 / -1 !important;
+  min-height:42px !important;
+  background:rgba(34,197,94,.14) !important;
+  border-color:rgba(34,197,94,.28) !important;
+  flex-direction:row !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  text-align:left !important;
+}
+body.session-focus-active #activeSession .live-perf span{
+  display:block !important;
+  color:rgba(226,232,240,.68) !important;
+  font-size:10px !important;
+  line-height:1.1 !important;
+  font-weight:650 !important;
+}
+body.session-focus-active #activeSession .live-perf strong,
+body.session-focus-active #activeSession .live-perf > div:first-child strong{
+  display:block !important;
+  color:#f8fafc !important;
+  font-size:14px !important;
+  line-height:1.1 !important;
+  font-weight:900 !important;
+}
+
+body.session-focus-active #scoreInputs{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:8px !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  align-items:start !important;
+}
+body.session-focus-active #activeSession.focus-has-side-split #scoreInputs{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+}
+body.session-focus-active #scoreInputs > div{
+  min-width:0 !important;
+}
+body.session-focus-active #scoreInputs label,
+body.session-focus-active #sessionExtraFields label{
+  display:block !important;
+  margin:0 0 4px !important;
+  color:rgba(226,232,240,.74) !important;
+  font-size:10px !important;
+  line-height:1.2 !important;
+  font-weight:750 !important;
+  letter-spacing:.06em !important;
+  text-transform:uppercase !important;
+}
+body.session-focus-active #scoreInputs input,
+body.session-focus-active #sessionExtraFields select,
+body.session-focus-active #sessionExtraFields input,
+body.session-focus-active #sessionExtraFields textarea{
+  width:100% !important;
+  min-height:44px !important;
+  margin:0 !important;
+  padding:9px 8px !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  border-radius:12px !important;
+  background:rgba(0,0,0,.32) !important;
+  color:#f8fafc !important;
+  box-shadow:none !important;
+  text-align:center !important;
+  font-size:16px !important;
+  font-weight:850 !important;
+}
+body.session-focus-active #scoreInputs textarea,
+body.session-focus-active #sessionExtraFields textarea{text-align:left !important;}
+body.session-focus-active .focus-readonly-input{caret-color:transparent !important;cursor:pointer !important;}
+body.session-focus-active .side-split-panel,
+body.session-focus-active #activeSession .side-split-panel,
+body.session-focus-active #activeSession .focus-side-tile{
+  grid-column:1 / -1 !important;
+  margin:0 !important;
+  padding:10px !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  border-radius:16px !important;
+  background:rgba(255,255,255,.055) !important;
+}
+body.session-focus-active .side-split-panel .grid.two{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:10px !important;
+}
+body.session-focus-active .side-split-compact-note{
+  margin:0 0 8px !important;
+  color:rgba(226,232,240,.70) !important;
+  font-size:11px !important;
+  line-height:1.25 !important;
+}
+
+body.session-focus-active #activeSession .focus-inline-stepper{
+  display:flex !important;
+  gap:6px !important;
+  margin-top:6px !important;
+}
+body.session-focus-active #activeSession .focus-inline-stepper button{
+  flex:1 1 0 !important;
+  min-height:32px !important;
+  padding:4px !important;
+  border:0 !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.10) !important;
+  color:#f8fafc !important;
+  font-size:18px !important;
+  font-weight:900 !important;
+}
+body.session-focus-active #quickScoreControls{display:none !important;}
+body.session-focus-active #activeSession .focus-numpad-panel,
+body.session-focus-active #activeSession .focus-score-cockpit{
+  grid-column:1 / -1 !important;
+  margin:2px 0 0 !important;
+  padding:10px !important;
+  border:1px solid rgba(255,255,255,.07) !important;
+  border-radius:18px !important;
+  background:rgba(0,0,0,.38) !important;
+}
+body.session-focus-active .focus-cockpit-header{
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:center !important;
+  gap:8px !important;
+  margin:0 0 8px !important;
+}
+body.session-focus-active .focus-cockpit-label{color:#f8fafc !important;font-size:12px !important;font-weight:850 !important;}
+body.session-focus-active .focus-cockpit-hint{color:rgba(226,232,240,.62) !important;font-size:10px !important;}
+body.session-focus-active .focus-numpad-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:8px !important;
+}
+body.session-focus-active .focus-numpad-grid button{
+  min-width:0 !important;
+  min-height:48px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.11) !important;
+  color:#f8fafc !important;
+  font-size:22px !important;
+  font-weight:900 !important;
+}
+body.session-focus-active .focus-numpad-grid button[data-numpad-action="enter"]{
+  background:#22c55e !important;
+  color:#052e16 !important;
+}
+body.session-focus-active .focus-numpad-footer{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:8px !important;
+  margin-top:8px !important;
+}
+body.session-focus-active .focus-numpad-footer button{
+  min-height:38px !important;
+  padding:6px !important;
+  border:0 !important;
+  border-radius:12px !important;
+  background:rgba(255,255,255,.10) !important;
+  color:#f8fafc !important;
+  font-size:12px !important;
+  font-weight:750 !important;
+}
+
+body.session-focus-active #sessionExtraFields{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:8px !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.session-focus-active .session-focus-optional{display:none !important;}
+body.session-focus-active #activeSession:not(.focus-first-exercise) .focus-venue-block{display:none !important;}
+body.session-focus-active #sessionRating{display:none !important;}
+body.session-focus-active .focus-quality-block{
+  padding:8px !important;
+  border:1px solid rgba(255,255,255,.07) !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.045) !important;
+}
+body.session-focus-active .quality-tile-row{
+  display:grid !important;
+  grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+  gap:6px !important;
+  margin:4px 0 0 !important;
+}
+body.session-focus-active .quality-tile{
+  min-height:34px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.10) !important;
+  color:#f8fafc !important;
+  font-size:13px !important;
+  font-weight:850 !important;
+}
+body.session-focus-active .quality-tile.active{
+  background:#22c55e !important;
+  color:#052e16 !important;
+}
+
+body.session-focus-active #activeSession .sticky-log-actions,
+body.session-focus-active #activeSession .primary-action-row,
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row{
+  position:sticky !important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 4px) !important;
+  z-index:45 !important;
+  display:grid !important;
+  grid-template-columns:2fr 1fr 1fr !important;
+  gap:8px !important;
+  width:100% !important;
+  margin:auto 0 0 !important;
+  padding:10px !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  border-radius:18px !important;
+  background:rgba(0,0,0,.78) !important;
+  backdrop-filter:blur(12px) !important;
+  box-shadow:0 -10px 28px rgba(0,0,0,.28) !important;
+}
+body.session-focus-active #saveNextBtn,
+body.session-focus-active #skipBtn,
+body.session-focus-active #endFreeSessionBtn{
+  width:auto !important;
+  min-width:0 !important;
+  min-height:48px !important;
+  margin:0 !important;
+  padding:0 10px !important;
+  border:0 !important;
+  border-radius:14px !important;
+  font-size:14px !important;
+  font-weight:900 !important;
+  line-height:1.05 !important;
+}
+body.session-focus-active #saveNextBtn{background:#22c55e !important;color:#052e16 !important;}
+body.session-focus-active #skipBtn{background:rgba(255,255,255,.13) !important;color:#f8fafc !important;}
+body.session-focus-active #endFreeSessionBtn{background:#991b1b !important;color:#fff !important;}
+body.session-focus-active #endFreeSessionBtn.hidden,
+body.session-focus-active #skipBtn.hidden{display:none !important;}
+body.session-focus-active #activeSession .sticky-log-actions:has(#endFreeSessionBtn.hidden){grid-template-columns:2fr 1fr !important;}
+body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden){grid-template-columns:1fr 1fr !important;}
+
+@media (max-width:480px){
+  body.session-focus-active #activeSession{gap:8px !important;padding:calc(8px + env(safe-area-inset-top,0px)) 8px calc(8px + env(safe-area-inset-bottom,0px)) !important;}
+  body.session-focus-active #activeSession .session-top{grid-template-columns:1fr !important;gap:6px !important;padding:9px 10px !important;}
+  body.session-focus-active .timer,
+  body.session-focus-active .timer-sub{text-align:left !important;}
+  body.session-focus-active #activeSession .focus-timer-action-row,
+  body.session-focus-active #activeSession .row.focus-timer-action-row{gap:6px !important;}
+  body.session-focus-active #activeSession .focus-timer-action-row > button,
+  body.session-focus-active #activeSession #timerStartBtn,
+  body.session-focus-active #activeSession #timerPauseBtn,
+  body.session-focus-active #activeSession #timerResetBtn,
+  body.session-focus-active #activeSession #toggleFocusModeBtn{height:38px !important;min-height:38px !important;font-size:11px !important;border-radius:10px !important;}
+  body.session-focus-active #scoreInputs{gap:7px !important;}
+  body.session-focus-active .focus-numpad-grid button{min-height:44px !important;font-size:20px !important;}
+  body.session-focus-active #saveNextBtn,
+  body.session-focus-active #skipBtn,
+  body.session-focus-active #endFreeSessionBtn{min-height:46px !important;font-size:13px !important;}
+}
+@media (max-width:340px){
+  body.session-focus-active #scoreInputs,
+  body.session-focus-active #activeSession.focus-has-side-split #scoreInputs,
+  body.session-focus-active .side-split-panel .grid.two{grid-template-columns:1fr !important;}
+  body.session-focus-active #activeSession .focus-timer-action-row,
+  body.session-focus-active #activeSession .row.focus-timer-action-row{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:5px !important;}
+  body.session-focus-active #activeSession .focus-timer-action-row > button,
+  body.session-focus-active #activeSession #timerStartBtn,
+  body.session-focus-active #activeSession #timerPauseBtn,
+  body.session-focus-active #activeSession #timerResetBtn,
+  body.session-focus-active #activeSession #toggleFocusModeBtn{font-size:10px !important;}
 }
