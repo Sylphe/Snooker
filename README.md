@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.6.8
+# Snooker Practice PWA v5.6.9
 
-## v5.6.8 — Transfer-Readiness Coaching Layer
+## v5.6.9 — Transfer-Readiness Coaching Layer
 
 Built from the working v5.6.7 Context-Aware Calibration branch.
 
@@ -18,7 +18,7 @@ This release adds a first explicit transfer-readiness layer on top of the existi
 - Adds metadata warnings for missing transfer tags, routines with no linked destination, low evidence, and targets that are too hard to support transfer.
 - Adds a top-level transferReadinessProfile to the AI coaching export with counts, top bridge routines, and metadata gaps.
 - Extends AI export instructions so external AI analysis can distinguish acquisition drills, bridge drills, and match-transfer candidates.
-- Updates cache/version markers to v5.6.8-transfer-readiness-coaching.
+- Updates cache/version markers to v5.6.9-transfer-readiness-coaching.
 
 ### Design intent
 
@@ -30,3 +30,8 @@ The engine now distinguishes between:
 - a routine whose metadata is too weak for transfer claims.
 
 This is an intermediate coaching layer before a heavier Transfer-Aware Coaching Engine. It does not yet run a full transfer optimization model; it makes transfer readiness explicit and exportable.
+
+
+## v5.6.9 — Transfer-Aware Coaching Engine
+
+Adds hidden weakness detection, transfer-aware routine recommendations, routine-level “likely improves X” explanations, and bridge drill suggestions connecting strong domains to weak domains. Built on existing routine metadata, skill inference, target semantics, and the transfer graph.

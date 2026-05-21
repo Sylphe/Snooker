@@ -1,6 +1,6 @@
 # Curated Snooker Routine Library v1
 
-Included in app version 5.6.8-transfer-readiness-coaching.
+Included in app version 5.6.9-transfer-aware-coaching-engine.
 
 Contains 50 curated snooker routines across:
 - Potting

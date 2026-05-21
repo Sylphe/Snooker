@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.8";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.9";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.9";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.8";
+} from "./utils.js?v=5.6.9";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.8";
+} from "./settings.js?v=5.6.9";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.8";
+} from "./analytics.js?v=5.6.9";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.8";
+} from "./bayesian.js?v=5.6.9";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.8";
+} from "./session.js?v=5.6.9";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.8";
+} from "./pressure.js?v=5.6.9";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.8";
+} from "./recommendations.js?v=5.6.9";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.8";
+} from "./store.js?v=5.6.9";
 
 
 
@@ -1675,6 +1675,84 @@ function transferAwareReasonText(routine, transferNeed=null){
   const downstream = top.map(x=>skillLabel(x.skill)).join(" / ");
   const need = t.reasons.length ? ` Current need: ${t.reasons.join(" · ")}.` : "";
   return `Primary transfer targets: ${downstream}.${need}`;
+}
+
+function hiddenWeaknessSignals(logs=(data.logs || []), skillSummary=skillPerformanceSummary(logs || data.logs || [])){
+  const entries = Object.values(skillSummary || {}).map(x => {
+    const n = Number(x.n || 0);
+    const avgScore = Number(x.avg ?? 60);
+    const recent = Number(x.recentAvg ?? avgScore);
+    const trend = Number(x.trend || 0);
+    const evidence = evidenceStrength(n);
+    const severityRaw = Math.max(0, 68 - avgScore) * 0.75 + Math.max(0, 64 - recent) * 0.45 + Math.max(0, -trend) * 0.60;
+    const hiddenness = n < 6 ? 9 : n < 10 ? 5 : 0;
+    const severity = Math.round((severityRaw * Math.max(0.25, evidence.factor) + hiddenness) * 10) / 10;
+    return {...x, n, avgScore, recent, trend, evidence, severity, label:skillLabel(x.skill)};
+  }).filter(x => x.n >= 2 && x.severity >= 5).sort((a,b)=>b.severity-a.severity);
+  return entries.slice(0,5);
+}
+function routinesImprovingSkill(skill, routines=activeRoutines()){
+  const target = normalizeSkillId(skill);
+  if(!target) return [];
+  return (routines || []).map(r => {
+    const direct = routineSkillWeights(r);
+    const profile = routineGraphTransferProfile(r);
+    const directWeight = Number(direct[target] || 0);
+    const downstreamWeight = Number((profile.topDownstream || []).find(x=>x.skill===target)?.weight || 0);
+    const total = directWeight * 1.8 + downstreamWeight;
+    const route = directWeight >= 0.75 ? "direct" : downstreamWeight > 0 ? "transfer" : "none";
+    return {routine:r, skill:target, directWeight, downstreamWeight, total, route, profile};
+  }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+}
+function bridgeDrillCandidates(strongSkill, weakSkill){
+  const strong = normalizeSkillId(strongSkill);
+  const weak = normalizeSkillId(weakSkill);
+  if(!strong || !weak) return [];
+  const routines = activeRoutines();
+  const directToWeak = routinesImprovingSkill(weak, routines);
+  const strongRoutines = routinesImprovingSkill(strong, routines).map(x=>x.routine.id);
+  return directToWeak.map(x => {
+    const weights = routineSkillWeights(x.routine);
+    const strongBridge = Number(weights[strong] || 0) + Number((x.profile.topDownstream || []).find(e=>e.skill===strong)?.weight || 0);
+    const bridgeScore = x.total * 12 + strongBridge * 7 + (strongRoutines.includes(x.routine.id) ? 5 : 0);
+    return {...x, strongBridge, bridgeScore};
+  }).filter(x=>x.bridgeScore>0).sort((a,b)=>b.bridgeScore-a.bridgeScore).slice(0,4);
+}
+function transferRecommendationForRoutine(routine, summary=skillPerformanceSummary()){
+  const profile = routineGraphTransferProfile(routine);
+  const target = (profile.topDownstream || []).map(edge => {
+    const perf = summary[edge.skill] || {};
+    const n = Number(perf.n || 0);
+    const avgScore = Number(perf.avg ?? 60);
+    const gap = Math.max(0, 70 - avgScore);
+    const trend = Number(perf.trend || 0);
+    const score = edge.weight * (8 + gap * 0.18 + Math.max(0, -trend) * 0.15) * Math.max(0.35, evidenceStrength(n).factor);
+    return {skill:edge.skill, score, edge, perf};
+  }).sort((a,b)=>b.score-a.score)[0];
+  if(!target) return {score:0, label:"No clear transfer target", targetSkill:null, reason:"Transfer route not mapped yet."};
+  const score = Math.round(target.score * 10) / 10;
+  return {score, label:`Likely improves ${skillLabel(target.skill)}`, targetSkill:target.skill, reason:`This routine likely improves ${skillLabel(target.skill)} through ${Object.keys(profile.direct || {}).slice(0,2).map(skillLabel).join(" / ") || "its current skill map"}.`};
+}
+function transferAwareCoachingInsight(logs){
+  const summary = skillPerformanceSummary(logs || data.logs || []);
+  const weak = hiddenWeaknessSignals(logs || data.logs || [], summary);
+  const ranked = activeRoutines().map(r => ({routine:r, transfer:transferRecommendationForRoutine(r, summary), need:transferNeedScoreForRoutine(r, summary)}))
+    .sort((a,b)=>(b.transfer.score + b.need.score) - (a.transfer.score + a.need.score)).slice(0,3);
+  const strengths = Object.values(summary || {}).filter(x=>Number(x.n||0)>=3 && Number(x.avg||0)>=68).sort((a,b)=>Number(b.avg||0)-Number(a.avg||0));
+  const bridgeWeak = weak[0]?.skill;
+  const bridgeStrong = strengths[0]?.skill;
+  const bridges = bridgeWeak && bridgeStrong ? bridgeDrillCandidates(bridgeStrong, bridgeWeak).slice(0,2) : [];
+  return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Transfer-aware coaching":"Transfer-Aware Coaching Engine")}</strong>
+    <div class="adaptive-rationale">Uses routine metadata, inferred skills, target semantics, and the transfer graph to identify hidden constraints and bridge drills.</div>
+    ${weak.length?`<div class="adaptive-rationale"><strong>Hidden weakness signal:</strong> ${weak.slice(0,3).map(x=>`${htmlText(x.label)} — ${Number(x.severity).toFixed(1)} (${htmlText(x.evidence.label.toLowerCase())})`).join(" · ")}</div>`:`<div class="muted small">No hidden weakness signal above threshold yet.</div>`}
+    ${ranked.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.transfer.reason)}</span></span><strong>${Number(x.transfer.score + x.need.score).toFixed(1)}</strong><span>${htmlText(x.transfer.label)}</span></div>`).join("")}
+    ${bridges.length?`<div class="adaptive-rationale"><strong>Bridge drill:</strong> use ${htmlText(bridges[0].routine.name)} to connect ${htmlText(skillLabel(bridgeStrong))} into ${htmlText(skillLabel(bridgeWeak))}.</div>`:""}
+  </div>`;
+}
+function transferAwareCoachingReasonForRoutine(routine){
+  const t = transferRecommendationForRoutine(routine);
+  if(!t || !t.targetSkill) return "transfer coaching: no mapped carry-over yet";
+  return `transfer coaching: ${t.label.toLowerCase()}`;
 }
 
 function transferModelInsight(logs){
@@ -5845,6 +5923,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   const bayes = stats.bayesian?.signal?.scoreDelta || 0;
   const transferValue = routineTransferValue(routine);
   const transferNeed = transferNeedScoreForRoutine(routine);
+  const transferCoach = transferRecommendationForRoutine(routine);
   const difficultySignal = dynamicDifficultyAdjustmentForRoutine(routine);
   const contextualFit = contextualFitForRoutine(routine, stats, stateMode);
   const outcome = recommendationOutcomeSignal(routine.id);
@@ -5856,7 +5935,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   if (strategy === "explore") explorationBonus *= 1.45;
   if (strategy === "exploit") explorationBonus *= 0.55;
   if (contextualFit.volatility.level === "high" && stateMode.mode === "recovery") explorationBonus *= 0.35;
-  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
+  const trainingValueMean = baseScore + weakness * 0.55 + undertraining * 0.65 + Number(context.bonus || 0) * 0.4 + bayes * 0.45 + transferValue * 0.18 + transferNeed.score * 1.2 + Number(transferCoach.score || 0) * 0.85 + contextualFit.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.35 + Number(maintenanceFit.score || 0) * 0.45 + Number(periodizationFit.score || 0) * 0.40;
   const provisionalProfile = {routine, stats, trainingValueMean, score:baseScore, uncertainty, n, volatilityProfile:volatility, contextualFit, stateMode, learningSignal:learning};
   const bayesianOptimization = bayesianOptimizationForProfile(provisionalProfile);
   const thompsonSampling = thompsonRecommendationSample({
@@ -5871,6 +5950,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   reasons.unshift(buildContextAwareReason({contextualFit, transferNeed}));
   reasons.push(skillReasonText(routine));
   reasons.push(transferAwareReasonText(routine, transferNeed));
+  reasons.push(transferAwareCoachingReasonForRoutine(routine));
   if (outcome.score) reasons.push(outcome.label);
   if (learning.score || learning.accepted || learning.skipped || learning.completed) reasons.push(recommendationLearningReasonForRoutine(routine.id));
   reasons.push(bayesianOptimizationReason({bayesianOptimization}));
@@ -5888,7 +5968,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
   return {
     routine,
     stats,
-    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
+    score: baseScore + contextualFit.score + transferValue * 0.14 + transferNeed.score + Number(transferCoach.score || 0) * 0.65 + outcome.score + learning.score + Number(contextNormalization.score || 0) + Number(difficultySignal?.score || 0) * 0.25 + Number(maintenanceFit.score || 0) * 0.35 + Number(periodizationFit.score || 0) * 0.30 + Number(bayesianOptimization.explorationBonus || 0) * 0.4 + Number(bayesianOptimization.confidenceAdjustment || 0),
     trainingValueMean,
     bayesianOptimization,
     thompsonSampling,
@@ -5899,6 +5979,7 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     selectionType: uncertainty >= 16 && sampledValue > trainingValueMean + 4 ? "exploration" : (n >= 8 ? "exploitation" : "data gathering"),
     contextualFit,
     transferNeed,
+    transferCoach,
     stateMode,
     volatilityProfile:volatility,
     transferValue,
@@ -6369,6 +6450,7 @@ function renderPhaseOneInsights() {
     ${maintenanceSchedulerInsight(logs)}
     ${adaptiveSessionPeriodizationInsight(logs)}
     ${transferModelInsight(logs)}
+    ${transferAwareCoachingInsight(logs)}
     ${changePointInsight(analyticsWindow(logs))}
     ${currentFormInsight(analyticsWindow(logs))}
     ${targetCredibleIntervalInsight(analyticsWindow(logs))}

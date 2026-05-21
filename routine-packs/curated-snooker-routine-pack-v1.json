@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "author": "Snooker Practice PWA",
     "createdAt": "2026-05-20T14:20:00.000Z",
-    "appVersion": "5.6.8-transfer-readiness-coaching",
+    "appVersion": "5.6.9-transfer-aware-coaching-engine",
     "routineCount": 50,
     "description": "A compact curated snooker training library with level-based targets, skill maps, transfer tags, and productive-difficulty target profiles for club to advanced players.",
     "levels": [

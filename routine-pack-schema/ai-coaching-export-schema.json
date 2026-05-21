@@ -18,5 +18,12 @@
     "schema flags for mixed scoring logs",
     "one-step target calibration suggestions",
     "confidence per target recommendation"
-  ]
+  ],
+  "version": "5.6.9",
+  "transferAwareCoachingEngine": {
+    "hiddenWeaknessDetection": "supported",
+    "transferRecommendations": "supported",
+    "likelyImproves": "routine-level target skill explanation",
+    "bridgeDrills": "weak-to-strong domain bridge candidates"
+  }
 }
