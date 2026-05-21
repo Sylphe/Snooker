@@ -4420,7 +4420,7 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
   }
 }
 
-/* v5.6.11 Inferred Skill Level System */
+/* v5.6.12 Inferred Skill Level System */
 .inferred-skill-card .skill-radar-wrap{
   display:grid;
   grid-template-columns:minmax(180px, 240px) 1fr;
@@ -4462,3 +4462,15 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
     margin:0 auto;
   }
 }
+
+
+/* v5.6.12 Dynamic Routine Difficulty Model */
+.dynamic-routine-difficulty-panel{margin-top:0.85rem;}
+.routine-difficulty-model-card{contain:layout paint;}
+.difficulty-model-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(160px,.8fr);gap:.75rem;align-items:start;border:1px solid var(--border-subtle,rgba(148,163,184,.24));border-radius:16px;padding:.75rem;margin:.55rem 0;background:var(--card-bg,rgba(255,255,255,.03));}
+.difficulty-model-row .adaptive-rationale{grid-column:1/-1;margin-top:0;}
+.difficulty-overload{box-shadow:inset 3px 0 0 rgba(220,38,38,.75);}
+.difficulty-hard{box-shadow:inset 3px 0 0 rgba(234,88,12,.75);}
+.difficulty-productive{box-shadow:inset 3px 0 0 rgba(22,163,74,.75);}
+.difficulty-light,.difficulty-easy{box-shadow:inset 3px 0 0 rgba(59,130,246,.65);}
+@media (max-width: 720px){.difficulty-model-row{grid-template-columns:1fr;}.difficulty-model-row .target-engine-values{display:flex;flex-wrap:wrap;gap:.35rem;}}

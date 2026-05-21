@@ -16,7 +16,7 @@
     "recentLogs"
   ],
   "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement.",
-  "version": "5.6.11",
+  "version": "5.6.12",
   "transferAwareCoachingEngine": {
     "hiddenWeaknessDetection": "supported",
     "transferRecommendations": "supported",
@@ -31,7 +31,15 @@
     "automatedRoutineBalancing": "supported"
   },
   "inferredSkillLevelSystem": {
-    "skillDomains": ["long_potting", "cue_ball_control", "safety", "pressure_resilience", "break_building", "rest_play", "tactical_decision_making"],
+    "skillDomains": [
+      "long_potting",
+      "cue_ball_control",
+      "safety",
+      "pressure_resilience",
+      "break_building",
+      "rest_play",
+      "tactical_decision_making"
+    ],
     "perSkillLatentLevels": "L1-L7 domain estimates using calibrated targets, routine difficulty, volatility, target health, transfer-weighted evidence, and consistency",
     "skillRadar": "supported in app insights",
     "weakestLinkDetection": "supported",
