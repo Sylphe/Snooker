@@ -4976,3 +4976,55 @@ body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden
   body.session-focus-active #activeSession #timerResetBtn,
   body.session-focus-active #activeSession #toggleFocusModeBtn{font-size:10px !important;}
 }
+
+
+/* ===== v5.7.1 Focus Mode polish fixes =====
+/* Stabilize the live performance grid: current tile full-width, secondary metrics 3 equal columns. */
+body.session-focus-active #activeSession .live-perf,
+body.session-focus-active #activeSession #livePerformanceCard .live-perf{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:6px !important;
+}
+body.session-focus-active #activeSession .live-perf > div:first-child,
+body.session-focus-active #activeSession #livePerformanceCard .live-perf > div:first-child{
+  grid-column:1 / -1 !important;
+}
+
+/* Legacy focus-mode rules sometimes hide the +/- controls; keep them visible in the new cockpit. */
+body.session-focus-active #activeSession .focus-inline-stepper{
+  display:flex !important;
+}
+
+/* Avoid cramped nested side-split controls on compact phones. */
+@media (max-width:420px){
+  body.session-focus-active #activeSession.focus-has-side-split #scoreInputs{
+    grid-template-columns:1fr !important;
+  }
+  body.session-focus-active #activeSession .side-split-panel .grid.two,
+  body.session-focus-active .side-split-panel .grid.two{
+    grid-template-columns:1fr !important;
+    gap:8px !important;
+  }
+}
+
+/* Timer should never push the cockpit horizontally. */
+body.session-focus-active #activeSession .timer,
+body.session-focus-active .timer{
+  max-width:100% !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+@media (max-width:480px){
+  body.session-focus-active #activeSession .timer,
+  body.session-focus-active .timer{
+    text-align:left !important;
+    font-size:1.8rem !important;
+  }
+}
+
+/* Sticky action row fallback when only Save/Next remains visible. */
+body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden),
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden){
+  grid-template-columns:1fr !important;
+}
