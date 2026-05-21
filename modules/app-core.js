@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.2";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.0";
 import {
   uuid,
@@ -4885,6 +4885,11 @@ function renderScoreInputs(r) {
 function renderFocusScoreSteppers(r) {
   const box = $("scoreInputs");
   if (!box) return;
+  if (document.body?.classList.contains("session-focus-active")) {
+    box.querySelectorAll(".focus-inline-stepper").forEach(el => el.remove());
+    box.querySelectorAll(".focus-score-inline-row").forEach(el => el.classList.remove("focus-score-inline-row", "focus-inline-stepper-ready", "focus-primary-score-row"));
+    return;
+  }
   box.querySelectorAll(".focus-inline-stepper").forEach(el => el.remove());
   box.querySelector(".focus-score-stepper-panel")?.remove();
   box.querySelectorAll(".focus-score-inline-row").forEach(el => el.classList.remove("focus-score-inline-row", "focus-inline-stepper-ready"));
@@ -12664,7 +12669,16 @@ function updateSessionFocusState(){
   if (activeCard) {
     activeCard.classList.toggle("focus-first-exercise", !!(focusActive && activeSession && Number(activeSession.index || 0) === 0));
   }
-  if (active && currentSessionFocusActive) requestAnimationFrame(() => resetSessionFocusScrollTop());
+  if (active && currentSessionFocusActive) requestAnimationFrame(() => {
+    const r = activeSession ? routineById(activeSession.routineIds?.[activeSession.index]) : null;
+    if (r) {
+      renderFocusNumpad(r);
+      applyFocusModeInputLocks();
+      const q = $("quickScoreControls");
+      if (q) { q.innerHTML = ""; q.classList.add("hidden"); }
+    }
+    resetSessionFocusScrollTop();
+  });
   const btn = $("toggleFocusModeBtn");
   if (btn) {
     btn.textContent = active && currentSessionFocusActive ? "Exit focus mode" : "Focus Mode";

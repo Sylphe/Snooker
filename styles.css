@@ -4978,7 +4978,7 @@ body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden
 }
 
 
-/* ===== v5.7.1 Focus Mode polish fixes =====
+/* ===== v5.7.2 Focus Mode polish fixes =====
 /* Stabilize the live performance grid: current tile full-width, secondary metrics 3 equal columns. */
 body.session-focus-active #activeSession .live-perf,
 body.session-focus-active #activeSession #livePerformanceCard .live-perf{
@@ -5027,4 +5027,126 @@ body.session-focus-active .timer{
 body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden),
 body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden){
   grid-template-columns:1fr !important;
+}
+
+/* ===== v5.7.2 Focus Mode regression fix =====
+   Restore numpad-first logging, suppress legacy quick chips/steppers, and keep actions in viewport. */
+body.session-focus-active #activeSession #quickScoreControls,
+body.session-focus-active #activeSession #quickScoreControls.quick-score,
+body.session-focus-active #activeSession #quickScoreControls:not(.hidden),
+body.session-focus-active #quickScoreControls,
+body.session-focus-active #quickScoreControls:not(.hidden){
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+}
+body.session-focus-active #activeSession .focus-inline-stepper,
+body.session-focus-active .focus-inline-stepper{
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.session-focus-active #activeSession .focus-numpad-panel,
+body.session-focus-active #activeSession .focus-score-cockpit{
+  display:block !important;
+  visibility:visible !important;
+  grid-column:1 / -1 !important;
+  order:30 !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+body.session-focus-active #activeSession .focus-numpad-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+}
+body.session-focus-active #activeSession #sessionExtraFields{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+body.session-focus-active #activeSession .focus-quality-block{
+  order:1 !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+body.session-focus-active #activeSession #focusVenueBlock,
+body.session-focus-active #activeSession .focus-venue-block{
+  order:2 !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+body.session-focus-active #activeSession .session-focus-optional{
+  order:3 !important;
+}
+body.session-focus-active #activeSession{
+  box-sizing:border-box !important;
+  overflow-x:hidden !important;
+  padding-bottom:calc(86px + env(safe-area-inset-bottom,0px)) !important;
+}
+body.session-focus-active #activeSession .sticky-log-actions,
+body.session-focus-active #activeSession .primary-action-row,
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row{
+  left:auto !important;
+  right:auto !important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 8px) !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  grid-template-columns:minmax(0,2fr) minmax(0,1fr) !important;
+  margin:8px 0 0 !important;
+  padding:8px !important;
+  transform:none !important;
+}
+body.session-focus-active #activeSession #saveNextBtn,
+body.session-focus-active #activeSession #skipBtn,
+body.session-focus-active #activeSession #endFreeSessionBtn{
+  min-width:0 !important;
+  max-width:100% !important;
+  width:100% !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:normal !important;
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+}
+body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden),
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row:has(#skipBtn.hidden):has(#endFreeSessionBtn.hidden){
+  grid-template-columns:1fr !important;
+}
+body.session-focus-active #activeSession .sticky-log-actions:has(#endFreeSessionBtn.hidden):not(:has(#skipBtn.hidden)),
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row:has(#endFreeSessionBtn.hidden):not(:has(#skipBtn.hidden)){
+  grid-template-columns:minmax(0,2fr) minmax(0,1fr) !important;
+}
+body.session-focus-active #activeSession .sticky-log-actions:has(#skipBtn.hidden):not(:has(#endFreeSessionBtn.hidden)),
+body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row:has(#skipBtn.hidden):not(:has(#endFreeSessionBtn.hidden)){
+  grid-template-columns:minmax(0,2fr) minmax(0,1.35fr) !important;
+}
+@media (max-width:420px){
+  body.session-focus-active #activeSession .sticky-log-actions,
+  body.session-focus-active #activeSession .primary-action-row,
+  body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-row{
+    gap:6px !important;
+    padding:7px !important;
+  }
+  body.session-focus-active #activeSession #saveNextBtn,
+  body.session-focus-active #activeSession #skipBtn,
+  body.session-focus-active #activeSession #endFreeSessionBtn{
+    min-height:44px !important;
+    font-size:12px !important;
+    padding:0 6px !important;
+  }
 }
