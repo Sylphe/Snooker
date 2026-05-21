@@ -1,0 +1,2 @@
+v5.7.4 Focus Mode CSS consolidation
+Consolidated focus-mode CSS and removed conflicting legacy overrides.
