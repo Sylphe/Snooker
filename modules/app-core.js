@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.7";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.7";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.8";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.8";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.7";
+} from "./utils.js?v=5.6.8";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.7";
+} from "./settings.js?v=5.6.8";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.7";
+} from "./analytics.js?v=5.6.8";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.7";
+} from "./bayesian.js?v=5.6.8";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.7";
+} from "./session.js?v=5.6.8";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.7";
+} from "./pressure.js?v=5.6.8";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.7";
+} from "./recommendations.js?v=5.6.8";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.7";
+} from "./store.js?v=5.6.8";
 
 
 
@@ -8500,6 +8500,102 @@ function aiRoutineTrainingMode(routine) {
   return "normal";
 }
 
+
+function aiRoutineTransferReadiness(routine, logs, groupedLogs=null) {
+  const skillMap = getRoutineSkillMap(routine) || {};
+  const primary = normalizeSkillList(skillMap.primarySkill)[0] || "";
+  const secondary = normalizeSkillList(skillMap.secondarySkills);
+  const transferTags = normalizeSkillList(skillMap.transferTags);
+  const sourceSkills = normalizeSkillList([primary, ...secondary, ...transferTags]);
+  const grouped = groupedLogs || getLogsByRoutineMap(data.logs || []);
+  const health = aiTargetHealthForRoutine(routine, logs, aiCategoryCalibrationContext(routine, grouped));
+  const maturity = aiRoutineMaturityForLogs(logs, routine);
+  const recent = (logs || []).map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite).slice(-10);
+  const recentAverage = recent.length ? avg(recent) : null;
+  const targetHit = targetHitRate(logs);
+  const linkedDestinations = activeRoutines()
+    .filter(r => String(r.id) !== String(routine?.id))
+    .map(r => {
+      const m = getRoutineSkillMap(r) || {};
+      const destinationSkills = normalizeSkillList([m.primarySkill, ...(m.secondarySkills || [])]);
+      const overlap = transferTags.filter(tag => destinationSkills.includes(tag));
+      const reverseOverlap = normalizeSkillList(m.transferTags || []).filter(tag => sourceSkills.includes(tag));
+      if (!overlap.length && !reverseOverlap.length) return null;
+      const destLogs = grouped[String(r.id)] || [];
+      return {
+        routineId: r.id,
+        routineName: r.name || "Exercise",
+        folder: r.folder || r.category || "",
+        matchedSkills: normalizeSkillList([...overlap, ...reverseOverlap]),
+        destinationLogCount: destLogs.length,
+        destinationTargetHitRate: targetHitRate(destLogs)
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b) => Number(b.destinationLogCount || 0) - Number(a.destinationLogCount || 0))
+    .slice(0, 8);
+  let readinessScore = 0;
+  readinessScore += Math.min(35, Number(maturity.n || 0) * 3.5);
+  if (Number.isFinite(recentAverage)) readinessScore += Math.max(0, Math.min(30, recentAverage * 0.30));
+  if (Number.isFinite(targetHit)) readinessScore += Math.max(0, Math.min(20, targetHit * 0.20));
+  readinessScore += Math.min(15, linkedDestinations.length * 5);
+  if (health?.state === "too_hard" || health?.state === "volatile") readinessScore -= 15;
+  if (!transferTags.length) readinessScore -= 10;
+  readinessScore = Math.round(Math.max(0, Math.min(100, readinessScore)));
+  const level = readinessScore >= 70 ? "ready_to_transfer" : readinessScore >= 45 ? "build_transfer_base" : "not_ready_yet";
+  const recommendation = level === "ready_to_transfer"
+    ? "Use this routine as a bridge into frame-like work or a pressure block."
+    : level === "build_transfer_base"
+      ? "Keep this routine in the block, but pair it with one adjacent routine before expecting match transfer."
+      : "Do not rely on this routine as a transfer driver yet; first improve evidence quality, target fit, or skill tags.";
+  const flags = [];
+  if (!transferTags.length) flags.push({type:"missing_transfer_tags", severity:"medium", detail:"No transfer tags are set, so the coaching engine cannot identify where this routine should carry over."});
+  if (!linkedDestinations.length) flags.push({type:"no_linked_destinations", severity:"low", detail:"No adjacent destination routines were found from the current skill tags."});
+  if (maturity.n < 6) flags.push({type:"low_evidence", severity:"medium", detail:"Fewer than six logs; transfer readiness should be treated as provisional."});
+  if (health?.state === "too_hard") flags.push({type:"target_blocks_transfer", severity:"high", detail:"The current target appears too hard; productive transfer may require target calibration first."});
+  return {
+    readinessScore,
+    level,
+    recommendation,
+    sourceSkills,
+    primarySkill: primary,
+    secondarySkills: secondary,
+    transferTags,
+    targetHealthState: health?.state || "unknown",
+    maturity,
+    recentAverageLast10: recentAverage,
+    targetHitRate: targetHit,
+    linkedDestinations,
+    flags
+  };
+}
+
+function buildAiTransferReadinessProfile(routineSnapshots) {
+  const rows = (routineSnapshots || []).map(r => ({
+    routineId: r.routine?.id,
+    routineName: r.routine?.name,
+    folder: r.routine?.folder,
+    readiness: r.analyses?.transferReadiness || null
+  })).filter(r => r.readiness);
+  const ready = rows.filter(r => r.readiness.level === "ready_to_transfer");
+  const build = rows.filter(r => r.readiness.level === "build_transfer_base");
+  const blocked = rows.filter(r => r.readiness.level === "not_ready_yet");
+  const metadataGaps = rows.flatMap(r => (r.readiness.flags || [])
+    .filter(f => ["missing_transfer_tags", "no_linked_destinations"].includes(f.type))
+    .map(f => ({routineId:r.routineId, routineName:r.routineName, ...f})));
+  const topBridgeRoutines = rows
+    .filter(r => r.readiness.level === "ready_to_transfer" || r.readiness.level === "build_transfer_base")
+    .sort((a,b) => Number(b.readiness.readinessScore || 0) - Number(a.readiness.readinessScore || 0))
+    .slice(0, 10);
+  return {
+    summary: "Transfer readiness estimates whether a drill is mature enough and sufficiently connected to adjacent skills to carry over into realistic snooker play.",
+    counts: {readyToTransfer:ready.length, buildTransferBase:build.length, notReadyYet:blocked.length, metadataGaps:metadataGaps.length},
+    topBridgeRoutines,
+    metadataGaps: metadataGaps.slice(0, 30),
+    interpretation: "Use ready routines as bridges into pressure or frame-like work. Use build-transfer-base routines for paired drills. Treat not-ready routines as acquisition work until evidence and tags improve."
+  };
+}
+
 function aiRoutineCategoryKey(routine) {
   const scoring = String(routine?.scoring || "");
   const skills = aiRoutineSkillSet(routine);
@@ -8802,7 +8898,8 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
       forecast: aiTry("forecastWithConfidence", () => forecastWithConfidence(logs, 5), null),
       progressiveCompletion: aiTry("progressiveStatsForLogs", () => routine.scoring === "progressive_completion" ? progressiveStatsForLogs(logs) : null, null),
       contextNormalization: aiTry("routineContextNormalizationSignal", () => routineContextNormalizationSignal(routine), null),
-      transferValue: aiTry("routineTransferValue", () => routineTransferValue(routine), null)
+      transferValue: aiTry("routineTransferValue", () => routineTransferValue(routine), null),
+      transferReadiness: aiTry("aiRoutineTransferReadiness", () => aiRoutineTransferReadiness(routine, logs, grouped), null)
     },
     targetCalibration: {
       health,
@@ -9088,6 +9185,7 @@ function buildAiCoachingSnapshot(options = {}) {
     forecast: aiTry("globalForecast", () => forecastWithConfidence(logs, 5), null)
   };
   const skillProfile = buildAiSkillProfile(routineSnapshots);
+  const transferReadinessProfile = buildAiTransferReadinessProfile(routineSnapshots);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
@@ -9117,19 +9215,23 @@ function buildAiCoachingSnapshot(options = {}) {
         "Compare routines within the same snooker category before declaring a skill weakness; category-wide low hit rates may mean the category targets are too aggressive.",
         "When mixed scoring modes or legacy points logs are flagged, treat target advice as conservative and mention the data-quality caveat.",
         "Distinguish between global player level and skill-specific level. A player can be strong at break-building but weak at safety or long potting.",
-        "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores."
+        "Prioritize recommendations that increase transfer to real snooker frames, not only isolated drill scores.",
+        "Use transfer readiness to separate acquisition drills from bridge drills: ready-to-transfer routines can feed pressure/frame-like work, while not-ready routines should stay in acquisition blocks.",
+        "Flag missing transfer tags or unlinked routines as metadata issues before making strong transfer claims."
       ],
       requestedOutputFormat: [
         "Summarize current strengths and weaknesses by snooker skill category.",
         "List routines that are too hard, too easy, or in the productive band.",
         "Recommend target changes with current target, suggested target, rationale, and confidence.",
         "Recommend 5-10 priority routines for the next training block.",
+        "Identify the best bridge routines for transfer into realistic frames or pressure practice.",
         "Identify tags/metadata that appear inconsistent or missing."
       ]
     },
     coachingSummary,
     playerProfile,
     skillProfile,
+    transferReadinessProfile,
     targetCalibrationCandidates,
     routineSnapshots,
     recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, 100) : [],

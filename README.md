@@ -1,40 +1,32 @@
-# Snooker Practice PWA v5.6.7
+# Snooker Practice PWA v5.6.8
 
-## v5.6.7 — Context-Aware Calibration Engine
+## v5.6.8 — Transfer-Readiness Coaching Layer
 
-Built from the working v5.6.5 Adaptive Target Engine branch.
+Built from the working v5.6.7 Context-Aware Calibration branch.
 
-This release upgrades the Adaptive Target Engine from a generic statistical target reducer into a snooker-aware calibration layer.
+This release adds a first explicit transfer-readiness layer on top of the existing adaptive target and AI coaching export system. The goal is to separate pure acquisition drills from drills that are mature enough to act as bridge routines into pressure practice, frame-like play, or match transfer.
 
 ### Main changes
 
-- Adds drill-category productive bands:
-  - long potting: 30–60%
-  - safety/tactical: 50–75%
-  - break-building: 40–70%
-  - pressure: 25–55%
-  - cue-ball/positional control: 45–70%
-  - rest/recovery: 35–65%
-- Adds training-mode recognition:
-  - normal
-  - stretch
-  - overload
-  - maintenance / recovery
-- Caps target reductions so the engine no longer collapses targets such as 50 → 10.
-- Treats success-rate targets as percentages, not as raw attempt-count ceilings.
-- Adds category-relative calibration context: if a whole category is underperforming, the engine reduces more cautiously.
-- Adds safer stretch-target calculation by scoring type.
-- Improves AI coaching export instructions with snooker-specific productive bands and calibration rules.
-- Preserves the existing Accept / Snooze / Reject workflow and new target-profile versioning.
+- Adds routine-level transfer-readiness scoring in the AI coaching snapshot.
+- Classifies routines as:
+  - ready_to_transfer;
+  - build_transfer_base;
+  - not_ready_yet.
+- Uses log count, recent normalized performance, target-hit rate, target health, and linked destination routines to estimate whether a routine can currently drive carryover.
+- Adds linked destination detection from transfer tags and adjacent routine skill tags.
+- Adds metadata warnings for missing transfer tags, routines with no linked destination, low evidence, and targets that are too hard to support transfer.
+- Adds a top-level transferReadinessProfile to the AI coaching export with counts, top bridge routines, and metadata gaps.
+- Extends AI export instructions so external AI analysis can distinguish acquisition drills, bridge drills, and match-transfer candidates.
+- Updates cache/version markers to v5.6.8-transfer-readiness-coaching.
 
 ### Design intent
 
 The engine now distinguishes between:
 
-- a routine that is genuinely too hard;
-- a deliberate stretch/overload routine;
-- a category-wide target mismatch;
-- insufficient sample size;
-- volatile evidence.
+- a routine that is useful for isolated technical acquisition;
+- a routine that should be paired with adjacent drills before expecting match transfer;
+- a routine mature enough to feed pressure blocks or frame-like work;
+- a routine whose metadata is too weak for transfer claims.
 
-This should produce more realistic snooker recommendations, especially for long-potting and difficult positional routines.
+This is an intermediate coaching layer before a heavier Transfer-Aware Coaching Engine. It does not yet run a full transfer optimization model; it makes transfer readiness explicit and exportable.

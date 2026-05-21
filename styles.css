@@ -4382,7 +4382,7 @@ body.session-focus-active.wake-lock-active .wake-lock-indicator{display:flex}
 @media(max-width:640px){.history-table-scroll{margin-inline:-2px;padding-bottom:2px;}}
 
 
-/* v5.6.7 Adaptive Target Engine */
+/* v5.6.8 Adaptive Target Engine */
 .adaptive-target-engine {
   margin: 1rem 0;
 }
