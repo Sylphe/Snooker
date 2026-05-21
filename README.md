@@ -1,12 +1,8 @@
-## v5.6.17.6 — Corrective stats and recommendation fix
+## v5.6.18 — Success-rate target clarity and numeric formatting polish
 
-- Fixed Today tab `sourceLogs` ReferenceError.
-- Normalized curated routine categories for allocation balancing.
-- Corrected recommendation volatility penalty direction and dampened Bayesian score deltas.
-- Clamped hybrid Thompson sampled values to avoid noisy over-selection.
-- Added stats filter/window context to analytics memo keys.
-- Hardened IndexedDB hydration sorting for missing or invalid timestamps.
-- Prevented duplicate Bayesian subpanel appends on repeated renders.
+- Success-rate routines now display targets as percentages in routine cards and live-session metadata.
+- Exercise creation/edit form now shows a soft success-rate percentage hint beside target and stretch target inputs.
+- Numeric display helper now caps non-integer numbers to a maximum of three decimals and trims trailing zeroes, reducing long Bayesian/evidence decimals in Stats.
 
 # Snooker Practice PWA v5.6.17.2
 

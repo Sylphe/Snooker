@@ -64,7 +64,16 @@ export function jsArg(value) {
 
 export function numText(value, fallback="") {
   const n = Number(value);
-  return Number.isFinite(n) ? String(n) : escapeHtml(fallback);
+  if (!Number.isFinite(n)) return escapeHtml(fallback);
+  if (Number.isInteger(n)) return String(n);
+  return n.toFixed(3).replace(/\.?0+$/, "");
+}
+
+export function numTextFixed(value, digits=2, fallback="") {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return escapeHtml(fallback);
+  const d = Math.max(0, Math.min(6, Number(digits) || 0));
+  return n.toFixed(d).replace(/\.?0+$/, "");
 }
 
 export function numAttr(value, fallback="") {

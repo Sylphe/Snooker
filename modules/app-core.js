@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.6";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.6";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.18";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.18";
 import {
   uuid,
   structuredCloneSafe,
@@ -14,12 +14,13 @@ import {
   attrText,
   jsArg,
   numText,
+  numTextFixed,
   numAttr,
   safeClassToken,
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.17.6";
+} from "./utils.js?v=5.6.18";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.17.6";
+} from "./settings.js?v=5.6.18";
 import {
   avg,
   stdDev,
@@ -60,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.17.6";
+} from "./analytics.js?v=5.6.18";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -69,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.17.6";
+} from "./bayesian.js?v=5.6.18";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -78,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.17.6";
+} from "./session.js?v=5.6.18";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -86,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.17.6";
+} from "./pressure.js?v=5.6.18";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -98,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.17.6";
+} from "./recommendations.js?v=5.6.18";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -112,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.17.6";
+} from "./store.js?v=5.6.18";
 
 
 
@@ -1971,7 +1972,7 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
 /* ===== v5.6.17 AI Coaching Layer v2 ===== */
 const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
 
-// v5.6.17.6 hotfix: bounded AI export defaults.
+// v5.6.18: bounded AI export defaults.
 // These caps keep the export useful for external AI review without creating
 // unbounded payloads on libraries with many routines/logs.
 const AI_EXPORT_MAX_ROUTINE_SNAPSHOTS = 50;
@@ -3786,6 +3787,26 @@ function fmtScoring(type) {
     progressive_completion:"Progressive completion"
   }[type] || type;
 }
+
+function formatSuccessRateTargetLabel(routine, value, options={}) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const soft = options.soft !== false;
+  const pct = Math.max(0, Math.min(100, n));
+  const label = `${numText(n)}%`;
+  return soft ? `${label}` : label;
+}
+function formatRoutineTargetLabel(routine, value, prefix="Target") {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (routine?.scoring === "success_rate") return `${prefix} ${formatSuccessRateTargetLabel(routine, n)}`;
+  return `${prefix} ${numText(n)}`;
+}
+function formatTargetSoftHintForRoutine(routine, value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || routine?.scoring !== "success_rate") return "";
+  return `${numText(n)}% success`;
+}
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
 function recommendationEligibleRoutines() { return activeRoutines().filter(isRecommendationEligible); }
 function categories() { return [...new Set(activeRoutines().map(r => r.category || "uncategorized"))].sort(); }
@@ -3820,7 +3841,7 @@ function lastRoutineSetupSummary(routineId) {
     const bits = [];
     if (r.attempts) bits.push(`${numText(r.attempts)} attempts`);
     if (r.duration) bits.push(`${numText(r.duration)} min`);
-    if (r.target) bits.push(`target ${numText(r.target)}`);
+    if (r.target) bits.push(formatRoutineTargetLabel(r, r.target, "target"));
     return bits.length ? `Setup: ${bits.join(" · ")}` : "No previous log";
   }
   const d = shortSessionDateLabel(last.createdAt) || "last session";
@@ -4230,7 +4251,7 @@ function renderRoutineItem(r) {
     htmlText(fmtScoring(r.scoring)),
     primarySkill ? `Skill: ${htmlText(primarySkill)}` : "",
     r.duration ? `${numText(r.duration)}m` : "",
-    r.target ? `Target ${numText(r.target)}` : "",
+    r.target ? formatRoutineTargetLabel(r, r.target) : "",
     r.attempts ? `${numText(r.attempts)} reps` : "",
     r.scoring === "progressive_completion" && r.totalUnits ? `Progressive ${numText(r.totalUnits)} ${htmlText(progressiveUnitLabel(r))}` : ""
   ].filter(Boolean).join(" · ");
@@ -4242,7 +4263,7 @@ function renderRoutineItem(r) {
     <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges ? `<span class="routine-status-row">${statusBadges}</span>` : ""}</div>
     <div class="routine-meta-line routine-meta-compact">${meta}</div>
     ${r.description ? `<p class="routine-description-compact">${htmlText(r.description)}</p>` : ""}
-    ${r.stretchTarget ? `<div class="routine-meta-line">Stretch target ${numText(r.stretchTarget)}</div>` : ""}
+    ${r.stretchTarget ? `<div class="routine-meta-line">${htmlText(formatRoutineTargetLabel(r, r.stretchTarget, "Stretch target"))}</div>` : ""}
     ${r.scoring === "progressive_completion" && r.targetColour ? `<div class="routine-meta-line">Colour ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</div>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions routine-actions-compact">
@@ -4673,7 +4694,7 @@ function renderCurrentRoutine() {
   if (!r) return;
   $("currentRoutineName").textContent = r.name;
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
-  $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · target ${r.target || "n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
+  $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · ${formatRoutineTargetLabel(r, r.target, "target") || "target n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   const saveBtn = $("saveNextBtn");
   if (saveBtn) saveBtn.textContent = activeSession.index >= activeSession.routineIds.length - 1 ? "Save & Finish" : "Save & Next";
   $("practiceNotes").value = "";
@@ -12347,15 +12368,26 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 function updateTargetHints(){
   const scoring = $("routineScoring")?.value || "";
+  const targetVal = Number($("routineTarget")?.value || 0);
+  const stretchVal = Number($("routineStretchTarget")?.value || 0);
   let txt = "";
-  if(scoring === "success_rate" || scoring === "progressive_completion"){
-    txt = "(use %)";
+  let stretchTxt = "";
+  if(scoring === "success_rate"){
+    txt = Number.isFinite(targetVal) && targetVal > 0 ? `(success rate · ${numText(targetVal)}%)` : "(success rate · %)";
+    stretchTxt = Number.isFinite(stretchVal) && stretchVal > 0 ? `(stretch success rate · ${numText(stretchVal)}%)` : "(stretch success rate · %)";
+  } else if(scoring === "progressive_completion"){
+    txt = "(completion %)";
+    stretchTxt = "(stretch completion %)";
   } else {
-    txt = "(use number)";
+    txt = "(score / amount)";
+    stretchTxt = "(stretch score / amount)";
   }
   if($("targetScoreHint")) $("targetScoreHint").textContent = txt;
-  if($("stretchScoreHint")) $("stretchScoreHint").textContent = txt;
+  if($("stretchScoreHint")) $("stretchScoreHint").textContent = stretchTxt;
 }
+document.addEventListener("input", e=>{
+  if(e.target && (e.target.id==="routineTarget" || e.target.id==="routineStretchTarget")) updateTargetHints();
+});
 document.addEventListener("change", e=>{
   if(e.target && e.target.id==="routineScoring") updateTargetHints();
 });
