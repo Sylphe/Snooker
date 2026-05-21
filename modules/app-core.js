@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.17.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.17.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.17";
+} from "./utils.js?v=5.6.17.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.17";
+} from "./settings.js?v=5.6.17.2";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.17";
+} from "./analytics.js?v=5.6.17.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.17";
+} from "./bayesian.js?v=5.6.17.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.17";
+} from "./session.js?v=5.6.17.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.17";
+} from "./pressure.js?v=5.6.17.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.17";
+} from "./recommendations.js?v=5.6.17.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.17";
+} from "./store.js?v=5.6.17.2";
 
 
 
@@ -477,7 +477,7 @@ async function persistIndexedDBCollections(context="persistIndexedDBCollections"
   }
 }
 function scheduleIndexedDBSync(context="scheduleIndexedDBSync", immediate=false) {
-  if (storageReadOnlyMode || indexedDBUnavailable) return;
+  if (storageReadOnlyMode || indexedDBUnavailable || indexedDBHydrating || !indexedDBReady) return;
   clearTimeout(indexedDBSyncTimer);
   indexedDBSyncTimer = null;
   if (immediate) {
@@ -1784,8 +1784,8 @@ function probabilisticCoachingLayerInsight(logs){
 }
 /* ===== end v5.6.15 Probabilistic Coaching Layer ===== */
 
-/* ===== v5.6.17.1 Cross-Routine Skill Graph ===== */
-const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.17.1";
+/* ===== v5.6.17 Cross-Routine Skill Graph ===== */
+const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.17";
 const CROSS_ROUTINE_LAG_WINDOWS = [7, 14, 21, 28];
 function crossRoutineLogDate(log){
   const d = new Date(log?.createdAt || log?.date || log?.timestamp || 0);
@@ -1950,10 +1950,10 @@ function crossRoutineSkillGraphReasonForRoutine(routine){
   if(edge && (routineSupportsSkill(routine, edge.sourceSkill) || routineSupportsSkill(routine, edge.targetSkill))) return `skill graph: bridge candidate for ${edge.sourceLabel} → ${edge.targetLabel}`;
   return "skill graph: secondary priority for current dependency bottleneck";
 }
-/* ===== end v5.6.17.1 Cross-Routine Skill Graph ===== */
+/* ===== end v5.6.17 Cross-Routine Skill Graph ===== */
 
-/* ===== v5.6.17.1 AI Coaching Layer v2 ===== */
-const AI_COACHING_LAYER_V2_VERSION = "v5.6.17.1";
+/* ===== v5.6.17 AI Coaching Layer v2 ===== */
+const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
 function aiCoachLogScore(log){
   const v = Number(log?.normalizedScore ?? normalizeScore(log));
   return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : null;
@@ -2076,7 +2076,7 @@ function aiCoachingLayerV2Insight(logs){
     return `<div class="insight-card watch"><strong>AI coaching layer v2</strong><div class="muted small">AI coaching summary unavailable for this scope.</div></div>`;
   }
 }
-/* ===== end v5.6.17.1 AI Coaching Layer v2 ===== */
+/* ===== end v5.6.17 AI Coaching Layer v2 ===== */
 
 
 
@@ -2424,12 +2424,12 @@ function inferredSkillReasonForRoutine(routine){
 function routineIntelligenceInsight(logs){
   const plan = automatedRoutineBalancingPlan(logs || data.logs || []);
   const graph = routineSimilarityGraph(activeRoutines());
-  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).filter(x=>x && x.target).sort((a,b)=>Number(b.target?.latentDifficulty?.latentDifficulty||0)-Number(a.target?.latentDifficulty?.latentDifficulty||0)).slice(0,3);
+  const targetRows = activeRoutines().map(r=>({routine:r, target:dynamicTargetGenerationForRoutine(r)})).sort((a,b)=>Number(b.target.latentDifficulty?.latentDifficulty||0)-Number(a.target.latentDifficulty?.latentDifficulty||0)).slice(0,3);
   const topEdges = graph.edges.slice(0,3);
   return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Routine intelligence":"Routine Intelligence Layer")}</strong>
     <div class="adaptive-rationale">Builds a routine similarity graph, latent difficulty estimate, dynamic target proposal, and balancing plan. Cross-user calibration support is export-ready through anonymized routine descriptors.</div>
     ${topEdges.length?`<div class="adaptive-rationale"><strong>Similarity graph:</strong> ${topEdges.map(e=>`${htmlText(e.sourceName)} ↔ ${htmlText(e.targetName)} (${Number(e.similarity).toFixed(2)})`).join(" · ")}</div>`:`<div class="muted small">Similarity graph needs more active routines.</div>`}
-    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target?.latentDifficulty?.latentDifficulty ?? 50).toFixed(1)} · ${htmlText(x.target?.latentDifficulty?.band || "calibrating")}</span></span><strong>${htmlText(String(x.target?.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target?.rationale || "Collect more routine evidence.")}</span></div>`).join("")}
+    ${targetRows.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">latent difficulty ${Number(x.target.latentDifficulty.latentDifficulty).toFixed(1)} · ${htmlText(x.target.latentDifficulty.band)}</span></span><strong>${htmlText(String(x.target.suggestedTarget || "hold"))}</strong><span>${htmlText(x.target.rationale)}</span></div>`).join("")}
     ${plan.actions.length?`<div class="adaptive-rationale"><strong>Balancing action:</strong> ${plan.actions.map(htmlText).join(" · ")}</div>`:""}
   </div>`;
 }
@@ -3675,10 +3675,11 @@ function renderStatsIfVisible(reason="renderStatsIfVisible") {
 }
 function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible") {
   if (!shouldRenderStatsPanel()) return;
-  safeCall(`${reason} renderPhaseOneInsights`, renderPhaseOneInsights);
-  safeCall(`${reason} renderBayesianAnalyticsValidation`, renderBayesianAnalyticsValidation);
-  safeCall(`${reason} renderTrainingLoad`, renderTrainingLoad);
-  safeCall(`${reason} renderWeeklyReview`, renderWeeklyReview);
+  const scopedLogs = safeCall(`${reason} getScopedStatsLogs`, getScopedStatsLogs, []) || [];
+  safeCall(`${reason} renderPhaseOneInsights`, () => renderPhaseOneInsights(scopedLogs));
+  safeCall(`${reason} renderBayesianAnalyticsValidation`, () => renderBayesianAnalyticsValidation(scopedLogs));
+  safeCall(`${reason} renderTrainingLoad`, () => renderTrainingLoad(scopedLogs));
+  safeCall(`${reason} renderWeeklyReview`, () => renderWeeklyReview(scopedLogs));
   safeCall(`${reason} renderABComparison`, renderABComparison);
 }
 function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
@@ -5516,23 +5517,31 @@ function weekStart(dateLike) {
   d.setDate(d.getDate() - day);
   return d;
 }
-function trainingLoadByDay(days=14) {
+function trainingLoadByDay(days=14, sourceLogs=data.logs || []) {
   const out = [];
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const logsSource = Array.isArray(sourceLogs) ? sourceLogs : [];
+  const scope = typeof getStatsScope === "function" ? getStatsScope() : null;
+  const scopedDates = logsSource
+    .filter(l => l && l.createdAt)
+    .map(l => new Date(l.createdAt))
+    .filter(d => !Number.isNaN(d.getTime()))
+    .sort((a,b) => b - a);
+  const anchor = scopedDates[0] || (scope?.range?.end ? new Date(scope.range.end.getTime() - 86400000) : new Date());
+  anchor.setHours(0,0,0,0);
   for (let i=days-1;i>=0;i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate()-i);
+    const d = new Date(anchor);
+    d.setDate(anchor.getDate()-i);
     const key = localDateKey(d);
-    const logs = (data.logs || []).filter(l => localDateKey(l.createdAt) === key);
-    out.push({key, label:key.slice(5), time:logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0), count:logs.length});
+    const dayLogs = logsSource.filter(l => localDateKey(l.createdAt) === key);
+    out.push({key, label:key.slice(5), time:dayLogs.reduce((a,b)=>a+Number(b.timeMinutes||0),0), count:dayLogs.length});
   }
   return out;
 }
-function renderTrainingLoad() {
+function renderTrainingLoad(logs=getScopedStatsLogs()) {
   const box = $("trainingLoadBox");
   if (!box) return;
-  const load = trainingLoadByDay(14);
+  const scopedLogs = Array.isArray(logs) ? logs : [];
+  const load = trainingLoadByDay(14, scopedLogs);
   const max = Math.max(1, safeMax(load.map(d=>d.time)) || 1);
   const total7 = load.slice(-7).reduce((a,b)=>a+b.time,0);
   const prev7 = load.slice(0,7).reduce((a,b)=>a+b.time,0);
@@ -5566,20 +5575,27 @@ function variationSuggestionForRoutine(routineId) {
   if ((r.category || "").toLowerCase().includes("safety")) return "Variation suggestion: add a stricter leave condition or score only outcomes that create clear advantage.";
   return "Variation suggestion: change one constraint only — target, position, or attempts — and keep the rest stable.";
 }
-function renderWeeklyReview() {
+function renderWeeklyReview(logs=getScopedStatsLogs()) {
   const box = $("weeklyReviewBox");
   if (!box) return;
-  const today = new Date();
-  const start = weekStart(today);
+  const scopedLogs = Array.isArray(logs) ? logs : [];
+  const scope = typeof getStatsScope === "function" ? getStatsScope() : null;
+  const anchor = scope?.period && scope.period !== "overall" && scope.range?.end
+    ? new Date(scope.range.end.getTime() - 1)
+    : new Date();
+  const start = weekStart(anchor);
   const prev = new Date(start); prev.setDate(start.getDate()-7);
-  const thisLogs = logsInRange(data.logs || [], start, new Date());
-  const prevLogs = logsInRange(data.logs || [], prev, start);
+  const thisLogs = logsInRange(scopedLogs, start, new Date(anchor.getTime()+1));
+  const comparisonBase = scope?.rid
+    ? (data.logs || []).filter(l => String(l.routineId) === String(scope.rid))
+    : (data.logs || []);
+  const prevLogs = logsInRange(comparisonBase, prev, start);
   const thisAvg = thisLogs.length ? avg(thisLogs.map(l=>Number(l.normalizedScore||0))) : null;
   const prevAvg = prevLogs.length ? avg(prevLogs.map(l=>Number(l.normalizedScore||0))) : null;
   const delta = thisAvg !== null && prevAvg ? ((thisAvg-prevAvg)/Math.abs(prevAvg))*100 : null;
   box.innerHTML = `<div class="review-box"><h3>Weekly review ${statHelpButton("weeklyReview")}</h3>
     <div class="stats-grid"><div class="stat-card"><span>This week</span><div class="value">${thisLogs.length} logs</div></div><div class="stat-card"><span>Avg performance ${statHelpButton("avgPerformance")}</span><div class="value">${thisAvg===null?"N/A":thisAvg.toFixed(1)}</div></div><div class="stat-card"><span>vs prior week</span><div class="value">${delta===null?"N/A":(delta>=0?"+":"")+delta.toFixed(1)+"%"}</div></div></div>
-    <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : data.logs))}</div>
+    <div class="analytics-note">${escapeHtml(warmupSuggestion(thisLogs.length ? thisLogs : scopedLogs))}</div>
     ${anchorPerformanceSummary(thisLogs)}
   </div>`;
 }
@@ -7399,65 +7415,52 @@ function renderForecastInsight(logs){
   </div>`;
 }
 
-function safeStatsInsightCard(label, fn) {
-  try {
-    const html = fn();
-    if (typeof html === "string" && html.trim()) return html;
-    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">No usable signal for this scope yet.</div></div>`;
-  } catch (err) {
-    try { logAppError?.(err, `stats insight: ${label}`); } catch (_) {}
-    console.warn("Stats insight skipped", label, err);
-    return `<div class="insight-card watch stats-insight-fallback"><strong>${htmlText(label)}</strong><div class="muted small">This insight could not be rendered for the current scope. The rest of the Stats page remains available.</div></div>`;
-  }
-}
-
-function renderPhaseOneInsights() {
+function renderPhaseOneInsights(logsArg=null) {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
-  let scope;
-  let logs;
-  try {
-    scope = getStatsScope();
-    logs = getScopedStatsLogs();
-  } catch (err) {
-    try { logAppError?.(err, "renderPhaseOneInsights scope"); } catch (_) {}
-    box.innerHTML = `<div class="insight-card watch"><strong>Insights</strong><div class="muted small">Stats scope could not be resolved. Other pages remain available.</div></div>`;
-    return;
-  }
+  const scope = getStatsScope();
+  const logs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
+  const windowedLogs = analyticsWindow(logs);
+  const safeInsightCard = (label, fn) => {
+    try {
+      const html = fn();
+      return html || "";
+    } catch (e) {
+      logAppError?.(e, `renderPhaseOneInsights ${label}`);
+      return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted">This insight could not be rendered. Other Insights remain available.</div></div>`;
+    }
+  };
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
-  let windowLogs = logs;
-  try { windowLogs = analyticsWindow(logs); } catch (err) { try { logAppError?.(err, "renderPhaseOneInsights analyticsWindow"); } catch (_) {} }
   const cards = [
-    safeStatsInsightCard("Above / Below Expectation", () => renderResidualInsights(logs)),
-    safeStatsInsightCard("Best Performance Window", () => renderPeakWindowInsight(logs)),
-    safeStatsInsightCard("Table & Time Effects", () => renderContextEffects(logs)),
-    safeStatsInsightCard("Context-Adjusted Performance", () => contextNormalizationInsight(windowLogs)),
-    safeStatsInsightCard("Performance forecast", () => renderForecastInsight(windowLogs)),
-    safeStatsInsightCard("Session Themes", () => reflectionPatternInsight(logs)),
-    safeStatsInsightCard("Session Feel", () => reflectionIntelligenceSummary(logs)),
-    safeStatsInsightCard("Skill Mix", () => skillMapInsight(logs)),
-    safeStatsInsightCard("Maintenance Plan", () => maintenanceSchedulerInsight(logs)),
-    safeStatsInsightCard("Weekly Balance", () => adaptiveSessionPeriodizationInsight(logs)),
-    safeStatsInsightCard("Skill Transfer", () => transferModelInsight(logs)),
-    safeStatsInsightCard("Transfer-aware coaching", () => transferAwareCoachingInsight(logs)),
-    safeStatsInsightCard("Routine intelligence", () => routineIntelligenceInsight(logs)),
-    safeStatsInsightCard("Inferred skill levels", () => inferredSkillLevelInsight(logs)),
-    safeStatsInsightCard("Performance Shifts", () => changePointInsight(windowLogs)),
-    safeStatsInsightCard("Current Form", () => currentFormInsight(windowLogs)),
-    safeStatsInsightCard("Probabilistic Coaching", () => probabilisticCoachingLayerInsight(windowLogs)),
-    safeStatsInsightCard("Cross-Routine Skill Graph", () => crossRoutineSkillGraphInsight(windowLogs)),
-    safeStatsInsightCard("AI coaching layer v2", () => aiCoachingLayerV2Insight(windowLogs)),
-    safeStatsInsightCard("Expected Target Range", () => targetCredibleIntervalInsight(windowLogs)),
-    safeStatsInsightCard("Difficulty Guidance", () => dynamicDifficultyInsight(windowLogs)),
-    safeStatsInsightCard("Recommendation learning v2", () => recommendationLearningInsight()),
-    safeStatsInsightCard("Smart Practice Balance", () => bayesianOptimizationInsight(windowLogs)),
-    safeStatsInsightCard("Personalized Baselines", () => personalizedPriorsInsight())
+    ["Above / Below Expectation", () => renderResidualInsights(logs)],
+    ["Best Performance Window", () => renderPeakWindowInsight(logs)],
+    ["Table & Time Effects", () => renderContextEffects(logs)],
+    ["Context-Adjusted Performance", () => contextNormalizationInsight(windowedLogs)],
+    ["Performance forecast", () => renderForecastInsight(windowedLogs)],
+    ["Session Themes", () => reflectionPatternInsight(logs)],
+    ["Session Feel", () => reflectionIntelligenceSummary(logs)],
+    ["Skill Mix", () => skillMapInsight(logs)],
+    ["Maintenance Plan", () => maintenanceSchedulerInsight(logs)],
+    ["Weekly Balance", () => adaptiveSessionPeriodizationInsight(logs)],
+    ["Skill Transfer", () => transferModelInsight(logs)],
+    ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
+    ["Routine intelligence", () => routineIntelligenceInsight(logs)],
+    ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
+    ["Performance Shifts", () => changePointInsight(windowedLogs)],
+    ["Current Form", () => currentFormInsight(windowedLogs)],
+    ["Probabilistic Coaching", () => probabilisticCoachingLayerInsight(windowedLogs)],
+    ["Cross-Routine Skill Graph", () => crossRoutineSkillGraphInsight(windowedLogs)],
+    ["AI Coaching Layer", () => aiCoachingLayerV2Insight(windowedLogs)],
+    ["Expected Target Range", () => targetCredibleIntervalInsight(windowedLogs)],
+    ["Dynamic routine difficulty", () => dynamicDifficultyInsight(windowedLogs)],
+    ["Recommendation learning v2", () => recommendationLearningInsight()],
+    ["Smart Practice Balance", () => bayesianOptimizationInsight(windowedLogs)],
+    ["Personalized Baselines", () => personalizedPriorsInsight()]
   ];
-  const html = `<div class="insight-grid">${cards.join("
-")}</div>`;
+  const html = `<div class="insight-grid">${cards.map(([label, fn]) => safeInsightCard(label, fn)).join("")}</div>`;
   box.innerHTML = uiInsightLanguageHtml(html);
 }
 
@@ -7644,7 +7647,7 @@ function renderStatsTrends(logs, { period, range, rollingWindow, benchmarkWindow
       ${statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, "", rollingWindow), false)}
       ${statsModule(uiLabel("performanceStability"), "Consistency and volatility signals", renderPerformanceStability(logs), false)}
       ${statsModule(uiLabel("staminaDropoff"), "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
-      ${statsModule("Planned vs completed", "Whether planned drills are actually completed", plannedVsCompletedSummary() || `<div class="analytics-note">No planned-session completion data yet.</div>`, false)}
+      ${statsModule("Planned vs completed", "Whether planned drills are actually completed", plannedVsCompletedSummary(logs) || `<div class="analytics-note">No planned-session completion data yet.</div>`, false)}
     </div>`;
 }
 
@@ -8501,18 +8504,36 @@ function renderABComparison() {
     bEnd = new Date(aStart);
     bStart = new Date(bEnd); bStart.setDate(bStart.getDate()-(weeks*7));
   } else {
-    if (!$("compareAStart").value || !$("compareAEnd").value || !$("compareBStart").value || !$("compareBEnd").value) {
+    const aStartInput = $("compareAStart")?.value || "";
+    const aEndInput = $("compareAEnd")?.value || "";
+    const bStartInput = $("compareBStart")?.value || "";
+    const bEndInput = $("compareBEnd")?.value || "";
+    if (!aStartInput || !aEndInput || !bStartInput || !bEndInput) {
       out.innerHTML = `<p class="muted">Select all custom dates to compare.</p>`;
       return;
     }
-    aStart = dateFromKey($("compareAStart").value);
-    aEnd = dateFromKey($("compareAEnd").value); aEnd.setDate(aEnd.getDate()+1);
-    bStart = dateFromKey($("compareBStart").value);
-    bEnd = dateFromKey($("compareBEnd").value); bEnd.setDate(bEnd.getDate()+1);
+    aStart = dateFromKey(aStartInput);
+    aEnd = dateFromKey(aEndInput);
+    bStart = dateFromKey(bStartInput);
+    bEnd = dateFromKey(bEndInput);
+    if (![aStart, aEnd, bStart, bEnd].every(d => d instanceof Date && !Number.isNaN(d.getTime()))) {
+      out.innerHTML = `<p class="muted">Invalid custom dates. Please fill all fields with valid dates.</p>`;
+      return;
+    }
+    if (aEnd < aStart || bEnd < bStart) {
+      out.innerHTML = `<p class="muted">Invalid comparison range. End dates must be after start dates.</p>`;
+      return;
+    }
+    aEnd.setDate(aEnd.getDate()+1);
+    bEnd.setDate(bEnd.getDate()+1);
   }
 
-  const logsA = logsInRange(data.logs || [], aStart, aEnd);
-  const logsB = logsInRange(data.logs || [], bStart, bEnd);
+  const scope = getStatsScope();
+  const comparisonBase = scope?.rid
+    ? (data.logs || []).filter(l => String(l.routineId) === String(scope.rid))
+    : (data.logs || []);
+  const logsA = logsInRange(comparisonBase, aStart, aEnd);
+  const logsB = logsInRange(comparisonBase, bStart, bEnd);
   const A = metricsForLogs(logsA), B = metricsForLogs(logsB);
 
   out.innerHTML = `<table class="compare-table">
@@ -9528,7 +9549,7 @@ function exportRoutineLibraryCsv() {
       difficultyLabel: r.difficultyLabel || "",
       description: r.description || ""
     };
-    rows.push(headers.map(h => csvEscape(row[h])).join(","));
+    rows.push(headers.map(h => { const val = row[h]; return csvEscape(val && typeof val === "object" ? JSON.stringify(val) : val); }).join(","));
   });
   const filename = `snooker-routine-library-${new Date().toISOString().slice(0,10)}.csv`;
   return exportFile(filename, rows.join("\n"), "text/csv");
@@ -11969,9 +11990,17 @@ function discardPersistedSession(){
   clearPersistedActiveSession();
   refreshResumeCards();
 }
-function plannedVsCompletedSummary(){
-  const recent=(data.sessions||[]).slice().sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
-  const rows=recent.filter(s=>(s.plannedRoutineIds||[]).length).map(s=>{const planned=new Set(s.plannedRoutineIds||[]); const completed=new Set((s.logIds||[]).map(id=>(data.logs||[]).find(l=>l.id===id)?.routineId).filter(Boolean)); const done=[...planned].filter(id=>completed.has(id)).length; const skipped=[...planned].filter(id=>!completed.has(id)); return {planned:planned.size,done,skipped,rate:planned.size?done/planned.size*100:null};});
+function plannedVsCompletedSummary(logsArg=null){
+  const scopedLogs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
+  const scopedLogIds = new Set(scopedLogs.map(l => l.id).filter(Boolean));
+  const recent=(data.sessions||[]).slice().filter(s => !scopedLogIds.size || (s.logIds||[]).some(id => scopedLogIds.has(id))).sort((a,b)=>new Date(b.endedAt||b.startedAt)-new Date(a.endedAt||a.startedAt)).slice(0,10);
+  const rows=recent.filter(s=>(s.plannedRoutineIds||[]).length).map(s=>{
+    const planned=new Set(s.plannedRoutineIds||[]);
+    const completed=new Set((s.logIds||[]).map(id=>scopedLogs.find(l=>l.id===id)?.routineId).filter(Boolean));
+    const done=[...planned].filter(id=>completed.has(id)).length;
+    const skipped=[...planned].filter(id=>!completed.has(id));
+    return {planned:planned.size,done,skipped,rate:planned.size?done/planned.size*100:null};
+  });
   if(!rows.length)return ""; const avgRate=avg(rows.map(r=>r.rate).filter(x=>x!==null)); const skippedCounts={}; rows.forEach(r=>r.skipped.forEach(id=>skippedCounts[id]=(skippedCounts[id]||0)+1)); const mostSkipped=Object.entries(skippedCounts).sort((a,b)=>b[1]-a[1])[0];
   return `<div class="planned-box"><strong>Planned vs completed ${statHelpButton("plannedVsCompleted")}</strong><br>Completion rate last ${rows.length} planned sessions: ${avgRate.toFixed(1)}%. ${mostSkipped?`<div class="reflection-row">Most skipped: ${escapeHtml(routineById(mostSkipped[0])?.name||"Deleted exercise")} (${mostSkipped[1]}x).</div>`:""}</div>`;
 }
@@ -12726,10 +12755,10 @@ function ensureBayesianValidationPanel() {
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureBayesianValidationPanel);
 else ensureBayesianValidationPanel();
 
-function renderBayesianValidationForRoutine(routineId) {
+function renderBayesianValidationForRoutine(routineId, logsArg=null) {
   const r = routineById(routineId);
   if (!r || r.scoring !== "success_rate") return "";
-  const logs = successRateLogsForRoutine(routineId);
+  const logs = Array.isArray(logsArg) ? logsArg.filter(l => String(l.routineId) === String(routineId)) : successRateLogsForRoutine(routineId);
   const agg = aggregateSuccessRateLogs(logs);
   const prior = hierarchicalPriorForRoutine(r);
   const posterior = betaPosterior(agg.successes, agg.attempts, prior.alpha, prior.beta, {...prior, rawAttempts:agg.rawAttempts, rawSuccesses:agg.rawSuccesses});
@@ -12931,13 +12960,15 @@ function predictorModelForRoutine(routine) {
   });
 }
 
-function renderPredictorContributionModel() {
+function renderPredictorContributionModel(logsArg=null) {
   const box = $("bayesianValidationOutput");
   if (!box) return;
+  const scopedLogs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
+  const scopedRoutineIds = new Set(scopedLogs.map(l => String(l.routineId || "")).filter(Boolean));
 
   const selected = $("statsRoutineSelect")?.value || "all";
   const routines = activeRoutines()
-    .filter(r => isSystemAll(selected) || String(r.id) === String(selected))
+    .filter(r => (isSystemAll(selected) ? !scopedRoutineIds.size || scopedRoutineIds.has(String(r.id)) : String(r.id) === String(selected)))
     .map(r => ({routine:r, model:predictorModelForRoutine(r)}))
     .filter(x => x.model)
     .sort((a,b)=>b.model.total-a.model.total)
@@ -13065,11 +13096,11 @@ function renderTournamentPrepPlanner() {
   host.innerHTML += tournamentPrepPlannerHtml(getTournamentPlannerLogs ? getTournamentPlannerLogs() : (data.logs || []));
 }
 
-function renderAllocationOptimization() {
+function renderAllocationOptimization(logsArg=null) {
   const box = $("bayesianValidationOutput");
   if (!box) return;
 
-  const recentLogs = (data.logs || []).slice(-120);
+  const recentLogs = analyticsWindow(Array.isArray(logsArg) ? logsArg : (data.logs || []), 120);
   const balance = computeRoutineAllocationBalance(recentLogs, activeRoutines());
 
   if (!balance.length) return;
@@ -13109,15 +13140,16 @@ function renderAllocationOptimization() {
 }
 
 
-function renderPlateauDiagnostics() {
+function renderPlateauDiagnostics(logsArg=null) {
   const box = $("bayesianValidationOutput");
   if (!box) return;
+  const scopedLogs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
 
   const selected = $("statsRoutineSelect")?.value || "all";
   const routines = activeRoutines().filter(r => isSystemAll(selected) || String(r.id) === String(selected));
 
   const html = routines.slice(0, 6).map(r => {
-    const logs = (data.logs || []).filter(l => l.routineId === r.id);
+    const logs = scopedLogs.filter(l => String(l.routineId) === String(r.id));
     if (logs.length < 4) return "";
 
     const bayes = typeof bayesianStatsForRoutine === "function"
@@ -13154,7 +13186,9 @@ function renderPlateauDiagnostics() {
 }
 
 
-function renderBayesianAnalyticsValidation() {
+function renderBayesianAnalyticsValidation(logsArg=null) {
+  ensureBayesianValidationPanel?.();
+  const scopedLogs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
   const box = $("bayesianValidationOutput");
   const panel = $("statsBayesianPanel") || box?.closest?.(".card");
   if (!box) return;
@@ -13172,11 +13206,11 @@ function renderBayesianAnalyticsValidation() {
   } else {
     box.innerHTML = `<h3>True Skill validation</h3>
       <p class="muted">Beta-binomial confidence estimates for success-rate drills with 30-day exponential time decay. Use this to avoid overreacting to small samples or obsolete history.</p>
-      ${chosen.map(r => renderBayesianValidationForRoutine(r.id)).join("")}`;
+      ${chosen.map(r => renderBayesianValidationForRoutine(r.id, scopedLogs)).join("")}`;
   }
-  renderPlateauDiagnostics();
-  renderAllocationOptimization();
-  renderPredictorContributionModel();
+  renderPlateauDiagnostics(scopedLogs);
+  renderAllocationOptimization(scopedLogs);
+  renderPredictorContributionModel(scopedLogs);
 }
 
 

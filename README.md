@@ -1,6 +1,6 @@
-# Snooker Practice PWA v5.6.17.1
+# Snooker Practice PWA v5.6.17.2
 
-## v5.6.17.1 — AI Coaching Layer v2
+## v5.6.17.2 — Stats Scope and Insights Resilience Fix
 
 Adds a higher-level coaching interpretation layer on top of the existing inference, probabilistic, match simulation, and cross-routine skill graph systems.
 
