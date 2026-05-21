@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.13";
+} from "./utils.js?v=5.6.13.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.13";
+} from "./settings.js?v=5.6.13.1";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.13";
+} from "./analytics.js?v=5.6.13.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.13";
+} from "./bayesian.js?v=5.6.13.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.13";
+} from "./session.js?v=5.6.13.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.13";
+} from "./pressure.js?v=5.6.13.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.13";
+} from "./recommendations.js?v=5.6.13.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.13";
+} from "./store.js?v=5.6.13.1";
 
 
 
@@ -1882,8 +1882,8 @@ function dynamicRoutineDifficultyInsight(logs){
   const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
   const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
   const selected = [...hard, ...productive, ...easy].slice(0,4);
-  if(!selected.length) return `<div class="insight-card watch"><strong>Session Architecture Engine</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
-  return `<div class="insight-card watch"><strong>Session Architecture Engine</strong>
+  if(!selected.length) return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
+  return `<div class="insight-card watch"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Dynamic routine difficulty":"Dynamic Routine Difficulty Model")}</strong>
     <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
     ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.difficulty.difficultyRating)} · local ${htmlText(String(x.difficulty.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty.latentDifficulty).toFixed(1)}</strong><span>${htmlText(x.difficulty.band)}</span></div>`).join("")}
   </div>`;
@@ -1950,7 +1950,7 @@ function buildRoutineIntelligenceProfile(routines=activeRoutines()){
 
 const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
 const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
-const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13";
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13.1";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -2070,7 +2070,7 @@ function inferredSkillLevelInsight(logs){
   const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
   const main = weakestLinks[0];
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Session Architecture Engine")}</strong>
+  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
     <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
@@ -6931,39 +6931,52 @@ function renderForecastInsight(logs){
   </div>`;
 }
 
+function renderInsightCardSafely(label, renderer) {
+  try {
+    const html = renderer();
+    if (typeof html === "string" && html.trim()) return html;
+    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">No signal available for the current scope.</div></div>`;
+  } catch (err) {
+    console.warn(`${label} insight skipped`, err);
+    return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted small">This insight could not be rendered, but the rest of the Insights page remains available.</div></div>`;
+  }
+}
+
 function renderPhaseOneInsights() {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
   const scope = getStatsScope();
-  const logs = getScopedStatsLogs();
+  const logs = (typeof getScopedStatsLogs === "function" ? getScopedStatsLogs() : (data.logs || []));
   if (!logs.length) {
     box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
     return;
   }
-  const html = `<div class="insight-grid">
-    ${renderResidualInsights(logs)}
-    ${renderPeakWindowInsight(logs)}
-    ${renderContextEffects(logs)}
-    ${contextNormalizationInsight(analyticsWindow(logs))}
-    ${renderForecastInsight(analyticsWindow(logs))}
-    ${reflectionPatternInsight(logs)}
-    ${reflectionIntelligenceSummary(logs)}
-    ${skillMapInsight(logs)}
-    ${maintenanceSchedulerInsight(logs)}
-    ${adaptiveSessionPeriodizationInsight(logs)}
-    ${transferModelInsight(logs)}
-    ${transferAwareCoachingInsight(logs)}
-    ${routineIntelligenceInsight(logs)}
-    ${dynamicRoutineDifficultyInsight(logs)}
-    ${inferredSkillLevelInsight(logs)}
-    ${changePointInsight(analyticsWindow(logs))}
-    ${currentFormInsight(analyticsWindow(logs))}
-    ${targetCredibleIntervalInsight(analyticsWindow(logs))}
-    ${dynamicDifficultyInsight(analyticsWindow(logs))}
-    ${recommendationLearningInsight()}
-    ${bayesianOptimizationInsight(analyticsWindow(logs))}
-    ${personalizedPriorsInsight()}
-  </div>`;
+  const scopedWindow = () => analyticsWindow(logs);
+  const cards = [
+    ["Expected vs actual", () => renderResidualInsights(logs)],
+    ["Peak window", () => renderPeakWindowInsight(logs)],
+    ["Context effects", () => renderContextEffects(logs)],
+    ["Context normalization", () => contextNormalizationInsight(scopedWindow())],
+    ["Forecast", () => renderForecastInsight(scopedWindow())],
+    ["Reflection patterns", () => reflectionPatternInsight(logs)],
+    ["Reflection intelligence", () => reflectionIntelligenceSummary(logs)],
+    ["Skill mix", () => skillMapInsight(logs)],
+    ["Maintenance scheduler", () => maintenanceSchedulerInsight(logs)],
+    ["Adaptive periodization", () => adaptiveSessionPeriodizationInsight(logs)],
+    ["Transfer model", () => transferModelInsight(logs)],
+    ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
+    ["Routine intelligence", () => routineIntelligenceInsight(logs)],
+    ["Dynamic routine difficulty", () => dynamicRoutineDifficultyInsight(logs)],
+    ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
+    ["Change-point detection", () => changePointInsight(scopedWindow())],
+    ["Current form", () => currentFormInsight(scopedWindow())],
+    ["Target credible intervals", () => targetCredibleIntervalInsight(scopedWindow())],
+    ["Dynamic difficulty adjustment", () => dynamicDifficultyInsight(scopedWindow())],
+    ["Recommendation learning", () => recommendationLearningInsight()],
+    ["Bayesian optimization", () => bayesianOptimizationInsight(scopedWindow())],
+    ["Personalized priors", () => personalizedPriorsInsight()]
+  ];
+  const html = `<div class="insight-grid">${cards.map(([label, fn]) => renderInsightCardSafely(label, fn)).join("")}</div>`;
   box.innerHTML = uiInsightLanguageHtml(html);
 }
 
