@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.15";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.15";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.16";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.16";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.15";
+} from "./utils.js?v=5.6.16";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.15";
+} from "./settings.js?v=5.6.16";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.15";
+} from "./analytics.js?v=5.6.16";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.15";
+} from "./bayesian.js?v=5.6.16";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.15";
+} from "./session.js?v=5.6.16";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.15";
+} from "./pressure.js?v=5.6.16";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.15";
+} from "./recommendations.js?v=5.6.16";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.15";
+} from "./store.js?v=5.6.16";
 
 
 
@@ -1783,6 +1783,175 @@ function probabilisticCoachingLayerInsight(logs){
   }
 }
 /* ===== end v5.6.15 Probabilistic Coaching Layer ===== */
+
+/* ===== v5.6.16 Cross-Routine Skill Graph ===== */
+const CROSS_ROUTINE_SKILL_GRAPH_VERSION = "v5.6.16";
+const CROSS_ROUTINE_LAG_WINDOWS = [7, 14, 21, 28];
+function crossRoutineLogDate(log){
+  const d = new Date(log?.createdAt || log?.date || log?.timestamp || 0);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+function crossRoutineScoreValue(log){
+  const v = Number(log?.normalizedScore ?? normalizeScore(log));
+  return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : null;
+}
+function crossRoutineSkillsForLog(log){
+  const routine = routineById?.(log?.routineId) || (data.routines || []).find(r => String(r.id) === String(log?.routineId));
+  const rmap = routine ? getRoutineSkillMap(routine) : null;
+  return [...new Set([
+    normalizeSkillId(log?.primarySkill || rmap?.primarySkill || routine?.primarySkill || routine?.category || "cueing"),
+    ...normalizeSkillList(log?.secondarySkills || rmap?.secondarySkills || routine?.secondarySkills || []),
+    ...normalizeSkillList(log?.transferTags || rmap?.transferTags || routine?.transferTags || [])
+  ].filter(Boolean))];
+}
+function buildSkillTimeSeries(logs){
+  const buckets = new Map();
+  (logs || []).forEach(log => {
+    const score = crossRoutineScoreValue(log);
+    const d = crossRoutineLogDate(log);
+    if(score === null || !d) return;
+    crossRoutineSkillsForLog(log).forEach(skill => {
+      if(!buckets.has(skill)) buckets.set(skill, []);
+      buckets.get(skill).push({date:d, t:d.getTime(), score, routineId:String(log?.routineId || ""), log});
+    });
+  });
+  for(const arr of buckets.values()) arr.sort((a,b)=>a.t-b.t);
+  return buckets;
+}
+function recentImprovementForSeries(arr, cutIndex=null){
+  const xs = (arr || []).slice(0, cutIndex === null ? undefined : cutIndex).map(x=>Number(x.score)).filter(Number.isFinite);
+  if(xs.length < 4) return null;
+  const split = Math.max(2, Math.floor(xs.length * 0.55));
+  const earlier = xs.slice(0, split);
+  const later = xs.slice(split);
+  if(earlier.length < 2 || later.length < 2) return null;
+  return avg(later) - avg(earlier);
+}
+function laggedSkillDependency(sourceArr, targetArr, lagDays){
+  if(!sourceArr?.length || !targetArr?.length) return null;
+  const pairs=[];
+  sourceArr.forEach((s,i)=>{
+    const before = recentImprovementForSeries(sourceArr, i + 1);
+    if(before === null) return;
+    const minT = s.t + lagDays * 86400000 * 0.65;
+    const maxT = s.t + lagDays * 86400000 * 1.35;
+    const targets = targetArr.filter(t => t.t >= minT && t.t <= maxT).map(t=>t.score);
+    if(targets.length) pairs.push({x:before, y:avg(targets)});
+  });
+  if(pairs.length < 4) return null;
+  const xs=pairs.map(p=>p.x), ys=pairs.map(p=>p.y);
+  const mx=avg(xs), my=avg(ys);
+  let num=0, dx=0, dy=0;
+  for(let i=0;i<pairs.length;i++){ const a=xs[i]-mx, b=ys[i]-my; num+=a*b; dx+=a*a; dy+=b*b; }
+  const corr = dx && dy ? num / Math.sqrt(dx*dy) : 0;
+  const effect = corr * Math.min(1, pairs.length / 10);
+  return {lagDays, pairs:pairs.length, corr, effect};
+}
+function buildCrossRoutineSkillGraph(logs=null, routines=null){
+  try{
+    const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+    const series = buildSkillTimeSeries(scoped);
+    const skills = [...series.keys()].filter(k => (series.get(k)||[]).length >= 3);
+    const edges=[];
+    for(const src of skills){
+      for(const tgt of skills){
+        if(src === tgt) continue;
+        let best=null;
+        for(const lag of CROSS_ROUTINE_LAG_WINDOWS){
+          const dep = laggedSkillDependency(series.get(src), series.get(tgt), lag);
+          if(dep && (!best || Math.abs(dep.effect) > Math.abs(best.effect))) best = dep;
+        }
+        if(best && Math.abs(best.effect) >= 0.10){
+          edges.push({sourceSkill:src, targetSkill:tgt, sourceLabel:skillLabel(src), targetLabel:skillLabel(tgt), lagDays:best.lagDays, evidencePairs:best.pairs, correlation:best.corr, effect:best.effect, strength:Math.abs(best.effect)>=0.32?"strong":Math.abs(best.effect)>=0.20?"moderate":"early"});
+        }
+      }
+    }
+    const fallbackEdges = [
+      ["long_potting","break_building",14,0.18], ["cue_ball_control","break_building",14,0.28], ["recovery","break_building",21,0.24],
+      ["safety","tactical_decision_making",14,0.26], ["rest_play","tactical_decision_making",21,0.17], ["pressure_resilience","break_building",14,0.15]
+    ];
+    fallbackEdges.forEach(([sourceSkill,targetSkill,lagDays,effect])=>{
+      if(skills.includes(sourceSkill) && skills.includes(targetSkill) && !edges.some(e=>e.sourceSkill===sourceSkill && e.targetSkill===targetSkill)){
+        edges.push({sourceSkill,targetSkill,sourceLabel:skillLabel(sourceSkill),targetLabel:skillLabel(targetSkill),lagDays,evidencePairs:Math.min(series.get(sourceSkill)?.length||0, series.get(targetSkill)?.length||0),correlation:effect,effect:effect*0.65,strength:"prior",prior:true});
+      }
+    });
+    edges.sort((a,b)=>Math.abs(b.effect)-Math.abs(a.effect) || b.evidencePairs-a.evidencePairs);
+    const nodes = skills.map(skill=>({
+      id:skill, label:skillLabel(skill), n:(series.get(skill)||[]).length,
+      recentDelta:recentImprovementForSeries(series.get(skill)) || 0,
+      incoming:edges.filter(e=>e.targetSkill===skill).reduce((s,e)=>s+Math.max(0,Math.abs(e.effect)),0),
+      outgoing:edges.filter(e=>e.sourceSkill===skill).reduce((s,e)=>s+Math.max(0,Math.abs(e.effect)),0)
+    })).sort((a,b)=>(b.incoming+b.outgoing)-(a.incoming+a.outgoing));
+    return {version:CROSS_ROUTINE_SKILL_GRAPH_VERSION, nodes, edges:edges.slice(0,18), totalLogs:scoped.length};
+  }catch(err){
+    console.warn("Cross-routine skill graph skipped", err);
+    return {version:CROSS_ROUTINE_SKILL_GRAPH_VERSION, nodes:[], edges:[], totalLogs:0, error:String(err?.message || err)};
+  }
+}
+function skillGraphBottleneckAnalysis(logs=null){
+  const graph = buildCrossRoutineSkillGraph(logs || data.logs || []);
+  const inferred = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
+  const profiles = new Map((inferred?.profile || []).map(p=>[p.id,p]));
+  const rows = graph.nodes.map(n=>{
+    const p = profiles.get(n.id);
+    const score = Number(p?.score ?? 50);
+    const bottleneckScore = Math.max(0, (65-score) * 0.8) + n.outgoing * 18 + (n.incoming>0 ? 2 : 0);
+    return {...n, inferredScore:score, level:p?.level || "L?", confidence:p?.confidence || "low", bottleneckScore};
+  }).filter(x=>x.bottleneckScore>8).sort((a,b)=>b.bottleneckScore-a.bottleneckScore);
+  return {graph, bottlenecks:rows.slice(0,5)};
+}
+function routineSupportsSkill(routine, skill){
+  const m = getRoutineSkillMap(routine);
+  const skills = [m.primarySkill, ...(m.secondarySkills||[]), ...(m.transferTags||[])].map(normalizeSkillId);
+  if(skills.includes(skill)) return 1;
+  const txt = `${routine?.name||""} ${routine?.description||""} ${routine?.category||""}`.toLowerCase();
+  const label = String(skillLabel(skill)||"").toLowerCase();
+  if(label && txt.includes(label.split(" ")[0])) return 0.5;
+  return 0;
+}
+function bridgeRoutineCandidatesForDependency(edge, routines=null){
+  const pool = (Array.isArray(routines) ? routines : activeRoutines()).filter(r=>!r.archived);
+  return pool.map(r=>{
+    const sourceFit = routineSupportsSkill(r, edge.sourceSkill);
+    const targetFit = routineSupportsSkill(r, edge.targetSkill);
+    const diff = (typeof latentRoutineDifficultyEstimate === "function") ? latentRoutineDifficultyEstimate(r) : {latentDifficulty:50, band:"productive"};
+    const difficultyFit = 1 - Math.min(1, Math.abs(Number(diff.latentDifficulty || 50) - 55) / 55);
+    const score = sourceFit*38 + targetFit*38 + Math.min(sourceFit,targetFit)*18 + difficultyFit*8;
+    return {routine:r, score, sourceFit, targetFit, latentDifficulty:diff.latentDifficulty, difficultyBand:diff.band};
+  }).filter(x=>x.score>=28).sort((a,b)=>b.score-a.score).slice(0,4);
+}
+function crossRoutineSkillGraphInsight(logs){
+  try{
+    const analysis = skillGraphBottleneckAnalysis(logs || data.logs || []);
+    const graph = analysis.graph;
+    const topEdges = (graph.edges || []).slice(0,4);
+    const main = analysis.bottlenecks?.[0];
+    const edgeForBridge = topEdges.find(e => e.sourceSkill === main?.id || e.targetSkill === main?.id) || topEdges[0];
+    const bridges = edgeForBridge ? bridgeRoutineCandidatesForDependency(edgeForBridge).slice(0,3) : [];
+    if(!graph.nodes.length) return `<div class="insight-card watch"><strong>Cross-routine skill graph</strong><div class="muted small">Skill dependency graph needs more mapped routine evidence.</div></div>`;
+    return `<div class="insight-card watch cross-skill-graph-card"><strong>Cross-routine skill graph</strong>
+      <div class="adaptive-rationale">Builds latent dependency links between skill domains. Use this to identify whether a weaker upstream skill is limiting downstream development.</div>
+      ${topEdges.length?`<div class="adaptive-rationale"><strong>Dependency links:</strong> ${topEdges.map(e=>`${htmlText(e.sourceLabel)} → ${htmlText(e.targetLabel)} (${e.lagDays}d · ${htmlText(e.strength)}${e.prior?" prior":""})`).join(" · ")}</div>`:`<div class="muted small">No stable dependency links yet.</div>`}
+      ${main?`<div class="adaptive-rationale"><strong>Bottleneck:</strong> ${htmlText(main.label)} may be limiting connected downstream skills. Current inferred level ${htmlText(main.level)}; confidence ${htmlText(main.confidence)}.</div>`:""}
+      ${bridges.length?`<div class="adaptive-rationale"><strong>Bridge routines:</strong> ${bridges.map(b=>`${htmlText(b.routine.name)} → ${htmlText(skillLabel(edgeForBridge.targetSkill))}`).join(" · ")}</div>`:""}
+    </div>`;
+  }catch(err){
+    console.warn("Cross-routine skill graph insight skipped", err);
+    return `<div class="insight-card watch"><strong>Cross-routine skill graph</strong><div class="muted small">Dependency graph unavailable for this scope.</div></div>`;
+  }
+}
+function crossRoutineSkillGraphReasonForRoutine(routine){
+  const analysis = skillGraphBottleneckAnalysis(data.logs || []);
+  const main = analysis.bottlenecks?.[0];
+  if(!main) return "skill graph: no clear dependency bottleneck yet";
+  const fit = routineSupportsSkill(routine, main.id);
+  if(fit >= 1) return `skill graph: addresses ${main.label}, the current dependency bottleneck`;
+  const edge = analysis.graph.edges.find(e => e.sourceSkill === main.id || e.targetSkill === main.id);
+  if(edge && (routineSupportsSkill(routine, edge.sourceSkill) || routineSupportsSkill(routine, edge.targetSkill))) return `skill graph: bridge candidate for ${edge.sourceLabel} → ${edge.targetLabel}`;
+  return "skill graph: secondary priority for current dependency bottleneck";
+}
+/* ===== end v5.6.16 Cross-Routine Skill Graph ===== */
+
 
 
 
@@ -7130,6 +7299,7 @@ function renderPhaseOneInsights() {
     ${changePointInsight(analyticsWindow(logs))}
     ${currentFormInsight(analyticsWindow(logs))}
     ${probabilisticCoachingLayerInsight(analyticsWindow(logs))}
+    ${crossRoutineSkillGraphInsight(analyticsWindow(logs))}
     ${targetCredibleIntervalInsight(analyticsWindow(logs))}
     ${dynamicDifficultyInsight(analyticsWindow(logs))}
     ${recommendationLearningInsight()}
@@ -9981,6 +10151,8 @@ function buildAiCoachingSnapshot(options = {}) {
       evidenceLogs: x.n
     }))
   }), null);
+  const crossRoutineSkillGraphProfile = aiTry("crossRoutineSkillGraphProfile", () => buildCrossRoutineSkillGraph(logs, routines), null);
+  const crossRoutineBottleneckProfile = aiTry("crossRoutineBottleneckProfile", () => skillGraphBottleneckAnalysis(logs), null);
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
@@ -9989,7 +10161,7 @@ function buildAiCoachingSnapshot(options = {}) {
     schemaVersion: "1.3",
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, and skill-specific latent level inference.",
+    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, and skill-specific latent level inference.",
     privacy: {
       localOnlySource: true,
       containsPersonalPracticeData: true,
@@ -10030,7 +10202,8 @@ function buildAiCoachingSnapshot(options = {}) {
         "Identify tags/metadata that appear inconsistent or missing.",
         "Recommend a coherent next-session block structure rather than a flat list of unrelated drills.",
         "Recommend one short match-simulation block only if the relevant scenario readiness is developing or ready.",
-        "Report skill uncertainty and confidence intervals when making target or level recommendations."
+        "Report skill uncertainty and confidence intervals when making target or level recommendations.",
+        "Use the cross-routine skill graph to identify upstream bottlenecks, downstream skill effects, lagged dependencies, and bridge routines."
       ]
     },
     coachingSummary,
@@ -10042,6 +10215,8 @@ function buildAiCoachingSnapshot(options = {}) {
     sessionArchitectureProfile,
     matchSimulationProfile,
     probabilisticCoachingProfile,
+    crossRoutineSkillGraphProfile,
+    crossRoutineBottleneckProfile,
     inferredSkillLevelProfile,
     weakestLinkProfile,
     targetCalibrationCandidates,

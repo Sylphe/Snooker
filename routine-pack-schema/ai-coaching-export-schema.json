@@ -17,7 +17,7 @@
     "probabilisticCoachingProfile"
   ],
   "notes": "Generated inside the app from local routine, log and analytics data. Not a backup replacement.",
-  "version": "5.6.15",
+  "version": "5.6.16",
   "transferAwareCoachingEngine": {
     "hiddenWeaknessDetection": "supported",
     "transferRecommendations": "supported",
@@ -59,7 +59,7 @@
         "object",
         "null"
       ],
-      "description": "v5.6.15 probabilistic coaching diagnostics: confidence ranges, skill uncertainty, plateau/breakthrough/regression classification."
+      "description": "v5.6.16 cross-routine skill graph diagnostics: dependency links, bottleneck analysis, lagged skill effects, and bridge routine suggestions."
     }
   },
   "probabilisticCoachingLayer": {
