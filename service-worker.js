@@ -1,4 +1,4 @@
-const CACHE_VERSION = "5.6.17.4-ai-export-hotfix";
+const CACHE_VERSION = "5.6.17.5-ai-export-hotfix";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
   "./index.html?v=5.6.17.2",

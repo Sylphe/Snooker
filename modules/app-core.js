@@ -7151,8 +7151,9 @@ function emaExpectedSeries(logs, alpha=0.35) {
     return {...l, expected, residual, ema};
   });
 }
-function routineResidualInsight(routineId) {
-  const logs = (data.logs || []).filter(l => l.routineId === routineId).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+function routineResidualInsight(routineId, sourceLogs = null) {
+  const baseLogs = Array.isArray(sourceLogs) ? sourceLogs : (data.logs || []);
+  const logs = baseLogs.filter(l => String(l.routineId) === String(routineId)).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
   if (logs.length < 5) return null;
   const series = emaExpectedSeries(logs);
   const recent = series.slice(-5);
@@ -7173,17 +7174,18 @@ function routineResidualInsight(routineId) {
 }
 function renderResidualInsights(logs) {
   const scopedRoutineIds = [...new Set(logs.map(l => l.routineId).filter(Boolean))];
-  const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
+  const insights = scopedRoutineIds.map(rid => routineResidualInsight(rid, logs)).filter(Boolean).sort((a,b)=>Math.abs(b.residualMean)-Math.abs(a.residualMean)).slice(0,5);
   if (!insights.length) return `<div class="insight-card watch"><strong>Expected vs actual</strong><div class="muted">Not enough routine history/variation yet.</div></div>`;
   return `<div class="insight-card ${insights[0].signal==="positive"?"good":insights[0].signal==="negative"?"risk":"watch"}">
     <strong>Expected vs actual residuals ${statHelpButton("residual")}</strong>
     ${insights.map(i => `<div class="context-row"><span>${escapeHtml(i.routine?.name || "Deleted routine")}<br><span class="muted">${escapeHtml(i.action)}</span></span><strong>${i.adjustedResidualMean>=0?"+":""}${i.adjustedResidualMean.toFixed(1)}</strong><span>${evidenceBadge(i.logs.length)}</span></div>`).join("")}
   </div>`;
 }
-function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15) {
+function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15, sourceLogs = null) {
+  const baseLogs = Array.isArray(sourceLogs) ? sourceLogs : (data.logs || []);
   const logs = Array.isArray(sessionIdOrLogs)
     ? sessionIdOrLogs.slice()
-    : (data.logs || []).filter(l => l.sessionId === sessionIdOrLogs);
+    : baseLogs.filter(l => String(l.sessionId) === String(sessionIdOrLogs));
   const sorted = logs.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
   if (sorted.length < 3) return null;
   let cumulative = 0;
@@ -7205,7 +7207,7 @@ function sessionPeakWindow(sessionIdOrLogs, windowMinutes=15) {
 }
 function renderPeakWindowInsight(logs) {
   const sessions = [...new Set(logs.map(l => l.sessionId).filter(Boolean))];
-  const peaks = sessions.map(id => sessionPeakWindow(id)).filter(Boolean);
+  const peaks = sessions.map(id => sessionPeakWindow(id, 15, logs)).filter(Boolean);
   if (!peaks.length) {
     const fallback = sessionPeakWindow(logs);
     if (!fallback) return `<div class="insight-card watch"><strong>Peak window</strong><div class="muted">Not enough within-session data/variation yet.</div></div>`;
@@ -7439,52 +7441,56 @@ function renderForecastInsight(logs){
 function renderPhaseOneInsights(logsArg=null) {
   const box = $("phaseOneInsightsOutput");
   if (!box) return;
-  const scope = getStatsScope();
-  const logs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
-  const windowedLogs = analyticsWindow(logs);
-  const safeInsightCard = (label, fn) => {
-    try {
-      const html = fn();
-      return html || "";
-    } catch (e) {
-      logAppError?.(e, `renderPhaseOneInsights ${label}`);
-      return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted">This insight could not be rendered. Other Insights remain available.</div></div>`;
+  try {
+    const scope = getStatsScope();
+    const logs = Array.isArray(logsArg) ? logsArg : getScopedStatsLogs();
+    const windowedLogs = analyticsWindow(logs);
+    const safeInsightCard = (label, fn) => {
+      try {
+        const html = fn();
+        return html || "";
+      } catch (e) {
+        logAppError?.(e, `renderPhaseOneInsights ${label}`);
+        return `<div class="insight-card watch"><strong>${htmlText(label)}</strong><div class="muted">This insight could not be rendered. Other Insights remain available.</div></div>`;
+      }
+    };
+    if (!logs.length) {
+      box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
+      return;
     }
-  };
-  if (!logs.length) {
-    box.innerHTML = `<div class="insight-card watch">${htmlText(uiNoDataMessage("insight"))}${scope.routineName ? `: ${htmlText(scope.routineName)}` : ""}.</div>`;
-    return;
+    const cards = [
+      ["Above / Below Expectation", () => renderResidualInsights(logs)],
+      ["Best Performance Window", () => renderPeakWindowInsight(logs)],
+      ["Table & Time Effects", () => renderContextEffects(logs)],
+      ["Context-Adjusted Performance", () => contextNormalizationInsight(windowedLogs)],
+      ["Performance forecast", () => renderForecastInsight(windowedLogs)],
+      ["Session Themes", () => reflectionPatternInsight(logs)],
+      ["Session Feel", () => reflectionIntelligenceSummary(logs)],
+      ["Skill Mix", () => skillMapInsight(logs)],
+      ["Maintenance Plan", () => maintenanceSchedulerInsight(logs)],
+      ["Weekly Balance", () => adaptiveSessionPeriodizationInsight(logs)],
+      ["Skill Transfer", () => transferModelInsight(logs)],
+      ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
+      ["Routine intelligence", () => routineIntelligenceInsight(logs)],
+      ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
+      ["Performance Shifts", () => changePointInsight(windowedLogs)],
+      ["Current Form", () => currentFormInsight(windowedLogs)],
+      ["Probabilistic Coaching", () => probabilisticCoachingLayerInsight(windowedLogs)],
+      ["Cross-Routine Skill Graph", () => crossRoutineSkillGraphInsight(windowedLogs)],
+      ["AI Coaching Layer", () => aiCoachingLayerV2Insight(windowedLogs)],
+      ["Expected Target Range", () => targetCredibleIntervalInsight(windowedLogs)],
+      ["Dynamic routine difficulty", () => dynamicDifficultyInsight(windowedLogs)],
+      ["Recommendation learning v2", () => recommendationLearningInsight()],
+      ["Smart Practice Balance", () => bayesianOptimizationInsight(windowedLogs)],
+      ["Personalized Baselines", () => personalizedPriorsInsight()]
+    ];
+    const html = `<div class="insight-grid">${cards.map(([label, fn]) => safeInsightCard(label, fn)).join("")}</div>`;
+    box.innerHTML = uiInsightLanguageHtml(html);
+  } catch (e) {
+    logAppError?.(e, "renderPhaseOneInsights top-level");
+    box.innerHTML = `<div class="insight-card risk"><strong>Insights unavailable</strong><div class="muted">The Insights panel could not prepare the selected stats scope. Try another period or exercise filter.</div></div>`;
   }
-  const cards = [
-    ["Above / Below Expectation", () => renderResidualInsights(logs)],
-    ["Best Performance Window", () => renderPeakWindowInsight(logs)],
-    ["Table & Time Effects", () => renderContextEffects(logs)],
-    ["Context-Adjusted Performance", () => contextNormalizationInsight(windowedLogs)],
-    ["Performance forecast", () => renderForecastInsight(windowedLogs)],
-    ["Session Themes", () => reflectionPatternInsight(logs)],
-    ["Session Feel", () => reflectionIntelligenceSummary(logs)],
-    ["Skill Mix", () => skillMapInsight(logs)],
-    ["Maintenance Plan", () => maintenanceSchedulerInsight(logs)],
-    ["Weekly Balance", () => adaptiveSessionPeriodizationInsight(logs)],
-    ["Skill Transfer", () => transferModelInsight(logs)],
-    ["Transfer-aware coaching", () => transferAwareCoachingInsight(logs)],
-    ["Routine intelligence", () => routineIntelligenceInsight(logs)],
-    ["Inferred skill levels", () => inferredSkillLevelInsight(logs)],
-    ["Performance Shifts", () => changePointInsight(windowedLogs)],
-    ["Current Form", () => currentFormInsight(windowedLogs)],
-    ["Probabilistic Coaching", () => probabilisticCoachingLayerInsight(windowedLogs)],
-    ["Cross-Routine Skill Graph", () => crossRoutineSkillGraphInsight(windowedLogs)],
-    ["AI Coaching Layer", () => aiCoachingLayerV2Insight(windowedLogs)],
-    ["Expected Target Range", () => targetCredibleIntervalInsight(windowedLogs)],
-    ["Dynamic routine difficulty", () => dynamicDifficultyInsight(windowedLogs)],
-    ["Recommendation learning v2", () => recommendationLearningInsight()],
-    ["Smart Practice Balance", () => bayesianOptimizationInsight(windowedLogs)],
-    ["Personalized Baselines", () => personalizedPriorsInsight()]
-  ];
-  const html = `<div class="insight-grid">${cards.map(([label, fn]) => safeInsightCard(label, fn)).join("")}</div>`;
-  box.innerHTML = uiInsightLanguageHtml(html);
 }
-
 
 function miniSparkline(values, width=110, height=30) {
   const vals = values.map(v=>Number(v||0)).filter(v=>Number.isFinite(v));
@@ -7554,12 +7560,16 @@ function getStatsScope() {
 }
 function getScopedStatsLogs() {
   const scope = getStatsScope();
-  let logs = (scope.period === "overall" || scope.period === "exercise") ? (data.logs || []).slice() : logsInRange(data.logs || [], scope.range.start, scope.range.end);
+  const allLogs = data.logs || [];
+  const hasValidRange = scope?.range?.start instanceof Date && !Number.isNaN(scope.range.start.getTime()) && scope?.range?.end instanceof Date && !Number.isNaN(scope.range.end.getTime());
+  let logs = (scope.period === "overall" || scope.period === "exercise" || !hasValidRange) ? allLogs.slice() : logsInRange(allLogs, scope.range.start, scope.range.end);
   if (scope.rid) logs = logs.filter(l => String(l.routineId) === String(scope.rid));
-  return logs.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+  return logs.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 }
 function getTournamentPlannerLogs(scope = getStatsScope()) {
-  const base = (scope.period === "overall" || scope.period === "exercise") ? (data.logs || []).slice() : logsInRange(data.logs || [], scope.range.start, scope.range.end);
+  const allLogs = data.logs || [];
+  const hasValidRange = scope?.range?.start instanceof Date && !Number.isNaN(scope.range.start.getTime()) && scope?.range?.end instanceof Date && !Number.isNaN(scope.range.end.getTime());
+  const base = (scope.period === "overall" || scope.period === "exercise" || !hasValidRange) ? allLogs.slice() : logsInRange(allLogs, scope.range.start, scope.range.end);
   return base.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 }
 function renderStatsScopeBanner(scope, logs) {
@@ -8944,6 +8954,11 @@ function deleteLog(id) {
       return;
     }
     data.logs = previousLogs.filter(l => l.id !== id);
+    if (activeSession) {
+      if (Array.isArray(activeSession.completedLogs)) activeSession.completedLogs = activeSession.completedLogs.filter(l => String(l?.id) !== String(id));
+      if (Array.isArray(activeSession.logIds)) activeSession.logIds = activeSession.logIds.filter(logId => String(logId) !== String(id));
+      persistActiveSession?.();
+    }
     saveData({render:"logEdit", idbSync:"skip", allowReadOnlyCleanup:true});
   });
 }
@@ -10614,7 +10629,9 @@ function validateBackupShape(candidate) {
   if (badRoutine) return {ok:false, message:"At least one routine is missing an id or name."};
   const badLog = candidate.logs.find(l => !l || typeof l !== "object" || !l.id || !l.createdAt);
   if (badLog) return {ok:false, message:"At least one log is missing an id or createdAt timestamp."};
-  return {ok:true};
+  const routineIds = new Set(candidate.routines.map(r => String(r.id)));
+  const orphanLogs = candidate.logs.filter(l => l?.routineId && !routineIds.has(String(l.routineId))).length;
+  return {ok:true, warnings: orphanLogs ? [`${orphanLogs} log(s) reference routines that are not present in the backup. They will be kept and shown as deleted exercises.`] : []};
 }
 safeOn("importJsonInput", "change", async (e) => {
   const file = e.target.files[0];

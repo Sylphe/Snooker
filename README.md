@@ -15,7 +15,7 @@ Included:
 Startup, storage, hydration, and tab initialization were not changed.
 
 
-## v5.6.17.4 — AI export hotfix
+## v5.6.17.5 — Stats scope hardening
 
 - Capped AI coaching export routine snapshots to reduce export size and memory pressure.
 - Clamped recommendation scores to finite values to prevent NaN ranking/UI leakage.
