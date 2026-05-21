@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.12";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.12";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.6.13";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.6.13";
 import {
   uuid,
   structuredCloneSafe,
@@ -19,7 +19,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.6.12";
+} from "./utils.js?v=5.6.13";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -37,7 +37,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.6.12";
+} from "./settings.js?v=5.6.13";
 import {
   avg,
   stdDev,
@@ -59,7 +59,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.6.12";
+} from "./analytics.js?v=5.6.13";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -68,7 +68,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.6.12";
+} from "./bayesian.js?v=5.6.13";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -77,7 +77,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.6.12";
+} from "./session.js?v=5.6.13";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -85,7 +85,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.6.12";
+} from "./pressure.js?v=5.6.13";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -97,7 +97,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.6.12";
+} from "./recommendations.js?v=5.6.13";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -111,7 +111,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.6.12";
+} from "./store.js?v=5.6.13";
 
 
 
@@ -1882,8 +1882,8 @@ function dynamicRoutineDifficultyInsight(logs){
   const productive = rows.filter(x=>x.difficulty.band === "productive").slice(0,2);
   const easy = rows.filter(x=>x.difficulty.band === "easy").slice(0,1);
   const selected = [...hard, ...productive, ...easy].slice(0,4);
-  if(!selected.length) return `<div class="insight-card watch"><strong>Dynamic Routine Difficulty Model</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
-  return `<div class="insight-card watch"><strong>Dynamic Routine Difficulty Model</strong>
+  if(!selected.length) return `<div class="insight-card watch"><strong>Session Architecture Engine</strong><div class="muted small">No active routines available for difficulty calibration.</div></div>`;
+  return `<div class="insight-card watch"><strong>Session Architecture Engine</strong>
     <div class="adaptive-rationale">Estimates actual routine difficulty from local completion, comparable-routine completion, volatility, target health, and inferred player level.</div>
     ${selected.map(x=>`<div class="context-row"><span>${htmlText(x.routine.name)}<br><span class="muted">${htmlText(x.difficulty.difficultyRating)} · local ${htmlText(String(x.difficulty.localCompletionRate ?? "n/a"))}% · global ${htmlText(String(x.difficulty.globalCompletionRate ?? "n/a"))}% · L${htmlText(String(x.difficulty.inferredPlayerLevel ?? "?"))}</span></span><strong>${Number(x.difficulty.latentDifficulty).toFixed(1)}</strong><span>${htmlText(x.difficulty.band)}</span></div>`).join("")}
   </div>`;
@@ -1902,7 +1902,7 @@ function routineSimilarityGraph(routines=activeRoutines()){
     }
   }
   edges.sort((a,b)=>b.similarity-a.similarity);
-  return {version:"v5.6.12", nodes, edges:edges.slice(0,40)};
+  return {version:"v5.6.10", nodes, edges:edges.slice(0,40)};
 }
 function nearestRoutineNeighbors(routine, routines=activeRoutines(), limit=3){
   return (routines || []).filter(r=>String(r.id)!==String(routine?.id)).map(r=>({routine:r, similarity:routineSimilarityScore(routine,r), difficulty:latentRoutineDifficultyEstimate(r)})).sort((a,b)=>b.similarity-a.similarity).slice(0,limit);
@@ -1945,10 +1945,12 @@ function crossUserCalibrationDescriptor(routine){
 }
 function buildRoutineIntelligenceProfile(routines=activeRoutines()){
   const graph = routineSimilarityGraph(routines);
-  return {version:"v5.6.12", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
+  return {version:"v5.6.10", similarityGraph:graph, calibrationDescriptors:(routines||[]).map(crossUserCalibrationDescriptor), balancingPlan:automatedRoutineBalancingPlan(), dynamicTargets:(routines||[]).map(r=>({routineId:r.id, routineName:r.name, ...dynamicTargetGenerationForRoutine(r)})).slice(0,80)};
 }
 
-const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.12";
+const INFERRED_SKILL_LEVEL_SYSTEM_VERSION = "v5.6.11";
+const DYNAMIC_ROUTINE_DIFFICULTY_MODEL_VERSION = "v5.6.12";
+const SESSION_ARCHITECTURE_ENGINE_VERSION = "v5.6.13";
 const INFERRED_SKILL_DOMAINS = [
   {id:"long_potting", label:"Long Potting", skills:["long_potting","cueing"]},
   {id:"cue_ball_control", label:"Cue-ball Control", skills:["cue_ball_control","pace_control","positional_play","transition_play","recovery"]},
@@ -2068,7 +2070,7 @@ function inferredSkillLevelInsight(logs){
   const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
   const main = weakestLinks[0];
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Dynamic Routine Difficulty Model")}</strong>
+  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Session Architecture Engine")}</strong>
     <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
@@ -5488,13 +5490,158 @@ function flattenAdaptiveRoutineIds(blocks) {
   }));
   return ids;
 }
+
+function sessionPhaseForBlockType(blockType="completion") {
+  const order = {warmup:"warmup", recovery:"warmup", primary:"peak", transfer:"peak", pressure:"peak", confidence:"cooldown", completion:"cooldown"};
+  return order[blockType] || "cooldown";
+}
+function sessionArchitectureProfileForState(state, phase="peak") {
+  const energy = routineEnergyProfile(state);
+  const map = getRoutineSkillMap(state?.routine || {});
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  const difficulty = typeof latentRoutineDifficultyEstimate === "function" ? latentRoutineDifficultyEstimate(state?.routine || {}, state?.logs || routineLogsFor(state?.routine || {})) : null;
+  const diffScore = Number(difficulty?.latentDifficulty || 50);
+  const precision = skills.has("long_potting") || skills.has("cueing") || skills.has("cue_ball_control") || skills.has("pace_control") || skills.has("rest_play");
+  const tactical = skills.has("safety") || skills.has("tactical_decision_making") || skills.has("escape_shots") || skills.has("cluster_management");
+  const pressure = skills.has("pressure_resilience") || skills.has("focus_consistency") || String(state?.routine?.category || "").toLowerCase().includes("mental");
+  const highFocus = energy.cognitive >= 4 || diffScore >= 68 || pressure;
+  let load = energy.cognitive + energy.fatigue + energy.confidence;
+  if (phase === "warmup") load = Math.max(1, load - 2);
+  if (phase === "peak") load += diffScore >= 68 ? 2 : diffScore >= 54 ? 1 : 0;
+  if (phase === "cooldown") load = Math.max(1, load - (diffScore <= 45 ? 2 : 0));
+  return {
+    version:SESSION_ARCHITECTURE_ENGINE_VERSION,
+    phase,
+    highFocus,
+    load:Math.max(1, Math.min(18, Math.round(load))),
+    precision,
+    tactical,
+    pressure,
+    energy,
+    difficulty:diffScore,
+    skillGroup:skillGroupForRoutine(state?.routine || {}),
+    primarySkill:map.primarySkill || ""
+  };
+}
+function transferSequencingScore(prevState, nextState) {
+  if (!prevState || !nextState) return 0;
+  const a = getRoutineSkillMap(prevState.routine || {});
+  const b = getRoutineSkillMap(nextState.routine || {});
+  const prevSkills = new Set([a.primarySkill, ...(a.secondarySkills || []), ...(a.transferTags || [])].filter(Boolean));
+  const nextSkills = new Set([b.primarySkill, ...(b.secondarySkills || []), ...(b.transferTags || [])].filter(Boolean));
+  let score = 0;
+  if (prevSkills.has("long_potting") && (nextSkills.has("cue_ball_control") || nextSkills.has("positional_play") || nextSkills.has("pace_control"))) score += 8;
+  if ((prevSkills.has("cue_ball_control") || prevSkills.has("positional_play") || prevSkills.has("pace_control")) && nextSkills.has("break_building")) score += 10;
+  if (prevSkills.has("safety") && (nextSkills.has("tactical_decision_making") || nextSkills.has("escape_shots"))) score += 7;
+  if (prevSkills.has("cueing") && (nextSkills.has("long_potting") || nextSkills.has("rest_play"))) score += 6;
+  if ([...prevSkills].some(x => nextSkills.has(x))) score += 3;
+  if (skillGroupForRoutine(prevState.routine) === skillGroupForRoutine(nextState.routine)) score += 2;
+  return score;
+}
+function phaseFitScore(state, phase) {
+  const profile = sessionArchitectureProfileForState(state, phase);
+  let score = 0;
+  if (phase === "warmup") {
+    if (state?.routine?.isAnchor || Number(state?.logs?.length || 0) >= 4) score += 8;
+    if (profile.load <= 8) score += 7;
+    if (profile.difficulty <= 55) score += 5;
+    if (profile.highFocus) score -= 7;
+  } else if (phase === "peak") {
+    score += Number(state?.adaptiveScore || 0) * 0.08;
+    if (profile.difficulty >= 48 && profile.difficulty <= 76) score += 8;
+    if (profile.highFocus) score += 4;
+    if (Number(state?.transferValue || routineTransferValue(state?.routine)) >= 65) score += 5;
+  } else if (phase === "cooldown") {
+    if (profile.load <= 9) score += 8;
+    if (Number(state?.logs?.length || 0) >= 3) score += 4;
+    if (["maintain","recover","baseline"].includes(state?.phase)) score += 6;
+    if (profile.pressure || profile.difficulty >= 68) score -= 8;
+  }
+  return score;
+}
+function sequenceSessionPicks(picks, phase="peak") {
+  const pool = (picks || []).map(p => p?.state ? p.state : p).filter(Boolean);
+  const sequenced = [];
+  const remaining = pool.slice().sort((a,b)=>phaseFitScore(b, phase)-phaseFitScore(a, phase));
+  while (remaining.length) {
+    const prev = sequenced[sequenced.length-1] || null;
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+    remaining.forEach((candidate, idx) => {
+      const profile = sessionArchitectureProfileForState(candidate, phase);
+      const prevProfile = prev ? sessionArchitectureProfileForState(prev, phase) : null;
+      let score = phaseFitScore(candidate, phase) + transferSequencingScore(prev, candidate);
+      if (prevProfile?.highFocus && profile.highFocus) score -= 14;
+      if (prevProfile && prevProfile.skillGroup === profile.skillGroup && profile.highFocus) score -= 3;
+      if (prevProfile?.precision && profile.precision && phase === "peak") score -= 5;
+      if (phase === "cooldown" && profile.highFocus) score -= 10;
+      if (score > bestScore) { bestScore = score; bestIndex = idx; }
+    });
+    sequenced.push(remaining.splice(bestIndex,1)[0]);
+  }
+  return sequenced.map(s => normalizeAdaptivePick(s, 1));
+}
+function architectureBalancePlan(blocks, targetMinutes) {
+  const flat = [];
+  (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+    const state = pick.state || pick;
+    const phase = sessionPhaseForBlockType(block.blockType);
+    flat.push({block:block.blockType || "completion", phase, state, profile:sessionArchitectureProfileForState(state, phase), reps:Math.max(1, Number(pick.reps || 1))});
+  }));
+  const load = flat.reduce((a,x)=>a + x.profile.load * x.reps,0);
+  const highFocusRuns = flat.reduce((acc,x,idx,arr)=> acc + (idx>0 && x.profile.highFocus && arr[idx-1].profile.highFocus ? 1 : 0), 0);
+  const phaseMinutes = {warmup:0, peak:0, cooldown:0};
+  (blocks || []).forEach(block => { phaseMinutes[sessionPhaseForBlockType(block.blockType)] += Number(block.minutes || adaptiveBlockExpectedMinutes(block) || 0); });
+  const target = {warmup:Math.round(targetMinutes*0.16), peak:Math.round(targetMinutes*0.64), cooldown:Math.round(targetMinutes*0.20)};
+  const warnings = [];
+  if (highFocusRuns) warnings.push(`${highFocusRuns} consecutive high-focus pairing${highFocusRuns === 1 ? "" : "s"} detected`);
+  if (phaseMinutes.warmup < target.warmup*0.55) warnings.push("warm-up phase is light");
+  if (phaseMinutes.cooldown < target.cooldown*0.50) warnings.push("cooldown/confidence recovery phase is light");
+  return {version:SESSION_ARCHITECTURE_ENGINE_VERSION, target, phaseMinutes, totalLoad:load, highFocusRuns, warnings};
+}
+function optimizeSessionArchitectureBlocks(blocks, ranked, targetMinutes) {
+  const optimized = (blocks || []).map(block => {
+    const phase = sessionPhaseForBlockType(block.blockType);
+    const picks = sequenceSessionPicks(block.picks || [], phase);
+    return {...block, architecturePhase:phase, picks};
+  });
+  const peakBlocks = optimized.filter(b => sessionPhaseForBlockType(b.blockType) === "peak");
+  for (let i=1;i<peakBlocks.length;i++) {
+    const prevPick = peakBlocks[i-1].picks?.slice(-1)[0]?.state;
+    const first = peakBlocks[i].picks?.[0]?.state;
+    if (prevPick && first && sessionArchitectureProfileForState(prevPick,"peak").highFocus && sessionArchitectureProfileForState(first,"peak").highFocus) {
+      const altIdx = (peakBlocks[i].picks || []).findIndex(p => !sessionArchitectureProfileForState(p.state || p,"peak").highFocus);
+      if (altIdx > 0) {
+        const alt = peakBlocks[i].picks.splice(altIdx,1)[0];
+        peakBlocks[i].picks.unshift(alt);
+      }
+    }
+  }
+  const balance = architectureBalancePlan(optimized, targetMinutes);
+  return {blocks:optimized, balance};
+}
+function sessionArchitectureInsight(plan) {
+  const balance = plan?.architectureBalance || architectureBalancePlan(plan?.blocks || [], plan?.targetMinutes || 60);
+  const phase = balance.phaseMinutes || {};
+  const warningText = balance.warnings?.length ? balance.warnings.join(" · ") : "sequencing avoids consecutive high-focus overload and preserves warm-up/peak/cooldown structure";
+  return `<div class="adaptive-rationale session-architecture-summary"><strong>Session architecture:</strong> warm-up ${formatDurationHuman(phase.warmup || 0)} · peak ${formatDurationHuman(phase.peak || 0)} · cooldown ${formatDurationHuman(phase.cooldown || 0)} · load ${Number(balance.totalLoad || 0)}. ${escapeHtml(warningText)}</div>`;
+}
+function sessionPlanPresets(plan) {
+  const durations = [60,90,180];
+  return durations.map(min => {
+    const label = min === 180 ? "3h" : `${min}m`;
+    const warm = Math.round(min*0.15), peak = Math.round(min*0.65), cool = Math.max(10, min-warm-peak);
+    return `<span class="badge session-preset-badge">${escapeHtml(label)}: ${formatDurationHuman(warm)} warm-up · ${formatDurationHuman(peak)} peak · ${formatDurationHuman(cool)} cooldown</span>`;
+  }).join("");
+}
+
 function fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes) {
   if (!ranked.length) return blocks;
   let expected = adaptivePlanExpectedMinutes(blocks);
   let guard = 0;
   let completion = blocks.find(b => b.name === "Completion block");
   if (!completion) {
-    completion = {name:"Completion block", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
+    completion = {name:"Completion block", blockType:"completion", minutes:Math.max(10, Math.round(targetMinutes * 0.20)), purpose:"Fill the selected time with the next best adaptive priorities", picks:[]};
     blocks.push(completion);
   }
   while (expected < targetMinutes * 0.92 && guard < 40) {
@@ -5746,7 +5893,10 @@ function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
   const transfer = routineTransferValue(state.routine);
   const energy = routineEnergyProfile(state);
   const ctx = contextualFitForRoutine(state.routine, {logs:state.logs || [], vals:(state.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:state.hit}, inferTrainingStateMode());
+  const architecture = sessionArchitectureProfileForState(state, "peak");
   let score = baseScore + transfer * 0.18 + ctx.score * 0.65;
+  if (architecture.highFocus && ctx.volatility.level === "high") score -= 3;
+  if (architecture.difficulty >= 45 && architecture.difficulty <= 72) score += 3;
   if (goal === "recovery") {
     if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
     score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.45;
@@ -5951,7 +6101,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
     const transferValue = routineTransferValue(s.routine);
     const energyProfile = routineEnergyProfile(s);
-    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `architecture load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3), `session phase fit warm-up ${phaseFitScore(s,"warmup").toFixed(0)} / peak ${phaseFitScore(s,"peak").toFixed(0)} / cooldown ${phaseFitScore(s,"cooldown").toFixed(0)}`]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -6046,12 +6196,15 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
 
   blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
   blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
+  const architecture = optimizeSessionArchitectureBlocks(blocks, ranked, targetMinutes);
+  blocks = architecture.blocks;
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
   const budgetUsage = budgetUsageForBlocks(blocks);
-  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage};
+  const architectureBalance = architectureBalancePlan(blocks, targetMinutes);
+  return {version:SESSION_ARCHITECTURE_ENGINE_VERSION, effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, architectureBalance};
 }
 
 function renderAdaptiveSession() {
@@ -6079,13 +6232,15 @@ function renderAdaptiveSession() {
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("targetDuration"))}: ${formatDurationHuman(plan.targetMinutes)} · ${escapeHtml(uiLabel("loadedEstimate"))}: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} ${escapeHtml(uiLabel("drillSlots"))} · ${escapeHtml(uiLabel("recommendationMode"))}: ${escapeHtml(smartRecommendationModeLabel(mode))}</div>
     ${budgetHtml}
+    ${sessionArchitectureInsight(plan)}
+    <div class="session-preset-row">${sessionPlanPresets(plan)}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("feedbackTracked"))}: ${feedback.accepted} ${escapeHtml(uiLabel("accepted"))} · ${feedback.skipped} ${escapeHtml(uiLabel("skipped"))} · ${feedback.completed} ${escapeHtml(uiLabel("completed"))}. ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Completed picks help the app learn what works next time.":"Completed recommendations capture score-after and improvement-after-recommendation once logged.")}</div>
   </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase smart-block-card" data-block-type="${attrText(block.blockType || "")}">
-    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4>
+    <h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)} · ${escapeHtml(block.architecturePhase || sessionPhaseForBlockType(block.blockType))}</h4>
     <div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>
-    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); return `<div class="routine-row">
+    ${block.picks.map(pick => { const p = pick.state || pick; const reps = Math.max(1, Number(pick.reps || 1)); const energy = p.energyProfile || routineEnergyProfile(p); const arch = sessionArchitectureProfileForState(p, block.architecturePhase || sessionPhaseForBlockType(block.blockType)); return `<div class="routine-row">
       <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
-        <div class="adaptive-rationale">${escapeHtml(getInsightLanguageSetting()==="friendly"?"Mode":"Phase")}: ${escapeHtml(p.phase)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Next":"Action")}: ${escapeHtml(adaptiveActionForState(p))} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Time":"Est.")} ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Carryover":"Transfer")} ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · ${escapeHtml(uiLabel("mentalLoad"))} ${energy.cognitive} · ${escapeHtml(uiLabel("energyCost"))} ${energy.fatigue} · ${escapeHtml(uiLabel("confidenceRisk"))} ${energy.confidence}</div>
+        <div class="adaptive-rationale">${escapeHtml(getInsightLanguageSetting()==="friendly"?"Mode":"Phase")}: ${escapeHtml(p.phase)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Next":"Action")}: ${escapeHtml(adaptiveActionForState(p))} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Time":"Est.")} ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Carryover":"Transfer")} ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · ${escapeHtml(uiLabel("mentalLoad"))} ${energy.cognitive} · ${escapeHtml(uiLabel("energyCost"))} ${energy.fatigue} · ${escapeHtml(uiLabel("confidenceRisk"))} ${energy.confidence} · ${escapeHtml("phase load")} ${arch.load}${arch.highFocus ? " · high focus" : ""}</div>
         <ul class="reason-list">${(p.reasons || []).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
         ${renderFeedbackButtons(p.routine.id, "smart_session_builder")}
         ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
