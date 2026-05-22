@@ -1,0 +1,4 @@
+v5.7.10 Routine Metadata Hydration Fix
+- Edit form now hydrates Nolan benchmark/setup metadata from direct, nested, and fallback fields.
+- Benchmark ladders support levelTargets fallback.
+- Re-importing packs fills missing setup-card fields on existing routines.

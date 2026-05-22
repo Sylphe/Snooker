@@ -3572,19 +3572,7 @@ function migrateData(d) {
     canonicalId: normalizeRoutineCanonicalId(r.canonicalId || r.catalogueId || r.packRoutineId || r.id || r.name),
     routinePackSource: r.routinePackSource || r.packSource || "",
     routinePackVersion: r.routinePackVersion || r.packVersion || "",
-    benchmarkTargets: normalizeBenchmarkTargets(r.benchmarkTargets || {
-      junior: r.juniorTarget ?? r.benchmarkJuniorTarget,
-      club: r.clubTarget ?? r.benchmarkClubTarget,
-      senior: r.seniorTarget ?? r.benchmarkSeniorTarget,
-      pro: r.proTarget ?? r.professionalTarget ?? r.benchmarkProTarget
-    }),
-    benchmarkSource: r.benchmarkSource || r.routinePackSource || r.packSource || "",
-    setupType: r.setupType || (r.setupDescription || r.coachingPurpose || r.scoringRuleText || r.commonMistake || r.benchmarkNotes ? "text" : ""),
-    setupDescription: r.setupDescription || r.setupText || "",
-    scoringRuleText: r.scoringRuleText || r.scoringRule || "",
-    coachingPurpose: r.coachingPurpose || r.coachingIntent || "",
-    commonMistake: r.commonMistake || r.commonError || "",
-    benchmarkNotes: r.benchmarkNotes || r.benchmarkContext || "",
+    ...routineSetupMetaFromRoutine(r),
     metadataVersion: Number(r.metadataVersion || 1),
     isCatalogueRoutine: !!(r.isCatalogueRoutine || r.canonicalId || r.catalogueId),
     isDeleted: !!r.isDeleted,
@@ -3938,6 +3926,69 @@ function normalizeBenchmarkTargets(input={}) {
     if (Number.isFinite(n) && n > 0) out[level.key] = Math.round(n * 100) / 100;
   });
   return out;
+}
+function normalizeBenchmarkTargetsFromAny(source={}) {
+  const direct = normalizeBenchmarkTargets(source.benchmarkTargets || {
+    junior: source.juniorTarget ?? source.benchmarkJuniorTarget,
+    club: source.clubTarget ?? source.benchmarkClubTarget,
+    senior: source.seniorTarget ?? source.benchmarkSeniorTarget,
+    pro: source.proTarget ?? source.professionalTarget ?? source.benchmarkProTarget
+  });
+  if (Object.keys(direct).length) return direct;
+  const levelTargets = Array.isArray(source.levelTargets) ? source.levelTargets : [];
+  const mapped = {};
+  levelTargets.forEach(item => {
+    const key = String(item?.level || item?.key || item?.name || "").toLowerCase();
+    const value = Number(item?.target ?? item?.value ?? item?.score);
+    if (BENCHMARK_LEVELS.some(level => level.key === key) && Number.isFinite(value) && value > 0) mapped[key] = value;
+  });
+  return normalizeBenchmarkTargets(mapped);
+}
+function extractPurposeFromDescription(description="") {
+  const text = String(description || "").trim();
+  if (!text) return "";
+  const match = text.match(/(?:Purpose|Coaching purpose)\s*:\s*(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+function extractSetupFromDescription(description="") {
+  const text = String(description || "").trim();
+  if (!text) return "";
+  return text.replace(/\s*(?:Purpose|Coaching purpose)\s*:\s*.+$/i, "").trim();
+}
+function benchmarkNotesFromTargets(targets={}, source="") {
+  const parts = BENCHMARK_LEVELS.map(level => targets[level.key] ? `${level.label}: ${targets[level.key]}` : "").filter(Boolean);
+  if (!parts.length && !source) return "";
+  return `${parts.length ? `Benchmarks — ${parts.join(", ")}.` : ""}${source ? ` Source: ${source}.` : ""}`.trim();
+}
+function routineSetupMetaFromRoutine(source={}) {
+  const setupCard = source.setupCard && typeof source.setupCard === "object" ? source.setupCard : {};
+  const sourceLabel = source.benchmarkSource || source.sourceBookReference || source.routinePackSource || source.catalogueSource || source.packSource || "";
+  const targets = normalizeBenchmarkTargetsFromAny(source);
+  const description = source.description || "";
+  return {
+    benchmarkTargets: targets,
+    benchmarkSource: source.benchmarkSource || sourceLabel || "",
+    setupType: source.setupType || setupCard.setupType || (source.setupDescription || setupCard.setupDescription || setupCard.setup || description ? "text" : ""),
+    setupDescription: source.setupDescription || source.setupText || setupCard.setupDescription || setupCard.setup || extractSetupFromDescription(description),
+    scoringRuleText: source.scoringRuleText || source.scoringRule || setupCard.scoringRuleText || setupCard.scoringRule || defaultScoringRuleText(source),
+    coachingPurpose: source.coachingPurpose || source.coachingIntent || source.trainingIntentText || setupCard.coachingPurpose || setupCard.purpose || extractPurposeFromDescription(description),
+    commonMistake: source.commonMistake || source.commonError || setupCard.commonMistake || setupCard.commonError || "",
+    benchmarkNotes: source.benchmarkNotes || source.benchmarkContext || setupCard.benchmarkNotes || setupCard.benchmarkContext || benchmarkNotesFromTargets(targets, sourceLabel)
+  };
+}
+function mergeSetupMeta(existing={}, incoming={}) {
+  const existingMeta = routineSetupMetaFromRoutine(existing);
+  const incomingMeta = routineSetupMetaFromRoutine(incoming);
+  return {
+    benchmarkTargets: Object.keys(incomingMeta.benchmarkTargets || {}).length ? incomingMeta.benchmarkTargets : existingMeta.benchmarkTargets,
+    benchmarkSource: incomingMeta.benchmarkSource || existingMeta.benchmarkSource || "",
+    setupType: incomingMeta.setupType || existingMeta.setupType || "",
+    setupDescription: incomingMeta.setupDescription || existingMeta.setupDescription || "",
+    scoringRuleText: incomingMeta.scoringRuleText || existingMeta.scoringRuleText || "",
+    coachingPurpose: incomingMeta.coachingPurpose || existingMeta.coachingPurpose || "",
+    commonMistake: incomingMeta.commonMistake || existingMeta.commonMistake || "",
+    benchmarkNotes: incomingMeta.benchmarkNotes || existingMeta.benchmarkNotes || ""
+  };
 }
 function benchmarkSourceLabel(routine={}) {
   return String(routine.benchmarkSource || routine.routinePackSource || "").trim();
@@ -4610,17 +4661,18 @@ function editRoutine(id) {
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
-  const benchmarkTargets = benchmarkTargetsFromRoutine(r);
+  const setupMeta = routineSetupMetaFromRoutine(r);
+  const benchmarkTargets = setupMeta.benchmarkTargets || benchmarkTargetsFromRoutine(r);
   if ($("routineBenchmarkJunior")) $("routineBenchmarkJunior").value = benchmarkTargets.junior || "";
   if ($("routineBenchmarkClub")) $("routineBenchmarkClub").value = benchmarkTargets.club || "";
   if ($("routineBenchmarkSenior")) $("routineBenchmarkSenior").value = benchmarkTargets.senior || "";
   if ($("routineBenchmarkPro")) $("routineBenchmarkPro").value = benchmarkTargets.pro || "";
-  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = r.benchmarkSource || "";
-  if ($("routineSetupDescription")) $("routineSetupDescription").value = r.setupDescription || r.setupText || "";
-  if ($("routineScoringRuleText")) $("routineScoringRuleText").value = r.scoringRuleText || r.scoringRule || "";
-  if ($("routineCoachingPurpose")) $("routineCoachingPurpose").value = r.coachingPurpose || r.coachingIntent || "";
-  if ($("routineCommonMistake")) $("routineCommonMistake").value = r.commonMistake || r.commonError || "";
-  if ($("routineBenchmarkNotes")) $("routineBenchmarkNotes").value = r.benchmarkNotes || r.benchmarkContext || "";
+  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = setupMeta.benchmarkSource || "";
+  if ($("routineSetupDescription")) $("routineSetupDescription").value = setupMeta.setupDescription || "";
+  if ($("routineScoringRuleText")) $("routineScoringRuleText").value = setupMeta.scoringRuleText || "";
+  if ($("routineCoachingPurpose")) $("routineCoachingPurpose").value = setupMeta.coachingPurpose || "";
+  if ($("routineCommonMistake")) $("routineCommonMistake").value = setupMeta.commonMistake || "";
+  if ($("routineBenchmarkNotes")) $("routineBenchmarkNotes").value = setupMeta.benchmarkNotes || "";
   $("routineTotalUnits").value = r.totalUnits || "";
   $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
   $("routineUnitType").value = r.unitType || "balls_cleared";
@@ -9679,12 +9731,7 @@ function benchmarkLevelTitle(level="") {
 function benchmarkLevelValueFromRoutine(source={}, level="") {
   const clean = String(level || "").toLowerCase();
   if (!clean) return "";
-  const targets = normalizeBenchmarkTargets(source.benchmarkTargets || {
-    junior: source.juniorTarget ?? source.benchmarkJuniorTarget,
-    club: source.clubTarget ?? source.benchmarkClubTarget,
-    senior: source.seniorTarget ?? source.benchmarkSeniorTarget,
-    pro: source.proTarget ?? source.professionalTarget ?? source.benchmarkProTarget
-  });
+  const targets = normalizeBenchmarkTargetsFromAny(source);
   const value = Number(targets[clean]);
   return Number.isFinite(value) ? value : "";
 }
@@ -9746,19 +9793,7 @@ function mergeRoutinePack(pack, options = {}) {
       description: source.description || "",
       target: source.target === "" || source.target === undefined ? "" : Number(source.target),
       stretchTarget: source.stretchTarget === "" || source.stretchTarget === undefined ? "" : Number(source.stretchTarget),
-      benchmarkTargets: normalizeBenchmarkTargets(source.benchmarkTargets || {
-        junior: source.juniorTarget ?? source.benchmarkJuniorTarget,
-        club: source.clubTarget ?? source.benchmarkClubTarget,
-        senior: source.seniorTarget ?? source.benchmarkSeniorTarget,
-        pro: source.proTarget ?? source.professionalTarget ?? source.benchmarkProTarget
-      }),
-      benchmarkSource: source.benchmarkSource || importSourceName,
-      setupType: source.setupType || (source.setupDescription || source.coachingPurpose || source.scoringRuleText || source.commonMistake || source.benchmarkNotes ? "text" : ""),
-      setupDescription: source.setupDescription || source.setupText || "",
-      scoringRuleText: source.scoringRuleText || source.scoringRule || defaultScoringRuleText(source),
-      coachingPurpose: source.coachingPurpose || source.coachingIntent || "",
-      commonMistake: source.commonMistake || source.commonError || "",
-      benchmarkNotes: source.benchmarkNotes || source.benchmarkContext || "",
+      ...routineSetupMetaFromRoutine({...source, benchmarkSource: source.benchmarkSource || importSourceName}),
       attempts: source.attempts === "" || source.attempts === undefined ? "" : Number(source.attempts),
       duration: source.duration === "" || source.duration === undefined ? "" : Number(source.duration),
       totalUnits: source.totalUnits === "" || source.totalUnits === undefined ? "" : Number(source.totalUnits),
@@ -9781,7 +9816,8 @@ function mergeRoutinePack(pack, options = {}) {
         targetHistory: (importTargetLevel || importStretchLevel) ? [] : dedupeTargetHistory(preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
           ? existing.targetHistory
           : (Array.isArray(source.targetHistory) ? structuredCloneSafe(source.targetHistory) : existing.targetHistory || [])),
-        activeTargetProfileId: (importTargetLevel || importStretchLevel) ? "" : (preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || ""))
+        activeTargetProfileId: (importTargetLevel || importStretchLevel) ? "" : (preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || "")),
+        ...mergeSetupMeta(existing, incoming)
       };
       data.routines = data.routines.map(r => r.id === existing.id ? ensureTargetHistory(merged) : r);
       data.routineSkillMap[existing.id] = normalizeRoutineSkillMap(merged, skillMap);
