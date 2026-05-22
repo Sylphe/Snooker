@@ -4616,6 +4616,11 @@ function editRoutine(id) {
   if ($("routineBenchmarkSenior")) $("routineBenchmarkSenior").value = benchmarkTargets.senior || "";
   if ($("routineBenchmarkPro")) $("routineBenchmarkPro").value = benchmarkTargets.pro || "";
   if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = r.benchmarkSource || "";
+  if ($("routineSetupDescription")) $("routineSetupDescription").value = r.setupDescription || r.setupText || "";
+  if ($("routineScoringRuleText")) $("routineScoringRuleText").value = r.scoringRuleText || r.scoringRule || "";
+  if ($("routineCoachingPurpose")) $("routineCoachingPurpose").value = r.coachingPurpose || r.coachingIntent || "";
+  if ($("routineCommonMistake")) $("routineCommonMistake").value = r.commonMistake || r.commonError || "";
+  if ($("routineBenchmarkNotes")) $("routineBenchmarkNotes").value = r.benchmarkNotes || r.benchmarkContext || "";
   $("routineTotalUnits").value = r.totalUnits || "";
   $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
   $("routineUnitType").value = r.unitType || "balls_cleared";
@@ -9666,6 +9671,41 @@ function validateRoutinePack(pack) {
   return {ok: errors.length === 0, errors, warnings, routineCount: routines.length};
 }
 
+
+function benchmarkLevelTitle(level="") {
+  const map = {junior:"Junior", club:"Club", senior:"Senior", pro:"Pro"};
+  return map[String(level || "").toLowerCase()] || "";
+}
+function benchmarkLevelValueFromRoutine(source={}, level="") {
+  const clean = String(level || "").toLowerCase();
+  if (!clean) return "";
+  const targets = normalizeBenchmarkTargets(source.benchmarkTargets || {
+    junior: source.juniorTarget ?? source.benchmarkJuniorTarget,
+    club: source.clubTarget ?? source.benchmarkClubTarget,
+    senior: source.seniorTarget ?? source.benchmarkSeniorTarget,
+    pro: source.proTarget ?? source.professionalTarget ?? source.benchmarkProTarget
+  });
+  const value = Number(targets[clean]);
+  return Number.isFinite(value) ? value : "";
+}
+function applyBenchmarkImportTargetLevels(source={}, incoming={}, options={}) {
+  const targetLevel = String(options.importTargetLevel || "").toLowerCase();
+  const stretchLevel = String(options.importStretchLevel || "").toLowerCase();
+  const targetValue = benchmarkLevelValueFromRoutine(source, targetLevel);
+  const stretchValue = benchmarkLevelValueFromRoutine(source, stretchLevel);
+  let changed = false;
+  if (targetValue !== "") { incoming.target = targetValue; changed = true; }
+  if (stretchValue !== "") { incoming.stretchTarget = stretchValue; changed = true; }
+  if (changed) {
+    const labelParts = [];
+    if (targetValue !== "") labelParts.push(`target ${benchmarkLevelTitle(targetLevel)}`);
+    if (stretchValue !== "") labelParts.push(`stretch ${benchmarkLevelTitle(stretchLevel)}`);
+    incoming.difficultyLabel = `Imported benchmark (${labelParts.join(" / ")})`;
+    incoming.targetHistory = [];
+  }
+  return incoming;
+}
+
 function mergeRoutinePack(pack, options = {}) {
   const validation = validateRoutinePack(pack);
   if (!validation.ok) return {ok:false, ...validation, added:0, updated:0, skipped:0};
@@ -9675,6 +9715,8 @@ function mergeRoutinePack(pack, options = {}) {
   const importSourceName = String(options.importSourceName || pack.packMeta?.name || "Imported routine pack").trim() || "Imported routine pack";
   const importSourceVersion = String(options.importSourceVersion || pack.packMeta?.version || "").trim();
   const importBatchId = options.importBatchId || `import-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const importTargetLevel = String(options.importTargetLevel || "").toLowerCase();
+  const importStretchLevel = String(options.importStretchLevel || "").toLowerCase();
   const now = new Date().toISOString();
   data.routines = data.routines || [];
   data.routineSkillMap = data.routineSkillMap || {};
@@ -9727,6 +9769,7 @@ function mergeRoutinePack(pack, options = {}) {
       isDeleted: false,
       deletedAt: ""
     };
+    applyBenchmarkImportTargetLevels(source, incoming, {importTargetLevel, importStretchLevel});
     if (existing) {
       const merged = {
         ...existing,
@@ -9735,10 +9778,10 @@ function mergeRoutinePack(pack, options = {}) {
         createdAt: existing.createdAt || incoming.createdAt || now,
         updatedAt: now,
         description: preserveUserDescriptions && existing.description ? existing.description : incoming.description,
-        targetHistory: dedupeTargetHistory(preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
+        targetHistory: (importTargetLevel || importStretchLevel) ? [] : dedupeTargetHistory(preserveUserTargets && Array.isArray(existing.targetHistory) && existing.targetHistory.length
           ? existing.targetHistory
           : (Array.isArray(source.targetHistory) ? structuredCloneSafe(source.targetHistory) : existing.targetHistory || [])),
-        activeTargetProfileId: preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || "")
+        activeTargetProfileId: (importTargetLevel || importStretchLevel) ? "" : (preserveUserTargets && existing.activeTargetProfileId ? existing.activeTargetProfileId : (source.activeTargetProfileId || existing.activeTargetProfileId || ""))
       };
       data.routines = data.routines.map(r => r.id === existing.id ? ensureTargetHistory(merged) : r);
       data.routineSkillMap[existing.id] = normalizeRoutineSkillMap(merged, skillMap);
@@ -10966,6 +11009,27 @@ function openRoutinePackImportPreview(pack, options = {}) {
         <button type="button" class="secondary" id="routinePackPreviewSelectNoneBtn">Select none</button>
         <input id="routinePackPreviewSearch" placeholder="Filter by name, folder, skill..." />
       </div>
+      <div class="routine-pack-target-toolbar">
+        <label>Set imported target
+          <select id="routinePackPreviewTargetLevel">
+            <option value="">Keep pack target</option>
+            <option value="junior">Junior benchmark</option>
+            <option value="club">Club benchmark</option>
+            <option value="senior" selected>Senior benchmark</option>
+            <option value="pro">Pro benchmark</option>
+          </select>
+        </label>
+        <label>Set imported stretch target
+          <select id="routinePackPreviewStretchLevel">
+            <option value="">Keep pack stretch</option>
+            <option value="junior">Junior benchmark</option>
+            <option value="club">Club benchmark</option>
+            <option value="senior">Senior benchmark</option>
+            <option value="pro" selected>Pro benchmark</option>
+          </select>
+        </label>
+        <p class="helper-text">Applies only where benchmark values exist. Use this to mass-calibrate an imported pack before training.</p>
+      </div>
       ${validation.warnings.length ? `<div class="analytics-note warning">${htmlText(validation.warnings.length)} metadata warning(s). First: ${htmlText(validation.warnings[0])}</div>` : ""}
       <div class="routine-pack-preview-list" id="routinePackPreviewList">
         ${routines.map(item => {
@@ -11002,7 +11066,10 @@ function openRoutinePackImportPreview(pack, options = {}) {
   overlay.querySelector("#routinePackPreviewImportBtn")?.addEventListener("click", () => {
     const selected = new Set([...overlay.querySelectorAll(".routine-pack-preview-check:checked")].map(cb => cb.value));
     if (!selected.size) return alert("Select at least one exercise to import.");
-    const result = mergeRoutinePack(pack, {preserveUserTargets:true, preserveUserDescriptions:true, selectedCanonicalIds:selected, importSourceName:sourceName, importSourceVersion:sourceVersion});
+    const targetLevel = String(overlay.querySelector("#routinePackPreviewTargetLevel")?.value || "");
+    const stretchLevel = String(overlay.querySelector("#routinePackPreviewStretchLevel")?.value || "");
+    const retargeting = !!(targetLevel || stretchLevel);
+    const result = mergeRoutinePack(pack, {preserveUserTargets:!retargeting, preserveUserDescriptions:true, selectedCanonicalIds:selected, importSourceName:sourceName, importSourceVersion:sourceVersion, importTargetLevel:targetLevel, importStretchLevel:stretchLevel});
     if (!result.ok) return alert(`Routine pack import failed:\n${result.errors.slice(0,10).join("\n")}`);
     if (options.afterImport) options.afterImport(result, validation);
     closeRoutinePackImportPreview();

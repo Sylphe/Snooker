@@ -5297,3 +5297,38 @@ body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-
   .routine-setup-row { grid-template-columns: 1fr; gap: 3px; }
   .routine-setup-editor { grid-template-columns: 1fr; }
 }
+
+/* v5.7.9 Routine import calibration + clearer skill tag selection */
+.routine-pack-target-toolbar{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:10px;
+  align-items:end;
+  padding:10px;
+  border:1px solid var(--border, rgba(148,163,184,.28));
+  border-radius:14px;
+  background:var(--panel-soft, rgba(148,163,184,.08));
+  margin:8px 0 10px;
+}
+.routine-pack-target-toolbar label{font-size:.82rem;font-weight:800;color:var(--muted,#64748b);}
+.routine-pack-target-toolbar select{margin-top:5px;width:100%;}
+.routine-pack-target-toolbar .helper-text{grid-column:1/-1;margin:0;}
+.skill-select-chip.active,
+.skill-select-chip[aria-pressed="true"]{
+  background:var(--accent, #2563eb);
+  border-color:var(--accent, #2563eb);
+  color:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,.55) inset, 0 0 0 1px var(--accent, #2563eb);
+  font-weight:900;
+}
+.skill-select-chip.active::before,
+.skill-select-chip[aria-pressed="true"]::before{
+  content:"✓ ";
+  font-weight:900;
+}
+body[data-theme="dark"] .skill-select-chip.active,
+body[data-theme="dark"] .skill-select-chip[aria-pressed="true"]{
+  color:#06120e;
+  background:var(--accent-strong, #86efac);
+  border-color:var(--accent-strong, #86efac);
+}

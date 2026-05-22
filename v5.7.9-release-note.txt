@@ -1,0 +1,4 @@
+v5.7.9 Routine import/editing fixes
+- Import preview target/stretch benchmark level selectors
+- Edit form hydrates setup-card fields
+- Skill tag chips show selected state more clearly

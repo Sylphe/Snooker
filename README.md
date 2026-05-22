@@ -63,7 +63,7 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Adds import/download buttons in Settings → Data import / export.
 
 
-## v5.7.8 Text-first Setup Cards
+## v5.7.9 Text-first Setup Cards
 - Adds setup description, scoring rule, coaching purpose, common mistake, and benchmark notes metadata.
 - Displays compact setup cards in the exercise database and active session screen.
 - Preserves setup metadata through routine pack and CSV import/export.
