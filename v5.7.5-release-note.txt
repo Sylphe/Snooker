@@ -1,0 +1,5 @@
+v5.7.5 Benchmark ladder metadata
+- Optional Junior/Club/Senior/Pro targets on routines
+- Benchmark source field
+- Exercise database and active-session benchmark display
+- JSON/CSV pack import support for benchmark fields

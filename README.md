@@ -44,3 +44,26 @@ Startup, storage, hydration, and tab initialization were not changed.
 - Added selective routine-pack import preview with checkboxes, search, select all/none, and import-selected flow.
 - Imported routines are tagged with source, version, batch, and timestamp metadata.
 - Exercise database can filter by import source and shows imported-from badges on imported routines.
+
+
+## v5.7.6 — Benchmark ladder metadata
+
+Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templates, displays benchmark context in the exercise database and active-session header, and carries benchmark fields through JSON/CSV routine imports.
+
+
+## v5.7.6 — Benchmark player class estimator
+- Added benchmark-based player class estimate using Junior / Club / Senior / Pro routine targets.
+- Added match-stable vs technical benchmark classification.
+- Added weakest benchmark domain readout in Overview and Inferred Skill insights.
+
+
+## v5.7.7 Nolan Benchmark Pack v1
+- Adds bundled Nolan Benchmark Pack v1 with 20 curated routines.
+- Includes Junior / Club / Senior / Pro benchmark ladders, setup descriptions, coaching purpose, skill tags and transfer tags.
+- Adds import/download buttons in Settings → Data import / export.
+
+
+## v5.7.8 Text-first Setup Cards
+- Adds setup description, scoring rule, coaching purpose, common mistake, and benchmark notes metadata.
+- Displays compact setup cards in the exercise database and active session screen.
+- Preserves setup metadata through routine pack and CSV import/export.

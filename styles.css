@@ -5242,3 +5242,58 @@ body.session-focus-active #activeSession .row.sticky-log-actions.primary-action-
   body.session-focus-active #activeSession .side-split-total-box{padding:8px 9px !important;margin-top:7px !important;}
   body.session-focus-active #activeSession .side-split-total-box strong{font-size:22px !important;}
 }
+
+/* ===== v5.7.5 Benchmark ladder metadata ===== */
+.routine-benchmark-line {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.routine-benchmark-line strong {
+  color: var(--text);
+}
+.benchmark-config .helper-text {
+  margin-top: 4px;
+}
+
+/* ===== v5.7.8 TEXT-FIRST SETUP CARDS ===== */
+.routine-setup-card {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 88%, var(--accent) 12%);
+}
+.routine-setup-card-compact {
+  padding: 8px;
+  margin: 8px 0;
+}
+.routine-setup-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.routine-setup-row span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.routine-setup-row strong {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.35;
+}
+.routine-setup-editor {
+  margin-top: 10px;
+}
+.routine-setup-editor .span-two {
+  grid-column: 1 / -1;
+}
+@media (max-width: 560px) {
+  .routine-setup-row { grid-template-columns: 1fr; gap: 3px; }
+  .routine-setup-editor { grid-template-columns: 1fr; }
+}

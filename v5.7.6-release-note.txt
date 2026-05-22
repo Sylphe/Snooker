@@ -1,0 +1,4 @@
+v5.7.6 Benchmark player class estimator
+- Benchmark-based global player class
+- Match-stable vs technical benchmark classification
+- Weakest benchmark domain display

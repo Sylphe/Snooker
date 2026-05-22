@@ -1,0 +1,1965 @@
+{
+  "packMeta": {
+    "schema": "snookerRoutinePack",
+    "schemaVersion": "1.0",
+    "name": "Nolan Benchmark Pack v1",
+    "version": "5.7.8-text-first-setup-cards",
+    "author": "Snooker Practice PWA — P.J. Nolan benchmark adaptation",
+    "createdAt": "2026-05-22T00:00:00.000Z",
+    "appVersion": "5.7.8-text-first-setup-cards",
+    "notes": "Curated 20-routine benchmark pack adapted from P.J. Nolan senior and junior training programs. Includes benchmark ladders, setup descriptions, coaching purpose, skill tags and transfer tags."
+  },
+  "taxonomyVersion": "1.0",
+  "routines": [
+    {
+      "id": "nolan-benchmark-021-line-up",
+      "canonicalId": "nolan-benchmark-021-line-up",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #21 / #56 — Line-Up Benchmark",
+      "folder": "Nolan Benchmark Pack v1 / Break-building",
+      "subfolder": "Break-building",
+      "category": "Nolan / Break-building",
+      "scoring": "highest_break",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 100,
+      "stretchTarget": 240,
+      "totalUnits": "",
+      "unitType": "points",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 9,
+      "description": "Standard line-up. Reds and colours in line-up structure; continue break and count best score. Purpose: Primary break-building, transition precision and positional stability benchmark.",
+      "setupDescription": "Standard line-up. Reds and colours in line-up structure; continue break and count best score.",
+      "coachingPurpose": "Primary break-building, transition precision and positional stability benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 35, Club: 75, Senior: 100, Pro: 240. Source: Senior program Practice 21 / Practice 56.",
+      "benchmarkSource": "Senior program Practice 21 / Practice 56",
+      "benchmarkTargets": {
+        "junior": 35,
+        "club": 75,
+        "senior": 100,
+        "pro": 240
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 35
+        },
+        {
+          "level": "club",
+          "target": 75
+        },
+        {
+          "level": "senior",
+          "target": 100
+        },
+        {
+          "level": "pro",
+          "target": 240
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 4,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play",
+        "focus_consistency"
+      ],
+      "transferSkills": [
+        "pressure_resilience",
+        "match_play"
+      ],
+      "transferTags": [
+        "pressure_resilience",
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "break_building",
+        "secondarySkills": [
+          "cue_ball_control",
+          "transition_play",
+          "focus_consistency"
+        ],
+        "transferTags": [
+          "pressure_resilience",
+          "match_play"
+        ]
+      },
+      "routineArchetype": "break-building",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 21 / Practice 56",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the highest break made during the practice block.",
+      "commonMistake": "Chasing pots without preserving a playable next-ball angle."
+    },
+    {
+      "id": "nolan-benchmark-j32-five-reds-blacks",
+      "canonicalId": "nolan-benchmark-j32-five-reds-blacks",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Junior #32 — Five Reds + Blacks",
+      "folder": "Nolan Benchmark Pack v1 / Break-building",
+      "subfolder": "Break-building",
+      "category": "Nolan / Break-building",
+      "scoring": "highest_break",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 40,
+      "stretchTarget": 60,
+      "totalUnits": "",
+      "unitType": "points",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Place five reds with five blacks available. Clear the table and attempt to build a compact break. Purpose: Compact high-signal break-building drill for scoring potential without a full line-up.",
+      "setupDescription": "Place five reds with five blacks available. Clear the table and attempt to build a compact break.",
+      "coachingPurpose": "Compact high-signal break-building drill for scoring potential without a full line-up.",
+      "benchmarkNotes": "Benchmarks — Junior: 20, Club: 32, Senior: 40, Pro: 60. Source: Junior program Practice 32.",
+      "benchmarkSource": "Junior program Practice 32",
+      "benchmarkTargets": {
+        "junior": 20,
+        "club": 32,
+        "senior": 40,
+        "pro": 60
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 20
+        },
+        {
+          "level": "club",
+          "target": 32
+        },
+        {
+          "level": "senior",
+          "target": 40
+        },
+        {
+          "level": "pro",
+          "target": 60
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "break_building",
+        "secondarySkills": [
+          "cue_ball_control",
+          "transition_play"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "break-building",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Junior program Practice 32",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the highest break made during the practice block.",
+      "commonMistake": "Chasing pots without preserving a playable next-ball angle."
+    },
+    {
+      "id": "nolan-benchmark-j25-seven-red-clearance",
+      "canonicalId": "nolan-benchmark-j25-seven-red-clearance",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Junior #25 — Seven Reds Clearance",
+      "folder": "Nolan Benchmark Pack v1 / Break-building",
+      "subfolder": "Break-building",
+      "category": "Nolan / Break-building",
+      "scoring": "points",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 50,
+      "stretchTarget": 80,
+      "totalUnits": "",
+      "unitType": "points",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Place seven reds. Clear the table, replace after each clearance, and count total points. Purpose: Measures controlled continuation and scoring under limited-ball structure.",
+      "setupDescription": "Place seven reds. Clear the table, replace after each clearance, and count total points.",
+      "coachingPurpose": "Measures controlled continuation and scoring under limited-ball structure.",
+      "benchmarkNotes": "Benchmarks — Junior: 21, Club: 35, Senior: 50, Pro: 80. Source: Junior program Practice 25.",
+      "benchmarkSource": "Junior program Practice 25",
+      "benchmarkTargets": {
+        "junior": 21,
+        "club": 35,
+        "senior": 50,
+        "pro": 80
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 21
+        },
+        {
+          "level": "club",
+          "target": 35
+        },
+        {
+          "level": "senior",
+          "target": 50
+        },
+        {
+          "level": "pro",
+          "target": 80
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "break_building",
+        "secondarySkills": [
+          "cue_ball_control",
+          "transition_play"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "break-building",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Junior program Practice 25",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record total points scored under the routine rules.",
+      "commonMistake": "Chasing pots without preserving a playable next-ball angle."
+    },
+    {
+      "id": "nolan-benchmark-long-red-black",
+      "canonicalId": "nolan-benchmark-long-red-black",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Technique — Long Red to Black",
+      "folder": "Nolan Benchmark Pack v1 / Long potting",
+      "subfolder": "Long potting",
+      "category": "Nolan / Long potting",
+      "scoring": "raw",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 4,
+      "stretchTarget": 8,
+      "totalUnits": 10,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Play long red and finish on black. Count successful red-pot plus usable black position outcomes. Purpose: Long potting with immediate break-building transfer, not isolated potting only.",
+      "setupDescription": "Play long red and finish on black. Count successful red-pot plus usable black position outcomes.",
+      "coachingPurpose": "Long potting with immediate break-building transfer, not isolated potting only.",
+      "benchmarkNotes": "Benchmarks — Junior: 1, Club: 2, Senior: 4, Pro: 8. Source: Senior technique routine list.",
+      "benchmarkSource": "Senior technique routine list",
+      "benchmarkTargets": {
+        "junior": 1,
+        "club": 2,
+        "senior": 4,
+        "pro": 8
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 1
+        },
+        {
+          "level": "club",
+          "target": 2
+        },
+        {
+          "level": "senior",
+          "target": 4
+        },
+        {
+          "level": "pro",
+          "target": 8
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferSkills": [
+        "break_building",
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "break_building",
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "long_potting",
+        "secondarySkills": [
+          "cue_ball_control",
+          "transition_play"
+        ],
+        "transferTags": [
+          "break_building",
+          "confidence_stability"
+        ]
+      },
+      "routineArchetype": "long_potting",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior technique routine list",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Focusing only on pot success and ignoring cue-ball control after contact."
+    },
+    {
+      "id": "nolan-benchmark-042-straight-blues",
+      "canonicalId": "nolan-benchmark-042-straight-blues",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #42 — 21 Straight Blues",
+      "folder": "Nolan Benchmark Pack v1 / Long potting",
+      "subfolder": "Long potting",
+      "category": "Nolan / Long potting",
+      "scoring": "success_rate",
+      "attempts": 21,
+      "attemptsPerSession": 21,
+      "duration": "",
+      "target": 48,
+      "stretchTarget": 86,
+      "totalUnits": 21,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Pot 21 straight blues into the corner pockets using screw, stun, follow and stun-through variations. Purpose: Pure cue-delivery and straight-pot consistency benchmark.",
+      "setupDescription": "Pot 21 straight blues into the corner pockets using screw, stun, follow and stun-through variations.",
+      "coachingPurpose": "Pure cue-delivery and straight-pot consistency benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 29, Club: 38, Senior: 48, Pro: 86. Source: Senior program Practice 42.",
+      "benchmarkSource": "Senior program Practice 42",
+      "benchmarkTargets": {
+        "junior": 29,
+        "club": 38,
+        "senior": 48,
+        "pro": 86
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 29
+        },
+        {
+          "level": "club",
+          "target": 38
+        },
+        {
+          "level": "senior",
+          "target": 48
+        },
+        {
+          "level": "pro",
+          "target": 86
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cueing",
+        "focus_consistency"
+      ],
+      "transferSkills": [
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "long_potting",
+        "secondarySkills": [
+          "cueing",
+          "focus_consistency"
+        ],
+        "transferTags": [
+          "confidence_stability"
+        ]
+      },
+      "routineArchetype": "long_potting",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 42",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 21 attempts.",
+      "commonMistake": "Focusing only on pot success and ignoring cue-ball control after contact."
+    },
+    {
+      "id": "nolan-benchmark-009-long-yellow-green",
+      "canonicalId": "nolan-benchmark-009-long-yellow-green",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #9 — Long Yellow / Green Series",
+      "folder": "Nolan Benchmark Pack v1 / Long potting",
+      "subfolder": "Long potting",
+      "category": "Nolan / Long potting",
+      "scoring": "raw",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 4,
+      "stretchTarget": 6,
+      "totalUnits": 10,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Pot yellow and green from multiple long-distance positions. Count successful pots. Purpose: Long-range precision under angle and distance variation.",
+      "setupDescription": "Pot yellow and green from multiple long-distance positions. Count successful pots.",
+      "coachingPurpose": "Long-range precision under angle and distance variation.",
+      "benchmarkNotes": "Benchmarks — Junior: 1, Club: 2, Senior: 4, Pro: 6. Source: Senior program Practice 9.",
+      "benchmarkSource": "Senior program Practice 9",
+      "benchmarkTargets": {
+        "junior": 1,
+        "club": 2,
+        "senior": 4,
+        "pro": 6
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 1
+        },
+        {
+          "level": "club",
+          "target": 2
+        },
+        {
+          "level": "senior",
+          "target": 4
+        },
+        {
+          "level": "pro",
+          "target": 6
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cueing",
+        "focus_consistency"
+      ],
+      "transferSkills": [
+        "pressure_resilience"
+      ],
+      "transferTags": [
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "long_potting",
+        "secondarySkills": [
+          "cueing",
+          "focus_consistency"
+        ],
+        "transferTags": [
+          "pressure_resilience"
+        ]
+      },
+      "routineArchetype": "long_potting",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 9",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Focusing only on pot success and ignoring cue-ball control after contact."
+    },
+    {
+      "id": "nolan-benchmark-013-pink-black-control",
+      "canonicalId": "nolan-benchmark-013-pink-black-control",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #13 — Pink / Black Control",
+      "folder": "Nolan Benchmark Pack v1 / Cue-ball control",
+      "subfolder": "Cue-ball control",
+      "category": "Nolan / Cue-ball control",
+      "scoring": "raw",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 15,
+      "stretchTarget": 30,
+      "totalUnits": "",
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Pot pink and black repeatedly, replacing balls on spots. Count total controlled pots. Purpose: High-value cue-ball precision and black-area control benchmark.",
+      "setupDescription": "Pot pink and black repeatedly, replacing balls on spots. Count total controlled pots.",
+      "coachingPurpose": "High-value cue-ball precision and black-area control benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 5, Club: 10, Senior: 15, Pro: 30. Source: Senior program Practice 13.",
+      "benchmarkSource": "Senior program Practice 13",
+      "benchmarkTargets": {
+        "junior": 5,
+        "club": 10,
+        "senior": 15,
+        "pro": 30
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 5
+        },
+        {
+          "level": "club",
+          "target": 10
+        },
+        {
+          "level": "senior",
+          "target": 15
+        },
+        {
+          "level": "pro",
+          "target": 30
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "break_building",
+        "transition_play"
+      ],
+      "transferSkills": [
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "cue_ball_control",
+        "secondarySkills": [
+          "break_building",
+          "transition_play"
+        ],
+        "transferTags": [
+          "confidence_stability"
+        ]
+      },
+      "routineArchetype": "cue-ball_control",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 13",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    },
+    {
+      "id": "nolan-benchmark-black-spot",
+      "canonicalId": "nolan-benchmark-black-spot",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Cue Ball — Black on Spot Benchmark",
+      "folder": "Nolan Benchmark Pack v1 / Cue-ball control",
+      "subfolder": "Cue-ball control",
+      "category": "Nolan / Cue-ball control",
+      "scoring": "raw",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 25,
+      "stretchTarget": 50,
+      "totalUnits": "",
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 5,
+      "description": "Pot black from the spot repeatedly, replacing after each pot. Count total successful pots. Purpose: Measures repeatable cue delivery and potting stability around the black spot.",
+      "setupDescription": "Pot black from the spot repeatedly, replacing after each pot. Count total successful pots.",
+      "coachingPurpose": "Measures repeatable cue delivery and potting stability around the black spot.",
+      "benchmarkNotes": "Benchmarks — Junior: 10, Club: 18, Senior: 25, Pro: 50. Source: Senior cue-ball routine list.",
+      "benchmarkSource": "Senior cue-ball routine list",
+      "benchmarkTargets": {
+        "junior": 10,
+        "club": 18,
+        "senior": 25,
+        "pro": 50
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 10
+        },
+        {
+          "level": "club",
+          "target": 18
+        },
+        {
+          "level": "senior",
+          "target": 25
+        },
+        {
+          "level": "pro",
+          "target": 50
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 2,
+      "pressureValue": 1,
+      "tacticalValue": 1,
+      "primarySkill": "cueing",
+      "secondarySkills": [
+        "cue_ball_control",
+        "focus_consistency"
+      ],
+      "transferSkills": [
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "cueing",
+        "secondarySkills": [
+          "cue_ball_control",
+          "focus_consistency"
+        ],
+        "transferTags": [
+          "confidence_stability"
+        ]
+      },
+      "routineArchetype": "cue-ball_control",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior cue-ball routine list",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    },
+    {
+      "id": "nolan-benchmark-j05-blue-black-transition",
+      "canonicalId": "nolan-benchmark-j05-blue-black-transition",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Junior #5–12 — Blue to Black Transition",
+      "folder": "Nolan Benchmark Pack v1 / Cue-ball control",
+      "subfolder": "Cue-ball control",
+      "category": "Nolan / Cue-ball control",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 65,
+      "stretchTarget": 85,
+      "totalUnits": 10,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 6,
+      "description": "Pot blue with stun/screw/follow variation and control cue ball to pot black into nominated pocket. Purpose: Transition-control benchmark linking one colour to the next scoring opportunity.",
+      "setupDescription": "Pot blue with stun/screw/follow variation and control cue ball to pot black into nominated pocket.",
+      "coachingPurpose": "Transition-control benchmark linking one colour to the next scoring opportunity.",
+      "benchmarkNotes": "Benchmarks — Junior: 25, Club: 45, Senior: 65, Pro: 85. Source: Junior program Practices 5–12.",
+      "benchmarkSource": "Junior program Practices 5–12",
+      "benchmarkTargets": {
+        "junior": 25,
+        "club": 45,
+        "senior": 65,
+        "pro": 85
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 25
+        },
+        {
+          "level": "club",
+          "target": 45
+        },
+        {
+          "level": "senior",
+          "target": 65
+        },
+        {
+          "level": "pro",
+          "target": 85
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 2,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "transition_play",
+        "break_building"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "cue_ball_control",
+        "secondarySkills": [
+          "transition_play",
+          "break_building"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "cue-ball_control",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Junior program Practices 5–12",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 10 attempts.",
+      "commonMistake": "Focusing only on pot success and ignoring cue-ball control after contact."
+    },
+    {
+      "id": "nolan-benchmark-j17-black-yellow-recovery",
+      "canonicalId": "nolan-benchmark-j17-black-yellow-recovery",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Junior #17–24 — Black to Yellow Recovery",
+      "folder": "Nolan Benchmark Pack v1 / Cue-ball control",
+      "subfolder": "Cue-ball control",
+      "category": "Nolan / Cue-ball control",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 60,
+      "stretchTarget": 80,
+      "totalUnits": 10,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Pot black with stun/screw/follow variation and recover position on yellow or nominated next ball. Purpose: Recovery-line and cue-ball control benchmark after high-value colour potting.",
+      "setupDescription": "Pot black with stun/screw/follow variation and recover position on yellow or nominated next ball.",
+      "coachingPurpose": "Recovery-line and cue-ball control benchmark after high-value colour potting.",
+      "benchmarkNotes": "Benchmarks — Junior: 20, Club: 40, Senior: 60, Pro: 80. Source: Junior program Practices 17–24.",
+      "benchmarkSource": "Junior program Practices 17–24",
+      "benchmarkTargets": {
+        "junior": 20,
+        "club": 40,
+        "senior": 60,
+        "pro": 80
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 20
+        },
+        {
+          "level": "club",
+          "target": 40
+        },
+        {
+          "level": "senior",
+          "target": 60
+        },
+        {
+          "level": "pro",
+          "target": 80
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "transition_play",
+        "recovery"
+      ],
+      "transferSkills": [
+        "break_building"
+      ],
+      "transferTags": [
+        "break_building"
+      ],
+      "skillMap": {
+        "primarySkill": "cue_ball_control",
+        "secondarySkills": [
+          "transition_play",
+          "recovery"
+        ],
+        "transferTags": [
+          "break_building"
+        ]
+      },
+      "routineArchetype": "cue-ball_control",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Junior program Practices 17–24",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 10 attempts.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    },
+    {
+      "id": "nolan-benchmark-016-rest-clearance",
+      "canonicalId": "nolan-benchmark-016-rest-clearance",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #16 / #40 — Rest Clearance Drill",
+      "folder": "Nolan Benchmark Pack v1 / Rest play",
+      "subfolder": "Rest play",
+      "category": "Nolan / Rest play",
+      "scoring": "raw",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 4,
+      "stretchTarget": 8,
+      "totalUnits": 10,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Pot reds/colours using the rest and complete the required clearance. Count successful clearances. Purpose: Rest technique under scoring pressure; useful hidden-bottleneck detector.",
+      "setupDescription": "Pot reds/colours using the rest and complete the required clearance. Count successful clearances.",
+      "coachingPurpose": "Rest technique under scoring pressure; useful hidden-bottleneck detector.",
+      "benchmarkNotes": "Benchmarks — Junior: 1, Club: 2, Senior: 4, Pro: 8. Source: Senior program Practice 16 / Practice 40.",
+      "benchmarkSource": "Senior program Practice 16 / Practice 40",
+      "benchmarkTargets": {
+        "junior": 1,
+        "club": 2,
+        "senior": 4,
+        "pro": 8
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 1
+        },
+        {
+          "level": "club",
+          "target": 2
+        },
+        {
+          "level": "senior",
+          "target": 4
+        },
+        {
+          "level": "pro",
+          "target": 8
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "cueing",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "pressure_resilience",
+        "match_play"
+      ],
+      "transferTags": [
+        "pressure_resilience",
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "rest_play",
+        "secondarySkills": [
+          "cueing",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "pressure_resilience",
+          "match_play"
+        ]
+      },
+      "routineArchetype": "rest_play",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 16 / Practice 40",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Changing cue action under the rest instead of keeping a smooth straight delivery."
+    },
+    {
+      "id": "nolan-benchmark-039-rest-green-clearance",
+      "canonicalId": "nolan-benchmark-039-rest-green-clearance",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #39 — Rest Green Clearance",
+      "folder": "Nolan Benchmark Pack v1 / Rest play",
+      "subfolder": "Rest play",
+      "category": "Nolan / Rest play",
+      "scoring": "raw",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 6,
+      "stretchTarget": 12,
+      "totalUnits": 10,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Pot green using the rest and clear the table. Count successful clearances. Purpose: Fine rest control plus clearance continuation under awkward cueing conditions.",
+      "setupDescription": "Pot green using the rest and clear the table. Count successful clearances.",
+      "coachingPurpose": "Fine rest control plus clearance continuation under awkward cueing conditions.",
+      "benchmarkNotes": "Benchmarks — Junior: 1, Club: 3, Senior: 6, Pro: 12. Source: Senior program Practice 39.",
+      "benchmarkSource": "Senior program Practice 39",
+      "benchmarkTargets": {
+        "junior": 1,
+        "club": 3,
+        "senior": 6,
+        "pro": 12
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 1
+        },
+        {
+          "level": "club",
+          "target": 3
+        },
+        {
+          "level": "senior",
+          "target": 6
+        },
+        {
+          "level": "pro",
+          "target": 12
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferSkills": [
+        "pressure_resilience"
+      ],
+      "transferTags": [
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "rest_play",
+        "secondarySkills": [
+          "cue_ball_control",
+          "transition_play"
+        ],
+        "transferTags": [
+          "pressure_resilience"
+        ]
+      },
+      "routineArchetype": "rest_play",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 39",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Changing cue action under the rest instead of keeping a smooth straight delivery."
+    },
+    {
+      "id": "nolan-benchmark-024-hit-hide",
+      "canonicalId": "nolan-benchmark-024-hit-hide",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #24 / #44 — Hit and Hide Benchmark",
+      "folder": "Nolan Benchmark Pack v1 / Tactical",
+      "subfolder": "Tactical",
+      "category": "Nolan / Tactical",
+      "scoring": "raw",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 5,
+      "stretchTarget": 10,
+      "totalUnits": "",
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Hit the pack/reds and control the white to finish in the winning safety zone. Count consecutive wins. Purpose: Primary tactical safety and leave-quality benchmark.",
+      "setupDescription": "Hit the pack/reds and control the white to finish in the winning safety zone. Count consecutive wins.",
+      "coachingPurpose": "Primary tactical safety and leave-quality benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 2, Club: 4, Senior: 5, Pro: 10. Source: Senior program Practice 24 / Practice 44.",
+      "benchmarkSource": "Senior program Practice 24 / Practice 44",
+      "benchmarkTargets": {
+        "junior": 2,
+        "club": 4,
+        "senior": 5,
+        "pro": 10
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 2
+        },
+        {
+          "level": "club",
+          "target": 4
+        },
+        {
+          "level": "senior",
+          "target": 5
+        },
+        {
+          "level": "pro",
+          "target": 10
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 2,
+      "pressureValue": 3,
+      "tacticalValue": 5,
+      "primarySkill": "tactical",
+      "secondarySkills": [
+        "safety",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "match_play",
+        "pressure_resilience"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "tactical",
+        "secondarySkills": [
+          "safety",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "match_play",
+          "pressure_resilience"
+        ]
+      },
+      "routineArchetype": "tactical",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 24 / Practice 44",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    },
+    {
+      "id": "nolan-benchmark-010-snooker-escape",
+      "canonicalId": "nolan-benchmark-010-snooker-escape",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #10 / #29 — Snooker Escape Series",
+      "folder": "Nolan Benchmark Pack v1 / Tactical",
+      "subfolder": "Tactical",
+      "category": "Nolan / Tactical",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 65,
+      "stretchTarget": 90,
+      "totalUnits": 10,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Escape from snooker using one- or two-cushion routes and hit the nominated object ball or pack. Purpose: Escape accuracy, route judgment, and tactical survival benchmark.",
+      "setupDescription": "Escape from snooker using one- or two-cushion routes and hit the nominated object ball or pack.",
+      "coachingPurpose": "Escape accuracy, route judgment, and tactical survival benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 25, Club: 45, Senior: 65, Pro: 90. Source: Senior program Practice 10 / Practice 29.",
+      "benchmarkSource": "Senior program Practice 10 / Practice 29",
+      "benchmarkTargets": {
+        "junior": 25,
+        "club": 45,
+        "senior": 65,
+        "pro": 90
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 25
+        },
+        {
+          "level": "club",
+          "target": 45
+        },
+        {
+          "level": "senior",
+          "target": 65
+        },
+        {
+          "level": "pro",
+          "target": 90
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 4,
+      "tacticalValue": 5,
+      "primarySkill": "safety",
+      "secondarySkills": [
+        "tactical",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "match_play",
+        "pressure_resilience"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "safety",
+        "secondarySkills": [
+          "tactical",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "match_play",
+          "pressure_resilience"
+        ]
+      },
+      "routineArchetype": "tactical",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 10 / Practice 29",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 10 attempts.",
+      "commonMistake": "Only hitting the object ball without controlling the leave."
+    },
+    {
+      "id": "nolan-benchmark-053-break-off-accuracy",
+      "canonicalId": "nolan-benchmark-053-break-off-accuracy",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #53 — Break-Off Accuracy",
+      "folder": "Nolan Benchmark Pack v1 / Tactical",
+      "subfolder": "Tactical",
+      "category": "Nolan / Tactical",
+      "scoring": "success_rate",
+      "attempts": 10,
+      "attemptsPerSession": 10,
+      "duration": "",
+      "target": 70,
+      "stretchTarget": 90,
+      "totalUnits": 10,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 6,
+      "description": "Practice break-off. Hit the reds and land the cue ball in the target coloured area. Purpose: Opening-shot tactical control benchmark.",
+      "setupDescription": "Practice break-off. Hit the reds and land the cue ball in the target coloured area.",
+      "coachingPurpose": "Opening-shot tactical control benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 20, Club: 45, Senior: 70, Pro: 90. Source: Senior program Practice 53.",
+      "benchmarkSource": "Senior program Practice 53",
+      "benchmarkTargets": {
+        "junior": 20,
+        "club": 45,
+        "senior": 70,
+        "pro": 90
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 20
+        },
+        {
+          "level": "club",
+          "target": 45
+        },
+        {
+          "level": "senior",
+          "target": 70
+        },
+        {
+          "level": "pro",
+          "target": 90
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 2,
+      "pressureValue": 3,
+      "tacticalValue": 5,
+      "primarySkill": "tactical",
+      "secondarySkills": [
+        "safety",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "tactical",
+        "secondarySkills": [
+          "safety",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "tactical",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 53",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 10 attempts.",
+      "commonMistake": "Over-hitting the cue ball and losing the intended safety zone."
+    },
+    {
+      "id": "nolan-benchmark-029-behind-yellow",
+      "canonicalId": "nolan-benchmark-029-behind-yellow",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Tactical — 29 Behind on Yellow",
+      "folder": "Nolan Benchmark Pack v1 / Pressure",
+      "subfolder": "Pressure",
+      "category": "Nolan / Pressure",
+      "scoring": "success_rate",
+      "attempts": 7,
+      "attemptsPerSession": 7,
+      "duration": "",
+      "target": 60,
+      "stretchTarget": 80,
+      "totalUnits": 7,
+      "unitType": "successful attempts",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Start 29 behind on yellow with colours remaining. Play scenario and count wins. Purpose: Pressure clearance and match-state decision benchmark.",
+      "setupDescription": "Start 29 behind on yellow with colours remaining. Play scenario and count wins.",
+      "coachingPurpose": "Pressure clearance and match-state decision benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 20, Club: 40, Senior: 60, Pro: 80. Source: Senior tactical routine list.",
+      "benchmarkSource": "Senior tactical routine list",
+      "benchmarkTargets": {
+        "junior": 20,
+        "club": 40,
+        "senior": 60,
+        "pro": 80
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 20
+        },
+        {
+          "level": "club",
+          "target": 40
+        },
+        {
+          "level": "senior",
+          "target": 60
+        },
+        {
+          "level": "pro",
+          "target": 80
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 5,
+      "tacticalValue": 4,
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "break_building"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "pressure_resilience",
+        "secondarySkills": [
+          "tactical",
+          "break_building"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "pressure",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior tactical routine list",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Count successful outcomes out of 7 attempts.",
+      "commonMistake": "Playing the clearance as isolated pots instead of managing frame pressure."
+    },
+    {
+      "id": "nolan-benchmark-007-one-red-left",
+      "canonicalId": "nolan-benchmark-007-one-red-left",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #7 — One Red Left Match",
+      "folder": "Nolan Benchmark Pack v1 / Pressure",
+      "subfolder": "Pressure",
+      "category": "Nolan / Pressure",
+      "scoring": "raw",
+      "attempts": 7,
+      "attemptsPerSession": 7,
+      "duration": "",
+      "target": 5,
+      "stretchTarget": 7,
+      "totalUnits": 7,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 8,
+      "description": "Play best-of-seven scenarios with one red left, red on back cushion and white in baulk. Purpose: Frame-ball composure and late-frame tactical conversion benchmark.",
+      "setupDescription": "Play best-of-seven scenarios with one red left, red on back cushion and white in baulk.",
+      "coachingPurpose": "Frame-ball composure and late-frame tactical conversion benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 2, Club: 4, Senior: 5, Pro: 7. Source: Senior program Practice 7.",
+      "benchmarkSource": "Senior program Practice 7",
+      "benchmarkTargets": {
+        "junior": 2,
+        "club": 4,
+        "senior": 5,
+        "pro": 7
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 2
+        },
+        {
+          "level": "club",
+          "target": 4
+        },
+        {
+          "level": "senior",
+          "target": 5
+        },
+        {
+          "level": "pro",
+          "target": 7
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 5,
+      "tacticalValue": 4,
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "break_building"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "pressure_resilience",
+        "secondarySkills": [
+          "tactical",
+          "break_building"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "pressure",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 7",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Playing the clearance as isolated pots instead of managing frame pressure."
+    },
+    {
+      "id": "nolan-benchmark-008-blue-pink-black-match",
+      "canonicalId": "nolan-benchmark-008-blue-pink-black-match",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan #8 — Blue/Pink/Black Match",
+      "folder": "Nolan Benchmark Pack v1 / Pressure",
+      "subfolder": "Pressure",
+      "category": "Nolan / Pressure",
+      "scoring": "raw",
+      "attempts": 7,
+      "attemptsPerSession": 7,
+      "duration": "",
+      "target": 5,
+      "stretchTarget": 7,
+      "totalUnits": 7,
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Play best-of-seven mini-games with only blue, pink and black remaining. Count wins. Purpose: Endgame composure and colours-clearance pressure benchmark.",
+      "setupDescription": "Play best-of-seven mini-games with only blue, pink and black remaining. Count wins.",
+      "coachingPurpose": "Endgame composure and colours-clearance pressure benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 2, Club: 4, Senior: 5, Pro: 7. Source: Senior program Practice 8.",
+      "benchmarkSource": "Senior program Practice 8",
+      "benchmarkTargets": {
+        "junior": 2,
+        "club": 4,
+        "senior": 5,
+        "pro": 7
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 2
+        },
+        {
+          "level": "club",
+          "target": 4
+        },
+        {
+          "level": "senior",
+          "target": 5
+        },
+        {
+          "level": "pro",
+          "target": 7
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 2,
+      "pressureValue": 5,
+      "tacticalValue": 4,
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "cue_ball_control"
+      ],
+      "transferSkills": [
+        "match_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ],
+      "skillMap": {
+        "primarySkill": "pressure_resilience",
+        "secondarySkills": [
+          "tactical",
+          "cue_ball_control"
+        ],
+        "transferTags": [
+          "match_play"
+        ]
+      },
+      "routineArchetype": "pressure",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior program Practice 8",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Focusing only on pot success and ignoring cue-ball control after contact."
+    },
+    {
+      "id": "nolan-benchmark-j28-continuous-red-respot",
+      "canonicalId": "nolan-benchmark-j28-continuous-red-respot",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Junior #28 / #35 — Continuous Red Respot",
+      "folder": "Nolan Benchmark Pack v1 / Concentration",
+      "subfolder": "Concentration",
+      "category": "Nolan / Concentration",
+      "scoring": "raw",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 50,
+      "stretchTarget": 100,
+      "totalUnits": "",
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 6,
+      "description": "Pot any red and replace on spot/in line after each pot. Do not repeat the same ball pattern; count total pots. Purpose: Focus endurance and repeatable concentration benchmark.",
+      "setupDescription": "Pot any red and replace on spot/in line after each pot. Do not repeat the same ball pattern; count total pots.",
+      "coachingPurpose": "Focus endurance and repeatable concentration benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 15, Club: 30, Senior: 50, Pro: 100. Source: Junior program Practice 28 / Practice 35.",
+      "benchmarkSource": "Junior program Practice 28 / Practice 35",
+      "benchmarkTargets": {
+        "junior": 15,
+        "club": 30,
+        "senior": 50,
+        "pro": 100
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 15
+        },
+        {
+          "level": "club",
+          "target": 30
+        },
+        {
+          "level": "senior",
+          "target": 50
+        },
+        {
+          "level": "pro",
+          "target": 100
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 2,
+      "tacticalValue": 1,
+      "primarySkill": "focus_consistency",
+      "secondarySkills": [
+        "long_potting",
+        "cueing"
+      ],
+      "transferSkills": [
+        "confidence_stability"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ],
+      "skillMap": {
+        "primarySkill": "focus_consistency",
+        "secondarySkills": [
+          "long_potting",
+          "cueing"
+        ],
+        "transferTags": [
+          "confidence_stability"
+        ]
+      },
+      "routineArchetype": "concentration",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Junior program Practice 28 / Practice 35",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    },
+    {
+      "id": "nolan-benchmark-pink-black-endless",
+      "canonicalId": "nolan-benchmark-pink-black-endless",
+      "metadataVersion": 1,
+      "isCatalogueRoutine": true,
+      "catalogueSource": "Nolan Benchmark Pack v1",
+      "name": "Nolan Concentration — Pink/Black Endless",
+      "folder": "Nolan Benchmark Pack v1 / Concentration",
+      "subfolder": "Concentration",
+      "category": "Nolan / Concentration",
+      "scoring": "raw",
+      "attempts": "",
+      "attemptsPerSession": "",
+      "duration": "",
+      "target": 35,
+      "stretchTarget": 70,
+      "totalUnits": "",
+      "unitType": "count",
+      "difficultyLabel": "Nolan benchmark",
+      "estimatedDifficulty": 7,
+      "description": "Pot pink and black repeatedly, replacing after each pot. Count total pots. Purpose: Sustained high-focus potting and cue-ball repetition benchmark.",
+      "setupDescription": "Pot pink and black repeatedly, replacing after each pot. Count total pots.",
+      "coachingPurpose": "Sustained high-focus potting and cue-ball repetition benchmark.",
+      "benchmarkNotes": "Benchmarks — Junior: 10, Club: 20, Senior: 35, Pro: 70. Source: Senior concentration routine list.",
+      "benchmarkSource": "Senior concentration routine list",
+      "benchmarkTargets": {
+        "junior": 10,
+        "club": 20,
+        "senior": 35,
+        "pro": 70
+      },
+      "levelTargets": [
+        {
+          "level": "junior",
+          "target": 10
+        },
+        {
+          "level": "club",
+          "target": 20
+        },
+        {
+          "level": "senior",
+          "target": 35
+        },
+        {
+          "level": "pro",
+          "target": 70
+        }
+      ],
+      "trainingIntent": "benchmark",
+      "fatigueCost": 3,
+      "pressureValue": 3,
+      "tacticalValue": 1,
+      "primarySkill": "focus_consistency",
+      "secondarySkills": [
+        "cue_ball_control",
+        "break_building"
+      ],
+      "transferSkills": [
+        "confidence_stability",
+        "pressure_resilience"
+      ],
+      "transferTags": [
+        "confidence_stability",
+        "pressure_resilience"
+      ],
+      "skillMap": {
+        "primarySkill": "focus_consistency",
+        "secondarySkills": [
+          "cue_ball_control",
+          "break_building"
+        ],
+        "transferTags": [
+          "confidence_stability",
+          "pressure_resilience"
+        ]
+      },
+      "routineArchetype": "concentration",
+      "structureType": "benchmark",
+      "sideMode": "none",
+      "attemptMode": "shared",
+      "sourceBookReference": "Senior concentration routine list",
+      "createdAt": "2026-05-22T00:00:00.000Z",
+      "updatedAt": "2026-05-22T00:00:00.000Z",
+      "setupType": "text",
+      "scoringRuleText": "Record the total score achieved during the routine.",
+      "commonMistake": "Completing the attempt without checking whether the next-shot outcome is usable."
+    }
+  ],
+  "skillMaps": [
+    {
+      "canonicalId": "nolan-benchmark-021-line-up",
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play",
+        "focus_consistency"
+      ],
+      "transferTags": [
+        "pressure_resilience",
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-j32-five-reds-blacks",
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-j25-seven-red-clearance",
+      "primarySkill": "break_building",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-long-red-black",
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferTags": [
+        "break_building",
+        "confidence_stability"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-042-straight-blues",
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cueing",
+        "focus_consistency"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-009-long-yellow-green",
+      "primarySkill": "long_potting",
+      "secondarySkills": [
+        "cueing",
+        "focus_consistency"
+      ],
+      "transferTags": [
+        "pressure_resilience"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-013-pink-black-control",
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "break_building",
+        "transition_play"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-black-spot",
+      "primarySkill": "cueing",
+      "secondarySkills": [
+        "cue_ball_control",
+        "focus_consistency"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-j05-blue-black-transition",
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "transition_play",
+        "break_building"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-j17-black-yellow-recovery",
+      "primarySkill": "cue_ball_control",
+      "secondarySkills": [
+        "transition_play",
+        "recovery"
+      ],
+      "transferTags": [
+        "break_building"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-016-rest-clearance",
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "cueing",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "pressure_resilience",
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-039-rest-green-clearance",
+      "primarySkill": "rest_play",
+      "secondarySkills": [
+        "cue_ball_control",
+        "transition_play"
+      ],
+      "transferTags": [
+        "pressure_resilience"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-024-hit-hide",
+      "primarySkill": "tactical",
+      "secondarySkills": [
+        "safety",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-010-snooker-escape",
+      "primarySkill": "safety",
+      "secondarySkills": [
+        "tactical",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "match_play",
+        "pressure_resilience"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-053-break-off-accuracy",
+      "primarySkill": "tactical",
+      "secondarySkills": [
+        "safety",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-029-behind-yellow",
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "break_building"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-007-one-red-left",
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "break_building"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-008-blue-pink-black-match",
+      "primarySkill": "pressure_resilience",
+      "secondarySkills": [
+        "tactical",
+        "cue_ball_control"
+      ],
+      "transferTags": [
+        "match_play"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-j28-continuous-red-respot",
+      "primarySkill": "focus_consistency",
+      "secondarySkills": [
+        "long_potting",
+        "cueing"
+      ],
+      "transferTags": [
+        "confidence_stability"
+      ]
+    },
+    {
+      "canonicalId": "nolan-benchmark-pink-black-endless",
+      "primarySkill": "focus_consistency",
+      "secondarySkills": [
+        "cue_ball_control",
+        "break_building"
+      ],
+      "transferTags": [
+        "confidence_stability",
+        "pressure_resilience"
+      ]
+    }
+  ],
+  "targetProfiles": []
+}

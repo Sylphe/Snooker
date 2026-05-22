@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.0";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.8";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.8";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.0";
+} from "./utils.js?v=5.7.8";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.0";
+} from "./settings.js?v=5.7.8";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.0";
+} from "./analytics.js?v=5.7.8";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.0";
+} from "./bayesian.js?v=5.7.8";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.0";
+} from "./session.js?v=5.7.8";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.0";
+} from "./pressure.js?v=5.7.8";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.0";
+} from "./recommendations.js?v=5.7.8";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.0";
+} from "./store.js?v=5.7.8";
 
 
 
@@ -2488,6 +2488,7 @@ function inferredSkillLevelInsight(logs){
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
   return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
     ${globalPlayerRatingInsightBlock(profile, logs || data.logs || [])}
+    ${benchmarkPlayerClassCard(logs || data.logs || [])}
     <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
@@ -3571,6 +3572,19 @@ function migrateData(d) {
     canonicalId: normalizeRoutineCanonicalId(r.canonicalId || r.catalogueId || r.packRoutineId || r.id || r.name),
     routinePackSource: r.routinePackSource || r.packSource || "",
     routinePackVersion: r.routinePackVersion || r.packVersion || "",
+    benchmarkTargets: normalizeBenchmarkTargets(r.benchmarkTargets || {
+      junior: r.juniorTarget ?? r.benchmarkJuniorTarget,
+      club: r.clubTarget ?? r.benchmarkClubTarget,
+      senior: r.seniorTarget ?? r.benchmarkSeniorTarget,
+      pro: r.proTarget ?? r.professionalTarget ?? r.benchmarkProTarget
+    }),
+    benchmarkSource: r.benchmarkSource || r.routinePackSource || r.packSource || "",
+    setupType: r.setupType || (r.setupDescription || r.coachingPurpose || r.scoringRuleText || r.commonMistake || r.benchmarkNotes ? "text" : ""),
+    setupDescription: r.setupDescription || r.setupText || "",
+    scoringRuleText: r.scoringRuleText || r.scoringRule || "",
+    coachingPurpose: r.coachingPurpose || r.coachingIntent || "",
+    commonMistake: r.commonMistake || r.commonError || "",
+    benchmarkNotes: r.benchmarkNotes || r.benchmarkContext || "",
     metadataVersion: Number(r.metadataVersion || 1),
     isCatalogueRoutine: !!(r.isCatalogueRoutine || r.canonicalId || r.catalogueId),
     isDeleted: !!r.isDeleted,
@@ -3857,6 +3871,211 @@ function formatTargetSoftHintForRoutine(routine, value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0 || routine?.scoring !== "success_rate") return "";
   return `${numText(n)}% success`;
+}
+
+function textSetupFields(routine = {}) {
+  const r = routine || {};
+  const setup = String(r.setupDescription || r.setupText || "").trim();
+  const scoringRule = String(r.scoringRuleText || r.scoringRule || "").trim();
+  const purpose = String(r.coachingPurpose || r.coachingIntent || "").trim();
+  const mistake = String(r.commonMistake || r.commonError || "").trim();
+  const benchmark = String(r.benchmarkNotes || r.benchmarkContext || "").trim();
+  return {setup, scoringRule, purpose, mistake, benchmark};
+}
+function hasTextSetupCard(routine = {}) {
+  const f = textSetupFields(routine);
+  return !!(f.setup || f.scoringRule || f.purpose || f.mistake || f.benchmark);
+}
+function renderRoutineSetupCard(routine = {}, options = {}) {
+  if (!hasTextSetupCard(routine)) return "";
+  const f = textSetupFields(routine);
+  const compact = !!options.compact;
+  const rows = [
+    f.setup ? `<div class="routine-setup-row"><span>Setup</span><strong>${htmlText(f.setup)}</strong></div>` : "",
+    f.scoringRule ? `<div class="routine-setup-row"><span>Scoring</span><strong>${htmlText(f.scoringRule)}</strong></div>` : "",
+    f.purpose ? `<div class="routine-setup-row"><span>Purpose</span><strong>${htmlText(f.purpose)}</strong></div>` : "",
+    f.mistake ? `<div class="routine-setup-row"><span>Common mistake</span><strong>${htmlText(f.mistake)}</strong></div>` : "",
+    f.benchmark ? `<div class="routine-setup-row"><span>Benchmark</span><strong>${htmlText(f.benchmark)}</strong></div>` : ""
+  ].filter(Boolean).join("");
+  return `<div class="routine-setup-card${compact ? " routine-setup-card-compact" : ""}">${rows}</div>`;
+}
+function defaultScoringRuleText(routine = {}) {
+  const scoring = String(routine.scoring || "raw");
+  const attempts = Number(routine.attempts || routine.attemptsPerSession || 0);
+  if (scoring === "success_rate") return `Log successful outcomes${attempts ? ` out of ${numText(attempts)} attempts` : ""}.`;
+  if (scoring === "highest_break") return "Record the highest break achieved during the block.";
+  if (scoring === "points") return "Record total points scored under the routine rules.";
+  if (scoring === "progressive_completion") return `Record average ${progressiveUnitLabel(routine)} completed per attempt and best attempt.`;
+  if (scoring === "score_per_minute") return "Record score and time so the app can calculate score per minute.";
+  return "Record the total score for the exercise.";
+}
+
+const BENCHMARK_LEVELS = [
+  {key:"junior", label:"Junior"},
+  {key:"club", label:"Club"},
+  {key:"senior", label:"Senior"},
+  {key:"pro", label:"Pro"}
+];
+function benchmarkTargetsFromRoutine(routine={}) {
+  const raw = routine.benchmarkTargets && typeof routine.benchmarkTargets === "object" ? routine.benchmarkTargets : {};
+  const legacy = {
+    junior: routine.juniorTarget ?? routine.benchmarkJuniorTarget,
+    club: routine.clubTarget ?? routine.benchmarkClubTarget,
+    senior: routine.seniorTarget ?? routine.benchmarkSeniorTarget,
+    pro: routine.proTarget ?? routine.professionalTarget ?? routine.benchmarkProTarget
+  };
+  const out = {};
+  BENCHMARK_LEVELS.forEach(level => {
+    const n = Number(raw[level.key] ?? legacy[level.key] ?? 0);
+    if (Number.isFinite(n) && n > 0) out[level.key] = n;
+  });
+  return out;
+}
+function normalizeBenchmarkTargets(input={}) {
+  const out = {};
+  BENCHMARK_LEVELS.forEach(level => {
+    const n = Number(input?.[level.key] ?? 0);
+    if (Number.isFinite(n) && n > 0) out[level.key] = Math.round(n * 100) / 100;
+  });
+  return out;
+}
+function benchmarkSourceLabel(routine={}) {
+  return String(routine.benchmarkSource || routine.routinePackSource || "").trim();
+}
+function hasBenchmarkTargets(routine={}) {
+  return Object.keys(benchmarkTargetsFromRoutine(routine)).length > 0;
+}
+function formatBenchmarkValue(routine, value) {
+  return routine?.scoring === "success_rate" ? `${numText(value)}%` : numText(value);
+}
+function routineBenchmarkLine(routine={}) {
+  const targets = benchmarkTargetsFromRoutine(routine);
+  const parts = BENCHMARK_LEVELS
+    .filter(level => Number.isFinite(targets[level.key]))
+    .map(level => `${level.label} ${formatBenchmarkValue(routine, targets[level.key])}`);
+  if (!parts.length) return "";
+  const source = benchmarkSourceLabel(routine);
+  return `Benchmarks: ${parts.join(" · ")}${source ? ` · Source: ${htmlText(source)}` : ""}`;
+}
+function achievedBenchmarkBand(routine={}, scoreValue) {
+  const score = Number(scoreValue);
+  if (!Number.isFinite(score)) return null;
+  const targets = benchmarkTargetsFromRoutine(routine);
+  let achieved = null;
+  BENCHMARK_LEVELS.forEach(level => {
+    const target = Number(targets[level.key]);
+    if (Number.isFinite(target) && target > 0 && score >= target) achieved = level;
+  });
+  return achieved;
+}
+function benchmarkContextForScore(routine={}, scoreValue) {
+  const score = Number(scoreValue);
+  if (!Number.isFinite(score)) return "";
+  const achieved = achievedBenchmarkBand(routine, score);
+  const targets = benchmarkTargetsFromRoutine(routine);
+  const next = BENCHMARK_LEVELS.find(level => Number.isFinite(targets[level.key]) && score < targets[level.key]);
+  if (achieved && next) return `${achieved.label} benchmark reached · ${numText(Math.max(0, targets[next.key] - score))} to ${next.label}`;
+  if (achieved) return `${achieved.label} benchmark reached`;
+  if (next) return `${numText(Math.max(0, targets[next.key] - score))} to ${next.label} benchmark`;
+  return "";
+}
+function latestRoutineBenchmarkContext(routine={}) {
+  if (!hasBenchmarkTargets(routine)) return "";
+  const logs = (data.logs || [])
+    .filter(l => String(l.routineId || "") === String(routine.id || ""))
+    .sort((a,b) => (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0));
+  const latest = logs[0];
+  if (!latest) return "No benchmarked logs yet";
+  return benchmarkContextForScore(routine, effectiveLogScore(latest)) || "";
+}
+
+function benchmarkLevelScoreForRoutine(routine={}, scoreValue) {
+  const score = Number(scoreValue);
+  if (!Number.isFinite(score)) return null;
+  const targets = benchmarkTargetsFromRoutine(routine);
+  const levels = BENCHMARK_LEVELS.filter(level => Number.isFinite(targets[level.key]) && targets[level.key] > 0);
+  if (!levels.length) return null;
+  let achieved = {index:0, key:"below", label:"Below Junior", short:"<J", target:0};
+  levels.forEach((level, idx) => {
+    const target = Number(targets[level.key]);
+    if (score >= target) achieved = {index:idx + 1, key:level.key, label:level.label, short:level.label[0], target};
+  });
+  const nextLevel = levels.find(level => score < Number(targets[level.key]));
+  const nextTarget = nextLevel ? Number(targets[nextLevel.key]) : null;
+  const progress = nextTarget && nextTarget > 0 ? Math.max(0, Math.min(100, score / nextTarget * 100)) : 100;
+  return {score, achieved, next:nextLevel || null, nextTarget, progress, targets};
+}
+function dominantBenchmarkDomainForRoutine(routine={}) {
+  const scored = INFERRED_SKILL_DOMAINS.map(domain => ({domain, relevance:domainRoutineRelevance(routine, domain)})).sort((a,b)=>b.relevance-a.relevance);
+  return scored[0]?.relevance > 0.05 ? scored[0].domain : null;
+}
+function benchmarkClassLabelFromIndex(index=0) {
+  const n = Number(index) || 0;
+  if (n >= 3.75) return {label:"Professional benchmark", short:"Pro", rank:4};
+  if (n >= 2.75) return {label:"Senior benchmark", short:"Senior", rank:3};
+  if (n >= 1.75) return {label:"Club benchmark", short:"Club", rank:2};
+  if (n >= 0.75) return {label:"Junior benchmark", short:"Junior", rank:1};
+  return {label:"Below Junior benchmark", short:"<Junior", rank:0};
+}
+function estimateBenchmarkPlayerClass(logs=(data.logs||[]), routines=activeRoutines()) {
+  const routineMap = new Map((routines || []).map(r => [String(r.id), r]));
+  const grouped = getLogsByRoutineMap(logs || []);
+  const rows = [];
+  Object.entries(grouped).forEach(([routineId, rlogs]) => {
+    const routine = routineMap.get(String(routineId)) || routineById(routineId);
+    if (!routine || !hasBenchmarkTargets(routine)) return;
+    const ordered = (rlogs || []).slice().sort((a,b)=>(Date.parse(b.createdAt||"")||0)-(Date.parse(a.createdAt||"")||0));
+    const recent = ordered.slice(0, Math.min(5, ordered.length));
+    const bestRecent = safeMax(recent.map(l => Number(effectiveLogScore(l))).filter(Number.isFinite), null);
+    const latestScore = Number(effectiveLogScore(ordered[0] || {}));
+    const score = Number.isFinite(bestRecent) ? bestRecent : latestScore;
+    const level = benchmarkLevelScoreForRoutine(routine, score);
+    if (!level) return;
+    const domain = dominantBenchmarkDomainForRoutine(routine);
+    rows.push({routineId, routineName:routine.name || "Exercise", domainId:domain?.id || "general", domainLabel:domain?.label || "General", n:ordered.length, score, level, scoring:routine.scoring || "raw"});
+  });
+  const weightFor = row => Math.min(2.4, 0.65 + Math.log10(Math.max(1, row.n) + 1));
+  const totalWeight = rows.reduce((sum,row)=>sum + weightFor(row), 0);
+  const rawIndex = totalWeight ? rows.reduce((sum,row)=>sum + Number(row.level.achieved.index || 0) * weightFor(row), 0) / totalWeight : 0;
+  const domainGroups = {};
+  rows.forEach(row => {
+    const key = row.domainId || "general";
+    domainGroups[key] = domainGroups[key] || {id:key, label:row.domainLabel || "General", rows:[]};
+    domainGroups[key].rows.push(row);
+  });
+  const domains = Object.values(domainGroups).map(group => {
+    const w = group.rows.reduce((sum,row)=>sum + weightFor(row), 0);
+    const idx = w ? group.rows.reduce((sum,row)=>sum + Number(row.level.achieved.index || 0) * weightFor(row), 0) / w : 0;
+    return {id:group.id, label:group.label, index:Math.round(idx*100)/100, classBand:benchmarkClassLabelFromIndex(idx), n:group.rows.reduce((s,r)=>s+r.n,0), routines:group.rows.length, topRows:group.rows.slice().sort((a,b)=>(b.level.achieved.index-a.level.achieved.index)||(b.score-a.score)).slice(0,3)};
+  }).sort((a,b)=>a.index-b.index);
+  const limiterDomains = domains.filter(d => ["cue_ball_control","safety","pressure_resilience","tactical_decision_making"].includes(d.id));
+  const lowestConstraint = limiterDomains.length ? safeMin(limiterDomains.map(d=>d.index), rawIndex) : rawIndex;
+  const matchIndex = Math.min(rawIndex, Number.isFinite(lowestConstraint) ? lowestConstraint + 0.45 : rawIndex);
+  const band = benchmarkClassLabelFromIndex(matchIndex);
+  const technicalBand = benchmarkClassLabelFromIndex(rawIndex);
+  const confidence = rows.length >= 8 && rows.reduce((s,r)=>s+r.n,0) >= 40 ? "moderate" : rows.length >= 4 ? "early" : rows.length ? "low" : "none";
+  const strongest = domains.slice().sort((a,b)=>b.index-a.index)[0] || null;
+  const weakest = domains[0] || null;
+  const explanation = rows.length
+    ? (band.short === technicalBand.short ? `Benchmark evidence currently places your match-stable profile around ${band.short}.` : `Technical benchmark evidence points to ${technicalBand.short}, but match-stable classification is constrained toward ${band.short} by the weakest benchmark domains.`)
+    : "No benchmarked routine logs yet. Add benchmark targets to routines or import a benchmark pack.";
+  return {version:"v5.7.6", generatedAt:new Date().toISOString(), band, technicalBand, rawIndex:Math.round(rawIndex*100)/100, matchIndex:Math.round(matchIndex*100)/100, confidence, evidenceRoutines:rows.length, evidenceLogs:rows.reduce((s,r)=>s+r.n,0), rows, domains, strongest, weakest, explanation};
+}
+function benchmarkPlayerClassCard(logs=(data.logs||[])) {
+  const estimate = estimateBenchmarkPlayerClass(logs, activeRoutines());
+  const domainRows = (estimate.domains || []).slice(0,6).map(d => `<div class="context-row"><span>${htmlText(d.label)}<br><span class="muted">${d.routines} benchmark routine${d.routines===1?"":"s"} · ${d.n} logs</span></span><strong>${htmlText(d.classBand.short)}</strong><span>${numText(d.index)}/4</span></div>`).join("");
+  const scale = [
+    {short:"<Junior", label:"Below J"}, {short:"Junior", label:"Junior"}, {short:"Club", label:"Club"}, {short:"Senior", label:"Senior"}, {short:"Pro", label:"Pro"}
+  ].map(x => `<span class="${estimate.band.short===x.short?"active":""}">${htmlText(x.label)}</span>`).join("");
+  return `<div class="benchmark-player-card player-rating-card">
+    <div><span class="muted tiny">Benchmark player class</span><strong>${htmlText(estimate.band.label)}</strong><span class="muted">${htmlText(estimate.confidence)} confidence · ${numText(estimate.evidenceRoutines,"0")} benchmark routines · ${numText(estimate.evidenceLogs,"0")} logs</span></div>
+    <div class="player-rating-scale benchmark-rating-scale" aria-label="Benchmark player class scale">${scale}</div>
+    <div class="context-row"><span>Match-stable benchmark</span><strong>${htmlText(estimate.band.short)}</strong><span>${numText(estimate.matchIndex)}/4</span></div>
+    <div class="context-row"><span>Technical benchmark ceiling</span><strong>${htmlText(estimate.technicalBand.short)}</strong><span>${numText(estimate.rawIndex)}/4</span></div>
+    ${estimate.weakest ? `<div class="context-row"><span>Weakest benchmark domain</span><strong>${htmlText(estimate.weakest.classBand.short)}</strong><span>${htmlText(estimate.weakest.label)}</span></div>` : ""}
+    ${domainRows ? `<div class="benchmark-domain-list">${domainRows}</div>` : ""}
+    <div class="muted small">${htmlText(estimate.explanation)}</div>
+  </div>`;
 }
 function activeRoutines() { return (data.routines || []).filter(r => !r.isDeleted); }
 function recommendationEligibleRoutines() { return activeRoutines().filter(isRecommendationEligible); }
@@ -4329,7 +4548,9 @@ function renderRoutineItem(r) {
     <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges ? `<span class="routine-status-row">${statusBadges}</span>` : ""}</div>
     <div class="routine-meta-line routine-meta-compact">${meta}</div>
     ${r.description ? `<p class="routine-description-compact">${htmlText(r.description)}</p>` : ""}
+    ${renderRoutineSetupCard(r, {compact:true})}
     ${r.stretchTarget ? `<div class="routine-meta-line">${htmlText(formatRoutineTargetLabel(r, r.stretchTarget, "Stretch target"))}</div>` : ""}
+    ${hasBenchmarkTargets(r) ? `<div class="routine-meta-line routine-benchmark-line">${htmlText(routineBenchmarkLine(r))}${latestRoutineBenchmarkContext(r) ? ` · <strong>${htmlText(latestRoutineBenchmarkContext(r))}</strong>` : ""}</div>` : ""}
     ${r.scoring === "progressive_completion" && r.targetColour ? `<div class="routine-meta-line">Colour ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</div>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions routine-actions-compact">
@@ -4353,7 +4574,7 @@ function applyExerciseFormMode(mode) {
   if (formGrid) formGrid.dataset.formMode = clean;
   document.body.dataset.exerciseFormMode = clean;
   const basicIds = new Set(["routineName","routineScoring","routineAttempts","routineDuration","routineTarget","routineDescription"]);
-  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routinePrimarySkill","routineSecondarySkills","routineTransferTags","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak"].forEach(id => {
+  ["routineCategorySelect","routineCategoryNew","routineFolderSelect","routineFolderNew","routineSubfolderSelect","routineSubfolderNew","routineSideMode","routineAttemptMode","routineIsAnchor","routineRecommendationMode","routinePrimarySkill","routineSecondarySkills","routineTransferTags","routineStretchTarget","routineDifficultyLabel","routineTotalUnits","routineAttemptsPerSession","routineUnitType","routineTargetMode","routineTargetColour","routineTrackHighestBreak","routineBenchmarkJunior","routineBenchmarkClub","routineBenchmarkSenior","routineBenchmarkPro","routineBenchmarkSource","routineSetupDescription","routineScoringRuleText","routineCoachingPurpose","routineCommonMistake","routineBenchmarkNotes"].forEach(id => {
     const el = $(id);
     const wrap = el?.closest?.("div");
     if (wrap) wrap.classList.add("routine-advanced-field");
@@ -4389,6 +4610,12 @@ function editRoutine(id) {
   $("routineTarget").value = r.target || "";
   $("routineStretchTarget").value = r.stretchTarget || "";
   $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
+  const benchmarkTargets = benchmarkTargetsFromRoutine(r);
+  if ($("routineBenchmarkJunior")) $("routineBenchmarkJunior").value = benchmarkTargets.junior || "";
+  if ($("routineBenchmarkClub")) $("routineBenchmarkClub").value = benchmarkTargets.club || "";
+  if ($("routineBenchmarkSenior")) $("routineBenchmarkSenior").value = benchmarkTargets.senior || "";
+  if ($("routineBenchmarkPro")) $("routineBenchmarkPro").value = benchmarkTargets.pro || "";
+  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = r.benchmarkSource || "";
   $("routineTotalUnits").value = r.totalUnits || "";
   $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
   $("routineUnitType").value = r.unitType || "balls_cleared";
@@ -4403,7 +4630,7 @@ function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   applyExerciseFormMode(getExerciseFormMode());
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineBenchmarkJunior","routineBenchmarkClub","routineBenchmarkSenior","routineBenchmarkPro","routineBenchmarkSource","routineSetupDescription","routineScoringRuleText","routineCoachingPurpose","routineCommonMistake","routineBenchmarkNotes","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("routineScoring").value = "raw";
   if ($("routineSideMode")) $("routineSideMode").value = "none";
   if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
@@ -4498,6 +4725,19 @@ safeOn("saveRoutineBtn", "click", () => {
     targetColour: $("routineTargetColour").value || inferTargetColour($("routineTargetMode").value) || "",
     trackHighestBreak: $("routineTrackHighestBreak").value === "yes",
     difficultyLabel: $("routineDifficultyLabel").value.trim() || "Base target",
+    benchmarkTargets: normalizeBenchmarkTargets({
+      junior: $("routineBenchmarkJunior")?.value,
+      club: $("routineBenchmarkClub")?.value,
+      senior: $("routineBenchmarkSenior")?.value,
+      pro: $("routineBenchmarkPro")?.value
+    }),
+    benchmarkSource: $("routineBenchmarkSource")?.value?.trim?.() || "",
+    setupType: "text",
+    setupDescription: $("routineSetupDescription")?.value?.trim?.() || "",
+    scoringRuleText: $("routineScoringRuleText")?.value?.trim?.() || defaultScoringRuleText({scoring: $("routineScoring").value, attempts: $("routineAttempts").value, attemptsPerSession: $("routineAttemptsPerSession")?.value, unitType: $("routineUnitType")?.value}),
+    coachingPurpose: $("routineCoachingPurpose")?.value?.trim?.() || "",
+    commonMistake: $("routineCommonMistake")?.value?.trim?.() || "",
+    benchmarkNotes: $("routineBenchmarkNotes")?.value?.trim?.() || "",
     category, folder, subfolder,
     description: $("routineDescription").value.trim(),
     isDeleted: false,
@@ -4772,7 +5012,8 @@ function renderCurrentRoutine() {
   if (!r) return;
   $("currentRoutineName").textContent = r.name;
   const sessionTxt = activeSession.type === "free" ? "Free training" : `${activeSession.index + 1}/${activeSession.routineIds.length}`;
-  $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · ${formatRoutineTargetLabel(r, r.target, "target") || "target n/a"} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
+  const benchmarkMeta = hasBenchmarkTargets(r) ? ` · ${routineBenchmarkLine(r)}` : "";
+  $("currentRoutineMeta").textContent = `${sessionTxt} · ${fmtScoring(r.scoring)} · ${formatRoutineTargetLabel(r, r.target, "target") || "target n/a"}${benchmarkMeta} · default ${r.duration || 0} min · ${r.folder || "Unfiled"} / ${r.subfolder || "General"}`;
   const saveBtn = $("saveNextBtn");
   if (saveBtn) saveBtn.textContent = activeSession.index >= activeSession.routineIds.length - 1 ? "Save & Finish" : "Save & Next";
   $("practiceNotes").value = "";
@@ -4782,7 +5023,10 @@ function renderCurrentRoutine() {
   $("sessionInterventionNote").value = "";
   $("sessionRating").value = activeSession?.sessionRatingDraft || "";
   $("sessionTags").value = "";
-  if (r.description) { $("routineDescriptionBox").textContent = r.description; $("routineDescriptionBox").classList.remove("hidden"); }
+  if (r.description || hasTextSetupCard(r)) {
+    $("routineDescriptionBox").innerHTML = `${r.description ? `<p>${htmlText(r.description)}</p>` : ""}${renderRoutineSetupCard(r)}`;
+    $("routineDescriptionBox").classList.remove("hidden");
+  }
   else $("routineDescriptionBox").classList.add("hidden");
   resetTimerState();
   renderScoreInputs(r);
@@ -8200,6 +8444,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
     const rollingBasic = recentBasic.length ? avg(recentBasic) : null;
     return `<h3>Basic overview — ${escapeHtml(range.label)}</h3>
       <div class="analytics-note"><strong>Basic stats mode.</strong> Showing only the core practice dashboard. Switch Stats detail to Advanced for full diagnostics.</div>
+      ${benchmarkPlayerClassCard(logs)}
       <div class="overview-kpi-dashboard basic-stats-dashboard">
         <div class="overview-kpi primary"><span>${kpiTitle("Average score", "avgScore")}</span><div class="value">${avgBasic.toFixed(1)}</div><small>Average normalized performance in this view.</small></div>
         <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hitBasic === null ? "N/A" : hitBasic.toFixed(1)+"%"}</div><small>How often logged scores met the target.</small></div>
@@ -8235,6 +8480,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   const improved = mostImprovedRoutine(logs);
 
   let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
+    ${benchmarkPlayerClassCard(logs)}
     <div class="overview-kpi-dashboard">
       <div class="overview-kpi primary"><span>${kpiTitle("Average score", "averagePerformance")}</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
       <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
@@ -9458,6 +9704,19 @@ function mergeRoutinePack(pack, options = {}) {
       description: source.description || "",
       target: source.target === "" || source.target === undefined ? "" : Number(source.target),
       stretchTarget: source.stretchTarget === "" || source.stretchTarget === undefined ? "" : Number(source.stretchTarget),
+      benchmarkTargets: normalizeBenchmarkTargets(source.benchmarkTargets || {
+        junior: source.juniorTarget ?? source.benchmarkJuniorTarget,
+        club: source.clubTarget ?? source.benchmarkClubTarget,
+        senior: source.seniorTarget ?? source.benchmarkSeniorTarget,
+        pro: source.proTarget ?? source.professionalTarget ?? source.benchmarkProTarget
+      }),
+      benchmarkSource: source.benchmarkSource || importSourceName,
+      setupType: source.setupType || (source.setupDescription || source.coachingPurpose || source.scoringRuleText || source.commonMistake || source.benchmarkNotes ? "text" : ""),
+      setupDescription: source.setupDescription || source.setupText || "",
+      scoringRuleText: source.scoringRuleText || source.scoringRule || defaultScoringRuleText(source),
+      coachingPurpose: source.coachingPurpose || source.coachingIntent || "",
+      commonMistake: source.commonMistake || source.commonError || "",
+      benchmarkNotes: source.benchmarkNotes || source.benchmarkContext || "",
       attempts: source.attempts === "" || source.attempts === undefined ? "" : Number(source.attempts),
       duration: source.duration === "" || source.duration === undefined ? "" : Number(source.duration),
       totalUnits: source.totalUnits === "" || source.totalUnits === undefined ? "" : Number(source.totalUnits),
@@ -9560,7 +9819,7 @@ function routineCsvImportRecord(row) {
     source: "csv-import",
     updatedAt: new Date().toISOString()
   });
-  const numericFields = ["attempts", "duration", "target", "stretchtarget", "totalunits", "attemptspersession"];
+  const numericFields = ["attempts", "duration", "target", "stretchtarget", "totalunits", "attemptspersession", "benchmarkjunior", "benchmarkclub", "benchmarksenior", "benchmarkpro"];
   const nums = Object.create(null);
   numericFields.forEach(key => { nums[key] = parseOptionalNumber(row[key] || row[key.replace(/([a-z])([A-Z])/g, "$1_$2")] || ""); });
   return {
@@ -9580,7 +9839,20 @@ function routineCsvImportRecord(row) {
     attemptMode: sideMode === "left_right" ? normalizeAttemptMode(row.attemptmode || row.attempt_mode || "shared") : "shared",
     unitType: row.unittype || row.unit_type || "",
     difficultyLabel: row.difficultylabel || row.difficulty_label || "Base target",
+    benchmarkTargets: normalizeBenchmarkTargets({
+      junior: nums.benchmarkjunior,
+      club: nums.benchmarkclub,
+      senior: nums.benchmarksenior,
+      pro: nums.benchmarkpro
+    }),
+    benchmarkSource: row.benchmarksource || row.benchmark_source || "",
     description: row.description || "",
+    setupType: row.setuptype || row.setup_type || (row.setupdescription || row.setup_description || row.coachingpurpose || row.coaching_purpose || row.scoringruletext || row.scoring_rule_text || row.commonmistake || row.common_mistake || row.benchmarknotes || row.benchmark_notes ? "text" : ""),
+    setupDescription: row.setupdescription || row.setup_description || row.setuptext || row.setup_text || "",
+    scoringRuleText: row.scoringruletext || row.scoring_rule_text || row.scoringrule || row.scoring_rule || "",
+    coachingPurpose: row.coachingpurpose || row.coaching_purpose || row.coachingintent || row.coaching_intent || "",
+    commonMistake: row.commonmistake || row.common_mistake || row.commonerror || row.common_error || "",
+    benchmarkNotes: row.benchmarknotes || row.benchmark_notes || row.benchmarkcontext || row.benchmark_context || "",
     skillMap,
     __row: row.__row
   };
@@ -9610,7 +9882,7 @@ function routineCsvDiffSummary(records) {
   records.forEach(rec => {
     const existing = byCanonical[rec.canonicalId];
     if (!existing) { added += 1; return; }
-    const fields = ["name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget","totalUnits","attemptsPerSession","sideMode","attemptMode","unitType","difficultyLabel","description"];
+    const fields = ["name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget","totalUnits","attemptsPerSession","sideMode","attemptMode","unitType","difficultyLabel","description","setupDescription","scoringRuleText","coachingPurpose","commonMistake","benchmarkNotes"];
     const changed = fields.some(f => String(existing[f] ?? "") !== String(rec[f] ?? ""));
     const existingMap = normalizeRoutineSkillMap(existing, getRoutineSkillMap(existing));
     const skillChanged = JSON.stringify(existingMap) !== JSON.stringify(rec.skillMap);
@@ -9648,6 +9920,12 @@ function applyRoutineCsvImport(records) {
       unitType: rec.unitType,
       difficultyLabel: rec.difficultyLabel,
       description: rec.description,
+      setupType: rec.setupType || "text",
+      setupDescription: rec.setupDescription || "",
+      scoringRuleText: rec.scoringRuleText || defaultScoringRuleText(rec),
+      coachingPurpose: rec.coachingPurpose || "",
+      commonMistake: rec.commonMistake || "",
+      benchmarkNotes: rec.benchmarkNotes || "",
       updatedAt: now
     };
     if (existing) {
@@ -9704,7 +9982,7 @@ function exportRoutineLibraryCsv() {
   const headers = [
     "canonicalId","id","name","folder","subfolder","category","scoring","attempts","duration","target","stretchTarget",
     "primarySkill","secondarySkills","transferTags","sideMode","attemptMode","totalUnits","attemptsPerSession","unitType",
-    "difficultyLabel","description"
+    "difficultyLabel","description","setupDescription","scoringRuleText","coachingPurpose","commonMistake","benchmarkNotes"
   ];
   const rows = [headers.join(",")];
   (data.routines || []).filter(r => !r.isDeleted).forEach(r => {
@@ -9730,7 +10008,12 @@ function exportRoutineLibraryCsv() {
       attemptsPerSession: r.attemptsPerSession || "",
       unitType: r.unitType || "",
       difficultyLabel: r.difficultyLabel || "",
-      description: r.description || ""
+      description: r.description || "",
+      setupDescription: r.setupDescription || "",
+      scoringRuleText: r.scoringRuleText || "",
+      coachingPurpose: r.coachingPurpose || "",
+      commonMistake: r.commonMistake || "",
+      benchmarkNotes: r.benchmarkNotes || ""
     };
     rows.push(headers.map(h => { const val = row[h]; return csvEscape(val && typeof val === "object" ? JSON.stringify(val) : val); }).join(","));
   });
@@ -10620,16 +10903,24 @@ async function exportAiCoachingSnapshot() {
 }
 
 
-async function loadBundledCuratedRoutinePack() {
+async function loadBundledRoutinePackFromPath(path, label = "bundled routine pack") {
   try {
-    const response = await fetch("./routine-packs/curated-snooker-routine-pack-v1.json", {cache:"no-store"});
-    if (!response.ok) throw new Error(`Curated routine pack unavailable (${response.status})`);
+    const response = await fetch(path, {cache:"no-store"});
+    if (!response.ok) throw new Error(`${label} unavailable (${response.status})`);
     return await response.json();
   } catch(error) {
-    logAppError(error, "loadBundledCuratedRoutinePack");
-    alert("Could not load the bundled curated routine library. Try reinstalling the latest package or importing the JSON pack manually.");
+    logAppError(error, `loadBundledRoutinePackFromPath:${label}`);
+    alert(`Could not load the ${label}. Try reinstalling the latest package or importing the JSON pack manually.`);
     return null;
   }
+}
+
+async function loadBundledCuratedRoutinePack() {
+  return loadBundledRoutinePackFromPath("./routine-packs/curated-snooker-routine-pack-v1.json", "bundled curated routine library");
+}
+
+async function loadBundledNolanBenchmarkPack() {
+  return loadBundledRoutinePackFromPath("./routine-packs/nolan-benchmark-pack-v1.json", "Nolan Benchmark Pack v1");
 }
 
 
@@ -10749,6 +11040,34 @@ async function downloadBundledCuratedRoutinePack() {
   showTransientNotice("Curated routine pack exported.", "ok");
 }
 
+async function installBundledNolanBenchmarkPack() {
+  const pack = await loadBundledNolanBenchmarkPack();
+  if (!pack) return;
+  openRoutinePackImportPreview(pack, {
+    sourceName: pack.packMeta?.name || "Nolan Benchmark Pack v1",
+    sourceVersion: pack.packMeta?.version || "1.0.0",
+    afterImport: (result, validation) => {
+      data.nolanBenchmarkPack = {
+        name: pack.packMeta?.name || "Nolan Benchmark Pack v1",
+        version: pack.packMeta?.version || "1.0.0",
+        installedAt: new Date().toISOString(),
+        added: result.added,
+        updated: result.updated,
+        skipped: result.skipped,
+        routineCount: validation.routineCount
+      };
+    }
+  });
+}
+
+async function downloadBundledNolanBenchmarkPack() {
+  const pack = await loadBundledNolanBenchmarkPack();
+  if (!pack) return;
+  const filename = "nolan-benchmark-pack-v1.json";
+  await exportFile(filename, JSON.stringify(pack), "application/json");
+  showTransientNotice("Nolan Benchmark Pack exported.", "ok");
+}
+
 async function importRoutinePackFile(event) {
   const input = event?.target;
   const file = input?.files?.[0];
@@ -10805,6 +11124,8 @@ safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
 safeOn("exportAiCoachingBtn", "click", exportAiCoachingSnapshot);
 safeOn("installCuratedRoutinePackBtn", "click", installBundledCuratedRoutinePack);
 safeOn("downloadCuratedRoutinePackBtn", "click", downloadBundledCuratedRoutinePack);
+safeOn("installNolanBenchmarkPackBtn", "click", installBundledNolanBenchmarkPack);
+safeOn("downloadNolanBenchmarkPackBtn", "click", downloadBundledNolanBenchmarkPack);
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));

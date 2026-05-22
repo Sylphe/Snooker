@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.3"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.3" />
-  <link rel="stylesheet" href="styles.css?v=5.7.3" />
-  <link rel="icon" href="icon.svg?v=5.7.3" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.6"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.6" />
+  <link rel="stylesheet" href="styles.css?v=5.7.6" />
+  <link rel="icon" href="icon.svg?v=5.7.6" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.3 · Build 2026-05-21 21:45 CEST — Focus Mode layout correction.</p>
+      <p>v5.7.8 · Build 2026-05-22 22:00 CEST — Text-first setup cards.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -579,6 +579,30 @@
             <label>Difficulty / target version label</label>
             <input id="routineDifficultyLabel" placeholder="e.g. Base target, Harder target, Match pressure" />
           </div>
+          <div class="benchmark-config">
+            <label>Junior benchmark</label>
+            <input id="routineBenchmarkJunior" type="number" min="0" step="0.01" placeholder="Optional" />
+            <p class="helper-text">Optional reference target for beginner / sub-40 level.</p>
+          </div>
+          <div class="benchmark-config">
+            <label>Club benchmark</label>
+            <input id="routineBenchmarkClub" type="number" min="0" step="0.01" placeholder="Optional" />
+            <p class="helper-text">Optional reference target for regular club-level performance.</p>
+          </div>
+          <div class="benchmark-config">
+            <label>Senior benchmark</label>
+            <input id="routineBenchmarkSenior" type="number" min="0" step="0.01" placeholder="Optional" />
+            <p class="helper-text">Optional reference target for strong amateur / senior benchmark.</p>
+          </div>
+          <div class="benchmark-config">
+            <label>Professional benchmark</label>
+            <input id="routineBenchmarkPro" type="number" min="0" step="0.01" placeholder="Optional" />
+            <p class="helper-text">Optional high-end reference target. Success-rate drills display this as %.</p>
+          </div>
+          <div class="benchmark-config">
+            <label>Benchmark source</label>
+            <input id="routineBenchmarkSource" placeholder="e.g. Nolan Senior Training Program" />
+          </div>
           <div class="progressive-config">
             <label>Total units / completion size <button type="button" class="help-dot" data-action="field-help" data-help-key="totalUnits">?</button></label>
             <input id="routineTotalUnits" type="number" min="1" step="1" placeholder="e.g. 30 balls, 15 pairs, 147 points" />
@@ -629,6 +653,28 @@
         </div>
         <label>Description / rules</label>
         <textarea id="routineDescription" rows="3" placeholder="Define exactly how to score the exercise."></textarea>
+        <div class="grid two routine-setup-editor">
+          <div>
+            <label>Setup description</label>
+            <textarea id="routineSetupDescription" rows="2" placeholder="e.g. Standard line-up. Replace colours after clearance."></textarea>
+          </div>
+          <div>
+            <label>Scoring rule</label>
+            <textarea id="routineScoringRuleText" rows="2" placeholder="e.g. Record highest break achieved during the block."></textarea>
+          </div>
+          <div>
+            <label>Coaching purpose</label>
+            <textarea id="routineCoachingPurpose" rows="2" placeholder="e.g. Build transition precision and cue-ball stability."></textarea>
+          </div>
+          <div>
+            <label>Common mistake</label>
+            <textarea id="routineCommonMistake" rows="2" placeholder="e.g. Potting without preserving next-ball angle."></textarea>
+          </div>
+          <div class="span-two">
+            <label>Benchmark notes</label>
+            <textarea id="routineBenchmarkNotes" rows="2" placeholder="e.g. Junior 35 · Club 75 · Senior 100 · Pro 240."></textarea>
+          </div>
+        </div>
         <div class="row">
           <button id="saveRoutineBtn">Save Exercise</button>
           <button id="clearRoutineFormBtn" class="secondary">Clear Form</button>
@@ -1134,6 +1180,8 @@
             <button id="exportAiCoachingBtn" class="secondary" type="button">Export AI Coaching Snapshot</button>
             <button id="installCuratedRoutinePackBtn" class="secondary" type="button">Import Curated Library v1</button>
             <button id="downloadCuratedRoutinePackBtn" class="secondary" type="button">Download Curated Library JSON</button>
+            <button id="installNolanBenchmarkPackBtn" class="secondary" type="button">Import Nolan Benchmark Pack v1</button>
+            <button id="downloadNolanBenchmarkPackBtn" class="secondary" type="button">Download Nolan Pack JSON</button>
             <label class="file-btn secondary">
               Import Routine Pack
               <input id="importRoutinePackInput" type="file" accept="application/json" />
@@ -1354,7 +1402,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.3"></script>
+  <script type="module" src="app.js?v=5.7.6"></script>
 </body>
 
 

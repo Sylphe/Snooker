@@ -1,0 +1,4 @@
+v5.7.8 — Text-first setup cards
+- Added setup description, scoring rule, coaching purpose, common mistake, and benchmark notes fields.
+- Displays setup cards in the exercise database and active session screen.
+- Preserves text setup metadata through routine pack and CSV import/export.

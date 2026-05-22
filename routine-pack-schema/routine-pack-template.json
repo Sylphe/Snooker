@@ -7,7 +7,7 @@
     "author": "Snooker Practice PWA",
     "createdAt": "2026-05-20T00:00:00.000Z",
     "notes": "Template for portable routine catalogues.",
-    "appVersion": "5.6.9-transfer-aware-coaching-engine"
+    "appVersion": "5.7.5-benchmark-ladder-metadata"
   },
   "taxonomyVersion": "1.0",
   "skillTaxonomy": {
@@ -26,6 +26,8 @@
       "duration": 10,
       "target": 50,
       "stretchTarget": 70,
+      "benchmarkTargets": {"junior": 30, "club": 45, "senior": 60, "pro": 80},
+      "benchmarkSource": "Manual benchmark ladder",
       "description": "Ten long blue attempts from a fixed setup.",
       "skillMap": {
         "primarySkill": "long_potting",
