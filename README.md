@@ -67,3 +67,10 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Adds setup description, scoring rule, coaching purpose, common mistake, and benchmark notes metadata.
 - Displays compact setup cards in the exercise database and active session screen.
 - Preserves setup metadata through routine pack and CSV import/export.
+
+
+## v5.7.11 Routine Edit Save/Hydration Fix
+- Fixed advanced skill tags not reliably saving from the exercise editor.
+- Fixed setup-card metadata hydration when editing imported Nolan routines.
+- Added silent Nolan metadata repair for routines imported before the setup-card fields were fully mapped.
+- Prevented empty edit fields from wiping existing setup/scoring/coaching metadata.

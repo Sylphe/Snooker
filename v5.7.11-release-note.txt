@@ -1,0 +1,4 @@
+v5.7.11 Routine Edit Save/Hydration Fix
+- Tags save reliably.
+- Setup/scoring/coaching fields hydrate reliably in routine edit mode.
+- Older Nolan imports are silently repaired from bundled metadata.

@@ -597,6 +597,7 @@ async function bootstrapIndexedDBStorage() {
     scheduleIndexedDBSync("bootstrap memory migration sync", true);
     saveCoreData("bootstrap memory migration core save");
   }
+  setTimeout(() => { repairBundledNolanMetadataSilently?.(); }, 500);
   warmRoutineStatsCache("bootstrap warm routine stats");
   safeRenderAll("bootstrap renderAll");
 }
@@ -3990,6 +3991,79 @@ function mergeSetupMeta(existing={}, incoming={}) {
     benchmarkNotes: incomingMeta.benchmarkNotes || existingMeta.benchmarkNotes || ""
   };
 }
+
+function routineHasSetupMetadata(routine={}) {
+  const meta = routineSetupMetaFromRoutine(routine || {});
+  return !!(meta.setupDescription || meta.scoringRuleText || meta.coachingPurpose || meta.commonMistake || meta.benchmarkNotes || Object.keys(meta.benchmarkTargets || {}).length || meta.benchmarkSource);
+}
+function repairRoutineMetadataFromPack(pack, options={}) {
+  if (!pack || !Array.isArray(pack.routines) || !pack.routines.length || !Array.isArray(data.routines)) return 0;
+  const packSource = String(options.sourceName || pack.packMeta?.name || "").trim();
+  const packVersion = String(options.sourceVersion || pack.packMeta?.version || "").trim();
+  const byCanonical = new Map();
+  (pack.routines || []).forEach(source => {
+    const canonical = normalizeRoutineCanonicalId(source.canonicalId || source.id || source.name || "");
+    if (canonical) byCanonical.set(canonical, source);
+  });
+  let changed = 0;
+  data.routines = (data.routines || []).map(routine => {
+    const canonical = getRoutineCanonicalId(routine);
+    const source = byCanonical.get(canonical);
+    if (!source) return routine;
+    const sourceMeta = routineSetupMetaFromRoutine({...source, benchmarkSource: source.benchmarkSource || packSource || routine.benchmarkSource || routine.routinePackSource || ""});
+    const currentMeta = routineSetupMetaFromRoutine(routine);
+    const next = {...routine};
+    let touched = false;
+    const assignIfMissing = (field, value) => {
+      if ((next[field] === undefined || next[field] === null || String(next[field]).trim() === "") && value !== undefined && value !== null && String(value).trim() !== "") {
+        next[field] = value;
+        touched = true;
+      }
+    };
+    assignIfMissing("setupType", sourceMeta.setupType || "text");
+    assignIfMissing("setupDescription", sourceMeta.setupDescription);
+    assignIfMissing("scoringRuleText", sourceMeta.scoringRuleText);
+    assignIfMissing("coachingPurpose", sourceMeta.coachingPurpose);
+    assignIfMissing("commonMistake", sourceMeta.commonMistake);
+    assignIfMissing("benchmarkNotes", sourceMeta.benchmarkNotes);
+    assignIfMissing("benchmarkSource", sourceMeta.benchmarkSource || packSource);
+    if (!Object.keys(benchmarkTargetsFromRoutine(next)).length && Object.keys(sourceMeta.benchmarkTargets || {}).length) {
+      next.benchmarkTargets = sourceMeta.benchmarkTargets;
+      touched = true;
+    }
+    if (!next.routinePackSource && packSource) { next.routinePackSource = packSource; touched = true; }
+    if (!next.routinePackVersion && packVersion) { next.routinePackVersion = packVersion; touched = true; }
+    if (touched) {
+      next.updatedAt = new Date().toISOString();
+      changed += 1;
+    }
+    return next;
+  });
+  if (changed) {
+    data.routineSkillMap = data.routineSkillMap || {};
+    data.routines.forEach(r => {
+      if (r && byCanonical.has(getRoutineCanonicalId(r))) data.routineSkillMap[r.id] = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
+    });
+  }
+  return changed;
+}
+async function repairBundledNolanMetadataSilently() {
+  try {
+    if (!Array.isArray(data.routines) || !data.routines.some(r => String(r.routinePackSource || r.catalogueSource || "").toLowerCase().includes("nolan"))) return 0;
+    const response = await fetch("./routine-packs/nolan-benchmark-pack-v1.json", {cache:"no-store"});
+    if (!response.ok) return 0;
+    const pack = await response.json();
+    const changed = repairRoutineMetadataFromPack(pack, {sourceName: pack.packMeta?.name || "Nolan Benchmark Pack v1", sourceVersion: pack.packMeta?.version || "1.0.0"});
+    if (changed) {
+      saveData({render:"all", immediateIDB:true});
+      showTransientNotice(`Repaired setup-card metadata for ${changed} Nolan exercise${changed === 1 ? "" : "s"}.`, "ok");
+    }
+    return changed;
+  } catch(e) {
+    logAppError?.(e, "repairBundledNolanMetadataSilently");
+    return 0;
+  }
+}
 function benchmarkSourceLabel(routine={}) {
   return String(routine.benchmarkSource || routine.routinePackSource || "").trim();
 }
@@ -4633,16 +4707,14 @@ function applyExerciseFormMode(mode) {
   document.querySelectorAll(".routine-advanced-field").forEach(el => el.classList.toggle("hidden", clean !== "advanced"));
 }
 
-function editRoutine(id) {
-  const r = routineById(id);
+function populateRoutineEditForm(r) {
   if (!r) return;
-  applyExerciseFormMode("advanced");
   $("routineFormTitle").textContent = "Edit exercise";
   $("routineEditId").value = r.id;
   if ($("routinePackSource")) $("routinePackSource").value = r.routinePackSource || "";
   if ($("routinePackVersion")) $("routinePackVersion").value = r.routinePackVersion || "";
-  $("routineName").value = r.name;
-  $("routineScoring").value = r.scoring;
+  $("routineName").value = r.name || "";
+  $("routineScoring").value = r.scoring || "raw";
   $("routineCategorySelect").value = categories().includes(r.category) ? r.category : "all";
   $("routineCategoryNew").value = "";
   $("routineFolderSelect").value = folders().includes(r.folder) ? r.folder : "all";
@@ -4655,7 +4727,7 @@ function editRoutine(id) {
   if ($("routineAttemptMode")) $("routineAttemptMode").value = getRoutineAttemptMode(r);
   $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
   if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
-  const skillMap = getRoutineSkillMap(r);
+  const skillMap = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
   if ($("routinePrimarySkill")) $("routinePrimarySkill").value = skillMap.primarySkill || "cueing";
   renderRoutineSkillChips(skillMap);
   $("routineTarget").value = r.target || "";
@@ -4667,7 +4739,7 @@ function editRoutine(id) {
   if ($("routineBenchmarkClub")) $("routineBenchmarkClub").value = benchmarkTargets.club || "";
   if ($("routineBenchmarkSenior")) $("routineBenchmarkSenior").value = benchmarkTargets.senior || "";
   if ($("routineBenchmarkPro")) $("routineBenchmarkPro").value = benchmarkTargets.pro || "";
-  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = setupMeta.benchmarkSource || "";
+  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = setupMeta.benchmarkSource || r.benchmarkSource || r.routinePackSource || "";
   if ($("routineSetupDescription")) $("routineSetupDescription").value = setupMeta.setupDescription || "";
   if ($("routineScoringRuleText")) $("routineScoringRuleText").value = setupMeta.scoringRuleText || "";
   if ($("routineCoachingPurpose")) $("routineCoachingPurpose").value = setupMeta.coachingPurpose || "";
@@ -4680,9 +4752,18 @@ function editRoutine(id) {
   $("routineTargetColour").value = r.targetColour || inferTargetColour(r.targetMode) || "";
   $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
   $("routineDescription").value = r.description || "";
-  document.querySelector('[data-tab="templates"]').click();
+}
+function editRoutine(id) {
+  const r = routineById(id);
+  if (!r) return;
+  activateTab("templates");
+  setTemplatesMainTab("exercises");
+  applyExerciseFormMode("advanced");
+  populateRoutineEditForm(r);
+  requestAnimationFrame(() => populateRoutineEditForm(routineById(id) || r));
   window.scrollTo({top: 0, behavior: "smooth"});
 }
+
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   applyExerciseFormMode(getExerciseFormMode());
@@ -4773,6 +4854,9 @@ safeOn("saveRoutineBtn", "click", () => {
       source: "manual",
       updatedAt: new Date().toISOString()
     },
+    primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
+    secondarySkills: normalizeSkillList($("routineSecondarySkills")?.value || ""),
+    transferTags: normalizeSkillList($("routineTransferTags")?.value || ""),
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -4808,6 +4892,14 @@ safeOn("saveRoutineBtn", "click", () => {
   if ($("routineEditId").value) {
     const oldRoutine = data.routines.find(r => r.id === routine.id);
     if (oldRoutine) {
+      const oldSetupMeta = routineSetupMetaFromRoutine(oldRoutine);
+      if (!routine.setupDescription && oldSetupMeta.setupDescription) routine.setupDescription = oldSetupMeta.setupDescription;
+      if (!routine.scoringRuleText && oldSetupMeta.scoringRuleText) routine.scoringRuleText = oldSetupMeta.scoringRuleText;
+      if (!routine.coachingPurpose && oldSetupMeta.coachingPurpose) routine.coachingPurpose = oldSetupMeta.coachingPurpose;
+      if (!routine.commonMistake && oldSetupMeta.commonMistake) routine.commonMistake = oldSetupMeta.commonMistake;
+      if (!routine.benchmarkNotes && oldSetupMeta.benchmarkNotes) routine.benchmarkNotes = oldSetupMeta.benchmarkNotes;
+      if (!Object.keys(routine.benchmarkTargets || {}).length && Object.keys(oldSetupMeta.benchmarkTargets || {}).length) routine.benchmarkTargets = oldSetupMeta.benchmarkTargets;
+      if (!routine.benchmarkSource && oldSetupMeta.benchmarkSource) routine.benchmarkSource = oldSetupMeta.benchmarkSource;
       const oldScoring = String(oldRoutine.scoring || "raw");
       const newScoring = String(routine.scoring || "raw");
       const historicalLogCount = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id)).length;
@@ -11108,6 +11200,7 @@ function openRoutinePackImportPreview(pack, options = {}) {
     const result = mergeRoutinePack(pack, {preserveUserTargets:!retargeting, preserveUserDescriptions:true, selectedCanonicalIds:selected, importSourceName:sourceName, importSourceVersion:sourceVersion, importTargetLevel:targetLevel, importStretchLevel:stretchLevel});
     if (!result.ok) return alert(`Routine pack import failed:\n${result.errors.slice(0,10).join("\n")}`);
     if (options.afterImport) options.afterImport(result, validation);
+    repairRoutineMetadataFromPack(pack, {sourceName, sourceVersion});
     closeRoutinePackImportPreview();
     saveData({render:"all", immediateIDB:true});
     showTransientNotice(`Routine pack imported: ${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`, "ok");
