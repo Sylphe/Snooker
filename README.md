@@ -74,3 +74,10 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Fixed setup-card metadata hydration when editing imported Nolan routines.
 - Added silent Nolan metadata repair for routines imported before the setup-card fields were fully mapped.
 - Prevented empty edit fields from wiping existing setup/scoring/coaching metadata.
+
+## v5.7.12 Routine Edit Metadata Integrity Fix
+- Preserves hidden routine metadata on edit, including canonical IDs, catalogue flags, source pack lineage, timestamps, archive flags, and metadata version history.
+- Allows users to intentionally clear setup-card text fields and benchmark ladders instead of restoring old text automatically.
+- Uses the universal setup metadata parser for library setup cards so imported/nested Nolan metadata displays consistently.
+- Removes duplicate edit-form population to avoid overwriting fields during render.
+- Adds hidden identity fields for catalogue routines and strips archived skill tags during active routine saves.

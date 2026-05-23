@@ -740,6 +740,11 @@ function normalizeSkillList(value){
   const valid = new Set(currentSkillLibrary({includeArchived:true}).map(s=>s.id));
   return [...new Set(arr.map(normalizeSkillId).filter(x => x && valid.has(x)))];
 }
+function normalizeActiveSkillList(value){
+  const arr = Array.isArray(value) ? value : String(value||"").split(/[;,]/);
+  const valid = new Set(currentSkillLibrary({includeArchived:false}).map(s=>s.id));
+  return [...new Set(arr.map(normalizeSkillId).filter(x => x && valid.has(x)))];
+}
 function setSkillHiddenValue(id, values){ const el=$(id); if(el) el.value = normalizeSkillList(values).join(", "); }
 function getSkillHiddenValue(id){ return normalizeSkillList($(id)?.value || ""); }
 function renderPrimarySkillOptions(selectedValue=""){
@@ -3863,13 +3868,14 @@ function formatTargetSoftHintForRoutine(routine, value) {
 }
 
 function textSetupFields(routine = {}) {
-  const r = routine || {};
-  const setup = String(r.setupDescription || r.setupText || "").trim();
-  const scoringRule = String(r.scoringRuleText || r.scoringRule || "").trim();
-  const purpose = String(r.coachingPurpose || r.coachingIntent || "").trim();
-  const mistake = String(r.commonMistake || r.commonError || "").trim();
-  const benchmark = String(r.benchmarkNotes || r.benchmarkContext || "").trim();
-  return {setup, scoringRule, purpose, mistake, benchmark};
+  const meta = routineSetupMetaFromRoutine(routine || {});
+  return {
+    setup: String(meta.setupDescription || "").trim(),
+    scoringRule: String(meta.scoringRuleText || "").trim(),
+    purpose: String(meta.coachingPurpose || "").trim(),
+    mistake: String(meta.commonMistake || "").trim(),
+    benchmark: String(meta.benchmarkNotes || "").trim()
+  };
 }
 function hasTextSetupCard(routine = {}) {
   const f = textSetupFields(routine);
@@ -4711,6 +4717,8 @@ function populateRoutineEditForm(r) {
   if (!r) return;
   $("routineFormTitle").textContent = "Edit exercise";
   $("routineEditId").value = r.id;
+  if ($("routineCanonicalId")) $("routineCanonicalId").value = r.canonicalId || getRoutineCanonicalId(r) || "";
+  if ($("routineIsCatalogue")) $("routineIsCatalogue").value = r.isCatalogueRoutine ? "true" : "false";
   if ($("routinePackSource")) $("routinePackSource").value = r.routinePackSource || "";
   if ($("routinePackVersion")) $("routinePackVersion").value = r.routinePackVersion || "";
   $("routineName").value = r.name || "";
@@ -4760,7 +4768,6 @@ function editRoutine(id) {
   setTemplatesMainTab("exercises");
   applyExerciseFormMode("advanced");
   populateRoutineEditForm(r);
-  requestAnimationFrame(() => populateRoutineEditForm(routineById(id) || r));
   window.scrollTo({top: 0, behavior: "smooth"});
 }
 
@@ -4768,7 +4775,7 @@ function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
   applyExerciseFormMode(getExerciseFormMode());
   $("routineEditId").value = "";
-  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineBenchmarkJunior","routineBenchmarkClub","routineBenchmarkSenior","routineBenchmarkPro","routineBenchmarkSource","routineSetupDescription","routineScoringRuleText","routineCoachingPurpose","routineCommonMistake","routineBenchmarkNotes","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
+  ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineBenchmarkJunior","routineBenchmarkClub","routineBenchmarkSenior","routineBenchmarkPro","routineBenchmarkSource","routineSetupDescription","routineScoringRuleText","routineCoachingPurpose","routineCommonMistake","routineBenchmarkNotes","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routineCanonicalId","routineIsCatalogue","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("routineScoring").value = "raw";
   if ($("routineSideMode")) $("routineSideMode").value = "none";
   if ($("routineAttemptMode")) $("routineAttemptMode").value = "shared";
@@ -4831,14 +4838,18 @@ safeOn("saveRoutineBtn", "click", () => {
   const newSubfolder = $("routineSubfolderNew").value.trim();
   const selectedSubfolder = $("routineSubfolderSelect").value;
   const subfolder = newSubfolder || (!isSystemAll(selectedSubfolder) ? selectedSubfolder : "General");
+  const editId = $("routineEditId")?.value || "";
+  const oldRoutine = editId ? data.routines.find(r => String(r.id) === String(editId)) : null;
+  const hiddenCanonical = $("routineCanonicalId")?.value || "";
 
   const routine = {
-    id: $("routineEditId").value || uuid(),
-    canonicalId: normalizeRoutineCanonicalId($("routineCanonicalId")?.value || name),
-    metadataVersion: 1,
-    isCatalogueRoutine: !!$("routineCanonicalId")?.value,
-    routinePackSource: $("routinePackSource")?.value || "",
-    routinePackVersion: $("routinePackVersion")?.value || "",
+    id: editId || uuid(),
+    canonicalId: hiddenCanonical ? normalizeRoutineCanonicalId(hiddenCanonical) : normalizeRoutineCanonicalId(oldRoutine?.canonicalId || name),
+    createdAt: oldRoutine?.createdAt || new Date().toISOString(),
+    metadataVersion: oldRoutine ? Number(oldRoutine.metadataVersion || 1) + 1 : 1,
+    isCatalogueRoutine: oldRoutine ? !!oldRoutine.isCatalogueRoutine : !!hiddenCanonical,
+    routinePackSource: $("routinePackSource")?.value || oldRoutine?.routinePackSource || "",
+    routinePackVersion: $("routinePackVersion")?.value || oldRoutine?.routinePackVersion || "",
     name,
     scoring: $("routineScoring").value,
     attempts: Number($("routineAttempts").value || 0) || "",
@@ -4849,14 +4860,14 @@ safeOn("saveRoutineBtn", "click", () => {
     recommendationMode: ["active", "occasional", "excluded"].includes($("routineRecommendationMode")?.value) ? $("routineRecommendationMode").value : "active",
     skillMap: {
       primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
-      secondarySkills: normalizeSkillList($("routineSecondarySkills")?.value || ""),
-      transferTags: normalizeSkillList($("routineTransferTags")?.value || ""),
+      secondarySkills: normalizeActiveSkillList($("routineSecondarySkills")?.value || ""),
+      transferTags: normalizeActiveSkillList($("routineTransferTags")?.value || ""),
       source: "manual",
       updatedAt: new Date().toISOString()
     },
     primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
-    secondarySkills: normalizeSkillList($("routineSecondarySkills")?.value || ""),
-    transferTags: normalizeSkillList($("routineTransferTags")?.value || ""),
+    secondarySkills: normalizeActiveSkillList($("routineSecondarySkills")?.value || ""),
+    transferTags: normalizeActiveSkillList($("routineTransferTags")?.value || ""),
     target: Number($("routineTarget").value || 0) || "",
     stretchTarget: Number($("routineStretchTarget").value || 0) || "",
     totalUnits: Number($("routineTotalUnits").value || 0) || "",
@@ -4875,31 +4886,25 @@ safeOn("saveRoutineBtn", "click", () => {
     benchmarkSource: $("routineBenchmarkSource")?.value?.trim?.() || "",
     setupType: "text",
     setupDescription: $("routineSetupDescription")?.value?.trim?.() || "",
-    scoringRuleText: $("routineScoringRuleText")?.value?.trim?.() || defaultScoringRuleText({scoring: $("routineScoring").value, attempts: $("routineAttempts").value, attemptsPerSession: $("routineAttemptsPerSession")?.value, unitType: $("routineUnitType")?.value}),
+    scoringRuleText: editId ? ($("routineScoringRuleText")?.value?.trim?.() || "") : ($("routineScoringRuleText")?.value?.trim?.() || defaultScoringRuleText({scoring: $("routineScoring").value, attempts: $("routineAttempts").value, attemptsPerSession: $("routineAttemptsPerSession")?.value, unitType: $("routineUnitType")?.value})),
     coachingPurpose: $("routineCoachingPurpose")?.value?.trim?.() || "",
     commonMistake: $("routineCommonMistake")?.value?.trim?.() || "",
     benchmarkNotes: $("routineBenchmarkNotes")?.value?.trim?.() || "",
     category, folder, subfolder,
     description: $("routineDescription").value.trim(),
-    isDeleted: false,
-    deletedAt: ""
+    isDeleted: oldRoutine ? !!oldRoutine.isDeleted : false,
+    deletedAt: oldRoutine?.deletedAt || ""
   };
 
   data.routineSkillMap = data.routineSkillMap || {};
   data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
-  const historicalSkillLogsUpdated = $("routineEditId").value ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:false}) : 0;
+  const historicalSkillLogsUpdated = editId ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:false}) : 0;
 
-  if ($("routineEditId").value) {
-    const oldRoutine = data.routines.find(r => r.id === routine.id);
+  if (editId) {
     if (oldRoutine) {
-      const oldSetupMeta = routineSetupMetaFromRoutine(oldRoutine);
-      if (!routine.setupDescription && oldSetupMeta.setupDescription) routine.setupDescription = oldSetupMeta.setupDescription;
-      if (!routine.scoringRuleText && oldSetupMeta.scoringRuleText) routine.scoringRuleText = oldSetupMeta.scoringRuleText;
-      if (!routine.coachingPurpose && oldSetupMeta.coachingPurpose) routine.coachingPurpose = oldSetupMeta.coachingPurpose;
-      if (!routine.commonMistake && oldSetupMeta.commonMistake) routine.commonMistake = oldSetupMeta.commonMistake;
-      if (!routine.benchmarkNotes && oldSetupMeta.benchmarkNotes) routine.benchmarkNotes = oldSetupMeta.benchmarkNotes;
-      if (!Object.keys(routine.benchmarkTargets || {}).length && Object.keys(oldSetupMeta.benchmarkTargets || {}).length) routine.benchmarkTargets = oldSetupMeta.benchmarkTargets;
-      if (!routine.benchmarkSource && oldSetupMeta.benchmarkSource) routine.benchmarkSource = oldSetupMeta.benchmarkSource;
+      ["sourceRoutineId","sourcePackId","catalogueId","importedAt","updatedAt","sourceBookReference","catalogueSource","packSource"].forEach(field => {
+        if (oldRoutine[field] !== undefined && routine[field] === undefined) routine[field] = oldRoutine[field];
+      });
       const oldScoring = String(oldRoutine.scoring || "raw");
       const newScoring = String(routine.scoring || "raw");
       const historicalLogCount = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id)).length;
