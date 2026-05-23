@@ -163,3 +163,9 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Fixed runtime failure in legacy upgrade caused by missing `finiteNumber` helper.
 - Added compatibility helper used by target-history de-duplication during migration.
 - Preserved v5.7.24 migration execution fixes.
+
+## v5.7.26 — Legacy upgrade helper/cache fix
+
+- Fixed stale `app.js` module import cache-busting that still pointed to `app-core.js?v=5.7.21`.
+- Removed the legacy upgrade dependency on `finiteNumber()` by using the existing `finiteOr()` helper directly.
+- Updated all version/cache markers to v5.7.26.

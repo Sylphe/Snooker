@@ -12088,18 +12088,14 @@ function fmtTargetMode(mode) {
 
 
 
-function finiteNumber(value, fallback=0) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
 
 function targetProfileComparableKey(profile) {
   if (!profile) return "";
   return [
-    finiteNumber(profile.target, 0),
-    finiteNumber(profile.stretchTarget, 0),
-    finiteNumber(profile.totalUnits, 0),
-    finiteNumber(profile.attemptsPerSession, 0),
+    finiteOr(profile.target, 0),
+    finiteOr(profile.stretchTarget, 0),
+    finiteOr(profile.totalUnits, 0),
+    finiteOr(profile.attemptsPerSession, 0),
     String(profile.difficultyLabel || "").trim().toLowerCase(),
     String(profile.scoring || "raw").trim().toLowerCase()
   ].join("|");
