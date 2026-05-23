@@ -11207,6 +11207,263 @@ async function loadBundledNolanBenchmarkPack() {
 }
 
 
+
+const LEGACY_ROUTINE_UPGRADE_VERSION = "v5.7.22";
+const LEGACY_ROUTINE_NAME_MAP = {
+  "cue stars all black t lineup": "curated-bb-007-t-lineup-black",
+  "cue stars all pink t lineup": "curated-bb-006-t-lineup-pink",
+  "cue stars blue and ball t lineup": "curated-bb-009-red-colour-repeat",
+  "realistic lineup": "curated-bb-004-realistic-lineup",
+  "3 reds around blue": "curated-bb-001-three-red-blue",
+  "5 reds under black": "curated-bb-003-five-reds-under-black",
+  "v routine": "curated-bb-005-v-routine",
+  "30 break": "curated-bb-010-30-break-builder",
+  "50 break": "curated-bb-010-30-break-builder",
+  "cue stars 10 reds long pot": "curated-pot-003-long-reds",
+  "cue stars 15 reds long pot": "curated-pot-003-long-reds",
+  "cue stars back of the black": "curated-pot-004-black-cushion",
+  "cue stars 10 rest pots": "curated-pot-009-rest-pots",
+  "cue stars figure 8 safety": "curated-saf-003-figure-eight-safety",
+  "cue stars shot to nothing": "curated-saf-002-shot-to-nothing",
+  "cuestars 15 safety shots": "curated-saf-001-baulk-return",
+  "cuestars tough safety routine": "curated-saf-008-safety-pressure-frame",
+  "pink clockwise": "curated-cb-001-pink-clockwise",
+  "high black from cushion": "curated-pot-004-black-cushion",
+  "blue canon colors pink level": "curated-cb-002-blue-cannon-colours",
+  "blue canon colors black cushion level copy": "curated-cb-002-blue-cannon-colours",
+  "blue cannon colors pink level": "curated-cb-002-blue-cannon-colours",
+  "blue cannon colors black cushion level copy": "curated-cb-002-blue-cannon-colours"
+};
+
+function legacyRoutineKey(value="") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[+#]/g, " ")
+    .replace(/[—–-]/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\bcopy\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function routineModernSchemaGaps(routine={}) {
+  const gaps = [];
+  if (!routine.skillMap?.primarySkill) gaps.push("skillMap");
+  if (!hasBenchmarkTargets(routine)) gaps.push("benchmarkTargets");
+  if (!String(routine.setupDescription || "").trim()) gaps.push("setupDescription");
+  if (!String(routine.scoringRuleText || "").trim()) gaps.push("scoringRuleText");
+  if (!String(routine.coachingPurpose || "").trim()) gaps.push("coachingPurpose");
+  if (!String(routine.commonMistake || "").trim()) gaps.push("commonMistake");
+  if (!String(routine.benchmarkNotes || "").trim()) gaps.push("benchmarkNotes");
+  if (!Array.isArray(routine.targetHistory) || !routine.targetHistory.length) gaps.push("targetHistory");
+  if (!String(routine.routineArchetype || "").trim()) gaps.push("routineArchetype");
+  if (!String(routine.structureType || "").trim()) gaps.push("structureType");
+  return gaps;
+}
+function mergeRoutineModernMetadata(legacy={}, template={}, options={}) {
+  const preserveScoring = options.preserveScoring !== false;
+  const merged = {...legacy};
+  const copyIfMissing = [
+    "setupType","setupDescription","scoringRuleText","coachingPurpose","commonMistake","benchmarkSource",
+    "benchmarkNotes","routineArchetype","structureType","estimatedDifficulty","fatigueCost","pressureValue",
+    "tacticalValue","unitType","targetMode","targetColour","trackHighestBreak"
+  ];
+  copyIfMissing.forEach(field => {
+    if ((merged[field] === undefined || merged[field] === null || merged[field] === "") && template[field] !== undefined) {
+      merged[field] = Array.isArray(template[field]) ? [...template[field]] : (typeof template[field] === "object" && template[field] !== null ? JSON.parse(JSON.stringify(template[field])) : template[field]);
+    }
+  });
+  if (!hasBenchmarkTargets(merged) && hasBenchmarkTargets(template)) {
+    merged.benchmarkTargets = normalizeBenchmarkTargetsFromAny(template);
+    merged.levelTargets = Array.isArray(template.levelTargets) ? JSON.parse(JSON.stringify(template.levelTargets)) : merged.levelTargets;
+  }
+  if (!merged.skillMap?.primarySkill && template.skillMap?.primarySkill) {
+    const sm = normalizeRoutineSkillMap(template, template.skillMap);
+    merged.skillMap = {...sm, source: "legacy_migration"};
+    merged.primarySkill = sm.primarySkill;
+    merged.secondarySkills = sm.secondarySkills;
+    merged.transferTags = sm.transferTags;
+    merged.transferSkills = sm.transferTags;
+  } else {
+    merged.skillMap = normalizeRoutineSkillMap(merged, merged.skillMap);
+    merged.primarySkill = merged.skillMap.primarySkill;
+    merged.secondarySkills = merged.skillMap.secondarySkills;
+    merged.transferTags = merged.skillMap.transferTags;
+    merged.transferSkills = merged.skillMap.transferTags;
+  }
+  if ((!Array.isArray(merged.targetHistory) || !merged.targetHistory.length) && Array.isArray(template.targetHistory) && template.targetHistory.length) {
+    merged.targetHistory = JSON.parse(JSON.stringify(template.targetHistory)).map(profile => ({
+      ...profile,
+      id: `${merged.id}-${profile.id || uuid()}-migrated`,
+      effectiveFrom: profile.effectiveFrom || new Date().toISOString()
+    }));
+    merged.activeTargetProfileId = merged.targetHistory[0]?.id || "";
+  }
+  if (preserveScoring && legacy.scoring) merged.scoring = legacy.scoring;
+  merged.legacyUpgradeVersion = LEGACY_ROUTINE_UPGRADE_VERSION;
+  merged.migrationStatus = merged.migrationStatus || "metadata_repaired";
+  merged.historicalLogsPreserved = true;
+  merged.routineFamilyId = merged.routineFamilyId || template.canonicalId || template.id || merged.canonicalId || merged.id;
+  merged.updatedAt = new Date().toISOString();
+  return ensureTargetHistory(merged);
+}
+async function legacyRoutineTemplateIndex() {
+  const packs = [];
+  const curated = await loadBundledCuratedRoutinePack();
+  if (curated?.routines?.length) packs.push(curated);
+  const nolan = await loadBundledNolanBenchmarkPack();
+  if (nolan?.routines?.length) packs.push(nolan);
+  const byCanonical = new Map();
+  const byName = new Map();
+  packs.forEach(pack => (pack.routines || []).forEach(r => {
+    const canonical = normalizeRoutineCanonicalId(r.canonicalId || r.id || r.name);
+    if (canonical && !byCanonical.has(canonical)) byCanonical.set(canonical, r);
+    const key = legacyRoutineKey(r.name);
+    if (key && !byName.has(key)) byName.set(key, r);
+  }));
+  return {byCanonical, byName};
+}
+function findLegacyRoutineTemplate(routine, index) {
+  const canonical = normalizeRoutineCanonicalId(routine.canonicalId || routine.id || routine.name);
+  if (index.byCanonical.has(canonical)) return index.byCanonical.get(canonical);
+  const key = legacyRoutineKey(routine.name);
+  const mappedCanonical = LEGACY_ROUTINE_NAME_MAP[key];
+  if (mappedCanonical && index.byCanonical.has(mappedCanonical)) return index.byCanonical.get(mappedCanonical);
+  if (index.byName.has(key)) return index.byName.get(key);
+  return null;
+}
+function existingModernRoutineForTemplate(template, excludingId="") {
+  if (!template) return null;
+  const canonical = normalizeRoutineCanonicalId(template.canonicalId || template.id || template.name);
+  return (data.routines || []).find(r => String(r.id) !== String(excludingId) && !r.isDeleted && normalizeRoutineCanonicalId(r.canonicalId || r.id || r.name) === canonical && String(r.scoring || "") === String(template.scoring || ""));
+}
+async function buildLegacyRoutineAudit() {
+  const index = await legacyRoutineTemplateIndex();
+  const rows = (data.routines || []).map(r => {
+    const template = findLegacyRoutineTemplate(r, index);
+    const gaps = routineModernSchemaGaps(r);
+    const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(r.id));
+    const scoringMismatch = !!(template && String(template.scoring || "") && String(r.scoring || "") && String(template.scoring) !== String(r.scoring));
+    const action = !template
+      ? (gaps.length ? "repair_from_self" : "modern")
+      : scoringMismatch && logs.length
+        ? "archive_and_link"
+        : gaps.length
+          ? "metadata_repair"
+          : "modern";
+    return {
+      id: r.id,
+      name: r.name || "Untitled exercise",
+      scoring: r.scoring || "raw",
+      templateName: template?.name || "",
+      templateId: template?.canonicalId || template?.id || "",
+      templateScoring: template?.scoring || "",
+      logCount: logs.length,
+      gaps,
+      scoringMismatch,
+      action
+    };
+  });
+  return {
+    rows,
+    counts: rows.reduce((acc, row) => {
+      acc[row.action] = (acc[row.action] || 0) + 1;
+      return acc;
+    }, {})
+  };
+}
+function legacyRoutineAuditHtml(audit) {
+  const rows = audit.rows || [];
+  const material = rows.filter(r => r.action !== "modern");
+  const summary = Object.entries(audit.counts || {}).map(([k,v]) => `${htmlText(k.replaceAll("_"," "))}: <strong>${numText(v)}</strong>`).join(" · ");
+  const list = material.slice(0, 30).map(row => `<div class="routine-meta-line">
+    <strong>${htmlText(row.name)}</strong> — ${htmlText(row.action.replaceAll("_"," "))}${row.templateName ? ` · template: ${htmlText(row.templateName)}` : ""}${row.gaps?.length ? ` · gaps: ${htmlText(row.gaps.join(", "))}` : ""}${row.scoringMismatch ? ` · scoring ${htmlText(row.scoring)} → ${htmlText(row.templateScoring)}` : ""} · logs: ${numText(row.logCount)}
+  </div>`).join("");
+  return `<div class="item">
+    <div class="item-title"><strong>Legacy routine audit</strong><span class="badge">${numText(rows.length)} exercises checked</span></div>
+    <p>${summary || "No routines found."}</p>
+    ${material.length ? list : `<p class="muted">No legacy issues detected.</p>`}
+    ${material.length > 30 ? `<p class="muted">Showing first 30 items. Apply safe upgrade to process all detected routines.</p>` : ""}
+  </div>`;
+}
+async function renderLegacyRoutineAudit() {
+  const box = $("legacyRoutineAuditOutput");
+  if (!box) return;
+  box.classList.remove("hidden");
+  box.innerHTML = `<p class="muted">Auditing legacy routines...</p>`;
+  try {
+    const audit = await buildLegacyRoutineAudit();
+    box.innerHTML = legacyRoutineAuditHtml(audit);
+  } catch(error) {
+    logAppError?.(error, "renderLegacyRoutineAudit");
+    box.innerHTML = `<p class="danger-text">Legacy routine audit failed. Export a backup before retrying.</p>`;
+  }
+}
+async function applySafeLegacyRoutineUpgrade() {
+  const proceed = confirm("This will repair legacy routine metadata and archive/link routines whose scoring method has changed. Historical logs will not be deleted or rewritten. Export a backup first if you have not already done so.\n\nContinue?");
+  if (!proceed) return;
+  const index = await legacyRoutineTemplateIndex();
+  let repaired = 0, linked = 0, created = 0;
+  const now = new Date().toISOString();
+  const updated = [];
+  for (const routine of (data.routines || [])) {
+    if (routine.isDeleted) { updated.push(routine); continue; }
+    const template = findLegacyRoutineTemplate(routine, index);
+    const gaps = routineModernSchemaGaps(routine);
+    const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id));
+    const scoringMismatch = !!(template && String(template.scoring || "") && String(routine.scoring || "") && String(template.scoring) !== String(routine.scoring));
+    if (template && scoringMismatch && logs.length) {
+      let modern = existingModernRoutineForTemplate(template, routine.id);
+      if (!modern) {
+        modern = mergeRoutineModernMetadata({
+          ...template,
+          id: uuid(),
+          canonicalId: normalizeRoutineCanonicalId(template.canonicalId || template.id || template.name),
+          name: template.name || `${routine.name} — modern`,
+          legacySourceRoutineIds: [routine.id],
+          migrationStatus: "modern_from_legacy",
+          createdAt: now,
+          updatedAt: now,
+          isDeleted: false,
+          deletedAt: "",
+          historicalLogsPreserved: true,
+          routineFamilyId: template.canonicalId || template.id || routine.id
+        }, template, {preserveScoring:false});
+        updated.push(modern);
+        created++;
+      } else {
+        modern.legacySourceRoutineIds = Array.from(new Set([...(modern.legacySourceRoutineIds || []), routine.id]));
+        modern.routineFamilyId = modern.routineFamilyId || template.canonicalId || template.id || routine.id;
+      }
+      updated.push({
+        ...mergeRoutineModernMetadata(routine, template, {preserveScoring:true}),
+        isDeleted: true,
+        deletedAt: routine.deletedAt || now,
+        migrationStatus: "archived_replaced_by_modern_scoring",
+        replacedByRoutineId: modern.id,
+        legacyScoring: routine.scoring,
+        modernScoring: template.scoring,
+        scoringContinuity: "changed",
+        historicalLogsPreserved: true,
+        routineFamilyId: modern.routineFamilyId || template.canonicalId || template.id || routine.id
+      });
+      linked++;
+    } else if (template && gaps.length) {
+      updated.push(mergeRoutineModernMetadata(routine, template, {preserveScoring:true}));
+      repaired++;
+    } else if (!template && gaps.length) {
+      updated.push(mergeRoutineModernMetadata(routine, routine, {preserveScoring:true}));
+      repaired++;
+    } else {
+      updated.push(routine);
+    }
+  }
+  data.routines = updated;
+  rebuildRoutineSkillMapCache();
+  saveData({immediateIDB:true});
+  showTransientNotice(`Legacy upgrade complete: ${repaired} repaired · ${linked} archived/linked · ${created} modern routines created.`, "ok");
+  renderLegacyRoutineAudit();
+}
+
 function closeRoutinePackImportPreview() {
   document.getElementById("routinePackImportPreviewOverlay")?.remove();
 }
@@ -11434,6 +11691,8 @@ safeOn("installCuratedRoutinePackBtn", "click", installBundledCuratedRoutinePack
 safeOn("downloadCuratedRoutinePackBtn", "click", downloadBundledCuratedRoutinePack);
 safeOn("installNolanBenchmarkPackBtn", "click", installBundledNolanBenchmarkPack);
 safeOn("downloadNolanBenchmarkPackBtn", "click", downloadBundledNolanBenchmarkPack);
+safeOn("auditLegacyRoutinesBtn", "click", renderLegacyRoutineAudit);
+safeOn("upgradeLegacyRoutinesBtn", "click", applySafeLegacyRoutineUpgrade);
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));

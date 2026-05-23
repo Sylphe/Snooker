@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.21"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.21" />
-  <link rel="stylesheet" href="styles.css?v=5.7.21" />
-  <link rel="icon" href="icon.svg?v=5.7.21" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.22"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.22" />
+  <link rel="stylesheet" href="styles.css?v=5.7.22" />
+  <link rel="icon" href="icon.svg?v=5.7.22" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.21 · Build 2026-05-23 16:05 CEST — Pack schema alignment audit fix.</p>
+      <p>v5.7.22 · Build 2026-05-23 16:05 CEST — Legacy routine upgrade layer.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -703,6 +703,11 @@
             <input id="exerciseSearch" placeholder="Search exercise name or import source..." />
           </div>
         </div>
+        <div class="row legacy-routine-actions">
+          <button id="auditLegacyRoutinesBtn" class="secondary" type="button">Audit legacy routines</button>
+          <button id="upgradeLegacyRoutinesBtn" class="secondary" type="button">Apply safe legacy upgrade</button>
+        </div>
+        <div id="legacyRoutineAuditOutput" class="insight-box hidden"></div>
         <div id="routineList" class="list grouped"></div>
       </div>
       </div>
@@ -1404,7 +1409,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.21"></script>
+  <script type="module" src="app.js?v=5.7.22"></script>
 </body>
 
 

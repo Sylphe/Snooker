@@ -132,3 +132,11 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Updated import preview defaults to keep pack targets unless explicitly overridden.
 - Removed misleading wording that treated import provenance as analytics tags.
 - Updated stale ES module cache-busting query strings across `app.js` and `modules/app-core.js`.
+
+## v5.7.22 — Legacy routine upgrade layer
+
+- Added a legacy routine audit tool in the Exercise database.
+- Added a safe legacy upgrade action that repairs metadata without rewriting historical logs.
+- Added archive-and-link migration for routines whose modern scoring archetype differs from legacy logs.
+- Added routine migration fields: migration status, replacement link, routine family ID, historical-log preservation marker, and scoring continuity.
+- Safe upgrades use bundled Nolan / Curated v2 templates as canonical metadata sources.
