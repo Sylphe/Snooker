@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.28";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.28";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.29";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.29";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.28";
+} from "./utils.js?v=5.7.29";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.28";
+} from "./settings.js?v=5.7.29";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.28";
+} from "./analytics.js?v=5.7.29";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.28";
+} from "./bayesian.js?v=5.7.29";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.28";
+} from "./session.js?v=5.7.29";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.28";
+} from "./pressure.js?v=5.7.29";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.28";
+} from "./recommendations.js?v=5.7.29";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.28";
+} from "./store.js?v=5.7.29";
 
 
 
@@ -7741,6 +7741,14 @@ function routineRecommendationProfile(routine, stats, strategy="balanced", focus
     reasons:[...new Set(reasons.filter(Boolean))]
   };
 }
+
+function safeRecommendationScore(value, fallback=0) {
+  const n = Number(value);
+  const f = Number(fallback);
+  if (Number.isFinite(n)) return n;
+  return Number.isFinite(f) ? f : 0;
+}
+
 function rankRoutinesByMode(focusOverride="all", strategy="balanced", mode=getSmartRecommendationMode()) {
   const routineSig = `${(data.routines || []).length}|${(data.routines || [])[0]?.id || ""}|${(data.routines || [])[(data.routines || []).length - 1]?.id || ""}|${data?.updatedAt || ""}`;
   const cacheKey = `${focusOverride}|${strategy}|${mode}|${logsSignature(data.logs || [])}|${routineSig}`;

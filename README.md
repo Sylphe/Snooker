@@ -184,3 +184,9 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Wrapped Smart Session rendering so the output panel always shows progress, a generated plan, or a visible error.
 - Added fallback plan rendering if the advanced Smart Session builder throws.
 - Exposed `window.SnookerSmartSessionBuild` as an emergency UI fallback.
+
+## v5.7.29 — Smart Session safe-score fix
+
+- Fixed advanced Smart Session builder failure caused by missing `safeRecommendationScore()`.
+- Preserved the v5.7.28 visible fallback/error handling.
+- Updated all cache/version markers to v5.7.29.
