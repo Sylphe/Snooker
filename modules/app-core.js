@@ -11259,6 +11259,121 @@ function routineModernSchemaGaps(routine={}) {
   if (!String(routine.structureType || "").trim()) gaps.push("structureType");
   return gaps;
 }
+
+function inferLegacyRoutineBenchmarkTargets(routine={}) {
+  const scoring = String(routine.scoring || "raw");
+  const name = legacyRoutineKey(routine.name || "");
+  const target = Number(routine.target);
+  const stretch = Number(routine.stretchTarget);
+  if (scoring === "success_rate") {
+    const base = Number.isFinite(target) && target > 0 ? target : 40;
+    return {
+      junior: Math.max(5, Math.round(base * 0.55)),
+      club: Math.max(10, Math.round(base * 0.8)),
+      senior: Math.min(100, Math.max(20, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.25))),
+      pro: Math.min(100, Math.max(30, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 1.65))))
+    };
+  }
+  if (scoring === "highest_break") {
+    const base = Number.isFinite(target) && target > 0 ? target : (name.includes("line") ? 35 : 20);
+    return {
+      junior: Math.max(5, Math.round(base * 0.55)),
+      club: Math.max(8, Math.round(base)),
+      senior: Math.max(12, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.5)),
+      pro: Math.max(18, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 2.4)))
+    };
+  }
+  if (scoring === "points" || scoring === "progressive_completion") {
+    const base = Number.isFinite(target) && target > 0 ? target : 20;
+    return {
+      junior: Math.max(1, Math.round(base * 0.5)),
+      club: Math.max(2, Math.round(base)),
+      senior: Math.max(3, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.4)),
+      pro: Math.max(4, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 2)))
+    };
+  }
+  return {junior:10, club:20, senior:35, pro:60};
+}
+function inferLegacyRoutineArchetype(routine={}) {
+  const name = legacyRoutineKey(routine.name || "");
+  const skill = String(routine.primarySkill || routine.skillMap?.primarySkill || "");
+  if (name.includes("safety") || name.includes("shot to nothing") || skill === "safety" || skill === "tactical_decision_making") return "safety-tactical";
+  if (name.includes("rest") || skill === "rest_play") return "rest-play";
+  if (name.includes("long") || skill === "long_potting") return "long-potting";
+  if (name.includes("line") || name.includes("break") || name.includes("reds") || skill === "break_building") return "break-building";
+  if (skill === "cue_ball_control" || skill === "pace_control" || skill === "stun_screw_side") return "cue-ball-control";
+  return "technical";
+}
+function inferLegacyRoutineStructureType(routine={}) {
+  const name = legacyRoutineKey(routine.name || "");
+  const scoring = String(routine.scoring || "");
+  if (name.includes("frame") || name.includes("match")) return "match-simulation";
+  if (scoring === "highest_break" || name.includes("line") || name.includes("break")) return "break-building";
+  if (name.includes("safety") || name.includes("escape") || name.includes("shot to nothing")) return "tactical";
+  if (scoring === "progressive_completion") return "progression";
+  if (scoring === "points") return "zone-points";
+  return "repetition";
+}
+function inferLegacySetupDescription(routine={}) {
+  if (String(routine.setupDescription || "").trim()) return String(routine.setupDescription).trim();
+  if (String(routine.description || "").trim()) return String(routine.description).trim();
+  const name = String(routine.name || "this exercise").trim();
+  return `Set up ${name} as named. Use the saved scoring rule and keep the setup consistent between sessions.`;
+}
+function inferLegacyScoringRuleText(routine={}) {
+  const scoring = String(routine.scoring || "");
+  if (scoring === "success_rate") return "Record successful executions out of the planned attempts. A success must meet the full pot, position, or safety objective.";
+  if (scoring === "highest_break") return "Record the highest break or best continuous score achieved during the block.";
+  if (scoring === "progressive_completion") return "Record the furthest clean progression reached through the sequence.";
+  if (scoring === "points") return "Record the total points scored using the routine's zone or scoring rubric.";
+  return "Record the score using the routine's saved scoring method.";
+}
+function inferLegacyCoachingPurpose(routine={}) {
+  const arch = inferLegacyRoutineArchetype(routine);
+  if (arch === "break-building") return "Develop break-building continuity, transition quality, and positional recovery.";
+  if (arch === "long-potting") return "Improve long-pot execution while preserving continuation value.";
+  if (arch === "safety-tactical") return "Improve tactical decision-making, safety execution, and leave quality.";
+  if (arch === "rest-play") return "Build rest-cue reliability and bridging stability.";
+  if (arch === "cue-ball-control") return "Calibrate cue-ball distance, speed, and recovery routes.";
+  return "Build repeatable technical execution and improve transfer into practice frames.";
+}
+function inferLegacyCommonMistake(routine={}) {
+  const arch = inferLegacyRoutineArchetype(routine);
+  if (arch === "break-building") return "Potting the current ball without preserving the next-ball angle.";
+  if (arch === "long-potting") return "Judging success by potting only and ignoring cue-ball recovery.";
+  if (arch === "safety-tactical") return "Playing the hit without defining the intended safe leave.";
+  if (arch === "rest-play") return "Rushing the rest setup and decelerating through the cue ball.";
+  return "Repeating the drill without a clear success definition.";
+}
+function fillLegacyRoutineFallbackMetadata(routine={}) {
+  const filled = {...routine};
+  if (!hasBenchmarkTargets(filled)) {
+    filled.benchmarkTargets = inferLegacyRoutineBenchmarkTargets(filled);
+    filled.levelTargets = [
+      {level:"junior", target:filled.benchmarkTargets.junior},
+      {level:"club", target:filled.benchmarkTargets.club},
+      {level:"senior", target:filled.benchmarkTargets.senior},
+      {level:"pro", target:filled.benchmarkTargets.pro}
+    ];
+  }
+  filled.setupType = filled.setupType || "text";
+  filled.setupDescription = String(filled.setupDescription || "").trim() || inferLegacySetupDescription(filled);
+  filled.scoringRuleText = String(filled.scoringRuleText || "").trim() || inferLegacyScoringRuleText(filled);
+  filled.coachingPurpose = String(filled.coachingPurpose || "").trim() || inferLegacyCoachingPurpose(filled);
+  filled.commonMistake = String(filled.commonMistake || "").trim() || inferLegacyCommonMistake(filled);
+  filled.benchmarkSource = String(filled.benchmarkSource || "").trim() || "Legacy routine migration fallback";
+  const bt = normalizeBenchmarkTargetsFromAny(filled);
+  filled.benchmarkNotes = String(filled.benchmarkNotes || "").trim() || `Benchmarks — Junior: ${bt.junior || "n/a"}, Club: ${bt.club || "n/a"}, Senior: ${bt.senior || "n/a"}, Pro: ${bt.pro || "n/a"}. Generated from legacy routine target structure.`;
+  filled.routineArchetype = filled.routineArchetype || inferLegacyRoutineArchetype(filled);
+  filled.structureType = filled.structureType || inferLegacyRoutineStructureType(filled);
+  filled.skillMap = normalizeRoutineSkillMap(filled, filled.skillMap);
+  filled.primarySkill = filled.skillMap.primarySkill;
+  filled.secondarySkills = filled.skillMap.secondarySkills;
+  filled.transferTags = filled.skillMap.transferTags;
+  filled.transferSkills = filled.skillMap.transferTags;
+  return ensureTargetHistory(filled);
+}
+
 function mergeRoutineModernMetadata(legacy={}, template={}, options={}) {
   const preserveScoring = options.preserveScoring !== false;
   const merged = {...legacy};
@@ -11304,7 +11419,7 @@ function mergeRoutineModernMetadata(legacy={}, template={}, options={}) {
   merged.historicalLogsPreserved = true;
   merged.routineFamilyId = merged.routineFamilyId || template.canonicalId || template.id || merged.canonicalId || merged.id;
   merged.updatedAt = new Date().toISOString();
-  return ensureTargetHistory(merged);
+  return fillLegacyRoutineFallbackMetadata(ensureTargetHistory(merged));
 }
 async function legacyRoutineTemplateIndex() {
   const packs = [];
@@ -11457,11 +11572,18 @@ async function applySafeLegacyRoutineUpgrade() {
       updated.push(routine);
     }
   }
-  data.routines = updated;
+  data.routines = updated.map(r => fillLegacyRoutineFallbackMetadata(r));
   rebuildRoutineSkillMapCache();
-  saveData({immediateIDB:true});
+  saveData({immediateIDB:true, allowReadOnlyCleanup:true});
   showTransientNotice(`Legacy upgrade complete: ${repaired} repaired · ${linked} archived/linked · ${created} modern routines created.`, "ok");
-  renderLegacyRoutineAudit();
+  setTimeout(() => {
+    try {
+      renderAll();
+      renderLegacyRoutineAudit();
+    } catch(error) {
+      logAppError?.(error, "legacy upgrade post-render");
+    }
+  }, 80);
 }
 
 function closeRoutinePackImportPreview() {
@@ -11684,6 +11806,13 @@ safeOn("exportCsvBtn", "click", async () => {
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
+
+window.SnookerLegacyMigration = {
+  audit: renderLegacyRoutineAudit,
+  applySafeUpgrade: applySafeLegacyRoutineUpgrade,
+  buildAudit: buildLegacyRoutineAudit
+};
+
 safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
 safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
 safeOn("exportAiCoachingBtn", "click", exportAiCoachingSnapshot);
@@ -13812,6 +13941,8 @@ function handleDelegatedUIAction(event) {
       return;
     }
     case "toggle-focus": return window.SnookerInterface?.toggleFocus?.();
+    case "audit-legacy-routines": return renderLegacyRoutineAudit();
+    case "upgrade-legacy-routines": return applySafeLegacyRoutineUpgrade();
     case "edit-routine": return editRoutine(id);
     case "duplicate-routine": return duplicateRoutine(id);
     case "delete-routine": return deleteRoutine(id);

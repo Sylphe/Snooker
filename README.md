@@ -140,3 +140,11 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Added archive-and-link migration for routines whose modern scoring archetype differs from legacy logs.
 - Added routine migration fields: migration status, replacement link, routine family ID, historical-log preservation marker, and scoring continuity.
 - Safe upgrades use bundled Nolan / Curated v2 templates as canonical metadata sources.
+
+## v5.7.23 — Legacy upgrade action fix
+
+- Fixed the legacy upgrade action so it fires through both direct button binding and delegated data-action routing.
+- Added fallback metadata generation for legacy routines without a matching bundled template.
+- Ensured safe legacy upgrade fills benchmark targets, setup text, scoring rules, coaching purpose, common mistakes, archetype, structure type, target history, and skill map fields.
+- Added post-upgrade render/audit refresh so the audit result reflects the applied migration immediately.
+- Exposed `window.SnookerLegacyMigration` for emergency manual audit/upgrade diagnostics.
