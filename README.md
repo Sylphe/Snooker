@@ -177,3 +177,10 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Added focus matching across category, folder, and primary skill instead of category-only matching.
 - Added fallback plan generation when advanced Smart Session filters produce no picks.
 - Hardened Load into Plan Builder so it can recover from an empty draft when active routines exist.
+
+## v5.7.28 — Smart Session button binding fix
+
+- Added direct, delegated, and global fallback execution paths for the Build Smart Session button.
+- Wrapped Smart Session rendering so the output panel always shows progress, a generated plan, or a visible error.
+- Added fallback plan rendering if the advanced Smart Session builder throws.
+- Exposed `window.SnookerSmartSessionBuild` as an emergency UI fallback.

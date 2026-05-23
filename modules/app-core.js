@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.27";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.27";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.28";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.28";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.27";
+} from "./utils.js?v=5.7.28";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.27";
+} from "./settings.js?v=5.7.28";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.27";
+} from "./analytics.js?v=5.7.28";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.27";
+} from "./bayesian.js?v=5.7.28";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.27";
+} from "./session.js?v=5.7.28";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.27";
+} from "./pressure.js?v=5.7.28";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.27";
+} from "./recommendations.js?v=5.7.28";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.27";
+} from "./store.js?v=5.7.28";
 
 
 
@@ -7416,7 +7416,31 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage};
 }
 
-function renderAdaptiveSession() {
+
+function renderAdaptiveSession(event) {
+  try { event?.preventDefault?.(); event?.stopPropagation?.(); } catch(_) {}
+  const adaptiveHost = $("adaptiveEngineOutput");
+  if (adaptiveHost) adaptiveHost.innerHTML = `<p class="muted">Building smart session...</p>`;
+  try {
+    return renderAdaptiveSessionInternal();
+  } catch(error) {
+    logAppError?.(error, "renderAdaptiveSession wrapper");
+    try {
+      const fallback = smartSessionFallbackPlan($("adaptiveGoal")?.value || "stability", Number($("adaptiveDuration")?.value || 60), error?.message || "builder exception");
+      adaptivePlanDraft = validRoutineIds(fallback.routineIds);
+      const rows = (fallback.blocks || []).map(block => `<div class="adaptive-phase smart-block-card"><h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4><div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>${(block.picks || []).map(pick => { const s = pick.state || pick; return `<div class="routine-row"><div><strong>${escapeHtml(s?.routine?.name || "Exercise")}</strong><div class="adaptive-rationale">Fallback pick · ${escapeHtml((s?.reasons || []).slice(0,2).join(" · ") || "active routine")}</div></div></div>`; }).join("")}</div>`).join("");
+      if (adaptiveHost) adaptiveHost.innerHTML = `<div class="adaptive-phase adaptive-watch"><h4>Smart Session fallback</h4><div class="adaptive-rationale">The advanced builder hit an error and used the active-routine fallback. Error: ${escapeHtml(error?.message || String(error || "unknown"))}</div></div>${rows || "<p>No active exercises available.</p>"}`;
+      showTransientNotice?.("Smart Session generated with fallback logic.", "warn");
+    } catch(fallbackError) {
+      logAppError?.(fallbackError, "renderAdaptiveSession fallback");
+      if (adaptiveHost) adaptiveHost.innerHTML = `<p class="danger-text">Smart Session failed: ${escapeHtml(error?.message || String(error || "unknown error"))}. Fallback also failed: ${escapeHtml(fallbackError?.message || String(fallbackError || "unknown error"))}</p>`;
+    }
+  }
+}
+window.SnookerSmartSessionBuild = renderAdaptiveSession;
+
+
+function renderAdaptiveSessionInternal() {
   const rawGoal = $("adaptiveGoal")?.value || "auto";
   const phaseInfo = applyPeriodizationToAdaptiveInputs();
   const goal = rawGoal === "auto" ? phaseInfo.settings.goal : rawGoal;
@@ -11957,7 +11981,14 @@ safeOn("runRegretBtn", "click", runRegretComparison);
   }
   renderPeriodization();
 }));
-safeOn("generateAdaptiveSessionBtn", "click", renderAdaptiveSession);
+safeOn("generateAdaptiveSessionBtn", "click", event => renderAdaptiveSession(event));
+
+document.addEventListener("click", event => {
+  const btn = event.target?.closest?.("#generateAdaptiveSessionBtn");
+  if (!btn) return;
+  renderAdaptiveSession(event);
+}, true);
+
 safeOn("loadAdaptiveSessionBtn", "click", loadAdaptiveSessionIntoPlanBuilder);
 safeOn("saveTableBtn", "click", saveTableDefinition);
 safeOn("clearTableFormBtn", "click", clearTableForm);
@@ -14068,6 +14099,7 @@ function handleDelegatedUIAction(event) {
       return;
     }
     case "toggle-focus": return window.SnookerInterface?.toggleFocus?.();
+    case "build-smart-session": return renderAdaptiveSession(event);
     case "audit-legacy-routines": return renderLegacyRoutineAudit();
     case "upgrade-legacy-routines": return applySafeLegacyRoutineUpgrade(event);
     case "edit-routine": return editRoutine(id);

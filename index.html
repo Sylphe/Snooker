@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.27"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.27" />
-  <link rel="stylesheet" href="styles.css?v=5.7.27" />
-  <link rel="icon" href="icon.svg?v=5.7.27" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.28"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.28" />
+  <link rel="stylesheet" href="styles.css?v=5.7.28" />
+  <link rel="icon" href="icon.svg?v=5.7.28" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.27 · Build 2026-05-23 18:05 CEST — Smart Session generation fix.</p>
+      <p>v5.7.28 · Build 2026-05-23 18:40 CEST — Smart Session button binding fix.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -195,7 +195,7 @@
 
           <div id="periodizationOutput" class="analytics-note"></div>
           <div class="row primary-action-row">
-            <button id="generateAdaptiveSessionBtn" type="button" class="primary-start-btn">Build Smart Session</button>
+            <button id="generateAdaptiveSessionBtn" type="button" class="primary-start-btn" data-action="build-smart-session" onclick="window.SnookerSmartSessionBuild && window.SnookerSmartSessionBuild(event)">Build Smart Session</button>
             <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
           </div>
           <div id="adaptiveEngineOutput" class="orchestrator-box">Build a smart session to see the recommended training structure.</div>
@@ -1409,7 +1409,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.27"></script>
+  <script type="module" src="app.js?v=5.7.28"></script>
 </body>
 
 
