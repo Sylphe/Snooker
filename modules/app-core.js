@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.13";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.15";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.15";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.8";
+} from "./utils.js?v=5.7.15";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.8";
+} from "./settings.js?v=5.7.15";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.8";
+} from "./analytics.js?v=5.7.15";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.8";
+} from "./bayesian.js?v=5.7.15";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.8";
+} from "./session.js?v=5.7.15";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.8";
+} from "./pressure.js?v=5.7.15";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.8";
+} from "./recommendations.js?v=5.7.15";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.8";
+} from "./store.js?v=5.7.15";
 
 
 
@@ -2923,6 +2923,15 @@ const defaultData = {
   routinePackImports: [],
   smartSessionBuilder: {version:"v2"}
 };
+
+const DEFAULT_TABLE_DEFINITIONS = [
+  {id:"default-home-table", name:"Home table", type:"Home"},
+  {id:"default-club-table-1", name:"Club table 1", type:"Club"},
+  {id:"default-club-table-2", name:"Club table 2", type:"Club"},
+  {id:"default-club-table-3", name:"Club table 3", type:"Club"},
+  {id:"default-club-table-4", name:"Club table 4", type:"Club"},
+  {id:"default-other-table", name:"Other", type:"Other"}
+];
 
 let data = loadData();
 activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
@@ -6273,14 +6282,6 @@ async function exportFile(filename,text,mimeType="application/octet-stream"){
   }
 }
 
-const DEFAULT_TABLE_DEFINITIONS = [
-  {id:"default-home-table", name:"Home table", type:"Home"},
-  {id:"default-club-table-1", name:"Club table 1", type:"Club"},
-  {id:"default-club-table-2", name:"Club table 2", type:"Club"},
-  {id:"default-club-table-3", name:"Club table 3", type:"Club"},
-  {id:"default-club-table-4", name:"Club table 4", type:"Club"},
-  {id:"default-other-table", name:"Other", type:"Other"}
-];
 let tableLegacyRepairApplied = false;
 function repairLegacyTableLinksOnce() {
   if (tableLegacyRepairApplied) return false;

@@ -91,3 +91,17 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Rounded count-based total units and attempts-per-session fields.
 - Reset the exercise form to Basic mode after clearing.
 - Preserved import batch ancestry fields during routine edits.
+
+## Changelog — v5.7.14
+
+- Fixed fatal bootstrap regression introduced in v5.7.12/v5.7.13 where `APP_BUILD_TIMESTAMP` was missing from `modules/version.js`.
+- Updated module cache-busting query strings for the bootstrap path.
+- Updated service-worker cache version.
+- No new per-release `.txt` file added.
+## Changelog — v5.7.15
+
+- Fixed fatal bootstrap ordering bug where `ensureTablesDatabase()` could run before `DEFAULT_TABLE_DEFINITIONS` was initialized.
+- Moved default table definitions above first startup table initialization.
+- Updated visible app version, module cache-busting strings, and service-worker cache version.
+- No separate release `.txt` file added.
+
