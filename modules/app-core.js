@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.21";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.21";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.27";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.27";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.21";
+} from "./utils.js?v=5.7.27";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.21";
+} from "./settings.js?v=5.7.27";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.21";
+} from "./analytics.js?v=5.7.27";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.21";
+} from "./bayesian.js?v=5.7.27";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.21";
+} from "./session.js?v=5.7.27";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.21";
+} from "./pressure.js?v=5.7.27";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.21";
+} from "./recommendations.js?v=5.7.27";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.21";
+} from "./store.js?v=5.7.27";
 
 
 
@@ -7207,6 +7207,78 @@ function smartRecommendationModeLabel(mode){
   return mode === "thompson" ? "Thompson Sampling" : mode === "hybrid" ? "Hybrid" : "Heuristic";
 }
 
+
+function smartSessionRoutinePool(focusOverride="all") {
+  const active = activeRoutines();
+  const eligible = recommendationEligibleRoutines();
+  const base = eligible.length ? eligible : active;
+  if (!base.length) return [];
+  const focus = String(focusOverride || "all");
+  if (!focus || focus === "all" || isSystemAll(focus)) return base;
+  const exact = base.filter(r => String(r.category || "") === focus || String(r.folder || "") === focus || String(getRoutineSkillMap(r).primarySkill || "") === focus);
+  if (exact.length) return exact;
+  const focusLower = focus.toLowerCase();
+  const fuzzy = base.filter(r => 
+    String(r.category || "").toLowerCase().includes(focusLower) ||
+    String(r.folder || "").toLowerCase().includes(focusLower) ||
+    String(r.name || "").toLowerCase().includes(focusLower)
+  );
+  return fuzzy.length ? fuzzy : base;
+}
+function smartSessionFallbackPlan(goal="auto", duration=60, reason="fallback") {
+  const targetMinutes = Math.max(30, Number(duration || 60));
+  const pool = smartSessionRoutinePool("all");
+  const logMap = getLogsByRoutineMap(data.logs || []);
+  const states = pool.map(r => {
+    try { return adaptiveRoutineState(r, logMap); }
+    catch(e) { logAppError?.(e, `smartSessionFallbackPlan state ${r?.id || "unknown"}`); return null; }
+  }).filter(s => s?.routine?.id);
+  const ranked = states.sort((a,b) => {
+    const at = Number(a.routine?.isAnchor ? 1 : 0), bt = Number(b.routine?.isAnchor ? 1 : 0);
+    if (bt !== at) return bt - at;
+    return routineTransferValue(b.routine) - routineTransferValue(a.routine);
+  });
+  const picks = ranked.slice(0, Math.min(4, ranked.length)).map(s => normalizeAdaptivePick(s, 1));
+  const blocks = picks.length ? [{
+    name:"Smart Session fallback",
+    blockType:"primary",
+    minutes:targetMinutes,
+    purpose:"Fallback plan generated from active routines because the advanced Smart Session filters did not produce enough candidates.",
+    picks
+  }] : [];
+  return {
+    effectiveGoal: goal === "auto" ? "stability" : goal,
+    targetMinutes,
+    estimatedMinutes: adaptivePlanExpectedMinutes(blocks),
+    horizonWeeks:Number($("periodizationHorizon")?.value || 4),
+    daysToCompetition:null,
+    globalReasons:[`fallback: ${reason}`],
+    blocks,
+    routineIds: flattenAdaptiveRoutineIds(blocks),
+    ranked,
+    budgets: sessionBudgetsForGoal(goal === "auto" ? "stability" : goal, targetMinutes),
+    budgetUsage: budgetUsageForBlocks(blocks)
+  };
+}
+function normalizeSmartSessionPlan(plan, goal="auto", duration=60) {
+  if (!plan || !Array.isArray(plan.blocks)) return smartSessionFallbackPlan(goal, duration, "invalid plan object");
+  const blocks = (plan.blocks || []).map(block => ({
+    ...block,
+    picks:(block.picks || []).filter(pick => (pick?.state || pick)?.routine?.id)
+  })).filter(block => block.picks.length);
+  const routineIds = flattenAdaptiveRoutineIds(blocks);
+  if (!routineIds.length) return smartSessionFallbackPlan(goal, duration, "no eligible drill picks");
+  return {
+    ...plan,
+    blocks,
+    routineIds,
+    estimatedMinutes: adaptivePlanExpectedMinutes(blocks),
+    budgetUsage: plan.budgetUsage || budgetUsageForBlocks(blocks),
+    budgets: plan.budgets || sessionBudgetsForGoal(plan.effectiveGoal || goal, plan.targetMinutes || duration)
+  };
+}
+
+
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -7221,10 +7293,10 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const focusOverride = $("orchestratorFocus")?.value || "all";
   const strategy = $("orchestratorStrategy")?.value || "balanced";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
-  const routinePool = recommendationEligibleRoutines().filter(r => focusOverride === "all" || r.category === focusOverride);
+  const routinePool = smartSessionRoutinePool(focusOverride);
   const adaptiveLogMap = getLogsByRoutineMap(data.logs || []);
   let states = routinePool.map(r => adaptiveRoutineState(r, adaptiveLogMap));
-  if (!states.length) states = recommendationEligibleRoutines().map(r => adaptiveRoutineState(r, adaptiveLogMap));
+  if (!states.length) states = smartSessionRoutinePool("all").map(r => adaptiveRoutineState(r, adaptiveLogMap));
   const recommendationModeForBuilder = getSmartRecommendationMode();
   const recommendationProfiles = new Map(rankRoutinesByMode(focusOverride, strategy, recommendationModeForBuilder).map(x => [x.routine.id, x]));
   const ranked = states.map(s => {
@@ -7351,8 +7423,18 @@ function renderAdaptiveSession() {
   const baseDuration = Number($("adaptiveDuration")?.value || "60");
   const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
   const strictness = $("adaptiveStrictness")?.value || "normal";
-  const plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
+  let plan;
+  try {
+    plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
+    plan = normalizeSmartSessionPlan(plan, goal, duration);
+  } catch(error) {
+    logAppError?.(error, "renderAdaptiveSession build");
+    plan = smartSessionFallbackPlan(goal, duration, error?.message || "builder error");
+  }
   adaptivePlanDraft = validRoutineIds(plan.routineIds);
+  if (!adaptivePlanDraft.length && (plan.routineIds || []).length) {
+    adaptivePlanDraft = (plan.routineIds || []).filter(id => routineById(id) && !routineById(id).isDeleted);
+  }
 
   const mode = getSmartRecommendationMode();
   const usage = plan.budgetUsage || {cognitive:0,fatigue:0,confidence:0,switches:0};
@@ -7392,7 +7474,11 @@ function renderAdaptiveSession() {
 }
 
 function loadAdaptiveSessionIntoPlanBuilder() {
-  if (!adaptivePlanDraft.length) return showTransientNotice("Build a smart session first.", "warn");
+  if (!adaptivePlanDraft.length) {
+    const fallback = smartSessionFallbackPlan("stability", Number($("adaptiveDuration")?.value || 60), "load fallback");
+    adaptivePlanDraft = validRoutineIds(fallback.routineIds);
+  }
+  if (!adaptivePlanDraft.length) return showTransientNotice("No active exercises available for a smart session.", "warn");
   planDraft = validRoutineIds(adaptivePlanDraft);
   renderPlanBuilder();
   document.querySelector('[data-tab="plans"]').click();

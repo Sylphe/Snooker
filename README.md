@@ -169,3 +169,11 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Fixed stale `app.js` module import cache-busting that still pointed to `app-core.js?v=5.7.21`.
 - Removed the legacy upgrade dependency on `finiteNumber()` by using the existing `finiteOr()` helper directly.
 - Updated all version/cache markers to v5.7.26.
+
+## v5.7.27 — Smart Session generation fix
+
+- Fixed stale internal ES module cache-busting in `app-core.js` that still pointed to v5.7.21 modules.
+- Added robust Smart Session candidate pool fallback after routine migration/archive changes.
+- Added focus matching across category, folder, and primary skill instead of category-only matching.
+- Added fallback plan generation when advanced Smart Session filters produce no picks.
+- Hardened Load into Plan Builder so it can recover from an empty draft when active routines exist.
