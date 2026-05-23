@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.13";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.8";
 import {
   uuid,
@@ -824,6 +824,21 @@ function getRoutineSkillMap(routine){
   data.routineSkillMap = data.routineSkillMap || {};
   if(!data.routineSkillMap[routine.id]) data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
   return data.routineSkillMap[routine.id];
+}
+function rebuildRoutineSkillMapCache(){
+  data.routineSkillMap = {};
+  (data.routines || []).forEach(r => {
+    data.routineSkillMap[r.id] = normalizeRoutineSkillMap(r, r.skillMap);
+  });
+  return data.routineSkillMap;
+}
+function boundedRoutineNumber(value, {integer=false, min=null, max=null} = {}){
+  let n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  if (integer) n = Math.round(n);
+  if (min !== null) n = Math.max(min, n);
+  if (max !== null) n = Math.min(max, n);
+  return n;
 }
 function skillSnapshotForRoutine(routine, skillMap){
   const m = normalizeRoutineSkillMap(routine || {}, skillMap || getRoutineSkillMap(routine));
@@ -4715,6 +4730,7 @@ function applyExerciseFormMode(mode) {
 
 function populateRoutineEditForm(r) {
   if (!r) return;
+  ensureTargetHistory(r);
   $("routineFormTitle").textContent = "Edit exercise";
   $("routineEditId").value = r.id;
   if ($("routineCanonicalId")) $("routineCanonicalId").value = r.canonicalId || getRoutineCanonicalId(r) || "";
@@ -4773,7 +4789,7 @@ function editRoutine(id) {
 
 function clearRoutineForm() {
   $("routineFormTitle").textContent = "Create exercise";
-  applyExerciseFormMode(getExerciseFormMode());
+  applyExerciseFormMode("basic");
   $("routineEditId").value = "";
   ["routineName","routineCategoryNew","routineFolderNew","routineSubfolderNew","routineAttempts","routineDuration","routineTarget","routineStretchTarget","routineBenchmarkJunior","routineBenchmarkClub","routineBenchmarkSenior","routineBenchmarkPro","routineBenchmarkSource","routineSetupDescription","routineScoringRuleText","routineCoachingPurpose","routineCommonMistake","routineBenchmarkNotes","routineTotalUnits","routineAttemptsPerSession","routineDifficultyLabel","routineSecondarySkills","routineTransferTags","routineDescription","routineCanonicalId","routineIsCatalogue","routinePackSource","routinePackVersion"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("routineScoring").value = "raw";
@@ -4868,10 +4884,10 @@ safeOn("saveRoutineBtn", "click", () => {
     primarySkill: normalizeSkillId($("routinePrimarySkill")?.value || ""),
     secondarySkills: normalizeActiveSkillList($("routineSecondarySkills")?.value || ""),
     transferTags: normalizeActiveSkillList($("routineTransferTags")?.value || ""),
-    target: Number($("routineTarget").value || 0) || "",
-    stretchTarget: Number($("routineStretchTarget").value || 0) || "",
-    totalUnits: Number($("routineTotalUnits").value || 0) || "",
-    attemptsPerSession: Number($("routineAttemptsPerSession").value || 0) || "",
+    target: boundedRoutineNumber($("routineTarget").value, {min:0, max: $("routineScoring").value === "success_rate" ? 100 : null}),
+    stretchTarget: boundedRoutineNumber($("routineStretchTarget").value, {min:0, max: $("routineScoring").value === "success_rate" ? 100 : null}),
+    totalUnits: boundedRoutineNumber($("routineTotalUnits").value, {integer:true, min:0}),
+    attemptsPerSession: boundedRoutineNumber($("routineAttemptsPerSession").value, {integer:true, min:0}),
     unitType: $("routineUnitType").value || "balls_cleared",
     targetMode: $("routineTargetMode").value || "custom",
     targetColour: $("routineTargetColour").value || inferTargetColour($("routineTargetMode").value) || "",
@@ -4902,7 +4918,7 @@ safeOn("saveRoutineBtn", "click", () => {
 
   if (editId) {
     if (oldRoutine) {
-      ["sourceRoutineId","sourcePackId","catalogueId","importedAt","updatedAt","sourceBookReference","catalogueSource","packSource"].forEach(field => {
+      ["sourceRoutineId","sourcePackId","catalogueId","importedAt","updatedAt","sourceBookReference","catalogueSource","packSource","routinePackImportBatchId","routinePackImportedAt"].forEach(field => {
         if (oldRoutine[field] !== undefined && routine[field] === undefined) routine[field] = oldRoutine[field];
       });
       const oldScoring = String(oldRoutine.scoring || "raw");
@@ -4939,6 +4955,8 @@ Cancel = stop so you can archive/duplicate the routine and keep historical logs 
       } else {
         ensureTargetHistory(routine);
       }
+      const activeProfile = getActiveTargetProfile(routine);
+      if (activeProfile) activeProfile.difficultyLabel = routine.difficultyLabel || activeProfile.difficultyLabel || "Base target";
     }
     data.routines = data.routines.map(r => r.id === routine.id ? routine : r);
   } else {
@@ -6419,6 +6437,7 @@ function mergeSkillTag(id){
   if(!currentSkillById(to)) return alert("Target skill ID not found.");
   if(!confirm(`Merge ${skillLabel(id)} into ${skillLabel(to)}? Exercise and log skill references will be remapped.`)) return;
   remapSkillIdAcrossData(id,to);
+  rebuildRoutineSkillMapCache();
   const taxonomy=normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
   data.skillTaxonomy=normalizeSkillTaxonomy({skills:taxonomy.skills.map(s=>s.id===id?{...s, active:false}:s)});
   activeSkillTaxonomyForNormalization=data.skillTaxonomy; invalidateSkillLibraryCache();
@@ -11597,7 +11616,11 @@ function ensureTargetHistory(routine) {
 function getActiveTargetProfile(routine) {
   if (!routine) return null;
   ensureTargetHistory(routine);
-  return routine.targetHistory.find(p => p.id === routine.activeTargetProfileId) || routine.targetHistory[routine.targetHistory.length-1] || null;
+  const active = routine.targetHistory.find(p => p.id === routine.activeTargetProfileId);
+  if (active) return active;
+  const fallback = routine.targetHistory[routine.targetHistory.length-1] || null;
+  if (fallback && routine.activeTargetProfileId !== fallback.id) routine.activeTargetProfileId = fallback.id;
+  return fallback;
 }
 function hasTargetProfileChanged(oldRoutine, newRoutine) {
   if (!oldRoutine) return false;

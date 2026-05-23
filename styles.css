@@ -5332,3 +5332,14 @@ body[data-theme="dark"] .skill-select-chip[aria-pressed="true"]{
   background:var(--accent-strong, #86efac);
   border-color:var(--accent-strong, #86efac);
 }
+
+/* v5.7.13 — routine edit chip selector hardening */
+.skill-chip-section .skill-chip-row{
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 520px){
+  .skill-chip-section .skill-chip-row{max-height: 170px;}
+}

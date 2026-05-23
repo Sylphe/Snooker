@@ -1,1 +1,1 @@
-export const APP_VERSION = "5.7.12-routine-edit-metadata-integrity-fix";
+export const APP_VERSION = "5.7.13-routine-edit-hardening-validation-fix";

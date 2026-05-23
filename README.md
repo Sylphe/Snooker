@@ -81,3 +81,13 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Uses the universal setup metadata parser for library setup cards so imported/nested Nolan metadata displays consistently.
 - Removes duplicate edit-form population to avoid overwriting fields during render.
 - Adds hidden identity fields for catalogue routines and strips archived skill tags during active routine saves.
+
+## v5.7.13 Routine Edit Hardening and Validation Fix
+- Synced edited difficulty labels back to the active target profile.
+- Added mobile scroll containment for large skill-chip selectors.
+- Hardened skill-map cache rebuilding after skill merges.
+- Persisted repaired active target profile IDs when legacy target history was incomplete.
+- Clamped success-rate targets and stretch targets to 0–100.
+- Rounded count-based total units and attempts-per-session fields.
+- Reset the exercise form to Basic mode after clearing.
+- Preserved import batch ancestry fields during routine edits.
