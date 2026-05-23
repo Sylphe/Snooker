@@ -5343,3 +5343,52 @@ body[data-theme="dark"] .skill-select-chip[aria-pressed="true"]{
 @media (max-width: 520px){
   .skill-chip-section .skill-chip-row{max-height: 170px;}
 }
+
+/* v5.7.18 — import provenance is metadata, not an analytics tag */
+.routine-import-source-label{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:.72rem;
+  font-weight:700;
+  color:var(--muted, #64748b);
+  background:rgba(100,116,139,.10);
+  border:1px dashed rgba(100,116,139,.28);
+}
+body[data-theme="dark"] .routine-import-source-label{
+  color:var(--muted, #94a3b8);
+  background:rgba(148,163,184,.10);
+  border-color:rgba(148,163,184,.24);
+}
+
+/* v5.7.19 — routine skill pills and edit-tag clarity */
+.routine-skill-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+.routine-skill-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: rgba(17, 24, 39, 0.055);
+  color: var(--text);
+}
+.routine-skill-pill span {
+  opacity: 0.65;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+.routine-skill-primary { background: rgba(34, 197, 94, 0.13); border-color: rgba(34,197,94,0.28); }
+.routine-skill-secondary { background: rgba(59, 130, 246, 0.10); border-color: rgba(59,130,246,0.24); }
+.routine-skill-transfer { background: rgba(168, 85, 247, 0.10); border-color: rgba(168,85,247,0.24); }

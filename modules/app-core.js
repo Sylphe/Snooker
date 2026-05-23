@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.15";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.15";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.21";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.21";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.15";
+} from "./utils.js?v=5.7.21";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.15";
+} from "./settings.js?v=5.7.21";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.15";
+} from "./analytics.js?v=5.7.21";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.15";
+} from "./bayesian.js?v=5.7.21";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.15";
+} from "./session.js?v=5.7.21";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.15";
+} from "./pressure.js?v=5.7.21";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.15";
+} from "./recommendations.js?v=5.7.21";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.15";
+} from "./store.js?v=5.7.21";
 
 
 
@@ -733,6 +733,8 @@ function normalizeRawSkillIdList(value){
 function skillLabel(id){ return (currentSkillLibrary({includeArchived:true}).find(s=>s.id===id)?.label) || String(id||"").replaceAll("_"," "); }
 function normalizeSkillId(value){
   const raw = canonicalSkillKey(value);
+  if (raw === "tactical") return "tactical_decision_making";
+  if (raw === "transfer_skills") return "match_play";
   return skillAliasMap()[raw] || raw || "uncategorized";
 }
 function normalizeSkillList(value){
@@ -745,8 +747,8 @@ function normalizeActiveSkillList(value){
   const valid = new Set(currentSkillLibrary({includeArchived:false}).map(s=>s.id));
   return [...new Set(arr.map(normalizeSkillId).filter(x => x && valid.has(x)))];
 }
-function setSkillHiddenValue(id, values){ const el=$(id); if(el) el.value = normalizeSkillList(values).join(", "); }
-function getSkillHiddenValue(id){ return normalizeSkillList($(id)?.value || ""); }
+function setSkillHiddenValue(id, values){ const el=$(id); if(el) el.value = normalizeActiveSkillList(values).join(", "); }
+function getSkillHiddenValue(id){ return normalizeActiveSkillList($(id)?.value || ""); }
 function renderPrimarySkillOptions(selectedValue=""){
   const select = $("routinePrimarySkill");
   if(!select) return;
@@ -811,10 +813,12 @@ function normalizeRoutineSkillMap(routine, existing){
   const src = existing || routine?.skillMap || {};
   const validSkills = new Set(currentSkillLibrary({includeArchived:true}).map(s=>s.id));
   const primary = normalizeSkillId(src.primarySkill || routine?.primarySkill || inferred.primarySkill);
+  const secondarySource = src.secondarySkills || routine?.secondarySkills || routine?.skills || inferred.secondarySkills;
+  const transferSource = src.transferTags || src.transferSkills || routine?.transferTags || routine?.transferSkills || inferred.transferTags;
   return {
     primarySkill: validSkills.has(primary) ? primary : inferred.primarySkill,
-    secondarySkills: normalizeSkillList(src.secondarySkills || routine?.secondarySkills || inferred.secondarySkills),
-    transferTags: normalizeSkillList(src.transferTags || routine?.transferTags || inferred.transferTags),
+    secondarySkills: normalizeSkillList(secondarySource),
+    transferTags: normalizeSkillList(transferSource),
     source: src.source || routine?.skillMapSource || "auto",
     updatedAt: src.updatedAt || routine?.skillMapUpdatedAt || new Date().toISOString()
   };
@@ -822,8 +826,12 @@ function normalizeRoutineSkillMap(routine, existing){
 function getRoutineSkillMap(routine){
   if(!routine) return inferRoutineSkillMap({});
   data.routineSkillMap = data.routineSkillMap || {};
-  if(!data.routineSkillMap[routine.id]) data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
-  return data.routineSkillMap[routine.id];
+  // The routine object is the source of truth. The global map is only a cache.
+  // Prefer routine.skillMap when present so edit forms never hydrate from stale/empty cache entries.
+  const sourceMap = routine.skillMap || data.routineSkillMap[routine.id];
+  const normalized = normalizeRoutineSkillMap(routine, sourceMap);
+  data.routineSkillMap[routine.id] = normalized;
+  return normalized;
 }
 function rebuildRoutineSkillMapCache(){
   data.routineSkillMap = {};
@@ -3905,6 +3913,15 @@ function hasTextSetupCard(routine = {}) {
   const f = textSetupFields(routine);
   return !!(f.setup || f.scoringRule || f.purpose || f.mistake || f.benchmark);
 }
+function routineSkillPillsHtml(routine = {}) {
+  const m = getRoutineSkillMap(routine);
+  const pills = [];
+  if (m.primarySkill) pills.push({type:"Primary", id:m.primarySkill, cls:"primary"});
+  normalizeSkillList(m.secondarySkills || []).forEach(id => pills.push({type:"Skill", id, cls:"secondary"}));
+  normalizeSkillList(m.transferTags || []).forEach(id => pills.push({type:"Transfer", id, cls:"transfer"}));
+  if (!pills.length) return "";
+  return `<div class="routine-skill-pill-row">${pills.map(p => `<span class="routine-skill-pill routine-skill-${attrText(p.cls)}"><span>${htmlText(p.type)}</span>${htmlText(skillLabel(p.id))}</span>`).join("")}</div>`;
+}
 function renderRoutineSetupCard(routine = {}, options = {}) {
   if (!hasTextSetupCard(routine)) return "";
   const f = textSetupFields(routine);
@@ -4063,6 +4080,18 @@ function repairRoutineMetadataFromPack(pack, options={}) {
     }
     if (!next.routinePackSource && packSource) { next.routinePackSource = packSource; touched = true; }
     if (!next.routinePackVersion && packVersion) { next.routinePackVersion = packVersion; touched = true; }
+    const sourceSkillMap = normalizeRoutineSkillMap(source, source.skillMap || {});
+    const currentSkillMap = normalizeRoutineSkillMap(next, next.skillMap || {});
+    const currentSkillSignature = JSON.stringify(currentSkillMap);
+    const sourceSkillSignature = JSON.stringify(sourceSkillMap);
+    if ((!next.skillMap || !next.skillMap.primarySkill || currentSkillSignature !== sourceSkillSignature) && sourceSkillMap.primarySkill) {
+      next.skillMap = sourceSkillMap;
+      next.primarySkill = sourceSkillMap.primarySkill;
+      next.secondarySkills = normalizeSkillList(sourceSkillMap.secondarySkills);
+      next.transferTags = normalizeSkillList(sourceSkillMap.transferTags);
+      next.transferSkills = normalizeSkillList(sourceSkillMap.transferTags);
+      touched = true;
+    }
     if (touched) {
       next.updatedAt = new Date().toISOString();
       changed += 1;
@@ -4086,7 +4115,7 @@ async function repairBundledNolanMetadataSilently() {
     const changed = repairRoutineMetadataFromPack(pack, {sourceName: pack.packMeta?.name || "Nolan Benchmark Pack v1", sourceVersion: pack.packMeta?.version || "1.0.0"});
     if (changed) {
       saveData({render:"all", immediateIDB:true});
-      showTransientNotice(`Repaired setup-card metadata for ${changed} Nolan exercise${changed === 1 ? "" : "s"}.`, "ok");
+      console.info(`Repaired setup-card metadata for ${changed} Nolan exercise${changed === 1 ? "" : "s"}.`);
     }
     return changed;
   } catch(e) {
@@ -4696,12 +4725,13 @@ function renderRoutineItem(r) {
   const importSource = String(r.routinePackSource || "").trim();
   const statusBadges = [
     r.isAnchor ? `<span class="badge anchor-badge">Anchor</span>` : "",
-    importSource ? `<span class="badge routine-import-badge">Imported from: ${htmlText(routineImportSourceLabel(r))}</span>` : "",
+    importSource ? `<span class="routine-import-source-label" aria-label="Import source">Imported from: ${htmlText(routineImportSourceLabel(r))}</span>` : "",
     recommendationMode(r) !== "active" ? `<span class="badge routine-status-badge">${htmlText(recommendationModeLabel(recommendationMode(r)))}</span>` : ""
   ].filter(Boolean).join("");
   return `<div class="item routine-item-clean">
     <div class="item-title"><strong>${htmlText(r.name)}</strong>${statusBadges ? `<span class="routine-status-row">${statusBadges}</span>` : ""}</div>
     <div class="routine-meta-line routine-meta-compact">${meta}</div>
+    ${routineSkillPillsHtml(r)}
     ${r.description ? `<p class="routine-description-compact">${htmlText(r.description)}</p>` : ""}
     ${renderRoutineSetupCard(r, {compact:true})}
     ${r.stretchTarget ? `<div class="routine-meta-line">${htmlText(formatRoutineTargetLabel(r, r.stretchTarget, "Stretch target"))}</div>` : ""}
@@ -4770,8 +4800,10 @@ function populateRoutineEditForm(r) {
   setRoutineFormValue("routineAttemptMode", getRoutineAttemptMode(r));
   setRoutineFormValue("routineIsAnchor", r.isAnchor ? "yes" : "no");
   setRoutineFormValue("routineRecommendationMode", recommendationMode(r));
-  const skillMap = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
+  const skillMap = normalizeRoutineSkillMap(r, r.skillMap || data.routineSkillMap?.[r.id] || {});
   setRoutineFormValue("routinePrimarySkill", skillMap.primarySkill || "cueing");
+  setRoutineFormValue("routineSecondarySkills", normalizeActiveSkillList(skillMap.secondarySkills || []).join(", "));
+  setRoutineFormValue("routineTransferTags", normalizeActiveSkillList(skillMap.transferTags || []).join(", "));
   renderRoutineSkillChips(skillMap);
   setRoutineFormValue("routineTarget", r.target || "");
   setRoutineFormValue("routineStretchTarget", r.stretchTarget || "");
@@ -4966,9 +4998,7 @@ safeOn("saveRoutineBtn", "click", () => {
     deletedAt: oldRoutine?.deletedAt || ""
   };
 
-  data.routineSkillMap = data.routineSkillMap || {};
-  data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
-  const historicalSkillLogsUpdated = editId ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:false}) : 0;
+  let historicalSkillLogsUpdated = 0;
 
   if (editId) {
     if (oldRoutine) {
@@ -5017,6 +5047,14 @@ Cancel = stop so you can archive/duplicate the routine and keep historical logs 
     ensureTargetHistory(routine);
     data.routines.push(routine);
   }
+
+  data.routineSkillMap = data.routineSkillMap || {};
+  data.routineSkillMap[routine.id] = normalizeRoutineSkillMap(routine, routine.skillMap);
+  routine.skillMap = data.routineSkillMap[routine.id];
+  routine.primarySkill = routine.skillMap.primarySkill;
+  routine.secondarySkills = routine.skillMap.secondarySkills;
+  routine.transferTags = routine.skillMap.transferTags;
+  historicalSkillLogsUpdated = editId ? syncRoutineSkillMapToHistoricalLogs(routine.id, data.routineSkillMap[routine.id], {persist:false}) : 0;
 
   clearRoutineForm();
   saveData({immediateIDB: historicalSkillLogsUpdated > 0});
@@ -9963,6 +10001,10 @@ function mergeRoutinePack(pack, options = {}) {
       sideMode: normalizeSideMode(source.sideMode || "none"),
       attemptMode: normalizeSideMode(source.sideMode || "none") === "left_right" ? normalizeAttemptMode(source.attemptMode || "shared") : "shared",
       skillMap,
+      primarySkill: skillMap.primarySkill,
+      secondarySkills: normalizeSkillList(skillMap.secondarySkills),
+      transferTags: normalizeSkillList(skillMap.transferTags),
+      transferSkills: normalizeSkillList(skillMap.transferTags),
       isDeleted: false,
       deletedAt: ""
     };
@@ -11198,7 +11240,7 @@ function openRoutinePackImportPreview(pack, options = {}) {
       <div class="modal-header">
         <div>
           <h2 id="routinePackPreviewTitle">Select exercises to import</h2>
-          <p class="muted small">${htmlText(importLabel)} · ${routines.length} exercise(s). Imported exercises will be tagged as <strong>Imported from: ${htmlText(importLabel)}</strong>.</p>
+          <p class="muted small">${htmlText(importLabel)} · ${routines.length} exercise(s). Imported exercises will be marked with provenance metadata: <strong>${htmlText(importLabel)}</strong>.</p>
         </div>
         <button type="button" class="secondary" id="routinePackPreviewCloseBtn">Close</button>
       </div>
@@ -11210,23 +11252,23 @@ function openRoutinePackImportPreview(pack, options = {}) {
       <div class="routine-pack-target-toolbar">
         <label>Set imported target
           <select id="routinePackPreviewTargetLevel">
-            <option value="">Keep pack target</option>
+            <option value="" selected>Keep pack target</option>
             <option value="junior">Junior benchmark</option>
             <option value="club">Club benchmark</option>
-            <option value="senior" selected>Senior benchmark</option>
+            <option value="senior">Senior benchmark</option>
             <option value="pro">Pro benchmark</option>
           </select>
         </label>
         <label>Set imported stretch target
           <select id="routinePackPreviewStretchLevel">
-            <option value="">Keep pack stretch</option>
+            <option value="" selected>Keep pack stretch</option>
             <option value="junior">Junior benchmark</option>
             <option value="club">Club benchmark</option>
             <option value="senior">Senior benchmark</option>
-            <option value="pro" selected>Pro benchmark</option>
+            <option value="pro">Pro benchmark</option>
           </select>
         </label>
-        <p class="helper-text">Applies only where benchmark values exist. Use this to mass-calibrate an imported pack before training.</p>
+        <p class="helper-text">Applies only where benchmark values exist. Packs now carry sane defaults; override only when you want a different proficiency target.</p>
       </div>
       ${validation.warnings.length ? `<div class="analytics-note warning">${htmlText(validation.warnings.length)} metadata warning(s). First: ${htmlText(validation.warnings[0])}</div>` : ""}
       <div class="routine-pack-preview-list" id="routinePackPreviewList">

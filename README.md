@@ -105,3 +105,30 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Updated visible app version, module cache-busting strings, and service-worker cache version.
 - No separate release `.txt` file added.
 
+
+
+## v5.7.19 — Routine tags and pack model alignment fix
+
+- Fixed routine skill tags not hydrating/saving reliably after edit.
+- Made the routine object the source of truth for `skillMap`; the global `routineSkillMap` is treated as a cache only.
+- Reordered routine-save skill synchronization so edited tags are saved before historical log skill snapshots are refreshed.
+- Separated import provenance display from analytical skill/tag badges; imported-pack source is now shown as metadata, not as an analytics tag.
+- No standalone release `.txt` file added.
+
+## v5.7.20 — Curated Library v2 migration
+
+- Normalized the bundled Curated Snooker Routine Library to the current routine DB model.
+- Added setup descriptions, scoring rules, coaching purposes, common mistakes, benchmark notes, and benchmark sources across the curated pack.
+- Added Junior / Club / Senior / Pro benchmark ladders across all curated routines.
+- Set bundled curated defaults to Club target and Senior stretch target instead of Pro-level defaults.
+- Converted constrained break-building line-up routines to highest-break scoring where appropriate.
+- Normalized skill maps, transfer tags, target histories, routine archetypes, structure types, and catalogue provenance.
+
+## v5.7.21 — Pack schema alignment audit fix
+
+- Aligned Nolan Benchmark Pack v1 to the same routine DB model used by Curated Library v2.
+- Added Nolan target histories, active target profile IDs, recommendation mode, provenance fields, and pack-level skill/target profile maps.
+- Set Nolan pack defaults to Club target and Senior stretch target, matching Curated Library v2.
+- Updated import preview defaults to keep pack targets unless explicitly overridden.
+- Removed misleading wording that treated import provenance as analytics tags.
+- Updated stale ES module cache-busting query strings across `app.js` and `modules/app-core.js`.
