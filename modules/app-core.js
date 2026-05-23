@@ -4737,54 +4737,64 @@ function applyExerciseFormMode(mode) {
   document.querySelectorAll(".routine-advanced-field").forEach(el => el.classList.toggle("hidden", clean !== "advanced"));
 }
 
+function setRoutineFormValue(id, value) {
+  const el = $(id);
+  if (!el) return false;
+  el.value = value ?? "";
+  return true;
+}
 function populateRoutineEditForm(r) {
   if (!r) return;
-  ensureTargetHistory(r);
-  $("routineFormTitle").textContent = "Edit exercise";
-  $("routineEditId").value = r.id;
-  if ($("routineCanonicalId")) $("routineCanonicalId").value = r.canonicalId || getRoutineCanonicalId(r) || "";
-  if ($("routineIsCatalogue")) $("routineIsCatalogue").value = r.isCatalogueRoutine ? "true" : "false";
-  if ($("routinePackSource")) $("routinePackSource").value = r.routinePackSource || "";
-  if ($("routinePackVersion")) $("routinePackVersion").value = r.routinePackVersion || "";
-  $("routineName").value = r.name || "";
-  $("routineScoring").value = r.scoring || "raw";
-  $("routineCategorySelect").value = categories().includes(r.category) ? r.category : "all";
-  $("routineCategoryNew").value = "";
-  $("routineFolderSelect").value = folders().includes(r.folder) ? r.folder : "all";
-  $("routineFolderNew").value = "";
-  $("routineSubfolderSelect").value = subfolders().includes(r.subfolder) ? r.subfolder : "all";
-  $("routineSubfolderNew").value = "";
-  $("routineAttempts").value = r.attempts || "";
-  $("routineDuration").value = r.duration || "";
-  if ($("routineSideMode")) $("routineSideMode").value = normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit);
-  if ($("routineAttemptMode")) $("routineAttemptMode").value = getRoutineAttemptMode(r);
-  $("routineIsAnchor").value = r.isAnchor ? "yes" : "no";
-  if ($("routineRecommendationMode")) $("routineRecommendationMode").value = recommendationMode(r);
+  r = ensureTargetHistory(r) || r;
+  setRoutineFormValue("routineEditId", r.id || "");
+  const title = $("routineFormTitle");
+  if (title) title.textContent = "Edit exercise";
+  setRoutineFormValue("routineCanonicalId", r.canonicalId || getRoutineCanonicalId(r) || "");
+  setRoutineFormValue("routineIsCatalogue", r.isCatalogueRoutine ? "true" : "false");
+  setRoutineFormValue("routinePackSource", r.routinePackSource || "");
+  setRoutineFormValue("routinePackVersion", r.routinePackVersion || "");
+  setRoutineFormValue("routineName", r.name || "");
+  setRoutineFormValue("routineScoring", r.scoring || "raw");
+  const categoryOptions = categories();
+  setRoutineFormValue("routineCategorySelect", categoryOptions.includes(r.category) ? r.category : "all");
+  setRoutineFormValue("routineCategoryNew", "");
+  const folderOptions = folders();
+  setRoutineFormValue("routineFolderSelect", folderOptions.includes(r.folder) ? r.folder : "all");
+  setRoutineFormValue("routineFolderNew", "");
+  const subfolderOptions = subfolders();
+  setRoutineFormValue("routineSubfolderSelect", subfolderOptions.includes(r.subfolder) ? r.subfolder : "all");
+  setRoutineFormValue("routineSubfolderNew", "");
+  setRoutineFormValue("routineAttempts", r.attempts || "");
+  setRoutineFormValue("routineDuration", r.duration || "");
+  setRoutineFormValue("routineSideMode", normalizeSideMode(r.sideMode || r.sideSplitMode || r.sideSplit));
+  setRoutineFormValue("routineAttemptMode", getRoutineAttemptMode(r));
+  setRoutineFormValue("routineIsAnchor", r.isAnchor ? "yes" : "no");
+  setRoutineFormValue("routineRecommendationMode", recommendationMode(r));
   const skillMap = normalizeRoutineSkillMap(r, getRoutineSkillMap(r));
-  if ($("routinePrimarySkill")) $("routinePrimarySkill").value = skillMap.primarySkill || "cueing";
+  setRoutineFormValue("routinePrimarySkill", skillMap.primarySkill || "cueing");
   renderRoutineSkillChips(skillMap);
-  $("routineTarget").value = r.target || "";
-  $("routineStretchTarget").value = r.stretchTarget || "";
-  $("routineDifficultyLabel").value = getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "";
+  setRoutineFormValue("routineTarget", r.target || "");
+  setRoutineFormValue("routineStretchTarget", r.stretchTarget || "");
+  setRoutineFormValue("routineDifficultyLabel", getActiveTargetProfile(r)?.difficultyLabel || r.difficultyLabel || "");
   const setupMeta = routineSetupMetaFromRoutine(r);
   const benchmarkTargets = setupMeta.benchmarkTargets || benchmarkTargetsFromRoutine(r);
-  if ($("routineBenchmarkJunior")) $("routineBenchmarkJunior").value = benchmarkTargets.junior || "";
-  if ($("routineBenchmarkClub")) $("routineBenchmarkClub").value = benchmarkTargets.club || "";
-  if ($("routineBenchmarkSenior")) $("routineBenchmarkSenior").value = benchmarkTargets.senior || "";
-  if ($("routineBenchmarkPro")) $("routineBenchmarkPro").value = benchmarkTargets.pro || "";
-  if ($("routineBenchmarkSource")) $("routineBenchmarkSource").value = setupMeta.benchmarkSource || r.benchmarkSource || r.routinePackSource || "";
-  if ($("routineSetupDescription")) $("routineSetupDescription").value = setupMeta.setupDescription || "";
-  if ($("routineScoringRuleText")) $("routineScoringRuleText").value = setupMeta.scoringRuleText || "";
-  if ($("routineCoachingPurpose")) $("routineCoachingPurpose").value = setupMeta.coachingPurpose || "";
-  if ($("routineCommonMistake")) $("routineCommonMistake").value = setupMeta.commonMistake || "";
-  if ($("routineBenchmarkNotes")) $("routineBenchmarkNotes").value = setupMeta.benchmarkNotes || "";
-  $("routineTotalUnits").value = r.totalUnits || "";
-  $("routineAttemptsPerSession").value = r.attemptsPerSession || "";
-  $("routineUnitType").value = r.unitType || "balls_cleared";
-  $("routineTargetMode").value = r.targetMode || "custom";
-  $("routineTargetColour").value = r.targetColour || inferTargetColour(r.targetMode) || "";
-  $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
-  $("routineDescription").value = r.description || "";
+  setRoutineFormValue("routineBenchmarkJunior", benchmarkTargets.junior || "");
+  setRoutineFormValue("routineBenchmarkClub", benchmarkTargets.club || "");
+  setRoutineFormValue("routineBenchmarkSenior", benchmarkTargets.senior || "");
+  setRoutineFormValue("routineBenchmarkPro", benchmarkTargets.pro || "");
+  setRoutineFormValue("routineBenchmarkSource", setupMeta.benchmarkSource || r.benchmarkSource || r.routinePackSource || "");
+  setRoutineFormValue("routineSetupDescription", setupMeta.setupDescription || "");
+  setRoutineFormValue("routineScoringRuleText", setupMeta.scoringRuleText || "");
+  setRoutineFormValue("routineCoachingPurpose", setupMeta.coachingPurpose || "");
+  setRoutineFormValue("routineCommonMistake", setupMeta.commonMistake || "");
+  setRoutineFormValue("routineBenchmarkNotes", setupMeta.benchmarkNotes || "");
+  setRoutineFormValue("routineTotalUnits", r.totalUnits || "");
+  setRoutineFormValue("routineAttemptsPerSession", r.attemptsPerSession || "");
+  setRoutineFormValue("routineUnitType", r.unitType || "balls_cleared");
+  setRoutineFormValue("routineTargetMode", r.targetMode || "custom");
+  setRoutineFormValue("routineTargetColour", r.targetColour || inferTargetColour(r.targetMode) || "");
+  setRoutineFormValue("routineTrackHighestBreak", r.trackHighestBreak ? "yes" : "no");
+  setRoutineFormValue("routineDescription", r.description || "");
 }
 function scrollRoutineFormIntoView(){
   const anchor = $("routineFormTitle") || $("routineFormGrid") || $("templates");
@@ -4817,11 +4827,18 @@ function editRoutine(id) {
       showTransientNotice?.("Editing exercise.", "success");
     } catch(e) {
       logAppError?.(e, "editRoutine populate");
-      alert("Could not open this exercise for editing. Export a backup, then reload the app and try again.");
+      showTransientNotice?.("Exercise edit form recovered with partial data. Review fields before saving.", "warning");
+      try {
+        setRoutineFormValue("routineEditId", id);
+        setRoutineFormValue("routineName", r.name || "");
+        setRoutineFormValue("routineScoring", r.scoring || "raw");
+        setRoutineFormValue("routineTarget", r.target || "");
+        setRoutineFormValue("routineDescription", r.description || "");
+        scrollRoutineFormIntoView();
+      } catch(_) {}
     }
   };
-  if (typeof requestAnimationFrame === "function") requestAnimationFrame(runPopulate);
-  else runPopulate();
+  runPopulate();
 }
 
 function clearRoutineForm() {
@@ -11414,11 +11431,15 @@ function validateBackupShape(candidate) {
   if (missing.length) return {ok:false, message:`Backup is missing required array(s): ${missing.join(", ")}.`};
   const badRoutine = candidate.routines.find(r => !r || typeof r !== "object" || !r.id || !r.name);
   if (badRoutine) return {ok:false, message:"At least one routine is missing an id or name."};
-  const badLog = candidate.logs.find(l => !l || typeof l !== "object" || !l.id || !l.createdAt);
-  if (badLog) return {ok:false, message:"At least one log is missing an id or createdAt timestamp."};
+  const badLog = candidate.logs.find(l => !l || typeof l !== "object" || !l.id);
+  if (badLog) return {ok:false, message:"At least one log is missing an id."};
+  const missingLogDates = candidate.logs.filter(l => l && !l.createdAt).length;
   const routineIds = new Set(candidate.routines.map(r => String(r.id)));
   const orphanLogs = candidate.logs.filter(l => l?.routineId && !routineIds.has(String(l.routineId))).length;
-  return {ok:true, warnings: orphanLogs ? [`${orphanLogs} log(s) reference routines that are not present in the backup. They will be kept and shown as deleted exercises.`] : []};
+  const warnings = [];
+  if (orphanLogs) warnings.push(`${orphanLogs} log(s) reference routines that are not present in the backup. They will be kept and shown as deleted exercises.`);
+  if (missingLogDates) warnings.push(`${missingLogDates} log(s) are missing timestamps and will be repaired during migration where possible.`);
+  return {ok:true, warnings};
 }
 safeOn("importJsonInput", "change", async (e) => {
   const file = e.target.files[0];
@@ -11469,7 +11490,8 @@ safeOn("importJsonInput", "change", async (e) => {
     const idbOk = await persistIndexedDBCollections("backup import indexedDB replace");
     if (!idbOk && storageReadOnlyMode) return alert("Import loaded in memory, but device storage is full. Export a backup or free space before continuing.");
     saveData({idbSync:"skip"});
-    alert("Backup imported.");
+    const importWarnings = [...(precheck.warnings || []), ...(postcheck.warnings || [])].filter(Boolean);
+    alert(importWarnings.length ? `Backup imported with warning(s):\n${importWarnings.slice(0,5).join("\n")}` : "Backup imported.");
   } catch (err) {
     logAppError(err, "importJsonInput validation/import");
     alert("Import failed. The selected file is not a valid Snooker Practice JSON backup.");

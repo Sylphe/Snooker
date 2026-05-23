@@ -98,7 +98,7 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Updated module cache-busting query strings for the bootstrap path.
 - Updated service-worker cache version.
 - No new per-release `.txt` file added.
-## Changelog — v5.7.16
+## Changelog — v5.7.17
 
 - Fixed fatal bootstrap ordering bug where `ensureTablesDatabase()` could run before `DEFAULT_TABLE_DEFINITIONS` was initialized.
 - Moved default table definitions above first startup table initialization.
