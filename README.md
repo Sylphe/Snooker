@@ -148,3 +148,12 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Ensured safe legacy upgrade fills benchmark targets, setup text, scoring rules, coaching purpose, common mistakes, archetype, structure type, target history, and skill map fields.
 - Added post-upgrade render/audit refresh so the audit result reflects the applied migration immediately.
 - Exposed `window.SnookerLegacyMigration` for emergency manual audit/upgrade diagnostics.
+
+## v5.7.24 — Legacy upgrade execution fix
+
+- Rebuilt the legacy upgrade executor to mutate and persist routines deterministically.
+- Fixed audit logic so archived legacy routines no longer appear as still needing migration.
+- Added visible progress/error output inside the Legacy Routine Audit panel.
+- Added stronger fallback metadata generation for self-repair routines.
+- Added log skill-snapshot refresh for upgraded active routines.
+- Hardened direct and delegated button execution for the safe legacy upgrade action.

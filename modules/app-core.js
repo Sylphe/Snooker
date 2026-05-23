@@ -11208,7 +11208,8 @@ async function loadBundledNolanBenchmarkPack() {
 
 
 
-const LEGACY_ROUTINE_UPGRADE_VERSION = "v5.7.22";
+
+const LEGACY_ROUTINE_UPGRADE_VERSION = "v5.7.24";
 const LEGACY_ROUTINE_NAME_MAP = {
   "cue stars all black t lineup": "curated-bb-007-t-lineup-black",
   "cue stars all pink t lineup": "curated-bb-006-t-lineup-pink",
@@ -11225,6 +11226,7 @@ const LEGACY_ROUTINE_NAME_MAP = {
   "cue stars 10 rest pots": "curated-pot-009-rest-pots",
   "cue stars figure 8 safety": "curated-saf-003-figure-eight-safety",
   "cue stars shot to nothing": "curated-saf-002-shot-to-nothing",
+  "cue stars smelly short 20 pink": "curated-pot-005-pink-middle",
   "cuestars 15 safety shots": "curated-saf-001-baulk-return",
   "cuestars tough safety routine": "curated-saf-008-safety-pressure-frame",
   "pink clockwise": "curated-cb-001-pink-clockwise",
@@ -11232,7 +11234,12 @@ const LEGACY_ROUTINE_NAME_MAP = {
   "blue canon colors pink level": "curated-cb-002-blue-cannon-colours",
   "blue canon colors black cushion level copy": "curated-cb-002-blue-cannon-colours",
   "blue cannon colors pink level": "curated-cb-002-blue-cannon-colours",
-  "blue cannon colors black cushion level copy": "curated-cb-002-blue-cannon-colours"
+  "blue cannon colors black cushion level copy": "curated-cb-002-blue-cannon-colours",
+  "line up": "nolan-benchmark-021-line-up",
+  "line-up": "nolan-benchmark-021-line-up",
+  "black from spot": "curated-pot-004-black-cushion",
+  "safety drill": "curated-saf-001-baulk-return",
+  "long potting 10 attempts": "curated-pot-003-long-reds"
 };
 
 function legacyRoutineKey(value="") {
@@ -11244,6 +11251,25 @@ function legacyRoutineKey(value="") {
     .replace(/\bcopy\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+function cloneSimple(value) {
+  if (value === undefined || value === null) return value;
+  try { return JSON.parse(JSON.stringify(value)); }
+  catch(_) { return value; }
+}
+function hasLegacyModernMetadata(routine={}) {
+  return !!(
+    routine.skillMap?.primarySkill &&
+    hasBenchmarkTargets(routine) &&
+    String(routine.setupDescription || "").trim() &&
+    String(routine.scoringRuleText || "").trim() &&
+    String(routine.coachingPurpose || "").trim() &&
+    String(routine.commonMistake || "").trim() &&
+    String(routine.benchmarkNotes || "").trim() &&
+    Array.isArray(routine.targetHistory) && routine.targetHistory.length &&
+    String(routine.routineArchetype || "").trim() &&
+    String(routine.structureType || "").trim()
+  );
 }
 function routineModernSchemaGaps(routine={}) {
   const gaps = [];
@@ -11259,40 +11285,38 @@ function routineModernSchemaGaps(routine={}) {
   if (!String(routine.structureType || "").trim()) gaps.push("structureType");
   return gaps;
 }
-
 function inferLegacyRoutineBenchmarkTargets(routine={}) {
   const scoring = String(routine.scoring || "raw");
-  const name = legacyRoutineKey(routine.name || "");
   const target = Number(routine.target);
   const stretch = Number(routine.stretchTarget);
   if (scoring === "success_rate") {
     const base = Number.isFinite(target) && target > 0 ? target : 40;
+    const high = Number.isFinite(stretch) && stretch > base ? stretch : base * 1.25;
     return {
-      junior: Math.max(5, Math.round(base * 0.55)),
-      club: Math.max(10, Math.round(base * 0.8)),
-      senior: Math.min(100, Math.max(20, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.25))),
-      pro: Math.min(100, Math.max(30, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 1.65))))
+      junior: Math.max(5, Math.min(100, Math.round(base * 0.55))),
+      club: Math.max(10, Math.min(100, Math.round(base * 0.8))),
+      senior: Math.max(20, Math.min(100, Math.round(high))),
+      pro: Math.max(30, Math.min(100, Math.round(Math.max(high, base * 1.65))))
     };
   }
   if (scoring === "highest_break") {
-    const base = Number.isFinite(target) && target > 0 ? target : (name.includes("line") ? 35 : 20);
+    const base = Number.isFinite(target) && target > 0 ? target : 20;
+    const high = Number.isFinite(stretch) && stretch > base ? stretch : base * 1.5;
     return {
       junior: Math.max(5, Math.round(base * 0.55)),
       club: Math.max(8, Math.round(base)),
-      senior: Math.max(12, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.5)),
-      pro: Math.max(18, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 2.4)))
+      senior: Math.max(12, Math.round(high)),
+      pro: Math.max(18, Math.round(Math.max(high, base * 2.4)))
     };
   }
-  if (scoring === "points" || scoring === "progressive_completion") {
-    const base = Number.isFinite(target) && target > 0 ? target : 20;
-    return {
-      junior: Math.max(1, Math.round(base * 0.5)),
-      club: Math.max(2, Math.round(base)),
-      senior: Math.max(3, Math.round(Number.isFinite(stretch) && stretch > base ? stretch : base * 1.4)),
-      pro: Math.max(4, Math.round(Math.max(Number.isFinite(stretch) ? stretch : 0, base * 2)))
-    };
-  }
-  return {junior:10, club:20, senior:35, pro:60};
+  const base = Number.isFinite(target) && target > 0 ? target : 20;
+  const high = Number.isFinite(stretch) && stretch > base ? stretch : base * 1.4;
+  return {
+    junior: Math.max(1, Math.round(base * 0.5)),
+    club: Math.max(2, Math.round(base)),
+    senior: Math.max(3, Math.round(high)),
+    pro: Math.max(4, Math.round(Math.max(high, base * 2)))
+  };
 }
 function inferLegacyRoutineArchetype(routine={}) {
   const name = legacyRoutineKey(routine.name || "");
@@ -11317,8 +11341,7 @@ function inferLegacyRoutineStructureType(routine={}) {
 function inferLegacySetupDescription(routine={}) {
   if (String(routine.setupDescription || "").trim()) return String(routine.setupDescription).trim();
   if (String(routine.description || "").trim()) return String(routine.description).trim();
-  const name = String(routine.name || "this exercise").trim();
-  return `Set up ${name} as named. Use the saved scoring rule and keep the setup consistent between sessions.`;
+  return `Set up ${String(routine.name || "this exercise").trim()} as named. Keep the setup consistent between sessions.`;
 }
 function inferLegacyScoringRuleText(routine={}) {
   const scoring = String(routine.scoring || "");
@@ -11371,42 +11394,35 @@ function fillLegacyRoutineFallbackMetadata(routine={}) {
   filled.secondarySkills = filled.skillMap.secondarySkills;
   filled.transferTags = filled.skillMap.transferTags;
   filled.transferSkills = filled.skillMap.transferTags;
+  filled.legacyUpgradeVersion = LEGACY_ROUTINE_UPGRADE_VERSION;
+  filled.historicalLogsPreserved = true;
+  filled.migrationStatus = filled.migrationStatus || "metadata_repaired";
+  filled.updatedAt = new Date().toISOString();
   return ensureTargetHistory(filled);
 }
-
 function mergeRoutineModernMetadata(legacy={}, template={}, options={}) {
   const preserveScoring = options.preserveScoring !== false;
-  const merged = {...legacy};
-  const copyIfMissing = [
+  let merged = {...legacy};
+  const copyFields = [
     "setupType","setupDescription","scoringRuleText","coachingPurpose","commonMistake","benchmarkSource",
     "benchmarkNotes","routineArchetype","structureType","estimatedDifficulty","fatigueCost","pressureValue",
     "tacticalValue","unitType","targetMode","targetColour","trackHighestBreak"
   ];
-  copyIfMissing.forEach(field => {
+  copyFields.forEach(field => {
     if ((merged[field] === undefined || merged[field] === null || merged[field] === "") && template[field] !== undefined) {
-      merged[field] = Array.isArray(template[field]) ? [...template[field]] : (typeof template[field] === "object" && template[field] !== null ? JSON.parse(JSON.stringify(template[field])) : template[field]);
+      merged[field] = cloneSimple(template[field]);
     }
   });
   if (!hasBenchmarkTargets(merged) && hasBenchmarkTargets(template)) {
     merged.benchmarkTargets = normalizeBenchmarkTargetsFromAny(template);
-    merged.levelTargets = Array.isArray(template.levelTargets) ? JSON.parse(JSON.stringify(template.levelTargets)) : merged.levelTargets;
+    merged.levelTargets = Array.isArray(template.levelTargets) ? cloneSimple(template.levelTargets) : merged.levelTargets;
   }
-  if (!merged.skillMap?.primarySkill && template.skillMap?.primarySkill) {
+  if (template.skillMap?.primarySkill && !merged.skillMap?.primarySkill) {
     const sm = normalizeRoutineSkillMap(template, template.skillMap);
-    merged.skillMap = {...sm, source: "legacy_migration"};
-    merged.primarySkill = sm.primarySkill;
-    merged.secondarySkills = sm.secondarySkills;
-    merged.transferTags = sm.transferTags;
-    merged.transferSkills = sm.transferTags;
-  } else {
-    merged.skillMap = normalizeRoutineSkillMap(merged, merged.skillMap);
-    merged.primarySkill = merged.skillMap.primarySkill;
-    merged.secondarySkills = merged.skillMap.secondarySkills;
-    merged.transferTags = merged.skillMap.transferTags;
-    merged.transferSkills = merged.skillMap.transferTags;
+    merged.skillMap = {...sm, source:"legacy_migration"};
   }
   if ((!Array.isArray(merged.targetHistory) || !merged.targetHistory.length) && Array.isArray(template.targetHistory) && template.targetHistory.length) {
-    merged.targetHistory = JSON.parse(JSON.stringify(template.targetHistory)).map(profile => ({
+    merged.targetHistory = cloneSimple(template.targetHistory).map(profile => ({
       ...profile,
       id: `${merged.id}-${profile.id || uuid()}-migrated`,
       effectiveFrom: profile.effectiveFrom || new Date().toISOString()
@@ -11414,12 +11430,8 @@ function mergeRoutineModernMetadata(legacy={}, template={}, options={}) {
     merged.activeTargetProfileId = merged.targetHistory[0]?.id || "";
   }
   if (preserveScoring && legacy.scoring) merged.scoring = legacy.scoring;
-  merged.legacyUpgradeVersion = LEGACY_ROUTINE_UPGRADE_VERSION;
-  merged.migrationStatus = merged.migrationStatus || "metadata_repaired";
-  merged.historicalLogsPreserved = true;
   merged.routineFamilyId = merged.routineFamilyId || template.canonicalId || template.id || merged.canonicalId || merged.id;
-  merged.updatedAt = new Date().toISOString();
-  return fillLegacyRoutineFallbackMetadata(ensureTargetHistory(merged));
+  return fillLegacyRoutineFallbackMetadata(merged);
 }
 async function legacyRoutineTemplateIndex() {
   const packs = [];
@@ -11451,53 +11463,55 @@ function existingModernRoutineForTemplate(template, excludingId="") {
   const canonical = normalizeRoutineCanonicalId(template.canonicalId || template.id || template.name);
   return (data.routines || []).find(r => String(r.id) !== String(excludingId) && !r.isDeleted && normalizeRoutineCanonicalId(r.canonicalId || r.id || r.name) === canonical && String(r.scoring || "") === String(template.scoring || ""));
 }
-async function buildLegacyRoutineAudit() {
+async function buildLegacyRoutineAudit(options={}) {
+  const includeArchived = !!options.includeArchived;
   const index = await legacyRoutineTemplateIndex();
-  const rows = (data.routines || []).map(r => {
-    const template = findLegacyRoutineTemplate(r, index);
-    const gaps = routineModernSchemaGaps(r);
-    const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(r.id));
-    const scoringMismatch = !!(template && String(template.scoring || "") && String(r.scoring || "") && String(template.scoring) !== String(r.scoring));
-    const action = !template
-      ? (gaps.length ? "repair_from_self" : "modern")
-      : scoringMismatch && logs.length
-        ? "archive_and_link"
-        : gaps.length
-          ? "metadata_repair"
-          : "modern";
-    return {
-      id: r.id,
-      name: r.name || "Untitled exercise",
-      scoring: r.scoring || "raw",
-      templateName: template?.name || "",
-      templateId: template?.canonicalId || template?.id || "",
-      templateScoring: template?.scoring || "",
-      logCount: logs.length,
-      gaps,
-      scoringMismatch,
-      action
-    };
-  });
-  return {
-    rows,
-    counts: rows.reduce((acc, row) => {
-      acc[row.action] = (acc[row.action] || 0) + 1;
-      return acc;
-    }, {})
-  };
+  const rows = (data.routines || [])
+    .filter(r => includeArchived || !r.isDeleted)
+    .map(r => {
+      const template = findLegacyRoutineTemplate(r, index);
+      const gaps = routineModernSchemaGaps(r);
+      const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(r.id));
+      const scoringMismatch = !!(template && String(template.scoring || "") && String(r.scoring || "") && String(template.scoring) !== String(r.scoring));
+      const action = r.isDeleted
+        ? "archived"
+        : !template
+          ? (gaps.length ? "repair_from_self" : "modern")
+          : scoringMismatch && logs.length
+            ? "archive_and_link"
+            : gaps.length
+              ? "metadata_repair"
+              : "modern";
+      return {
+        id: r.id,
+        name: r.name || "Untitled exercise",
+        scoring: r.scoring || "raw",
+        templateName: template?.name || "",
+        templateId: template?.canonicalId || template?.id || "",
+        templateScoring: template?.scoring || "",
+        logCount: logs.length,
+        gaps,
+        scoringMismatch,
+        action
+      };
+    });
+  return {rows, counts: rows.reduce((acc, row) => {
+    acc[row.action] = (acc[row.action] || 0) + 1;
+    return acc;
+  }, {})};
 }
 function legacyRoutineAuditHtml(audit) {
   const rows = audit.rows || [];
-  const material = rows.filter(r => r.action !== "modern");
+  const material = rows.filter(r => !["modern","archived"].includes(r.action));
   const summary = Object.entries(audit.counts || {}).map(([k,v]) => `${htmlText(k.replaceAll("_"," "))}: <strong>${numText(v)}</strong>`).join(" · ");
-  const list = material.slice(0, 30).map(row => `<div class="routine-meta-line">
+  const list = material.slice(0, 40).map(row => `<div class="routine-meta-line">
     <strong>${htmlText(row.name)}</strong> — ${htmlText(row.action.replaceAll("_"," "))}${row.templateName ? ` · template: ${htmlText(row.templateName)}` : ""}${row.gaps?.length ? ` · gaps: ${htmlText(row.gaps.join(", "))}` : ""}${row.scoringMismatch ? ` · scoring ${htmlText(row.scoring)} → ${htmlText(row.templateScoring)}` : ""} · logs: ${numText(row.logCount)}
   </div>`).join("");
   return `<div class="item">
-    <div class="item-title"><strong>Legacy routine audit</strong><span class="badge">${numText(rows.length)} exercises checked</span></div>
+    <div class="item-title"><strong>Legacy routine audit</strong><span class="badge">${numText(rows.length)} active exercises checked</span></div>
     <p>${summary || "No routines found."}</p>
-    ${material.length ? list : `<p class="muted">No legacy issues detected.</p>`}
-    ${material.length > 30 ? `<p class="muted">Showing first 30 items. Apply safe upgrade to process all detected routines.</p>` : ""}
+    ${material.length ? list : `<p class="muted">No active legacy issues detected.</p>`}
+    ${material.length > 40 ? `<p class="muted">Showing first 40 items. Apply safe upgrade to process all detected routines.</p>` : ""}
   </div>`;
 }
 async function renderLegacyRoutineAudit() {
@@ -11510,27 +11524,42 @@ async function renderLegacyRoutineAudit() {
     box.innerHTML = legacyRoutineAuditHtml(audit);
   } catch(error) {
     logAppError?.(error, "renderLegacyRoutineAudit");
-    box.innerHTML = `<p class="danger-text">Legacy routine audit failed. Export a backup before retrying.</p>`;
+    box.innerHTML = `<p class="danger-text">Legacy routine audit failed: ${htmlText(error?.message || error || "unknown error")}</p>`;
   }
 }
-async function applySafeLegacyRoutineUpgrade() {
+async function applySafeLegacyRoutineUpgrade(event) {
+  try { event?.preventDefault?.(); event?.stopPropagation?.(); } catch(_) {}
+  const box = $("legacyRoutineAuditOutput");
+  if (box) {
+    box.classList.remove("hidden");
+    box.innerHTML = `<p class="muted">Applying safe legacy upgrade...</p>`;
+  }
   const proceed = confirm("This will repair legacy routine metadata and archive/link routines whose scoring method has changed. Historical logs will not be deleted or rewritten. Export a backup first if you have not already done so.\n\nContinue?");
-  if (!proceed) return;
-  const index = await legacyRoutineTemplateIndex();
-  let repaired = 0, linked = 0, created = 0;
-  const now = new Date().toISOString();
-  const updated = [];
-  for (const routine of (data.routines || [])) {
-    if (routine.isDeleted) { updated.push(routine); continue; }
-    const template = findLegacyRoutineTemplate(routine, index);
-    const gaps = routineModernSchemaGaps(routine);
-    const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id));
-    const scoringMismatch = !!(template && String(template.scoring || "") && String(routine.scoring || "") && String(template.scoring) !== String(routine.scoring));
-    if (template && scoringMismatch && logs.length) {
-      let modern = existingModernRoutineForTemplate(template, routine.id);
-      if (!modern) {
-        modern = mergeRoutineModernMetadata({
-          ...template,
+  if (!proceed) {
+    if (box) box.innerHTML = `<p class="muted">Legacy upgrade cancelled.</p>`;
+    return;
+  }
+  try {
+    const index = await legacyRoutineTemplateIndex();
+    const original = Array.isArray(data.routines) ? data.routines : [];
+    const output = [];
+    let repaired = 0, linked = 0, created = 0, unchanged = 0;
+    const now = new Date().toISOString();
+
+    for (const routine of original) {
+      if (routine.isDeleted) {
+        output.push(routine);
+        continue;
+      }
+
+      const template = findLegacyRoutineTemplate(routine, index);
+      const gaps = routineModernSchemaGaps(routine);
+      const logs = (data.logs || []).filter(l => String(l.routineId || "") === String(routine.id));
+      const scoringMismatch = !!(template && String(template.scoring || "") && String(routine.scoring || "") && String(template.scoring) !== String(routine.scoring));
+
+      if (template && scoringMismatch && logs.length) {
+        const modern = fillLegacyRoutineFallbackMetadata(mergeRoutineModernMetadata({
+          ...cloneSimple(template),
           id: uuid(),
           canonicalId: normalizeRoutineCanonicalId(template.canonicalId || template.id || template.name),
           name: template.name || `${routine.name} — modern`,
@@ -11542,49 +11571,59 @@ async function applySafeLegacyRoutineUpgrade() {
           deletedAt: "",
           historicalLogsPreserved: true,
           routineFamilyId: template.canonicalId || template.id || routine.id
-        }, template, {preserveScoring:false});
-        updated.push(modern);
+        }, template, {preserveScoring:false}));
+        output.push(modern);
+        output.push({
+          ...mergeRoutineModernMetadata(routine, template, {preserveScoring:true}),
+          isDeleted: true,
+          deletedAt: routine.deletedAt || now,
+          migrationStatus: "archived_replaced_by_modern_scoring",
+          replacedByRoutineId: modern.id,
+          legacyScoring: routine.scoring,
+          modernScoring: template.scoring,
+          scoringContinuity: "changed",
+          historicalLogsPreserved: true,
+          routineFamilyId: modern.routineFamilyId || template.canonicalId || template.id || routine.id
+        });
+        linked++;
         created++;
+      } else if (template && gaps.length) {
+        output.push(mergeRoutineModernMetadata(routine, template, {preserveScoring:true}));
+        repaired++;
+      } else if (!template && gaps.length) {
+        output.push(fillLegacyRoutineFallbackMetadata(routine));
+        repaired++;
       } else {
-        modern.legacySourceRoutineIds = Array.from(new Set([...(modern.legacySourceRoutineIds || []), routine.id]));
-        modern.routineFamilyId = modern.routineFamilyId || template.canonicalId || template.id || routine.id;
+        output.push(fillLegacyRoutineFallbackMetadata(routine));
+        unchanged++;
       }
-      updated.push({
-        ...mergeRoutineModernMetadata(routine, template, {preserveScoring:true}),
-        isDeleted: true,
-        deletedAt: routine.deletedAt || now,
-        migrationStatus: "archived_replaced_by_modern_scoring",
-        replacedByRoutineId: modern.id,
-        legacyScoring: routine.scoring,
-        modernScoring: template.scoring,
-        scoringContinuity: "changed",
-        historicalLogsPreserved: true,
-        routineFamilyId: modern.routineFamilyId || template.canonicalId || template.id || routine.id
-      });
-      linked++;
-    } else if (template && gaps.length) {
-      updated.push(mergeRoutineModernMetadata(routine, template, {preserveScoring:true}));
-      repaired++;
-    } else if (!template && gaps.length) {
-      updated.push(mergeRoutineModernMetadata(routine, routine, {preserveScoring:true}));
-      repaired++;
-    } else {
-      updated.push(routine);
     }
+
+    data.routines = output;
+    rebuildRoutineSkillMapCache();
+    let touchedLogs = 0;
+    (data.routines || []).forEach(r => {
+      if (!r.isDeleted && r.skillMap?.primarySkill) {
+        touchedLogs += syncRoutineSkillMapToHistoricalLogs(r.id, r.skillMap, {persist:false}) || 0;
+      }
+    });
+
+    const saved = saveData({immediateIDB:true, allowReadOnlyCleanup:true});
+    safeRenderAll("legacy upgrade render");
+    const audit = await buildLegacyRoutineAudit();
+    if (box) box.innerHTML = legacyRoutineAuditHtml(audit);
+    showTransientNotice(`Legacy upgrade applied: ${repaired} repaired · ${linked} archived/linked · ${created} modern created · ${touchedLogs} log tags refreshed.`, saved === false ? "warn" : "ok");
+  } catch(error) {
+    logAppError?.(error, "applySafeLegacyRoutineUpgrade");
+    if (box) box.innerHTML = `<p class="danger-text">Legacy upgrade failed: ${htmlText(error?.message || error || "unknown error")}</p>`;
+    alert(`Legacy upgrade failed: ${error?.message || error || "unknown error"}`);
   }
-  data.routines = updated.map(r => fillLegacyRoutineFallbackMetadata(r));
-  rebuildRoutineSkillMapCache();
-  saveData({immediateIDB:true, allowReadOnlyCleanup:true});
-  showTransientNotice(`Legacy upgrade complete: ${repaired} repaired · ${linked} archived/linked · ${created} modern routines created.`, "ok");
-  setTimeout(() => {
-    try {
-      renderAll();
-      renderLegacyRoutineAudit();
-    } catch(error) {
-      logAppError?.(error, "legacy upgrade post-render");
-    }
-  }, 80);
 }
+window.SnookerLegacyMigration = {
+  audit: renderLegacyRoutineAudit,
+  applySafeUpgrade: applySafeLegacyRoutineUpgrade,
+  buildAudit: buildLegacyRoutineAudit
+};
 
 function closeRoutinePackImportPreview() {
   document.getElementById("routinePackImportPreviewOverlay")?.remove();
@@ -11821,7 +11860,7 @@ safeOn("downloadCuratedRoutinePackBtn", "click", downloadBundledCuratedRoutinePa
 safeOn("installNolanBenchmarkPackBtn", "click", installBundledNolanBenchmarkPack);
 safeOn("downloadNolanBenchmarkPackBtn", "click", downloadBundledNolanBenchmarkPack);
 safeOn("auditLegacyRoutinesBtn", "click", renderLegacyRoutineAudit);
-safeOn("upgradeLegacyRoutinesBtn", "click", applySafeLegacyRoutineUpgrade);
+safeOn("upgradeLegacyRoutinesBtn", "click", event => applySafeLegacyRoutineUpgrade(event));
 safeOn("importRoutinePackInput", "change", importRoutinePackFile);
 safeOn("importRoutineCsvInput", "change", importRoutineLibraryCsvFile);
 safeOn("exportJsonBtn", "click", async () => exportFullBackup("manual-json-export"));
@@ -13942,7 +13981,7 @@ function handleDelegatedUIAction(event) {
     }
     case "toggle-focus": return window.SnookerInterface?.toggleFocus?.();
     case "audit-legacy-routines": return renderLegacyRoutineAudit();
-    case "upgrade-legacy-routines": return applySafeLegacyRoutineUpgrade();
+    case "upgrade-legacy-routines": return applySafeLegacyRoutineUpgrade(event);
     case "edit-routine": return editRoutine(id);
     case "duplicate-routine": return duplicateRoutine(id);
     case "delete-routine": return deleteRoutine(id);
