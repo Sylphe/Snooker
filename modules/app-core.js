@@ -4709,10 +4709,10 @@ function renderRoutineItem(r) {
     ${r.scoring === "progressive_completion" && r.targetColour ? `<div class="routine-meta-line">Colour ${htmlText(fmtTargetColour(r.targetColour || inferTargetColour(r.targetMode)))}</div>` : ""}
     ${renderTargetUpgradeButton(r.id)}
     <div class="small-actions routine-actions-compact">
-      <button class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
-      <button class="secondary" data-action="toggle-favorite-routine" data-id="${attrText(r.id)}">${isFavoriteRoutine(r.id) ? "Unfavorite" : "Favorite"}</button>
-      <button class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
-      <button class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
+      <button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(r.id)}">Edit</button>
+      <button type="button" class="secondary" data-action="toggle-favorite-routine" data-id="${attrText(r.id)}">${isFavoriteRoutine(r.id) ? "Unfavorite" : "Favorite"}</button>
+      <button type="button" class="secondary" data-action="duplicate-routine" data-id="${attrText(r.id)}">Duplicate</button>
+      <button type="button" class="danger" data-action="delete-routine" data-id="${attrText(r.id)}">Delete</button>
     </div>
   </div>`;
 }
@@ -4786,14 +4786,42 @@ function populateRoutineEditForm(r) {
   $("routineTrackHighestBreak").value = r.trackHighestBreak ? "yes" : "no";
   $("routineDescription").value = r.description || "";
 }
+function scrollRoutineFormIntoView(){
+  const anchor = $("routineFormTitle") || $("routineFormGrid") || $("templates");
+  try {
+    anchor?.scrollIntoView?.({behavior:"smooth", block:"start"});
+  } catch(e) {
+    try { window.scrollTo({top: 0, behavior: "smooth"}); } catch(_) {}
+  }
+}
 function editRoutine(id) {
   const r = routineById(id);
-  if (!r) return;
-  activateTab("templates");
-  setTemplatesMainTab("exercises");
-  applyExerciseFormMode("advanced");
-  populateRoutineEditForm(r);
-  window.scrollTo({top: 0, behavior: "smooth"});
+  if (!r) {
+    showTransientNotice?.("Exercise not found. Refresh the library and try again.", "warning");
+    return;
+  }
+  try {
+    activateTab("templates");
+    setTemplatesMainTab("exercises");
+    renderRoutineSelects();
+    applyExerciseFormMode("advanced");
+  } catch(e) {
+    logAppError?.(e, "editRoutine prepare");
+  }
+  const runPopulate = () => {
+    try {
+      populateRoutineEditForm(routineById(id) || r);
+      applyExerciseFormMode("advanced");
+      scrollRoutineFormIntoView();
+      $("routineName")?.focus?.({preventScroll:true});
+      showTransientNotice?.("Editing exercise.", "success");
+    } catch(e) {
+      logAppError?.(e, "editRoutine populate");
+      alert("Could not open this exercise for editing. Export a backup, then reload the app and try again.");
+    }
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(runPopulate);
+  else runPopulate();
 }
 
 function clearRoutineForm() {
