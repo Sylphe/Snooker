@@ -12087,6 +12087,12 @@ function fmtTargetMode(mode) {
 }
 
 
+
+function finiteNumber(value, fallback=0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function targetProfileComparableKey(profile) {
   if (!profile) return "";
   return [

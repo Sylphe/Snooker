@@ -157,3 +157,9 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Added stronger fallback metadata generation for self-repair routines.
 - Added log skill-snapshot refresh for upgraded active routines.
 - Hardened direct and delegated button execution for the safe legacy upgrade action.
+
+## v5.7.25 — Legacy upgrade finite-number fix
+
+- Fixed runtime failure in legacy upgrade caused by missing `finiteNumber` helper.
+- Added compatibility helper used by target-history de-duplication during migration.
+- Preserved v5.7.24 migration execution fixes.
