@@ -1177,45 +1177,90 @@
 
       <div class="data-tab-panel hidden" data-data-panel="import-export">
         <div class="data-subnav" aria-label="Import/export subsections">
-          <button type="button" class="data-subnav-btn active-subtab" disabled>Data import / export</button>
+          <button type="button" class="data-subnav-btn active-subtab" disabled>Data & backups</button>
         </div>
-        <div class="card">
-          <h2>Backup & import</h2>
-          <p>Export results to CSV for Excel, Power BI, or deeper analysis. Data is stored locally in this browser.</p>
-          <div class="row">
-            <button id="exportCsvBtn">Export Logs CSV</button>
-            <button id="exportRoutinePackBtn" class="secondary" type="button">Export Routine Pack JSON</button>
-            <button id="exportRoutineCsvBtn" class="secondary" type="button">Export Routine Library CSV</button>
-            <button id="exportAiCoachingBtn" class="secondary" type="button">Export AI Coaching Snapshot</button>
-            <button id="installCuratedRoutinePackBtn" class="secondary" type="button">Import Curated Library v1</button>
-            <button id="downloadCuratedRoutinePackBtn" class="secondary" type="button">Download Curated Library JSON</button>
-            <button id="installNolanBenchmarkPackBtn" class="secondary" type="button">Import Nolan Benchmark Pack v1</button>
-            <button id="downloadNolanBenchmarkPackBtn" class="secondary" type="button">Download Nolan Pack JSON</button>
-            <label class="file-btn secondary">
-              Import Routine Pack
-              <input id="importRoutinePackInput" type="file" accept="application/json" />
-            </label>
-            <label class="file-btn secondary">
-              Import Routine CSV
-              <input id="importRoutineCsvInput" type="file" accept=".csv,text/csv" />
-            </label>
-            <div class="card nested">
-              <h3>Export folder</h3>
-              <p class="muted">Choose a dedicated folder for backups and debug exports. If unsupported, exports use normal downloads.</p>
-              <div id="exportFolderStatus" class="analytics-note">Export folder not selected.</div>
-              <div class="row">
-                <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Export Folder</button>
-                <button id="clearExportFolderBtn" class="secondary" type="button">Clear Export Folder</button>
-              </div>
+        <div class="card data-center-card">
+          <div class="data-center-header">
+            <div>
+              <h2>Data & backups</h2>
+              <p class="muted">Local-first storage. No account, no backend, no cloud sync. Export a JSON backup regularly before larger imports or app upgrades.</p>
             </div>
+            <button id="exportJsonBtn" type="button" class="backup-primary-cta">Create Backup Now</button>
+          </div>
 
-            <button id="exportJsonBtn" class="secondary">Export JSON Backup</button>
-            <button id="exportDebugBtn" class="secondary">Export Debug Info</button>
-            <button id="exportRawStorageBtn" class="secondary">Export Raw Local Data</button>
-            <label class="file-btn secondary">
-              Import JSON Backup
-              <input id="importJsonInput" type="file" accept="application/json" />
-            </label>
+          <div class="data-accordion-stack">
+            <details class="data-accordion" open>
+              <summary>
+                <span>Quick exports</span>
+                <small>Daily analysis and backup outputs</small>
+              </summary>
+              <div class="data-action-grid">
+                <button id="exportCsvBtn" type="button">Export Logs CSV</button>
+                <button id="exportRoutinePackBtn" class="secondary" type="button">Export Routine Pack JSON</button>
+                <button id="exportAiCoachingBtn" class="secondary" type="button">Export AI Coaching Snapshot</button>
+                <button id="exportRoutineCsvBtn" class="secondary subtle-action" type="button">Export Routine Library CSV</button>
+              </div>
+            </details>
+
+            <details class="data-accordion">
+              <summary>
+                <span>Restore & import</span>
+                <small>Bring back backups or load your own routines</small>
+              </summary>
+              <div class="data-action-grid">
+                <label class="file-btn secondary">
+                  Import JSON Backup
+                  <input id="importJsonInput" type="file" accept="application/json" />
+                </label>
+                <label class="file-btn secondary">
+                  Import Routine Pack
+                  <input id="importRoutinePackInput" type="file" accept="application/json" />
+                </label>
+                <label class="file-btn secondary">
+                  Import Routine CSV
+                  <input id="importRoutineCsvInput" type="file" accept=".csv,text/csv" />
+                </label>
+              </div>
+            </details>
+
+            <details class="data-accordion">
+              <summary>
+                <span>Curated content</span>
+                <small>Optional library and benchmark packs</small>
+              </summary>
+              <div class="data-action-grid">
+                <button id="installCuratedRoutinePackBtn" class="secondary" type="button">Import Curated Library v1</button>
+                <button id="downloadCuratedRoutinePackBtn" class="secondary" type="button">Download Curated Library JSON</button>
+                <button id="installNolanBenchmarkPackBtn" class="secondary" type="button">Import Nolan Benchmark Pack v1</button>
+                <button id="downloadNolanBenchmarkPackBtn" class="secondary" type="button">Download Nolan Pack JSON</button>
+              </div>
+            </details>
+
+            <details class="data-accordion">
+              <summary>
+                <span>Export destination</span>
+                <small>Optional custom folder for backups and debug files</small>
+              </summary>
+              <div class="export-destination-card">
+                <div id="exportFolderStatus" class="analytics-note export-folder-status-compact">Export destination: Browser Downloads</div>
+                <div class="data-action-grid compact-two">
+                  <button id="chooseExportFolderBtn" class="secondary" type="button">Choose Folder</button>
+                  <button id="clearExportFolderBtn" class="secondary" type="button">Clear Folder</button>
+                </div>
+              </div>
+            </details>
+
+            <details class="data-accordion data-accordion-danger">
+              <summary>
+                <span>Advanced tools</span>
+                <small>Debug exports for troubleshooting only</small>
+              </summary>
+              <p class="muted tiny">Use these only when diagnosing storage issues or before sending a technical snapshot for review.</p>
+              <div class="data-action-grid compact-two">
+                <button id="exportDebugBtn" class="secondary" type="button">Export Debug Info</button>
+                <button id="exportRawStorageBtn" class="secondary" type="button">Export Raw Local Data</button>
+              </div>
+            </details>
           </div>
         </div>
       </div>

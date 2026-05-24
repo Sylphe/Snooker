@@ -200,3 +200,8 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Fixed advanced Smart Session builder failure caused by missing `safeRecommendationScore()`.
 - Preserved the v5.7.28 visible fallback/error handling.
 - Updated all cache/version markers to v5.7.29.
+
+
+## v5.7.33 — Data center UI redesign
+
+Small UI release based on v5.7.32. Restructures the Data / Import / Export screen into mobile-first accordion sections: Quick exports, Restore & import, Curated content, Export destination, and Advanced tools. Preserves existing import/export IDs and event bindings; no schema, log, scoring, or storage migration changes.
