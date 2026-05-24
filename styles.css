@@ -5647,7 +5647,7 @@ body[data-density="compact"] .stats-dashboard-action-card{padding:9px;border-rad
   .stats-dashboard-action-card small{font-size:10px;}
 }
 
-/* v5.7.45 Inferred skill UI clarity — Phase 6 */
+/* v5.7.46 Inferred skill UI clarity — Phase 6 */
 .stats-research-nav-group .stats-nav-btn {
   border-style: dashed;
 }
@@ -5693,7 +5693,7 @@ body[data-density="compact"] .stats-dashboard-action-card{padding:9px;border-rad
   }
 }
 
-/* v5.7.45 — Inferred skill panel clarity and dark-mode fixes */
+/* v5.7.46 — Inferred skill panel clarity and dark-mode fixes */
 .inferred-skill-card .section-head h3{margin:0;}
 .inferred-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.8rem;margin:.75rem 0;}
 .inferred-skill-guide{margin:.7rem 0;border:1px solid var(--line);border-radius:14px;background:var(--panel-bg-2);padding:.7rem .8rem;}
@@ -5732,7 +5732,7 @@ body[data-theme="dark"] .player-rating-scale span{background:rgba(15,23,42,.58);
 body[data-theme="dark"] .player-rating-scale span.active{background:rgba(199,167,83,.18);border-color:rgba(199,167,83,.72);color:#f8fafc;}
 @media(max-width:760px){.skill-radar-section{grid-template-columns:1fr;}.skill-radar-panel{min-height:230px;}.inferred-summary-grid{grid-template-columns:1fr;}}
 
-/* v5.7.45 — Prediction engine guarded UI */
+/* v5.7.46 — Prediction engine guarded UI */
 .prediction-cockpit { margin: 0.75rem 0 1rem; }
 .prediction-list { display: grid; gap: 0.5rem; }
 .prediction-row { border-left: 3px solid var(--border); }
