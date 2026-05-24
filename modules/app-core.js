@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.44";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.44";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.45";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.45";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.44";
+} from "./utils.js?v=5.7.45";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.44";
+} from "./settings.js?v=5.7.45";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.44";
+} from "./analytics.js?v=5.7.45";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.44";
+} from "./bayesian.js?v=5.7.45";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.44";
+} from "./session.js?v=5.7.45";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.44";
+} from "./pressure.js?v=5.7.45";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.44";
+} from "./recommendations.js?v=5.7.45";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.44";
+} from "./store.js?v=5.7.45";
 
 
 
@@ -8704,59 +8704,54 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
 }
 
 
-function clamp01(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(1, n));
-}
-function clampNumber(value, min, max) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.min(max, n));
-}
-function predictionConfidenceLabel(logCount, evidenceN, volatility) {
+
+/* v5.7.45 Prediction Engine — bootstrap-safe, render-on-demand only */
+function predictionConfidenceLabelSafe(logCount, evidenceN, volatility) {
   const n = Number(logCount || 0) + Number(evidenceN || 0) / 8;
   const volPenalty = Number.isFinite(Number(volatility)) ? Math.max(0, Number(volatility) - 18) / 25 : 0.4;
-  const index = clamp01((n / 40) - volPenalty * 0.25);
+  const index = Math.max(0, Math.min(1, (n / 40) - volPenalty * 0.25));
   if (index >= 0.75) return {label:"high", index};
   if (index >= 0.45) return {label:"moderate", index};
   if (index >= 0.22) return {label:"early", index};
   return {label:"low", index};
 }
-function predictionBandStatus(prob) {
+function predictionBandStatusSafe(prob) {
   const p = Number(prob || 0);
-  if (p >= 0.72) return {label:"Likely", cls:"good"};
-  if (p >= 0.45) return {label:"Plausible", cls:"watch"};
-  if (p >= 0.22) return {label:"Emerging", cls:"watch"};
+  if (p >= 72) return {label:"Likely", cls:"good"};
+  if (p >= 45) return {label:"Plausible", cls:"watch"};
+  if (p >= 22) return {label:"Emerging", cls:"watch"};
   return {label:"Longer-term", cls:"risk"};
 }
-function estimateProgressVelocity(logs) {
+function estimatePredictionVelocitySafe(logs) {
   const ordered = (logs || []).slice().sort((a,b)=>(Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0));
   const vals = ordered.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
   if (vals.length < 4) return {slope:0, recent:null, prior:null, volatility:0, label:"insufficient evidence"};
   const recent = vals.slice(-Math.min(10, vals.length));
   const prior = vals.slice(Math.max(0, vals.length - 20), Math.max(0, vals.length - recent.length));
-  const slopeObj = movingTrend(vals, Math.min(8, Math.max(3, recent.length)));
   const recentAvg = avg(recent);
   const priorAvg = prior.length ? avg(prior) : avg(vals.slice(0, Math.max(1, vals.length - recent.length)));
   const mean = avg(recent);
-  const variance = recent.reduce((s,v)=>s+Math.pow(v-mean,2),0) / Math.max(1, recent.length - 1);
+  const variance = recent.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / Math.max(1, recent.length - 1);
   const volatility = Math.sqrt(Math.max(0, variance));
-  const slope = Number(slopeObj?.slope);
+  let slope = 0;
+  try {
+    const trend = movingTrend(vals, Math.min(8, Math.max(3, recent.length)));
+    slope = Number(trend && typeof trend === "object" ? trend.slope : trend);
+  } catch (_) {}
   const cleanSlope = Number.isFinite(slope) ? slope : (recentAvg - priorAvg) / Math.max(1, recent.length);
   const label = cleanSlope > 1.8 ? "accelerating" : cleanSlope > 0.45 ? "improving" : cleanSlope < -0.8 ? "declining" : "stable";
   return {slope:cleanSlope, recent:recentAvg, prior:priorAvg, volatility, label};
 }
-function probabilityToReachScore(current, target, velocity, confidenceIndex, volatility) {
+function predictionProbabilitySafe(current, target, velocity, confidenceIndex, volatility) {
   const gap = Number(target) - Number(current);
   if (!Number.isFinite(gap)) return 0;
   const trend = Math.max(0, Number(velocity || 0));
   const vol = Math.max(6, Number(volatility || 12));
-  const base = gap <= 0 ? 0.78 : Math.exp(-gap / Math.max(8, trend * 7 + vol * 0.65));
-  const adjusted = base * (0.72 + clamp01(confidenceIndex) * 0.28);
-  return Math.round(clamp01(adjusted) * 100);
+  const raw = gap <= 0 ? 0.78 : Math.exp(-gap / Math.max(8, trend * 7 + vol * 0.65));
+  const adjusted = raw * (0.72 + Math.max(0, Math.min(1, Number(confidenceIndex || 0))) * 0.28);
+  return Math.round(Math.max(0, Math.min(1, adjusted)) * 100);
 }
-function readinessWindowText(current, target, velocity, confidenceLabel) {
+function predictionReadinessWindowSafe(current, target, velocity, confidenceLabel) {
   const gap = Number(target) - Number(current);
   if (!Number.isFinite(gap) || gap <= 0) return "already in range";
   const slope = Math.max(0.35, Number(velocity || 0.35));
@@ -8766,7 +8761,7 @@ function readinessWindowText(current, target, velocity, confidenceLabel) {
   const high = Math.max(low + 1, Math.round(sessionsNeeded * (confidenceLabel === "high" ? 1.35 : confidenceLabel === "moderate" ? 1.7 : 2.2)));
   return `${low}–${high} sessions if trajectory holds`;
 }
-function predictionMilestoneRows(rating, velocity, confidence) {
+function predictionRowsForBreakMilestonesSafe(rating, velocity, confidence) {
   const milestones = [
     {label:"Stable 30+ profile", target:44, note:"match-stable break class"},
     {label:"Stable 50+ profile", target:58, note:"break-building plus execution stability"},
@@ -8774,15 +8769,12 @@ function predictionMilestoneRows(rating, velocity, confidence) {
     {label:"Century-capable profile", target:82, note:"technical ceiling plus pressure control"}
   ];
   return milestones.map(m => {
-    const prob = probabilityToReachScore(rating.matchScore, m.target, velocity.slope, confidence.index, velocity.volatility);
-    const status = predictionBandStatus(prob);
-    return `<div class="context-row prediction-row ${status.cls}">
-      <span>${htmlText(m.label)}<br><span class="muted">${htmlText(m.note)} · ${htmlText(readinessWindowText(rating.matchScore, m.target, velocity.slope, confidence.label))}</span></span>
-      <strong>${prob}%</strong><span>${htmlText(status.label)}</span>
-    </div>`;
+    const prob = predictionProbabilitySafe(rating.matchScore, m.target, velocity.slope, confidence.index, velocity.volatility);
+    const status = predictionBandStatusSafe(prob);
+    return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(m.label)}<br><span class="muted">${htmlText(m.note)} · ${htmlText(predictionReadinessWindowSafe(rating.matchScore, m.target, velocity.slope, confidence.label))}</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
   }).join("");
 }
-function predictionBenchmarkRows(benchmark, velocity, confidence) {
+function predictionRowsForBenchmarksSafe(benchmark, velocity, confidence) {
   const levels = [
     {label:"Junior benchmark", target:0.75},
     {label:"Club benchmark", target:1.75},
@@ -8792,65 +8784,45 @@ function predictionBenchmarkRows(benchmark, velocity, confidence) {
   const index = Number(benchmark?.matchIndex || 0);
   const scaledVelocity = Math.max(0.05, Number(velocity.slope || 0) / 28);
   return levels.map(l => {
-    const prob = probabilityToReachScore(index, l.target, scaledVelocity, confidence.index, Math.max(0.18, (velocity.volatility || 10) / 100));
-    const status = predictionBandStatus(prob);
-    const window = index >= l.target ? "already in range" : readinessWindowText(index, l.target, scaledVelocity, confidence.label);
-    return `<div class="context-row prediction-row ${status.cls}">
-      <span>${htmlText(l.label)}<br><span class="muted">Benchmark-pack ladder · ${htmlText(window)}</span></span>
-      <strong>${prob}%</strong><span>${htmlText(status.label)}</span>
-    </div>`;
+    const prob = predictionProbabilitySafe(index, l.target, scaledVelocity, confidence.index, Math.max(0.18, (velocity.volatility || 10) / 100));
+    const status = predictionBandStatusSafe(prob);
+    const window = index >= l.target ? "already in range" : predictionReadinessWindowSafe(index, l.target, scaledVelocity, confidence.label);
+    return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(l.label)}<br><span class="muted">Benchmark-pack ladder · ${htmlText(window)}</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
   }).join("");
 }
-function predictionDomainRows(profile, velocity, confidence) {
+function predictionRowsForDomainsSafe(profile, velocity, confidence) {
   const rows = (profile?.profile || []).slice().sort((a,b)=>(Number(a.score)||0)-(Number(b.score)||0)).slice(0,7);
   return rows.map(x => {
     const score = Number(x.score || 0);
-    const nextThreshold = Math.min(98, (Number(String(x.level||"L1").replace("L","")) || 1) * 14 + 7);
-    const prob = probabilityToReachScore(score, nextThreshold, velocity.slope, confidence.index, velocity.volatility);
-    const status = predictionBandStatus(prob);
-    return `<div class="context-row prediction-row ${status.cls}">
-      <span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.level)} now · next band around ${numText(nextThreshold, "0")} · ${htmlText(x.confidence)} evidence</span></span>
-      <strong>${prob}%</strong><span>${htmlText(status.label)}</span>
-    </div>`;
+    const currentLevel = Number(String(x.level || "L1").replace("L", "")) || 1;
+    const nextThreshold = Math.min(98, currentLevel * 14 + 7);
+    const prob = predictionProbabilitySafe(score, nextThreshold, velocity.slope, confidence.index, velocity.volatility);
+    const status = predictionBandStatusSafe(prob);
+    return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.level)} now · next band around ${numText(nextThreshold)} · ${htmlText(x.confidence)} evidence</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
   }).join("");
 }
-function renderPredictionEngine(logs) {
-  const scoped = logs || [];
+function renderPredictionEngineSafe(logs) {
+  const scoped = Array.isArray(logs) ? logs : [];
   const profile = inferLatentSkillLevels(scoped, activeRoutines());
   const rating = estimateGlobalPlayerRating(profile, scoped);
   const benchmark = estimateBenchmarkPlayerClass(scoped, activeRoutines());
-  const velocity = estimateProgressVelocity(scoped);
-  const confidence = predictionConfidenceLabel(scoped.length, rating.evidenceN, velocity.volatility);
-  const weakest = detectWeakestLink(profile)[0];
+  const velocity = estimatePredictionVelocitySafe(scoped);
+  const confidence = predictionConfidenceLabelSafe(scoped.length, rating.evidenceN, velocity.volatility);
+  const weakestList = detectWeakestLink(profile) || [];
+  const weakest = Array.isArray(weakestList) ? weakestList[0] : null;
   const bottleneck = weakest?.limiter?.label || (profile?.profile || []).slice().sort((a,b)=>(Number(a.score)||0)-(Number(b.score)||0))[0]?.label || "Insufficient evidence";
   const leverage = weakest?.affected?.label || "Build more benchmark and pressure evidence";
   const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving trajectory" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-  const breakRows = predictionMilestoneRows(rating, velocity, confidence);
-  const benchmarkRows = predictionBenchmarkRows(benchmark, velocity, confidence);
-  const domainRows = predictionDomainRows(profile, velocity, confidence);
-  return `<div class="prediction-engine">
-    <div class="analytics-note">
-      <strong>Forecasting logic:</strong> Predictions combine current inferred skill, recent progression velocity, volatility, benchmark evidence, break evidence and weakest-link constraints. These are coaching outlooks, not deterministic promises.
-    </div>
-    <div class="overview-kpi-dashboard prediction-cockpit">
-      <div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Recent slope ${numText(velocity.slope)} pts/log · ${htmlText(confidence.label)} confidence.</small></div>
-      <div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating.stableBand.short)}</div><small>${numText(rating.matchScore)}/100 match-stable · technical ${htmlText(rating.technicalBand.short)}.</small></div>
-      <div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark.band.short)}</div><small>${numText(benchmark.matchIndex)}/4 match-stable benchmark.</small></div>
-      <div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Most likely constraint on next level: ${htmlText(leverage)}.</small></div>
-    </div>
-    <div class="advanced-stats-modules">
-      ${statsModule("Break milestone forecasts", "Peak potential and match-stable break-class trajectory", `<div class="prediction-list">${breakRows}</div>`, true)}
-      ${statsModule("Benchmark progression outlook", "Junior / Club / Senior / Pro readiness based on benchmark-pack evidence", `<div class="prediction-list">${benchmarkRows}</div>`, true)}
-      ${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${domainRows}</div>`, false)}
-      ${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating.technicalBand.label)} · ${numText(rating.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating.stableBand.label)} · ${numText(rating.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating.reason)}</div>`, false)}
-    </div>
-  </div>`;
+  return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> Predictions combine current inferred skill, recent progression velocity, volatility, benchmark evidence, break evidence and weakest-link constraints. These are coaching outlooks, not deterministic promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Recent slope ${numText(velocity.slope)} pts/log · ${htmlText(confidence.label)} confidence.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating.stableBand.short)}</div><small>${numText(rating.matchScore)}/100 match-stable · technical ${htmlText(rating.technicalBand.short)}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark.band.short)}</div><small>${numText(benchmark.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Most likely constraint on next level: ${htmlText(leverage)}.</small></div></div><div class="advanced-stats-modules">${statsModule("Break milestone forecasts", "Peak potential and match-stable break-class trajectory", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence)}</div>`, true)}${statsModule("Benchmark progression outlook", "Junior / Club / Senior / Pro readiness based on benchmark-pack evidence", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence)}</div>`, true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence)}</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating.technicalBand.label)} · ${numText(rating.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating.stableBand.label)} · ${numText(rating.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating.reason)}</div>`, false)}</div></div>`;
 }
 function renderStatsPredictions(logs, { range }) {
-  if (!logs.length) return renderStatsEmptySection("Predictions", range);
-  return `<h3>Predictions — ${escapeHtml(range.label)}</h3>
-    <div class="analytics-note"><strong>Purpose:</strong> Estimate likely level progression, readiness windows, and bottlenecks using current skill evidence and recent trajectory. Treat windows as decision support, not guarantees.</div>
-    ${renderPredictionEngine(logs)}`;
+  try {
+    if (!logs.length) return renderStatsEmptySection("Predictions", range);
+    return `<h3>Predictions — ${escapeHtml(range.label)}</h3><div class="analytics-note"><strong>Purpose:</strong> Estimate likely level progression, readiness windows, and bottlenecks using current skill evidence and recent trajectory. Treat windows as decision support, not guarantees.</div>${renderPredictionEngineSafe(logs)}`;
+  } catch (err) {
+    try { logAppError(err, "renderStatsPredictions"); } catch (_) {}
+    return `<h3>Predictions — ${escapeHtml(range.label)}</h3><div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> Core app storage and Stats remain safe. Export Debug Info if this repeats.</div>`;
+  }
 }
 
 function renderStatsCoaching(logs, { range }) {

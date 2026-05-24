@@ -1,18 +1,19 @@
-# Snooker Practice PWA v5.7.44
+# Snooker Practice PWA v5.7.45
 
-## v5.7.44 — Prediction engine Stats tab
+## v5.7.45 — Prediction engine bootstrap-safe rebuild
 
-Adds a new Stats > Predictions subtab built from the v5.7.43 inferred-skill UI clarity baseline.
+Rebuilds the Predictions Stats subtab from the v5.7.43 inferred-skill UI clarity baseline, with explicit runtime guards so prediction rendering cannot block bootstrap, storage hydration, or the main Stats render.
 
-### Changes
-- Added a new `Predictions` subtab inside Stats Core.
-- Added probabilistic progression outlook cards.
-- Added break milestone forecasts for stable 30+, 50+, 70+ and century-capable profiles.
-- Added benchmark progression outlook for Junior, Club, Senior and Pro benchmark ladders.
-- Added skill-domain progression estimates toward the next L-band.
-- Added stable-vs-peak interpretation so one-off breakthrough potential is separated from repeatable competitive level.
-- Forecasts use current inferred skill, recent progression velocity, volatility, benchmark evidence, break evidence and weakest-link constraints.
-- Predictions are framed as coaching outlooks rather than deterministic guarantees.
-- No schema, storage, routine, log or recommendation-engine changes.
+### Added
+- New Stats > Predictions subtab.
+- Probabilistic progression outlook for break milestones, benchmark levels, and domain L-level movement.
+- Stable-vs-peak interpretation using existing inferred-skill evidence.
 
-Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.44.
+### Safety fix
+- Prediction rendering is wrapped in a defensive try/catch.
+- Forecast helpers use prediction-specific function names to avoid collisions with existing utility functions.
+- Forecasts are rendered only when the Predictions subtab is active.
+- No schema, migration, log, IndexedDB, or storage changes.
+
+### Maintenance
+- Build label, service-worker cache version, module cache-busting references, index build text, and README metadata updated to v5.7.45.
