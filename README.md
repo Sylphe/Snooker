@@ -1,3 +1,11 @@
+# Snooker Practice PWA v5.7.34
+
+## v5.7.34 — Benchmark initialization safety fix
+
+Corrective release based on v5.7.33. Fixes the startup ReferenceError reported in debug export `snooker-debug-5.7.33-data-center-ui-redesign-2026-05-24.json`: `Cannot access 'BENCHMARK_LEVELS' before initialization`. The benchmark level constant is now initialized before the first `loadData()` / migration pass. Also updates stale module cache-busting references from v5.7.32/v5.7.33 to v5.7.34 and updates the service-worker cache name. No scoring, log schema, IndexedDB, or backup format changes.
+
+Validation performed: JavaScript syntax checks, JSON checks, and zip integrity check.
+
 ## v5.7.3 — Focus Mode Polish
 
 Small corrective polish release on top of v5.7.0. Stabilizes the live performance card, restores inline +/- steppers when legacy CSS hides them, improves side-split layout on compact phones, prevents timer overflow, and adds a single-button sticky action fallback. No scoring, storage, or analytics logic changed.

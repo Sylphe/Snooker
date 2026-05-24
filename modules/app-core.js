@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.32";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.32";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.34";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.34";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.32";
+} from "./utils.js?v=5.7.34";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.32";
+} from "./settings.js?v=5.7.34";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.32";
+} from "./analytics.js?v=5.7.34";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.32";
+} from "./bayesian.js?v=5.7.34";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.32";
+} from "./session.js?v=5.7.34";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.32";
+} from "./pressure.js?v=5.7.34";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.32";
+} from "./recommendations.js?v=5.7.34";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.32";
+} from "./store.js?v=5.7.34";
 
 
 
@@ -2932,6 +2932,13 @@ const defaultData = {
   smartSessionBuilder: {version:"v2"}
 };
 
+const BENCHMARK_LEVELS = [
+  {key:"junior", label:"Junior"},
+  {key:"club", label:"Club"},
+  {key:"senior", label:"Senior"},
+  {key:"pro", label:"Pro"}
+];
+
 const DEFAULT_TABLE_DEFINITIONS = [
   {id:"default-home-table", name:"Home table", type:"Home"},
   {id:"default-club-table-1", name:"Club table 1", type:"Club"},
@@ -3944,12 +3951,6 @@ function defaultScoringRuleText(routine = {}) {
   return "Record the total score for the exercise.";
 }
 
-const BENCHMARK_LEVELS = [
-  {key:"junior", label:"Junior"},
-  {key:"club", label:"Club"},
-  {key:"senior", label:"Senior"},
-  {key:"pro", label:"Pro"}
-];
 function benchmarkTargetsFromRoutine(routine={}) {
   const raw = routine.benchmarkTargets && typeof routine.benchmarkTargets === "object" ? routine.benchmarkTargets : {};
   const legacy = {
