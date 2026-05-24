@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.29";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.29";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.32";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.32";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.29";
+} from "./utils.js?v=5.7.32";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.29";
+} from "./settings.js?v=5.7.32";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.29";
+} from "./analytics.js?v=5.7.32";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.29";
+} from "./bayesian.js?v=5.7.32";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.29";
+} from "./session.js?v=5.7.32";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.29";
+} from "./pressure.js?v=5.7.32";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.29";
+} from "./recommendations.js?v=5.7.32";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.29";
+} from "./store.js?v=5.7.32";
 
 
 
@@ -2980,7 +2980,7 @@ function cancelFocusStepHold() {
 }
 
 function normalizeFocusNumpadTarget(id) {
-  const allowed = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue"];
+  const allowed = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
   return allowed.includes(id) && $(id) ? id : "scoreValue";
 }
 
@@ -3017,21 +3017,15 @@ function focusModeScoreFeedback(inputId) {
 
 function applyFocusModeInputLocks() {
   if (!document.body?.classList.contains("session-focus-active")) return;
-  const ids = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue"];
+  const ids = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
   ids.forEach(id => {
     const el = $(id);
     if (!el) return;
-    const step = String(el.getAttribute("step") || "");
-    const needsDecimals = step.includes(".");
-    if (needsDecimals) {
-      el.readOnly = false;
-      el.setAttribute("inputmode", "decimal");
-      el.classList.remove("focus-readonly-input");
-    } else {
-      el.readOnly = true;
-      el.setAttribute("inputmode", "none");
-      el.classList.add("focus-readonly-input");
-    }
+    // In focus mode every numeric field is routed through the in-app numpad.
+    // This avoids the mobile OS keyboard covering the logging screen.
+    el.readOnly = true;
+    el.setAttribute("inputmode", "none");
+    el.classList.add("focus-readonly-input");
     el.addEventListener("focus", () => setFocusNumpadTarget(id), {once:false});
     el.addEventListener("click", () => setFocusNumpadTarget(id), {once:false});
   });
@@ -3042,22 +3036,22 @@ function renderFocusNumpad(r) {
   const box = $("scoreInputs");
   if (!box || !document.body?.classList.contains("session-focus-active")) return;
   box.querySelector(".focus-numpad-panel")?.remove();
-  const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","bestAttemptValue","completionCountValue","highestBreakValue"].filter(id => $(id));
+  const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"].filter(id => $(id));
   if (!candidates.length) return;
   focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
   const targetLabel = (() => {
     const row = $(focusNumpadTargetId)?.closest("div");
     return row?.querySelector("label")?.textContent?.trim() || "Score";
   })();
-  const buttons = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
+  const buttons = ["1","2","3","4","5","6","7","8","9",".","0","⌫","✓"];
   box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel focus-score-cockpit" aria-label="Focus mode score cockpit">
     <div class="focus-cockpit-header">
       <span class="focus-cockpit-label">${htmlText(targetLabel)}</span>
       <span class="focus-cockpit-hint">tap score · ✓ saves</span>
     </div>
     <div class="focus-numpad-grid">${buttons.map(label => {
-      const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : "digit";
-      const value = action === "digit" ? label : "";
+      const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : label === "." ? "decimal" : "digit";
+      const value = action === "digit" || action === "decimal" ? label : "";
       return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
     }).join("")}</div>
     <div class="focus-numpad-footer">
@@ -3078,6 +3072,7 @@ function handleFocusNumpad(action, value) {
   let current = String(el.value || "");
   if (action === "clear") current = "";
   else if (action === "backspace") current = current.slice(0, -1);
+  else if (action === "decimal") current = current.includes(".") ? current : `${current || "0"}.`;
   else if (action === "digit") current = `${current}${String(value || "")}`.replace(/^0+(?=\d)/, "");
   el.value = current;
   el.dispatchEvent(new Event("input", {bubbles:true}));
@@ -3873,6 +3868,8 @@ function fmtScoring(type) {
     raw:"Raw score",
     success_rate:"Success rate",
     highest_break:"Highest break",
+    continuous_scoring:"Continuous scoring",
+    break_target_consistency:"Break target + consistency",
     points:"Points system",
     score_per_minute:"Time-based score",
     progressive_completion:"Progressive completion"
@@ -3940,6 +3937,7 @@ function defaultScoringRuleText(routine = {}) {
   const attempts = Number(routine.attempts || routine.attemptsPerSession || 0);
   if (scoring === "success_rate") return `Log successful outcomes${attempts ? ` out of ${numText(attempts)} attempts` : ""}.`;
   if (scoring === "highest_break") return "Record the highest break achieved during the block.";
+  if (scoring === "continuous_scoring") return "Record the total continuous score across repeat cycles. If the setup is cleared, replace the balls and continue until the attempt ends.";
   if (scoring === "points") return "Record total points scored under the routine rules.";
   if (scoring === "progressive_completion") return `Record average ${progressiveUnitLabel(routine)} completed per attempt and best attempt.`;
   if (scoring === "score_per_minute") return "Record score and time so the app can calculate score per minute.";
@@ -4488,6 +4486,22 @@ function computeSideCombinedScore(left, right) {
   const r = Number(right || 0);
   return Math.round((l + r) * 100) / 100;
 }
+
+function breakConsistencyTypicalValue(log) {
+  const raw = log?.commonBreakBandAtLog ?? log?.commonBreakBand ?? log?.typicalBreakBand ?? log?.mostCommonBreakBand ?? log?.mostCommonBreak ?? "";
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return Number(effectiveLogScore(log) || 0);
+}
+function normalizeBreakTargetConsistency(log) {
+  const target = Number(log?.targetAtLog || routineById(log?.routineId)?.target || 0);
+  const best = Math.max(0, Number(effectiveLogScore(log) || 0));
+  const typical = Math.max(0, Number(breakConsistencyTypicalValue(log) || 0));
+  if (!Number.isFinite(target) || target <= 0) return Math.round((0.4 * best + 0.6 * typical) * 10) / 10;
+  const bestRatio = best / target;
+  const typicalRatio = typical / target;
+  return Math.round((0.4 * bestRatio + 0.6 * typicalRatio) * 1000) / 10;
+}
 function effectiveLogScore(log) {
   if (logUsesSideSplit(log)) {
     const left = getLogLeftSideScore(log);
@@ -4500,6 +4514,8 @@ function effectiveLogScore(log) {
 function normalizeScore(log) {
   const score = effectiveLogScore(log);
   if (log.scoring === "progressive_completion") return Number(log.totalUnitsAtLog || log.totalUnits || 0) > 0 ? (score / Number(log.totalUnitsAtLog || log.totalUnits || 0)) * 100 : 0;
+  if (log.scoring === "continuous_scoring") return score;
+  if (log.scoring === "break_target_consistency") return normalizeBreakTargetConsistency(log);
   if (log.scoring === "success_rate") {
     const attempts = effectiveLogAttempts(log);
     return attempts > 0 ? (score / attempts) * 100 : 0;
@@ -5313,6 +5329,17 @@ function renderScoreInputs(r) {
     if (Number(r.totalUnits || 0) <= 0) html += `<div class="progressive-total-units-runtime"><label>Completion size / total units</label><input id="sessionTotalUnitsValue" type="number" min="1" step="1" placeholder="Required to save this drill" inputmode="numeric"><p class="muted tiny">This exercise template has no completion size. Enter it here so the log can be saved.</p></div>`;
     if (r.trackHighestBreak) html += `<div><label>Highest break (optional)</label><input id="highestBreakValue" type="number" min="0" step="1" placeholder="e.g. 32" inputmode="numeric"></div>`;
     html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  } else if (r.scoring === "continuous_scoring") {
+    const cycleValue = Number(r.totalUnits || r.setupCycleValue || 0) || "";
+    html += `<div><label>Continuous score</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 150" inputmode="numeric"></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || r.attemptsPerSession || 1)}" placeholder="usually 1" inputmode="numeric"></div>`;
+    if (!cycleValue) html += `<div class="progressive-total-units-runtime"><label>Setup cycle value, optional</label><input id="sessionTotalUnitsValue" type="number" min="1" step="1" placeholder="e.g. 40" inputmode="numeric"><p class="muted tiny">Use this for repeat-until-miss drills. It does not cap the score; it only helps interpretation.</p></div>`;
+    html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
+  } else if (r.scoring === "break_target_consistency") {
+    html += `<div><label>Best break</label><input id="scoreValue" type="number" min="0" step="1" placeholder="e.g. 40" inputmode="numeric"></div>`;
+    html += `<div><label>Most common break band</label><input id="commonBreakBandValue" type="number" min="0" step="1" placeholder="e.g. 30" inputmode="numeric"><p class="muted tiny">Enter the representative band value: 10, 20, 30, 35, 40, etc. This avoids logging every attempt.</p></div>`;
+    html += `<div><label>Attempts</label><input id="attemptsValue" type="number" min="1" step="1" value="${numAttr(r.attempts || r.attemptsPerSession || 10)}" placeholder="e.g. 10" inputmode="numeric"></div>`;
+    html += `<div class="focus-time-field"><label>Time, minutes</label><input id="manualTimeValue" type="number" min="0" step="0.1" placeholder="auto from timer if empty" inputmode="decimal"></div>`;
   } else if (r.scoring === "success_rate") {
     if (!routineUsesSideSplit(r)) {
       const madeMax = Number(r.attempts || r.attemptsPerSession || 0) || "";
@@ -5586,7 +5613,7 @@ async function saveCurrentRoutine() {
   let leftSideScore = sideSplitEnabled ? Number($("leftSideScoreValue")?.value || 0) : "";
   let rightSideScore = sideSplitEnabled ? Number($("rightSideScoreValue")?.value || 0) : "";
   let score = sideSplitEnabled ? computeSideCombinedScore(leftSideScore, rightSideScore) : Number($("scoreValue")?.value || 0);
-  let attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
+  let attempts = (r.scoring === "success_rate" || r.scoring === "progressive_completion" || r.scoring === "continuous_scoring" || r.scoring === "break_target_consistency") ? Number($("attemptsValue")?.value || 0) : Number(r.attempts || 0);
   const manualTimeRaw = $("manualTimeValue")?.value;
   const manualTime = manualTimeRaw === "" || manualTimeRaw === undefined || manualTimeRaw === null ? null : Number(manualTimeRaw);
   let timerMinutes = getElapsedMinutes();
@@ -5612,8 +5639,8 @@ async function saveCurrentRoutine() {
   }
   if (Number.isNaN(score)) return validationNotice("Enter a valid score.");
   if (r.scoring !== "points" && score < 0) return validationNotice("Score cannot be negative.");
-  if ((r.scoring === "success_rate" || r.scoring === "progressive_completion")) {
-    const wholeAttempts = validateWholeNumberField(attempts, "Attempts", {required:true, min:r.scoring === "success_rate" ? 1 : 0});
+  if ((r.scoring === "success_rate" || r.scoring === "progressive_completion" || r.scoring === "continuous_scoring" || r.scoring === "break_target_consistency")) {
+    const wholeAttempts = validateWholeNumberField(attempts, "Attempts", {required:r.scoring !== "progressive_completion", min:r.scoring === "progressive_completion" ? 0 : 1});
     if (wholeAttempts.error) return validationNotice(wholeAttempts.error);
     attempts = wholeAttempts.value;
   }
@@ -5633,8 +5660,17 @@ async function saveCurrentRoutine() {
     }
   }
   if (!sideSplitEnabled && r.scoring === "success_rate" && score > attempts) return validationNotice("Score cannot exceed attempts.");
+  let commonBreakBand = "";
+  if (r.scoring === "break_target_consistency") {
+    const bestCheck = validateWholeNumberField(score, "Best break", {required:true, min:0});
+    if (bestCheck.error) return validationNotice(bestCheck.error);
+    score = bestCheck.value;
+    const commonCheck = validateWholeNumberField($("commonBreakBandValue")?.value ?? "", "Most common break band", {required:true, min:0});
+    if (commonCheck.error) return validationNotice(commonCheck.error);
+    commonBreakBand = commonCheck.value;
+  }
   if (manualTime < 0) return validationNotice("Time cannot be negative.");
-  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value ?? "") ?? wholeNumberOrNull(r.totalUnits) ?? 0) : Number(r.totalUnits || 0);
+  const sessionTotalUnits = r.scoring === "progressive_completion" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value ?? "") ?? wholeNumberOrNull(r.totalUnits) ?? 0) : (r.scoring === "continuous_scoring" ? (wholeNumberOrNull($("sessionTotalUnitsValue")?.value ?? "") ?? wholeNumberOrNull(r.totalUnits) ?? wholeNumberOrNull(r.setupCycleValue) ?? 0) : Number(r.totalUnits || 0));
   if (r.scoring === "progressive_completion" && sessionTotalUnits <= 0) return validationNotice("Enter the completion size / total units for this progressive completion drill.");
   if (r.scoring === "progressive_completion") {
     if (score > sessionTotalUnits) return validationNotice(`Average ${progressiveUnitLabel(r)} cannot exceed completion size (${sessionTotalUnits}).`);
@@ -5687,13 +5723,19 @@ async function saveCurrentRoutine() {
     bestAttempt: wholeNumberOrNull($("bestAttemptValue")?.value || "") ?? "",
     completionCount: wholeNumberOrNull($("completionCountValue")?.value || "") ?? "",
     highestBreak: wholeNumberOrNull($("highestBreakValue")?.value || "") ?? "",
-    totalUnits: r.scoring === "progressive_completion" ? sessionTotalUnits : (r.totalUnits || ""),
+    commonBreakBand: r.scoring === "break_target_consistency" ? commonBreakBand : "",
+    commonBreakBandAtLog: r.scoring === "break_target_consistency" ? commonBreakBand : "",
+    consistencyWeightAtLog: r.scoring === "break_target_consistency" ? 0.6 : "",
+    peakWeightAtLog: r.scoring === "break_target_consistency" ? 0.4 : "",
+    totalUnits: (r.scoring === "progressive_completion" || r.scoring === "continuous_scoring") ? (sessionTotalUnits || "") : (r.totalUnits || ""),
+    setupCycleValue: r.scoring === "continuous_scoring" ? (sessionTotalUnits || r.setupCycleValue || "") : (r.setupCycleValue || ""),
     unitType: r.unitType || "",
     targetMode: r.targetMode || "",
     targetProfileId: activeProfile?.id || "",
     targetAtLog: activeProfile?.target || r.target || "",
     stretchTargetAtLog: activeProfile?.stretchTarget || r.stretchTarget || "",
-    totalUnitsAtLog: r.scoring === "progressive_completion" ? sessionTotalUnits : (activeProfile?.totalUnits || r.totalUnits || ""),
+    totalUnitsAtLog: (r.scoring === "progressive_completion" || r.scoring === "continuous_scoring") ? (sessionTotalUnits || "") : (activeProfile?.totalUnits || r.totalUnits || ""),
+    setupCycleValueAtLog: r.scoring === "continuous_scoring" ? (sessionTotalUnits || r.setupCycleValue || "") : (r.setupCycleValue || ""),
     attemptsPerSessionAtLog: activeProfile?.attemptsPerSession || r.attemptsPerSession || r.attempts || "",
     difficultyLabelAtLog: activeProfile?.difficultyLabel || r.difficultyLabel || "",
     targetColour: r.targetColour || inferTargetColour(r.targetMode) || "",
@@ -6014,6 +6056,17 @@ function displayScore(l) {
     return `${score}/${total} ${unit} avg (${Number(l.normalizedScore || 0).toFixed(1)}%)${colour}${best}${brk}`;
   }
   if (l.scoring === "success_rate") return `${score}/${attempts} (${Number(l.normalizedScore || 0).toFixed(1)}%)`;
+  if (l.scoring === "break_target_consistency") {
+    const typical = breakConsistencyTypicalValue(l);
+    const target = Number(l.targetAtLog || routineById(l.routineId)?.target || 0);
+    const targetTxt = target > 0 ? ` vs target ${numText(target)}` : "";
+    return `best ${score} · common band ${numText(typical)} · ${attempts} attempts${targetTxt} (${Number(l.normalizedScore || normalizeScore(l) || 0).toFixed(1)}%)`;
+  }
+  if (l.scoring === "continuous_scoring") {
+    const cycle = Number(l.setupCycleValueAtLog || l.setupCycleValue || l.totalUnitsAtLog || l.totalUnits || 0);
+    const cycles = cycle > 0 ? ` · ${(Number(rawScore || 0) / cycle).toFixed(2)} cycles of ${numText(cycle)}` : "";
+    return `${score} continuous${cycles}`;
+  }
   if (l.scoring === "score_per_minute") return `${score} (${Number(l.normalizedScore || 0).toFixed(2)}/min)`;
   return score;
 }
@@ -7807,7 +7860,8 @@ function renderSmartRecommendation() {
   const focus = $("orchestratorFocus")?.value || "all";
   const strategy = $("orchestratorStrategy")?.value || "balanced";
   const candidates = rankRoutinesByMode(focus, strategy, mode);
-  const top = candidates[0];
+  const visibleCandidates = candidates.filter(c => !currentRecommendationFeedbackStatus(c?.routine?.id, "smart_recommendation"));
+  const top = visibleCandidates[0];
   const routine = top?.routine;
   const recentLogs = data.logs.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,20);
   const alloc = computeAllocation(recentLogs);
@@ -7843,7 +7897,7 @@ function renderSmartRecommendation() {
     ${friendlyMode ? "" : `<p class="muted">${escapeHtml(uiRecommendationCopy("reasonLabel"))}: ${escapeHtml(reasonText)}.</p>`}
     ${renderFeedbackButtons(routine.id, "smart_recommendation")}
     ${policyHtml}
-    ${renderRecommendationLogicPanel(candidates, mode)}
+    ${renderRecommendationLogicPanel(visibleCandidates.length ? visibleCandidates : candidates, mode)}
     <div class="analytics-note">${escapeHtml(warmupSuggestion())}</div>`;
 }
 function computeAllocation(logs){
@@ -9455,6 +9509,8 @@ function renderEditLogForm(l) {
       <div><label>Time minutes</label><input class="edit-time" type="number" step="0.1" value="${numAttr(l.timeMinutes || "")}"></div>
       <div><label>Venue / table</label><select class="edit-venue">${renderEditTableOptions(l.tableId, l.venueTable)}</select></div>
       ${l.scoring === "progressive_completion" ? `<div><label>Total units</label><input class="edit-total-units" type="number" step="1" value="${numAttr(l.totalUnitsAtLog || l.totalUnits || "")}"></div><div><label>Best attempt</label><input class="edit-best" type="number" step="0.01" value="${numAttr(l.bestAttempt || "")}"></div><div><label>Completions</label><input class="edit-completions" type="number" step="1" value="${numAttr(l.completionCount || "")}"></div><div><label>Highest break</label><input class="edit-break" type="number" step="1" value="${numAttr(l.highestBreak || "")}"></div>` : ""}
+      ${l.scoring === "continuous_scoring" ? `<div><label>Setup cycle value</label><input class="edit-cycle-value" type="number" step="1" value="${numAttr(l.setupCycleValueAtLog || l.setupCycleValue || l.totalUnitsAtLog || l.totalUnits || "")}"></div>` : ""}
+      ${l.scoring === "break_target_consistency" ? `<div><label>Most common break band</label><input class="edit-common-break-band" type="number" step="1" value="${numAttr(l.commonBreakBandAtLog || l.commonBreakBand || l.typicalBreakBand || "")}"></div>` : ""}
       <div><label>Rating</label><input class="edit-rating" type="number" min="1" max="5" step="1" value="${numAttr(l.sessionRating || "")}"></div>
       <div><label>Category</label><select class="edit-category">${editCategoryOptions(l.category)}</select></div>
       <div><label>Tags</label><input class="edit-tags" value="${attrText(l.sessionTags || "")}"></div>
@@ -9604,8 +9660,8 @@ async function saveEditedLog(id, formEl) {
   }
   l.attempts = Number(field("edit-attempts")?.value || 0) || "";
   if (Number(l.attempts || 0) < 0) return validationNotice("Attempts cannot be negative.");
-  if (l.scoring === "success_rate" || l.scoring === "progressive_completion") {
-    const attemptCheck = validateWholeNumberField(l.attempts, "Attempts", {required:l.scoring === "success_rate", min:l.scoring === "success_rate" ? 1 : 0});
+  if (l.scoring === "success_rate" || l.scoring === "progressive_completion" || l.scoring === "continuous_scoring" || l.scoring === "break_target_consistency") {
+    const attemptCheck = validateWholeNumberField(l.attempts, "Attempts", {required:l.scoring !== "progressive_completion", min:l.scoring === "progressive_completion" ? 0 : 1});
     if (attemptCheck.error) return validationNotice(attemptCheck.error);
     l.attempts = attemptCheck.value || "";
   }
@@ -9640,6 +9696,28 @@ async function saveEditedLog(id, formEl) {
   l.sessionRating = Number(field("edit-rating")?.value || 0) || "";
   l.category = field("edit-category")?.value || l.category || "uncategorized";
   l.sessionTags = field("edit-tags")?.value || "";
+  if (l.scoring === "continuous_scoring") {
+    const cycleInput = field("edit-cycle-value")?.value;
+    if (cycleInput !== undefined && cycleInput !== "") {
+      const cycleCheck = validateWholeNumberField(cycleInput, "Setup cycle value", {required:false, min:0});
+      if (cycleCheck.error) return validationNotice(cycleCheck.error);
+      l.setupCycleValueAtLog = cycleCheck.value ?? "";
+      l.setupCycleValue = l.setupCycleValueAtLog || l.setupCycleValue || "";
+      l.totalUnitsAtLog = l.setupCycleValueAtLog || l.totalUnitsAtLog || "";
+      l.totalUnits = l.setupCycleValueAtLog || l.totalUnits || "";
+    }
+  }
+  if (l.scoring === "break_target_consistency") {
+    const bestCheck = validateWholeNumberField(l.score, "Best break", {required:true, min:0});
+    if (bestCheck.error) return validationNotice(bestCheck.error);
+    l.score = bestCheck.value;
+    const commonCheck = validateWholeNumberField(field("edit-common-break-band")?.value || "", "Most common break band", {required:true, min:0});
+    if (commonCheck.error) return validationNotice(commonCheck.error);
+    l.commonBreakBand = commonCheck.value;
+    l.commonBreakBandAtLog = commonCheck.value;
+    l.consistencyWeightAtLog = l.consistencyWeightAtLog || 0.6;
+    l.peakWeightAtLog = l.peakWeightAtLog || 0.4;
+  }
   if (l.scoring === "progressive_completion") {
     const totalUnitsInput = field("edit-total-units")?.value;
     if (totalUnitsInput !== undefined && totalUnitsInput !== "") {
@@ -10023,7 +10101,7 @@ function validateRoutinePack(pack) {
   const routines = Array.isArray(pack?.routines) ? pack.routines : [];
   if (!routines.length) errors.push("Pack contains no routines.");
   const seen = new Set();
-  const allowedScoring = new Set(["raw","success_rate","highest_break","points","score_per_minute","progressive_completion"]);
+  const allowedScoring = new Set(["raw","success_rate","highest_break","continuous_scoring","break_target_consistency","points","score_per_minute","progressive_completion"]);
   routines.forEach((r, idx) => {
     const label = `Routine ${idx + 1}`;
     if (!r || typeof r !== "object") { errors.push(`${label} is not an object.`); return; }
@@ -10271,7 +10349,7 @@ function validateRoutineCsvRows(rows) {
       if (Number.isNaN(rec[field])) errors.push(`Row ${rec.__row}: ${field} is not a valid number.`);
     });
     if (!rec.skillMap.primarySkill) warnings.push(`Row ${rec.__row}: missing primary skill; cueing fallback will be used.`);
-    if (!["raw","success_rate","highest_break","time","score_per_minute","progressive_completion","points"].includes(rec.scoring)) warnings.push(`Row ${rec.__row}: unknown scoring mode "${rec.scoring}" kept as-is.`);
+    if (!["raw","success_rate","highest_break","continuous_scoring","break_target_consistency","time","score_per_minute","progressive_completion","points"].includes(rec.scoring)) warnings.push(`Row ${rec.__row}: unknown scoring mode "${rec.scoring}" kept as-is.`);
   });
   return {ok: errors.length === 0, errors, warnings, records};
 }
@@ -10686,6 +10764,8 @@ function aiTargetScaleType(scoring) {
   if (s === "success_rate") return "percent";
   if (s === "highest_break") return "break_score";
   if (s === "progressive_completion") return "completion_count";
+  if (s === "continuous_scoring") return "continuous_score";
+  if (s === "break_target_consistency") return "break_consistency";
   return "numeric";
 }
 
@@ -10892,11 +10972,12 @@ const ADAPTIVE_TARGET_ENGINE_KEY = "adaptiveTargetEngine";
 
 function adaptiveTargetEngineState() {
   data.interfaceSettings = data.interfaceSettings || {};
-  data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] = data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] || {accepted:[], rejected:{}, snoozed:{}};
+  data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] = data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY] || {accepted:[], rejected:{}, snoozed:{}, dismissed:{}};
   const state = data.interfaceSettings[ADAPTIVE_TARGET_ENGINE_KEY];
   state.accepted = Array.isArray(state.accepted) ? state.accepted : [];
   state.rejected = state.rejected && typeof state.rejected === "object" ? state.rejected : {};
   state.snoozed = state.snoozed && typeof state.snoozed === "object" ? state.snoozed : {};
+  state.dismissed = state.dismissed && typeof state.dismissed === "object" ? state.dismissed : {};
   return state;
 }
 
@@ -10909,6 +10990,8 @@ function isAdaptiveTargetCandidateSuppressed(candidate) {
   const key = adaptiveTargetCandidateKey(candidate);
   const now = Date.now();
   if (state.rejected?.[key]) return true;
+  if (state.dismissed?.[key]) return true;
+  if (Object.keys(state.dismissed || {}).some(k => key.startsWith(k))) return true;
   const snoozedUntil = Number(state.snoozed?.[key] || 0);
   return Number.isFinite(snoozedUntil) && snoozedUntil > now;
 }
@@ -11027,6 +11110,10 @@ function adaptiveTargetActionKeyFromDataset(el) {
 }
 
 function acceptAdaptiveTargetSuggestion(routineId, currentTarget, suggestedTarget, suggestedStretch) {
+  const state = adaptiveTargetEngineState();
+  const actionKey = `${routineId || ""}|${currentTarget ?? ""}|${suggestedTarget ?? ""}|`;
+  const exactKey = Object.keys(state.dismissed || {}).find(k => k.startsWith(`${routineId || ""}|${currentTarget ?? ""}|${suggestedTarget ?? ""}|`));
+  if (exactKey || state.dismissed?.[actionKey]) return notifyUser("Target suggestion already applied.", "info");
   const routine = routineById(routineId);
   if (!routine) return notifyUser("Routine not found.", "warn");
   const target = Number(suggestedTarget);
@@ -11044,11 +11131,12 @@ function acceptAdaptiveTargetSuggestion(routineId, currentTarget, suggestedTarge
   routine.targetHistory = Array.isArray(routine.targetHistory) ? routine.targetHistory : [];
   routine.targetHistory.push(profile);
   routine.activeTargetProfileId = profile.id;
-  const state = adaptiveTargetEngineState();
   state.accepted.unshift({routineId, at:new Date().toISOString(), previousTarget, previousStretchTarget:previousStretch, target:routine.target, stretchTarget:routine.stretchTarget});
+  const acceptedKey = `${routineId || ""}|${currentTarget ?? ""}|${suggestedTarget ?? ""}|`;
+  state.dismissed[acceptedKey] = new Date().toISOString();
   state.accepted = state.accepted.slice(0, 50);
   saveData({render:"all", immediateIDB:true});
-  notifyUser(`Adaptive target applied for ${routine.name}.`, "success");
+  notifyUser(`Adaptive target applied for ${routine.name}. Suggestion cleared.`, "success");
 }
 
 function snoozeAdaptiveTargetSuggestionFromElement(el) {
@@ -11453,6 +11541,8 @@ function inferLegacyRoutineStructureType(routine={}) {
   if (scoring === "highest_break" || name.includes("line") || name.includes("break")) return "break-building";
   if (name.includes("safety") || name.includes("escape") || name.includes("shot to nothing")) return "tactical";
   if (scoring === "progressive_completion") return "progression";
+  if (scoring === "continuous_scoring") return "continuous";
+  if (scoring === "break_target_consistency") return "break_consistency";
   if (scoring === "points") return "zone-points";
   return "repetition";
 }
@@ -11466,6 +11556,8 @@ function inferLegacyScoringRuleText(routine={}) {
   if (scoring === "success_rate") return "Record successful executions out of the planned attempts. A success must meet the full pot, position, or safety objective.";
   if (scoring === "highest_break") return "Record the highest break or best continuous score achieved during the block.";
   if (scoring === "progressive_completion") return "Record the furthest clean progression reached through the sequence.";
+  if (scoring === "continuous_scoring") return "Record the total continuous score across repeated clears. Do not cap the score at the physical setup size.";
+  if (scoring === "break_target_consistency") return "Record best break and one representative most-common break band. Normalization weights consistency 60% and peak 40%.";
   if (scoring === "points") return "Record the total points scored using the routine's zone or scoring rubric.";
   return "Record the score using the routine's saved scoring method.";
 }
@@ -13743,6 +13835,9 @@ function updateTargetHints(){
   } else if(scoring === "progressive_completion"){
     txt = "(completion %)";
     stretchTxt = "(stretch completion %)";
+  } else if(scoring === "continuous_scoring"){
+    txt = "(continuous score)";
+    stretchTxt = "(stretch continuous score)";
   } else {
     txt = "(score / amount)";
     stretchTxt = "(stretch score / amount)";
@@ -14136,7 +14231,7 @@ function handleDelegatedUIAction(event) {
     case "set-session-rating": { const v = actionEl.dataset.rating || ""; const el = $("sessionRating"); if (el) { el.value = v; if (activeSession) { activeSession.sessionRatingDraft = v; persistActiveSession(); } syncSessionQualityTiles(); } hapticFeedback("tap"); return; }
     case "set-reflection-rating": return setReflectionRating(actionEl.dataset.target || "", actionEl.dataset.rating || "");
     case "toggle-skill-chip": return toggleSkillChip(actionEl.dataset.target || "", actionEl.dataset.container || "", actionEl.dataset.skillId || "");
-    case "recommendation-feedback": return trackRecommendationFeedback(id, actionEl.dataset.feedback || "accepted", {source:actionEl.dataset.source || "smart_session_builder"});
+    case "recommendation-feedback": actionEl.disabled = true; return trackRecommendationFeedback(id, actionEl.dataset.feedback || "accepted", {source:actionEl.dataset.source || "smart_session_builder"});
     case "same-as-last": fillSameAsLastTime(); return refreshCurrentRoutineLivePerformance();
     case "repeat-last-score-setup": return applyLastScoreSetup();
     case "quick-log": return quickLogScore(Number(actionEl.dataset.score || 0));
@@ -14149,7 +14244,7 @@ function handleDelegatedUIAction(event) {
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);
     case "apply-target-upgrade": return applyTargetUpgrade(id);
-    case "adaptive-target-accept": return acceptAdaptiveTargetSuggestion(id, actionEl.dataset.current, actionEl.dataset.suggested, actionEl.dataset.stretch);
+    case "adaptive-target-accept": actionEl.disabled = true; return acceptAdaptiveTargetSuggestion(id, actionEl.dataset.current, actionEl.dataset.suggested, actionEl.dataset.stretch);
     case "adaptive-target-snooze": return snoozeAdaptiveTargetSuggestionFromElement(actionEl);
     case "adaptive-target-reject": return rejectAdaptiveTargetSuggestionFromElement(actionEl);
     case "quick-start-default-plan": return createDefaultQuickStartPlan();
@@ -14237,9 +14332,9 @@ function renderLivePerformanceCard(r){
   const sideSplitEnabled = routineUsesSideSplit(r);
   const score = sideSplitEnabled ? computeSideCombinedScore($("leftSideScoreValue")?.value || 0, $("rightSideScoreValue")?.value || 0) : Number($("scoreValue")?.value || 0);
   const attempts = Number($("attemptsValue")?.value || r.attempts || r.attemptsPerSession || 0);
-  const draftLog = {scoring:r.scoring, score, attempts, sideMode: sideSplitEnabled ? "left_right" : "none", sideSplitEnabled, attemptMode: sideSplitEnabled ? getRoutineAttemptMode(r) : "shared", totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0)};
-  const normalized = normalizeScore(draftLog);
   const profile = getActiveTargetProfile(r);
+  const draftLog = {scoring:r.scoring, score, attempts, sideMode: sideSplitEnabled ? "left_right" : "none", sideSplitEnabled, attemptMode: sideSplitEnabled ? getRoutineAttemptMode(r) : "shared", totalUnitsAtLog:r.totalUnits || 0, totalUnits:r.totalUnits || 0, timeMinutes:Number($("manualTimeValue")?.value || r.duration || 0), commonBreakBand:$("commonBreakBandValue")?.value || "", commonBreakBandAtLog:$("commonBreakBandValue")?.value || "", targetAtLog:profile?.target || r.target || ""};
+  const normalized = normalizeScore(draftLog);
   const target = Number(profile?.target || r.target || 0);
   const stretch = Number(profile?.stretchTarget || r.stretchTarget || 0);
   const allRoutineLogs = data.logs.filter(l => l.routineId === r.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
@@ -14250,7 +14345,7 @@ function renderLivePerformanceCard(r){
   const statusText = status === "green" ? "On target" : status === "yellow" ? "Near target" : status === "red" ? "Below target" : "No target";
   box.innerHTML = `<div class="live-perf ${safeClassToken(status, ["green","yellow","red","neutral"], "neutral")}">
     <div><strong>Live target check</strong><span>${htmlText(statusText)}</span></div>
-    <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" ? "%" : ""}</strong></div>
+    <div><span>Current</span><strong>${Number(normalized || 0).toFixed(r.scoring === "score_per_minute" ? 2 : 1)}${r.scoring === "success_rate" || r.scoring === "progressive_completion" || r.scoring === "break_target_consistency" ? "%" : ""}</strong></div>
     <div class="live-perf-pb"><span>Personal best</span><strong>${personalBest === null ? "N/A" : personalBest.toFixed(r.scoring === "score_per_minute" ? 2 : 1)}</strong></div>
     <div><span>Target</span><strong>${target || "N/A"}</strong></div>
     <div><span>Stretch</span><strong>${stretch || "N/A"}</strong></div>
@@ -15306,6 +15401,8 @@ function derivePerformanceSignal(log, routine){
   if(log?.scoring === "success_rate" && attempts > 0 && score > attempts) flags.push("score_exceeds_attempts");
   if(hasSide && attempts > 0 && left + right > attempts) flags.push("left_right_exceeds_attempts");
   if(log?.scoring === "progressive_completion" && Number(log?.totalUnits || log?.totalUnitsAtLog || 0) <= 0) flags.push("missing_total_units");
+  if(log?.scoring === "continuous_scoring" && Number(log?.score || 0) < 0) flags.push("negative_continuous_score");
+  if(log?.scoring === "break_target_consistency" && (Number(log?.score || 0) < 0 || Number(breakConsistencyTypicalValue(log) || 0) < 0)) flags.push("invalid_break_consistency_score");
   if(Number(log?.timeMinutes || 0) === 0) flags.push("zero_minutes");
 
   return {

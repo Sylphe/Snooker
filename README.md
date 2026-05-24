@@ -185,6 +185,16 @@ Adds optional Junior / Club / Senior / Pro benchmark targets to exercise templat
 - Added fallback plan rendering if the advanced Smart Session builder throws.
 - Exposed `window.SnookerSmartSessionBuild` as an emergency UI fallback.
 
+
+## v5.7.32 — Recommendation action safety
+
+- Smart Recommendation accept/skip actions now clear the active recommendation from the visible queue immediately, so the same card does not need repeated clicks.
+- Smart Recommendation buttons are disabled during action handling to prevent double-click duplicate feedback entries.
+- Adaptive Target Engine accept actions now dismiss the applied target suggestion immediately after the new target profile is created.
+- Applied target suggestions are stored in a backward-compatible dismissed map under `interfaceSettings.adaptiveTargetEngine.dismissed`; older data without this field is normalized safely.
+- Adaptive target accept buttons are disabled during action handling to prevent accidental repeated target reductions or increases.
+- Updated cache/version markers.
+
 ## v5.7.29 — Smart Session safe-score fix
 
 - Fixed advanced Smart Session builder failure caused by missing `safeRecommendationScore()`.
