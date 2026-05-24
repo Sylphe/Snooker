@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.34";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.34";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.35";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.35";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.34";
+} from "./utils.js?v=5.7.35";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.34";
+} from "./settings.js?v=5.7.35";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.34";
+} from "./analytics.js?v=5.7.35";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.34";
+} from "./bayesian.js?v=5.7.35";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.34";
+} from "./session.js?v=5.7.35";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.34";
+} from "./pressure.js?v=5.7.35";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.34";
+} from "./recommendations.js?v=5.7.35";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.34";
+} from "./store.js?v=5.7.35";
 
 
 
@@ -2948,165 +2948,6 @@ const DEFAULT_TABLE_DEFINITIONS = [
   {id:"default-other-table", name:"Other", type:"Other"}
 ];
 
-let data = loadData();
-activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
-data.skillTaxonomy = activeSkillTaxonomyForNormalization;
-ensureTablesDatabase();
-refreshReferenceNames();
-// Core data is compacted after IndexedDB hydration/migration succeeds.
-let planDraft = [];
-let activeSession = null;
-let isResumingActiveSession = false;
-let timerInterval = null;
-let timerStartMs = null;
-let elapsedBeforeStartMs = 0;
-function monotonicNowMs() { try { if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now(); } catch(e) {} return Date.now(); }
-let suppressTimerPersistence = false;
-let timerAutostartDelayInterval = null;
-let timerAutostartDelayEndsAt = null;
-
-// v4.39.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
-let focusNumpadTargetId = "scoreValue";
-let focusStepHoldStartTimer = null;
-let focusStepHoldRepeatTimer = null;
-let focusStepHoldAccelerationTimer = null;
-let focusStepFiredByHold = false;
-let focusSwipeStartX = 0;
-let focusSwipeStartY = 0;
-let focusSwipeStartTime = 0;
-let focusSwipeArmed = false;
-
-function cancelFocusStepHold() {
-  if (focusStepHoldStartTimer) clearTimeout(focusStepHoldStartTimer);
-  if (focusStepHoldRepeatTimer) clearInterval(focusStepHoldRepeatTimer);
-  if (focusStepHoldAccelerationTimer) clearTimeout(focusStepHoldAccelerationTimer);
-  document.querySelectorAll?.(".focus-hold-active").forEach(el => el.classList.remove("focus-hold-active"));
-  focusStepHoldStartTimer = null;
-  focusStepHoldRepeatTimer = null;
-  focusStepHoldAccelerationTimer = null;
-}
-
-function normalizeFocusNumpadTarget(id) {
-  const allowed = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
-  return allowed.includes(id) && $(id) ? id : "scoreValue";
-}
-
-function setFocusNumpadTarget(id) {
-  focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
-  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${cssEscapeSafe(focusNumpadTargetId)}`)));
-  const panel = document.querySelector(".focus-score-cockpit");
-  if (panel) {
-    const row = $(focusNumpadTargetId)?.closest("div");
-    const label = row?.querySelector("label")?.textContent?.trim() || "Score";
-    const labelEl = panel.querySelector(".focus-cockpit-label");
-    if (labelEl) labelEl.textContent = label;
-  }
-}
-
-function focusModeFlash(selectorOrEl, className = "focus-control-pulse") {
-  try {
-    const el = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : selectorOrEl;
-    if (!el) return;
-    el.classList.remove(className);
-    void el.offsetWidth;
-    el.classList.add(className);
-    setTimeout(() => el.classList.remove(className), 220);
-  } catch(e) {}
-}
-
-function focusModeScoreFeedback(inputId) {
-  if (!document.body?.classList.contains("session-focus-active")) return;
-  const el = $(normalizeFocusNumpadTarget(inputId || focusNumpadTargetId));
-  if (el) focusModeFlash(el, "focus-score-pulse");
-  focusModeFlash($("activeSession"), "focus-card-pulse");
-}
-
-
-function applyFocusModeInputLocks() {
-  if (!document.body?.classList.contains("session-focus-active")) return;
-  const ids = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
-  ids.forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    // In focus mode every numeric field is routed through the in-app numpad.
-    // This avoids the mobile OS keyboard covering the logging screen.
-    el.readOnly = true;
-    el.setAttribute("inputmode", "none");
-    el.classList.add("focus-readonly-input");
-    el.addEventListener("focus", () => setFocusNumpadTarget(id), {once:false});
-    el.addEventListener("click", () => setFocusNumpadTarget(id), {once:false});
-  });
-  setFocusNumpadTarget(focusNumpadTargetId);
-}
-
-function renderFocusNumpad(r) {
-  const box = $("scoreInputs");
-  if (!box || !document.body?.classList.contains("session-focus-active")) return;
-  box.querySelector(".focus-numpad-panel")?.remove();
-  const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"].filter(id => $(id));
-  if (!candidates.length) return;
-  focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
-  const targetLabel = (() => {
-    const row = $(focusNumpadTargetId)?.closest("div");
-    return row?.querySelector("label")?.textContent?.trim() || "Score";
-  })();
-  const buttons = ["1","2","3","4","5","6","7","8","9",".","0","⌫","✓"];
-  box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel focus-score-cockpit" aria-label="Focus mode score cockpit">
-    <div class="focus-cockpit-header">
-      <span class="focus-cockpit-label">${htmlText(targetLabel)}</span>
-      <span class="focus-cockpit-hint">tap score · ✓ saves</span>
-    </div>
-    <div class="focus-numpad-grid">${buttons.map(label => {
-      const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : label === "." ? "decimal" : "digit";
-      const value = action === "digit" || action === "decimal" ? label : "";
-      return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
-    }).join("")}</div>
-    <div class="focus-numpad-footer">
-      <button type="button" class="secondary" data-action="same-as-last">Same time</button>
-      <button type="button" class="secondary" data-action="repeat-last-score-setup">Repeat last setup</button>
-    </div>
-  </div>`);
-}
-
-function handleFocusNumpad(action, value) {
-  const el = $(normalizeFocusNumpadTarget(focusNumpadTargetId));
-  if (!el) return;
-  if (action === "enter") {
-    focusModeFlash($("saveNextBtn"), "focus-control-pulse");
-    saveCurrentRoutine();
-    return;
-  }
-  let current = String(el.value || "");
-  if (action === "clear") current = "";
-  else if (action === "backspace") current = current.slice(0, -1);
-  else if (action === "decimal") current = current.includes(".") ? current : `${current || "0"}.`;
-  else if (action === "digit") current = `${current}${String(value || "")}`.replace(/^0+(?=\d)/, "");
-  el.value = current;
-  el.dispatchEvent(new Event("input", {bubbles:true}));
-  setFocusNumpadTarget(el.id);
-  focusModeScoreFeedback(el.id);
-  refreshCurrentRoutineLivePerformance();
-}
-let wakeLockSentinel = null;
-let wakeLockRequestInFlight = false;
-let wakeLockPermanentlyFailed = false;
-let deferredInstallPrompt = null;
-const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
-const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
-const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
-const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
-function normalizeStatsMode(value) {
-  const v = String(value || "overview");
-  if (v === "advanced") return "trends";
-  return STATS_MODES.has(v) ? v : "overview";
-}
-let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
-const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
-let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
-
-function $(id) { return document.getElementById(id); }
-
-
 /* v5.4.0 Friendly / Analytical UI language foundation */
 const INSIGHT_LANGUAGE_KEY = "snookerPracticePWA.insightLanguage";
 const UI_LABELS = {
@@ -3546,6 +3387,166 @@ function setInsightLanguageSetting(value){
   } catch(e) { try { logAppError(e, "setInsightLanguageSetting"); } catch(_){} }
   return clean;
 }
+
+let data = loadData();
+activeSkillTaxonomyForNormalization = normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy());
+data.skillTaxonomy = activeSkillTaxonomyForNormalization;
+ensureTablesDatabase();
+refreshReferenceNames();
+// Core data is compacted after IndexedDB hydration/migration succeeds.
+let planDraft = [];
+let activeSession = null;
+let isResumingActiveSession = false;
+let timerInterval = null;
+let timerStartMs = null;
+let elapsedBeforeStartMs = 0;
+function monotonicNowMs() { try { if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now(); } catch(e) {} return Date.now(); }
+let suppressTimerPersistence = false;
+let timerAutostartDelayInterval = null;
+let timerAutostartDelayEndsAt = null;
+
+// v4.39.0 Focus-mode UX: local touch controls should avoid native keyboard friction.
+let focusNumpadTargetId = "scoreValue";
+let focusStepHoldStartTimer = null;
+let focusStepHoldRepeatTimer = null;
+let focusStepHoldAccelerationTimer = null;
+let focusStepFiredByHold = false;
+let focusSwipeStartX = 0;
+let focusSwipeStartY = 0;
+let focusSwipeStartTime = 0;
+let focusSwipeArmed = false;
+
+function cancelFocusStepHold() {
+  if (focusStepHoldStartTimer) clearTimeout(focusStepHoldStartTimer);
+  if (focusStepHoldRepeatTimer) clearInterval(focusStepHoldRepeatTimer);
+  if (focusStepHoldAccelerationTimer) clearTimeout(focusStepHoldAccelerationTimer);
+  document.querySelectorAll?.(".focus-hold-active").forEach(el => el.classList.remove("focus-hold-active"));
+  focusStepHoldStartTimer = null;
+  focusStepHoldRepeatTimer = null;
+  focusStepHoldAccelerationTimer = null;
+}
+
+function normalizeFocusNumpadTarget(id) {
+  const allowed = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
+  return allowed.includes(id) && $(id) ? id : "scoreValue";
+}
+
+function setFocusNumpadTarget(id) {
+  focusNumpadTargetId = normalizeFocusNumpadTarget(id || focusNumpadTargetId);
+  document.querySelectorAll(".focus-score-inline-row").forEach(row => row.classList.toggle("focus-numpad-active-row", !!row.querySelector(`#${cssEscapeSafe(focusNumpadTargetId)}`)));
+  const panel = document.querySelector(".focus-score-cockpit");
+  if (panel) {
+    const row = $(focusNumpadTargetId)?.closest("div");
+    const label = row?.querySelector("label")?.textContent?.trim() || "Score";
+    const labelEl = panel.querySelector(".focus-cockpit-label");
+    if (labelEl) labelEl.textContent = label;
+  }
+}
+
+function focusModeFlash(selectorOrEl, className = "focus-control-pulse") {
+  try {
+    const el = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : selectorOrEl;
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    setTimeout(() => el.classList.remove(className), 220);
+  } catch(e) {}
+}
+
+function focusModeScoreFeedback(inputId) {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const el = $(normalizeFocusNumpadTarget(inputId || focusNumpadTargetId));
+  if (el) focusModeFlash(el, "focus-score-pulse");
+  focusModeFlash($("activeSession"), "focus-card-pulse");
+}
+
+
+function applyFocusModeInputLocks() {
+  if (!document.body?.classList.contains("session-focus-active")) return;
+  const ids = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"];
+  ids.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    // In focus mode every numeric field is routed through the in-app numpad.
+    // This avoids the mobile OS keyboard covering the logging screen.
+    el.readOnly = true;
+    el.setAttribute("inputmode", "none");
+    el.classList.add("focus-readonly-input");
+    el.addEventListener("focus", () => setFocusNumpadTarget(id), {once:false});
+    el.addEventListener("click", () => setFocusNumpadTarget(id), {once:false});
+  });
+  setFocusNumpadTarget(focusNumpadTargetId);
+}
+
+function renderFocusNumpad(r) {
+  const box = $("scoreInputs");
+  if (!box || !document.body?.classList.contains("session-focus-active")) return;
+  box.querySelector(".focus-numpad-panel")?.remove();
+  const candidates = ["scoreValue","leftSideScoreValue","rightSideScoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","sessionTotalUnitsValue","commonBreakBandValue"].filter(id => $(id));
+  if (!candidates.length) return;
+  focusNumpadTargetId = normalizeFocusNumpadTarget(candidates.includes(focusNumpadTargetId) ? focusNumpadTargetId : candidates[0]);
+  const targetLabel = (() => {
+    const row = $(focusNumpadTargetId)?.closest("div");
+    return row?.querySelector("label")?.textContent?.trim() || "Score";
+  })();
+  const buttons = ["1","2","3","4","5","6","7","8","9",".","0","⌫","✓"];
+  box.insertAdjacentHTML("beforeend", `<div class="focus-numpad-panel focus-score-cockpit" aria-label="Focus mode score cockpit">
+    <div class="focus-cockpit-header">
+      <span class="focus-cockpit-label">${htmlText(targetLabel)}</span>
+      <span class="focus-cockpit-hint">tap score · ✓ saves</span>
+    </div>
+    <div class="focus-numpad-grid">${buttons.map(label => {
+      const action = label === "⌫" ? "backspace" : label === "✓" ? "enter" : label === "." ? "decimal" : "digit";
+      const value = action === "digit" || action === "decimal" ? label : "";
+      return `<button type="button" class="secondary" data-action="focus-numpad" data-numpad-action="${action}" data-value="${value}">${label}</button>`;
+    }).join("")}</div>
+    <div class="focus-numpad-footer">
+      <button type="button" class="secondary" data-action="same-as-last">Same time</button>
+      <button type="button" class="secondary" data-action="repeat-last-score-setup">Repeat last setup</button>
+    </div>
+  </div>`);
+}
+
+function handleFocusNumpad(action, value) {
+  const el = $(normalizeFocusNumpadTarget(focusNumpadTargetId));
+  if (!el) return;
+  if (action === "enter") {
+    focusModeFlash($("saveNextBtn"), "focus-control-pulse");
+    saveCurrentRoutine();
+    return;
+  }
+  let current = String(el.value || "");
+  if (action === "clear") current = "";
+  else if (action === "backspace") current = current.slice(0, -1);
+  else if (action === "decimal") current = current.includes(".") ? current : `${current || "0"}.`;
+  else if (action === "digit") current = `${current}${String(value || "")}`.replace(/^0+(?=\d)/, "");
+  el.value = current;
+  el.dispatchEvent(new Event("input", {bubbles:true}));
+  setFocusNumpadTarget(el.id);
+  focusModeScoreFeedback(el.id);
+  refreshCurrentRoutineLivePerformance();
+}
+let wakeLockSentinel = null;
+let wakeLockRequestInFlight = false;
+let wakeLockPermanentlyFailed = false;
+let deferredInstallPrompt = null;
+const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
+const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
+const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
+const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
+function normalizeStatsMode(value) {
+  const v = String(value || "overview");
+  if (v === "advanced") return "trends";
+  return STATS_MODES.has(v) ? v : "overview";
+}
+let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
+const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
+let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
+
+function $(id) { return document.getElementById(id); }
+
+
 
 // v4.39.0 hardening: keep missing/renamed DOM nodes and fragile panels from killing bootstrap.
 function safeOn(id, eventName, handler, options) {

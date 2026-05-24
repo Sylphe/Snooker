@@ -1,8 +1,8 @@
-# Snooker Practice PWA v5.7.34
+# Snooker Practice PWA v5.7.35
 
-## v5.7.34 — Benchmark initialization safety fix
+## v5.7.35 — Migration constant initialization fix
 
-Corrective release based on v5.7.33. Fixes the startup ReferenceError reported in debug export `snooker-debug-5.7.33-data-center-ui-redesign-2026-05-24.json`: `Cannot access 'BENCHMARK_LEVELS' before initialization`. The benchmark level constant is now initialized before the first `loadData()` / migration pass. Also updates stale module cache-busting references from v5.7.32/v5.7.33 to v5.7.34 and updates the service-worker cache name. No scoring, log schema, IndexedDB, or backup format changes.
+Corrective release based on v5.7.34 and the updated debug export `snooker-debug-5.7.34-benchmark-init-order-fix-2026-05-24.json`. Fixes the remaining startup ReferenceError: `Cannot access 'INSIGHT_LANGUAGE_KEY' before initialization`. The migration-required language constants and label helpers are now initialized before the first `loadData()` / migration pass, matching the earlier `BENCHMARK_LEVELS` fix. Also updates all module cache-busting references, the service-worker cache name, and build labels to v5.7.35. No scoring, log schema, IndexedDB, or backup format changes.
 
 Validation performed: JavaScript syntax checks, JSON checks, and zip integrity check.
 
