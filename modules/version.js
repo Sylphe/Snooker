@@ -1,2 +1,2 @@
-export const APP_VERSION = "5.7.37-graphs-top-level-navigation";
-export const APP_BUILD_TIMESTAMP = "2026-05-24 19:30 CEST";
+export const APP_VERSION = "5.7.38-sticky-stats-scope-bar";
+export const APP_BUILD_TIMESTAMP = "2026-05-24 20:05 CEST";
