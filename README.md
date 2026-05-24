@@ -1,15 +1,18 @@
-# Snooker Practice PWA v5.7.43
+# Snooker Practice PWA v5.7.44
 
-## v5.7.43 — Inferred skill UI clarity
+## v5.7.44 — Prediction engine Stats tab
 
-Small UI/UX refinement focused on the Stats > Insights inferred-skill panel.
+Adds a new Stats > Predictions subtab built from the v5.7.43 inferred-skill UI clarity baseline.
 
 ### Changes
-- Restructured the Inferred Skill Levels insight panel.
-- Added a helper explaining the difference between break-class rating, benchmark class, and L1–L7 domain levels.
-- Grouped global player rating and benchmark player class into clearer summary tiles.
-- Improved dark-mode treatment for the two inferred-skill rating tiles.
-- Made the inferred-skill radar grid, labels, points, and outer ring more visible in dark mode.
-- Preserved existing calculations, logs, schema, analytics, and recommendation logic.
+- Added a new `Predictions` subtab inside Stats Core.
+- Added probabilistic progression outlook cards.
+- Added break milestone forecasts for stable 30+, 50+, 70+ and century-capable profiles.
+- Added benchmark progression outlook for Junior, Club, Senior and Pro benchmark ladders.
+- Added skill-domain progression estimates toward the next L-band.
+- Added stable-vs-peak interpretation so one-off breakthrough potential is separated from repeatable competitive level.
+- Forecasts use current inferred skill, recent progression velocity, volatility, benchmark evidence, break evidence and weakest-link constraints.
+- Predictions are framed as coaching outlooks rather than deterministic guarantees.
+- No schema, storage, routine, log or recommendation-engine changes.
 
-Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.43.
+Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.44.

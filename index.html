@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.43"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.43" />
-  <link rel="stylesheet" href="styles.css?v=5.7.43" />
-  <link rel="icon" href="icon.svg?v=5.7.43" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.44"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.44" />
+  <link rel="stylesheet" href="styles.css?v=5.7.44" />
+  <link rel="icon" href="icon.svg?v=5.7.44" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.43 · Build 2026-05-24 21:05 CEST — Inferred skill UI clarity.</p>
+      <p>v5.7.44 · Build 2026-05-24 21:05 CEST — Inferred skill UI clarity.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -925,12 +925,13 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <p class="muted">Stats are organized as a progressive workflow: Core first, Coaching for decisions, Advanced for analysis, and Research isolated for experimental diagnostics.</p>
+        <p class="muted">Stats are organized as a progressive workflow: Core first, Predictions for outlook, Coaching for decisions, Advanced for analysis, and Research isolated for experimental diagnostics.</p>
         <div class="stats-subtabs stats-internal-nav stats-hub-nav" role="tablist" aria-label="Stats sections">
           <div class="stats-nav-group" aria-label="Core stats">
             <span class="stats-nav-label">Core</span>
             <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
             <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
+            <button id="statsPredictionsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="predictions">Predictions</button>
           </div>
           <div class="stats-nav-group" aria-label="Coaching decision engines">
             <span class="stats-nav-label">Coaching</span>
@@ -952,7 +953,7 @@
           <summary class="stats-scope-summary">
             <span>
               <strong>Analytics scope</strong>
-              <small>Shared filters for Overview, Insights, Coaching, Trends, Graphs, Routines, Pressure and Research Lab.</small>
+              <small>Shared filters for Overview, Insights, Predictions, Coaching, Trends, Graphs, Routines, Pressure and Research Lab.</small>
             </span>
             <span class="stats-scope-chevron">›</span>
           </summary>
@@ -1467,7 +1468,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.43"></script>
+  <script type="module" src="app.js?v=5.7.44"></script>
 </body>
 
 

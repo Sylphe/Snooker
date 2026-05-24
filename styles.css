@@ -5647,7 +5647,7 @@ body[data-density="compact"] .stats-dashboard-action-card{padding:9px;border-rad
   .stats-dashboard-action-card small{font-size:10px;}
 }
 
-/* v5.7.43 Inferred skill UI clarity — Phase 6 */
+/* v5.7.44 Inferred skill UI clarity — Phase 6 */
 .stats-research-nav-group .stats-nav-btn {
   border-style: dashed;
 }
@@ -5693,7 +5693,7 @@ body[data-density="compact"] .stats-dashboard-action-card{padding:9px;border-rad
   }
 }
 
-/* v5.7.43 — Inferred skill panel clarity and dark-mode fixes */
+/* v5.7.44 — Inferred skill panel clarity and dark-mode fixes */
 .inferred-skill-card .section-head h3{margin:0;}
 .inferred-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.8rem;margin:.75rem 0;}
 .inferred-skill-guide{margin:.7rem 0;border:1px solid var(--line);border-radius:14px;background:var(--panel-bg-2);padding:.7rem .8rem;}
