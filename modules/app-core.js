@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.36";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.36";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.37";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.37";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.36";
+} from "./utils.js?v=5.7.37";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.36";
+} from "./settings.js?v=5.7.37";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.36";
+} from "./analytics.js?v=5.7.37";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.36";
+} from "./bayesian.js?v=5.7.37";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.36";
+} from "./session.js?v=5.7.37";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.36";
+} from "./pressure.js?v=5.7.37";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.36";
+} from "./recommendations.js?v=5.7.37";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.36";
+} from "./store.js?v=5.7.37";
 
 
 
@@ -3534,10 +3534,17 @@ let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
 const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
 const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
-const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
+const GRAPHS_MODE_KEY = "snookerPracticePWA.graphsMode";
+const GRAPHS_MODES = new Set(["overview", "session", "exercise", "pressure", "consistency"]);
+function normalizeGraphsMode(value) {
+  const v = String(value || "overview");
+  return GRAPHS_MODES.has(v) ? v : "overview";
+}
+let graphsMode = normalizeGraphsMode(localStorage.getItem(GRAPHS_MODE_KEY) || "overview");
+const STATS_MODES = new Set(["overview", "trends", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
-  if (v === "advanced") return "trends";
+  if (v === "advanced" || v === "graphs") return "trends";
   return STATS_MODES.has(v) ? v : "overview";
 }
 let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
@@ -3797,9 +3804,16 @@ function isPanelActive(panelId) {
 function shouldRenderStatsPanel() {
   return isPanelActive("stats");
 }
+function shouldRenderGraphsPanel() {
+  return isPanelActive("graphs");
+}
 function renderStatsIfVisible(reason="renderStatsIfVisible") {
   if (!shouldRenderStatsPanel()) return;
   safeCall(`${reason} renderStats`, renderStats);
+}
+function renderGraphsIfVisible(reason="renderGraphsIfVisible") {
+  if (!shouldRenderGraphsPanel()) return;
+  safeCall(`${reason} renderGraphsPage`, renderGraphsPage);
 }
 function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible") {
   if (!shouldRenderStatsPanel()) return;
@@ -3812,6 +3826,7 @@ function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible
 }
 function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
   renderStatsIfVisible(reason);
+  renderGraphsIfVisible(reason);
   if (shouldRenderStatsPanel()) {
     safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
     safeCall(`${reason} renderDynamicRoutineDifficultyModel`, renderDynamicRoutineDifficultyModel);
@@ -4585,6 +4600,7 @@ function activateTab(tabId) {
   if (tabId === "practice") renderPracticeTodayCommand();
   if (tabId === "today") renderToday();
   if (tabId === "stats") renderStatsBundleIfVisible("activateTab stats");
+  if (tabId === "graphs") renderGraphsPage();
 }
 
 document.querySelectorAll(".tab, .mobile-nav-btn").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
@@ -4611,6 +4627,7 @@ function renderAll() {
     ["renderPlanBuilder", renderPlanBuilder],
     ["renderPlanList", renderPlanList],
     ["renderStats", () => renderStatsIfVisible("renderAll")],
+    ["renderGraphs", () => renderGraphsIfVisible("renderAll")],
     ["renderAdaptiveTargetEngine", () => { if (shouldRenderStatsPanel()) renderAdaptiveTargetEngine(); }],
     ["renderDynamicRoutineDifficultyModel", () => { if (shouldRenderStatsPanel()) renderDynamicRoutineDifficultyModel(); }],
     ["renderSessionArchitectureEngine", () => { if (shouldRenderStatsPanel()) renderSessionArchitectureEngine(); }],
@@ -4688,18 +4705,25 @@ function renderRoutineSelects() {
   $("freeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("nextFreeRoutineSelect").innerHTML = allRoutineOptions || `<option value="">No exercises yet</option>`;
   $("planSelect").innerHTML = data.plans.map(p => `<option value="${attrText(p.id)}">${htmlText(p.name)}</option>`).join("") || `<option value="">No plans yet</option>`;
+  const statRoutines = (data.routines || []).slice().sort((a,b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const statIds = statRoutines.map(r => String(r.id));
+  const statOptions = `<option value="all">All exercises</option>` + statRoutines.map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("");
   const statsSelect = $("statsRoutineSelect");
   if (statsSelect) {
     const previousStatsRoutine = normalizeStatsRoutineFilter(statsRoutineFilterId || statsSelect.value || "all");
-    const statRoutines = (data.routines || []).slice().sort((a,b) => String(a.name || "").localeCompare(String(b.name || "")));
-    const statIds = statRoutines.map(r => String(r.id));
-    statsSelect.innerHTML = `<option value="all">All exercises</option>` + statRoutines.map(r => `<option value="${attrText(r.id)}">${htmlText(r.name)}${r.isDeleted ? " (archived)" : ""}</option>`).join("");
+    statsSelect.innerHTML = statOptions;
     statsRoutineFilterId = statIds.includes(previousStatsRoutine) || previousStatsRoutine === "all" ? previousStatsRoutine : "all";
     statsSelect.value = statsRoutineFilterId;
     localStorage.setItem(STATS_ROUTINE_FILTER_KEY, statsRoutineFilterId);
   }
+  const graphsSelect = $("graphsRoutineSelect");
+  if (graphsSelect) {
+    graphsSelect.innerHTML = statOptions;
+    graphsSelect.value = statIds.includes(statsRoutineFilterId) || statsRoutineFilterId === "all" ? statsRoutineFilterId : "all";
+  }
 
-  if (!$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
+  if ($("statsDateSelect") && !$("statsDateSelect").value) $("statsDateSelect").value = localDateKey();
+  if ($("graphsDateSelect") && !$("graphsDateSelect").value) $("graphsDateSelect").value = localDateKey();
 }
 ["exerciseTypeFilter","exerciseFolderFilter","exerciseImportSourceFilter","exerciseSearch"].forEach(id => {
   safeOn(id, "input", debouncedRenderRoutineList);
@@ -7948,6 +7972,9 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
 safeOn("statsDateSelect", "change", renderStats);
 safeOn("statsPeriodSelect", "change", () => { safeCall("statsPeriod renderStats", renderStats); safeCall("statsPeriod renderPhaseOneInsights", renderPhaseOneInsights); });
+safeOn("graphsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value, { render: false }); renderGraphsPage(); });
+safeOn("graphsDateSelect", "change", renderGraphsPage);
+safeOn("graphsPeriodSelect", "change", renderGraphsPage);
 safeOn("rollingWindowInput", "input", debouncedRenderStats);
 safeOn("benchmarkWindowInput", "input", debouncedRenderStats);
 if ($("statsDetailMode")) {
@@ -8725,6 +8752,105 @@ function toggleStatsStandalonePanels() {
   const tableStats = $("tableStatsBox");
   if (tableStats) tableStats.classList.toggle("hidden", !(statsMode === "overview" || statsMode === "routines"));
 }
+
+
+function getGraphsScope() {
+  const period = $("graphsPeriodSelect")?.value || $("statsPeriodSelect")?.value || "overall";
+  const select = $("graphsRoutineSelect");
+  const selectValue = normalizeStatsRoutineFilter(select?.value || statsRoutineFilterId || "all");
+  if (selectValue !== statsRoutineFilterId) {
+    statsRoutineFilterId = selectValue;
+    localStorage.setItem(STATS_ROUTINE_FILTER_KEY, statsRoutineFilterId);
+    const statsSelect = $("statsRoutineSelect");
+    if (statsSelect && statsSelect.value !== statsRoutineFilterId) statsSelect.value = statsRoutineFilterId;
+  }
+  const rid = selectValue && selectValue !== "all" ? selectValue : "";
+  const dateKey = $("graphsDateSelect")?.value || $("statsDateSelect")?.value || localDateKey();
+  const range = getPeriodRange(period, dateKey);
+  const routine = rid ? routineById(rid) : null;
+  return { period, selectedRoutineId: selectValue, rid, dateKey, range, routine, routineName: routine ? routine.name : "" };
+}
+function getScopedGraphLogs() {
+  const scope = getGraphsScope();
+  let logs = Array.isArray(data.logs) ? data.logs.slice() : [];
+  if (scope.rid) logs = logs.filter(l => String(l.routineId) === String(scope.rid));
+  logs = logs.filter(l => {
+    const d = new Date(l.createdAt || l.date || Date.now());
+    return d >= scope.range.start && d < scope.range.end;
+  });
+  return logs;
+}
+function renderGraphsScopeChips(scope, logs) {
+  const box = $("graphsScopeChips");
+  if (!box) return;
+  const label = scope.routineName || "All exercises";
+  box.innerHTML = `<span class="scope-chip"><strong>Graphs scope:</strong> ${escapeHtml(label)} · ${escapeHtml(scope.range.label)} · ${logs.length} logs</span>`;
+}
+function applyStoredGraphsModeVisual() {
+  graphsMode = normalizeGraphsMode(graphsMode);
+  document.querySelectorAll(".graphs-nav-btn[data-graphs-mode]").forEach(btn => {
+    btn.classList.toggle("active-subtab", normalizeGraphsMode(btn.dataset.graphsMode) === graphsMode);
+    btn.setAttribute("aria-selected", normalizeGraphsMode(btn.dataset.graphsMode) === graphsMode ? "true" : "false");
+  });
+}
+function setGraphsMode(mode) {
+  graphsMode = normalizeGraphsMode(mode);
+  localStorage.setItem(GRAPHS_MODE_KEY, graphsMode);
+  applyStoredGraphsModeVisual();
+  renderGraphsPage();
+}
+function bindGraphsNavigation() {
+  const nav = document.querySelector(".graphs-internal-nav");
+  if (!nav || nav.dataset.bound === "true") return;
+  nav.dataset.bound = "true";
+  nav.addEventListener("click", event => {
+    const btn = event.target?.closest?.(".graphs-nav-btn[data-graphs-mode]");
+    if (!btn) return;
+    event.preventDefault();
+    setGraphsMode(btn.dataset.graphsMode || "overview");
+  });
+}
+function renderGraphsModeSection(logs, scope) {
+  const analyticsLogs = analyticsWindow(logs);
+  if (graphsMode === "overview" || graphsMode === "session") {
+    return renderStatsGraphs(analyticsLogs, { period: scope.period, rid: scope.rid, range: scope.range, rollingWindow: 5, benchmarkWindow: 10 });
+  }
+  if (graphsMode === "exercise") {
+    if (!scope.rid) return `<h3>Exercise Trends</h3><p class="muted">Select one exercise to show exercise-level progression graphs.</p>`;
+    return renderExerciseProgression(logs, 5, 10);
+  }
+  if (graphsMode === "pressure") {
+    const pressureLogs = logs.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+    if (!pressureLogs.length) return `<h3>Pressure Graphs</h3><p class="muted">No pressure-mode logs in the current graph scope.</p>`;
+    return renderStatsGraphs(analyticsWindow(pressureLogs), { period: scope.period, rid: scope.rid, range: {...scope.range, label: `${scope.range.label} · pressure`} });
+  }
+  if (graphsMode === "consistency") {
+    return `<h3>Consistency Graphs — ${escapeHtml(scope.range.label)}</h3>
+      <div class="graphs-grid">
+        ${renderSessionTrendChart("Consistency", "Rolling stability score based on recent session scores", buildSessionKpiSeries(analyticsLogs), "consistency", "/100", 0)}
+        ${renderSessionTrendChart("Average score", "Mean normalized score per session", buildSessionKpiSeries(analyticsLogs), "avgScore", "", 1)}
+        ${renderSessionTrendChart("Side balance", "Left/right balance score where side-split data exists", buildSessionKpiSeries(analyticsLogs), "sideBalance", "/100", 0)}
+      </div>`;
+  }
+  return renderStatsGraphs(analyticsLogs, { period: scope.period, rid: scope.rid, range: scope.range });
+}
+function renderGraphsPage() {
+  const output = $("graphsOutput");
+  if (!output) return;
+  if (indexedDBHydrating && !indexedDBReady && !indexedDBUnavailable) {
+    output.innerHTML = `<div class="analytics-note"><strong>Loading graphs…</strong><br><span class="muted">Storage hydration is still completing. Graphs will render automatically when the local database is ready.</span></div>`;
+    return;
+  }
+  graphsMode = normalizeGraphsMode(graphsMode);
+  applyStoredGraphsModeVisual();
+  const scope = getGraphsScope();
+  const logs = getScopedGraphLogs();
+  renderGraphsScopeChips(scope, logs);
+  const intro = `<div class="analytics-note"><strong>Dedicated graph view.</strong> Visual analytics are separated from the full Stats workflow so trend review stays fast and low-clutter.</div>`;
+  output.innerHTML = intro + renderGraphsModeSection(logs, scope);
+}
+bindGraphsNavigation();
+document.addEventListener("DOMContentLoaded", () => { bindGraphsNavigation(); applyStoredGraphsModeVisual(); });
 
 function renderStats() {
   const output = $("statsOutput");

@@ -1,10 +1,20 @@
-# Snooker Practice PWA v5.7.36
+# Snooker Practice PWA v5.7.37
 
-## v5.7.36 — Focus common-break live input fix
+## v5.7.37 — Graphs top-level navigation
+
+Phase 1 stats information-architecture release based on v5.7.36. Extracts Graphs into a dedicated top-level navigation tab so visual pattern review no longer sits inside the dense Advanced Stats flow. Adds a focused Graphs panel with Overview, Session Trends, Exercise Trends, Pressure, and Consistency graph modes, while preserving the existing graph calculation engines and scoped routine/date filters.
+
+This is intentionally a UI architecture change only: no scoring formula, log schema, IndexedDB, backup, import/export, or migration logic changed.
+
+All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.37.
+
+Validation performed: JavaScript syntax checks, JSON checks, and zip integrity check.
+
+## v5.7.37 — Graphs top-level navigation
 
 Narrow corrective release based on v5.7.35. Adds `commonBreakBandValue` to the Focus Mode live input listener list and inline stepper wiring, so the v5.7.31 break-target consistency field refreshes the live performance card immediately and behaves consistently with score, attempts, time, best attempt, completion count, highest break, and setup size fields. Also carries the same value into the “Same as last” helper when available. No scoring formula, log schema, IndexedDB, backup, import/export, or migration logic changed.
 
-All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.36.
+All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.37.
 
 Validation performed: JavaScript syntax checks, JSON checks, and zip integrity check.
 

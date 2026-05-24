@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.36"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.36" />
-  <link rel="stylesheet" href="styles.css?v=5.7.36" />
-  <link rel="icon" href="icon.svg?v=5.7.36" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.37"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.37" />
+  <link rel="stylesheet" href="styles.css?v=5.7.37" />
+  <link rel="icon" href="icon.svg?v=5.7.37" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.36 · Build 2026-05-24 19:30 CEST — Focus common-break live input fix.</p>
+      <p>v5.7.37 · Build 2026-05-24 19:30 CEST — Graphs top-level navigation.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -29,6 +29,7 @@
     <button class="tab" data-tab="templates">Library</button>
     <button class="tab" data-tab="plans">Plans</button>
     <button class="tab" data-tab="stats">Stats</button>
+    <button class="tab" data-tab="graphs">Graphs</button>
     <button class="tab" data-tab="data">Settings/Data</button>
   </nav>
 
@@ -36,6 +37,7 @@
     <button type="button" class="mobile-nav-btn active" data-tab="practice"><span class="mobile-nav-icon">●</span><span>Practice</span></button>
     <button type="button" class="mobile-nav-btn" data-tab="templates"><span class="mobile-nav-icon">◇</span><span>Library</span></button>
     <button type="button" class="mobile-nav-btn" data-tab="stats"><span class="mobile-nav-icon">▥</span><span>Stats</span></button>
+    <button type="button" class="mobile-nav-btn" data-tab="graphs"><span class="mobile-nav-icon">⌁</span><span>Graphs</span></button>
     <button type="button" class="mobile-nav-btn" data-tab="data"><span class="mobile-nav-icon">☰</span><span>Settings</span></button>
   </nav>
 
@@ -935,7 +937,6 @@
           <div class="stats-nav-group" aria-label="Advanced training analysis">
             <span class="stats-nav-label">Advanced</span>
             <button id="statsTrendsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="trends">Trends</button>
-            <button id="statsGraphsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="graphs">Graphs</button>
             <button id="statsRoutinesBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="routines">Routines</button>
             <button id="statsPressureBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="pressure">Pressure</button>
           </div>
@@ -1065,6 +1066,45 @@
         
         <div id="tableStatsBox"></div>
         <div id="statsOutput" class="stats"></div>
+      </div>
+    </section>
+
+    <section id="graphs" class="panel">
+      <div class="card">
+        <h2>Graphs</h2>
+        <p class="muted">Dedicated visual analytics view for fast pattern review without the full advanced stats stack.</p>
+        <div class="stats-subtabs stats-internal-nav graphs-internal-nav" role="tablist" aria-label="Graph sections">
+          <button id="graphsOverviewBtn" class="secondary active-subtab graphs-nav-btn" type="button" data-graphs-mode="overview">Overview</button>
+          <button id="graphsSessionBtn" class="secondary graphs-nav-btn" type="button" data-graphs-mode="session">Session Trends</button>
+          <button id="graphsExerciseBtn" class="secondary graphs-nav-btn" type="button" data-graphs-mode="exercise">Exercise Trends</button>
+          <button id="graphsPressureBtn" class="secondary graphs-nav-btn" type="button" data-graphs-mode="pressure">Pressure</button>
+          <button id="graphsConsistencyBtn" class="secondary graphs-nav-btn" type="button" data-graphs-mode="consistency">Consistency</button>
+        </div>
+        <div id="graphsScopeChips" class="stats-scope-chips" aria-live="polite"></div>
+        <div class="grid three stats-filter-grid">
+          <div>
+            <label>Graph view</label>
+            <select id="graphsPeriodSelect">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="overall">Overall</option>
+              <option value="exercise">Per exercise</option>
+            </select>
+          </div>
+          <div>
+            <label>Reference date</label>
+            <input id="graphsDateSelect" type="date" />
+          </div>
+          <div>
+            <label>Exercise filter</label>
+            <select id="graphsRoutineSelect">
+              <option value="all">All exercises</option>
+            </select>
+          </div>
+        </div>
+        <div id="graphsOutput" class="stats"></div>
       </div>
     </section>
 
@@ -1456,7 +1496,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.36"></script>
+  <script type="module" src="app.js?v=5.7.37"></script>
 </body>
 
 
