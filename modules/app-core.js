@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.39";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.39";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.40";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.40";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.39";
+} from "./utils.js?v=5.7.40";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.39";
+} from "./settings.js?v=5.7.40";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.39";
+} from "./analytics.js?v=5.7.40";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.39";
+} from "./bayesian.js?v=5.7.40";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.39";
+} from "./session.js?v=5.7.40";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.39";
+} from "./pressure.js?v=5.7.40";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.39";
+} from "./recommendations.js?v=5.7.40";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.39";
+} from "./store.js?v=5.7.40";
 
 
 
@@ -8883,32 +8883,124 @@ function renderSelectedExerciseDashboard(logs, rid, rollingWindow) {
   </div>`;
 }
 
+function statsDashboardCategoryLabel(value) {
+  return skillLabel(String(value || "uncategorized"));
+}
+
+function statsDashboardLatestSession(logs) {
+  const sorted = logs.slice().sort((a,b)=>new Date(a.createdAt || 0)-new Date(b.createdAt || 0));
+  if (!sorted.length) return null;
+  const last = sorted[sorted.length - 1];
+  const dayKey = safeDateString(last.createdAt || new Date());
+  const rows = sorted.filter(l => safeDateString(l.createdAt || new Date()) === dayKey);
+  const vals = rows.map(l => Number(l.normalizedScore || 0)).filter(Number.isFinite);
+  return {
+    label: dayKey,
+    logs: rows.length,
+    minutes: rows.reduce((a,b)=>a+Number(b.timeMinutes || 0),0),
+    avgScore: vals.length ? avg(vals) : null,
+    targetHit: targetHitRate(rows)
+  };
+}
+
+function statsDashboardActionModel(logs, weak, fatigue, stability, pressure, hit) {
+  const action = {
+    label: "Maintain current plan",
+    detail: "Keep using adaptive sessions and collect stable evidence before changing targets.",
+    risk: "normal",
+    focus: "balanced practice"
+  };
+  if (weak && weak.category) {
+    action.label = `Prioritize ${statsDashboardCategoryLabel(weak.category)}`;
+    action.detail = weak.hitRate === null
+      ? "This category shows weaker evidence; add one focused block before broad volume work."
+      : `Current hit rate is ${weak.hitRate.toFixed(1)}%; place this early in the session while concentration is high.`;
+    action.focus = statsDashboardCategoryLabel(weak.category);
+  }
+  if (fatigue && Number.isFinite(fatigue.deltaPct) && fatigue.deltaPct < -12) {
+    action.risk = "fatigue";
+    action.detail = `${action.detail} Also shorten the final block or reduce pressure load: final-third performance is ${fatigue.deltaPct.toFixed(1)}% below the first third.`;
+  } else if (pressure && pressure.count > 0 && String(pressure.label || "").startsWith("0.0")) {
+    action.risk = "pressure";
+    action.detail = `${action.detail} Keep pressure consequences light until pressure success becomes measurable.`;
+  } else if (hit !== null && hit >= 70 && stability && stability.psi >= 70) {
+    action.label = "Consider harder targets";
+    action.detail = "Target hit rate and consistency are both strong. Review Adaptive Targets in Coaching before increasing difficulty.";
+    action.risk = "progression";
+  }
+  return action;
+}
+
+function renderStatsDashboardHero({range, logs, avgScore, hit, totalTime, latest, action}) {
+  return `<div class="stats-dashboard-hero stats-dashboard-risk-${safeClassToken(action.risk)}">
+    <div class="stats-dashboard-hero-main">
+      <span class="stats-dashboard-eyebrow">Training cockpit</span>
+      <h3>Dashboard — ${escapeHtml(range.label)}</h3>
+      <p>${escapeHtml(action.detail)}</p>
+    </div>
+    <div class="stats-dashboard-hero-kpis">
+      <div><strong>${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</strong><span>avg score</span></div>
+      <div><strong>${hit === null ? "N/A" : hit.toFixed(0)+"%"}</strong><span>target hit</span></div>
+      <div><strong>${formatDurationHuman(totalTime)}</strong><span>training</span></div>
+      <div><strong>${latest ? latest.logs : logs.length}</strong><span>${latest ? "last session logs" : "logs"}</span></div>
+    </div>
+  </div>`;
+}
+
+function renderStatsDashboardActionCards({action, weak, fatigue, stability, latest, bestRoutine, weakestRoutine, improved, pressure, side}) {
+  const fatigueText = fatigue ? `${fatigue.deltaPct >= 0 ? "+" : ""}${fatigue.deltaPct.toFixed(1)}% final-third delta` : "No fatigue signal yet";
+  const consistencyText = stability ? `${stability.psi.toFixed(0)}/100 · ${stability.label}` : "More data needed";
+  const latestText = latest ? `${latest.avgScore === null ? "N/A" : latest.avgScore.toFixed(1)} avg · ${formatDurationHuman(latest.minutes)} · ${latest.logs} logs` : "No recent session";
+  return `<div class="stats-dashboard-action-grid">
+    <div class="stats-dashboard-action-card primary">
+      <span>Next best action</span>
+      <strong>${escapeHtml(action.label)}</strong>
+      <small>${escapeHtml(action.focus)}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Latest session</span>
+      <strong>${escapeHtml(latestText)}</strong>
+      <small>${latest ? escapeHtml(latest.label) : "Log a session to activate"}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Consistency</span>
+      <strong>${escapeHtml(consistencyText)}</strong>
+      <small>${escapeHtml(fatigueText)}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Weakest area</span>
+      <strong>${weak ? escapeHtml(statsDashboardCategoryLabel(weak.category)) : "N/A"}</strong>
+      <small>${weak && weak.hitRate !== null ? `Hit rate ${weak.hitRate.toFixed(1)}%` : "More target data needed"}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Exercise signal</span>
+      <strong>${weakestRoutine ? escapeHtml(weakestRoutine.name) : "More logs needed"}</strong>
+      <small>${weakestRoutine ? escapeHtml(weakestRoutine.metric) : "No stable routine sample"}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Positive signal</span>
+      <strong>${improved ? escapeHtml(improved.name) : bestRoutine ? escapeHtml(bestRoutine.name) : "More history needed"}</strong>
+      <small>${improved ? escapeHtml(improved.metric) : bestRoutine ? escapeHtml(bestRoutine.metric) : "No trend yet"}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Pressure</span>
+      <strong>${pressure ? escapeHtml(pressure.label) : "N/A"}</strong>
+      <small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs"}</small>
+    </div>
+    <div class="stats-dashboard-action-card">
+      <span>Side balance</span>
+      <strong>${side ? escapeHtml(side.label) : "N/A"}</strong>
+      <small>${side ? escapeHtml(side.detail) : "No left/right logs"}</small>
+    </div>
+  </div>`;
+}
+
 function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   if (!logs.length) return `<div class="empty-state">
-    <h3>Overview — ${escapeHtml(range.label)}</h3>
-    <p>No data yet. Complete a practice session to see your performance trends.</p>
+    <h3>Dashboard — ${escapeHtml(range.label)}</h3>
+    <p>No data yet. Complete a practice session to see your performance cockpit.</p>
     <button class="primary" data-action="switch-tab" data-tab="practice">Go to Practice</button>
   </div>`;
-
-  if (!rid && getStatsDetailMode() === "basic") {
-    const totalTimeBasic = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
-    const valsBasic = logs.map(l=>Number(l.normalizedScore||0)).filter(v=>Number.isFinite(v));
-    const avgBasic = avg(valsBasic);
-    const hitBasic = targetHitRate(logs);
-    const recentBasic = valsBasic.slice(-Math.max(2, Number(rollingWindow || 5)));
-    const rollingBasic = recentBasic.length ? avg(recentBasic) : null;
-    return `<h3>Basic overview — ${escapeHtml(range.label)}</h3>
-      <div class="analytics-note"><strong>Basic stats mode.</strong> Showing only the core practice dashboard. Switch Stats detail to Advanced for full diagnostics.</div>
-      ${benchmarkPlayerClassCard(logs)}
-      <div class="overview-kpi-dashboard basic-stats-dashboard">
-        <div class="overview-kpi primary"><span>${kpiTitle("Average score", "avgScore")}</span><div class="value">${avgBasic.toFixed(1)}</div><small>Average normalized performance in this view.</small></div>
-        <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hitBasic === null ? "N/A" : hitBasic.toFixed(1)+"%"}</div><small>How often logged scores met the target.</small></div>
-        <div class="overview-kpi"><span>${kpiTitle("Training time", "totalPractice")}</span><div class="value">${totalTimeBasic.toFixed(1)}m</div><small>Total logged practice time.</small></div>
-        <div class="overview-kpi"><span>${kpiTitle("Recent form", "momentum")}</span><div class="value">${rollingBasic === null ? "N/A" : rollingBasic.toFixed(1)}</div><small>Rolling average over the latest ${recentBasic.length} logs.</small></div>
-      </div>
-      <h3>Core trend</h3>${renderTrainingTimeInsightChart(logs, period)}
-      <h3>Training mix</h3>${renderCategoryChart(logs)}`;
-  }
 
   if (rid) {
     let html = renderSelectedExerciseDashboard(logs, rid, rollingWindow);
@@ -8919,7 +9011,7 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   }
 
   const totalTime = logs.reduce((a,b)=>a+Number(b.timeMinutes||0),0);
-  const vals = logs.map(l=>Number(l.normalizedScore||0));
+  const vals = logs.map(l=>Number(l.normalizedScore||0)).filter(Number.isFinite);
   const avgScore = avg(vals);
   const hit = targetHitRate(logs);
   const gap = skillGapIndex(logs);
@@ -8933,46 +9025,45 @@ function renderStatsOverview(logs, rid, period, range, rollingWindow) {
   const bestRoutine = routinePerformanceLeader(logs, "best");
   const weakestRoutine = routinePerformanceLeader(logs, "weakest");
   const improved = mostImprovedRoutine(logs);
+  const latest = statsDashboardLatestSession(logs);
+  const action = statsDashboardActionModel(logs, weak, fatigue, stability, pressure, hit);
+  const isBasic = getStatsDetailMode() === "basic";
 
-  let html = `<h3>Overview — ${escapeHtml(range.label)}</h3>
+  let html = `${renderStatsDashboardHero({range, logs, avgScore, hit, totalTime, latest, action})}
     ${benchmarkPlayerClassCard(logs)}
-    <div class="overview-kpi-dashboard">
-      <div class="overview-kpi primary"><span>${kpiTitle("Average score", "averagePerformance")}</span><div class="value">${Number.isFinite(avgScore) ? avgScore.toFixed(1) : "N/A"}</div><small>Mean normalized score across the selected scope.</small></div>
-      <div class="overview-kpi primary"><span>${kpiTitle("Target hit rate", "targetHitRate")}</span><div class="value">${hit === null ? "N/A" : hit.toFixed(1)+"%"}</div><small>On Target + Above Target logs.</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Total practice", "totalTrainingTime")}</span><div class="value">${formatDurationHuman(totalTime)}</div><small>${logs.length} logged exercise${logs.length === 1 ? "" : "s"}</small></div>
+    ${renderStatsDashboardActionCards({action, weak, fatigue, stability, latest, bestRoutine, weakestRoutine, improved, pressure, side})}`;
+
+  html += `<div class="overview-kpi-dashboard stats-dashboard-secondary-kpis">
       <div class="overview-kpi"><span>${kpiTitle("Current streak", "kpiStreak")}</span><div class="value">${st.current}d</div><small>Best streak ${st.best}d</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Momentum", "progressVelocity")}</span><div class="value">${escapeHtml(momentum)}</div><small>Rolling window: ${rollingWindow} logs.</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Consistency", "psi")}</span><div class="value">${stability ? stability.psi.toFixed(0)+"/100" : "N/A"}</div><small>${stability ? escapeHtml(stability.label) : "More data needed"}</small></div>
       <div class="overview-kpi"><span>${kpiTitle("Skill gap", "kpiSkillGap")}</span><div class="value">${gap === null ? "N/A" : gap.toFixed(2)}</div><small>Best performance minus average.</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Pressure success", "kpiPressure")}</span><div class="value">${pressure ? pressure.label : "N/A"}</div><small>${pressure ? `${pressure.count} pressure log${pressure.count === 1 ? "" : "s"}` : "No pressure logs in scope"}</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Side balance", "kpiSideBalance")}</span><div class="value">${side ? side.label : "N/A"}</div><small>${side ? escapeHtml(side.detail) : "No left/right logs in scope"}</small></div>
-      <div class="overview-kpi"><span>${kpiTitle("Weakest area", "kpiWeakestArea")}</span><div class="value">${weak ? escapeHtml(weak.category) : "N/A"}</div><small>${weak && weak.hitRate !== null ? `Hit rate ${weak.hitRate.toFixed(1)}%` : "More target data needed"}</small></div>
-    </div>
-    <div class="overview-exec-strip">
-      <div class="overview-mini-card"><strong>Best exercise</strong><span>${bestRoutine ? `${escapeHtml(bestRoutine.name)} · ${bestRoutine.metric}` : "More logs needed"}</span></div>
-      <div class="overview-mini-card"><strong>Weakest exercise</strong><span>${weakestRoutine ? `${escapeHtml(weakestRoutine.name)} · ${weakestRoutine.metric}` : "More logs needed"}</span></div>
-      <div class="overview-mini-card"><strong>Most improved</strong><span>${improved ? `${escapeHtml(improved.name)} · ${improved.metric}` : "More history needed"}</span></div>
+      <div class="overview-kpi"><span>${kpiTitle("Evidence", "kpiEvidence")}</span><div class="value">${logs.length}</div><small>Logs in current scope.</small></div>
     </div>`;
 
-  html += `<div class="stats-priority-stack">
-    <h3>Recommended action</h3>
-    ${renderCoachingEngine(logs, rid)}
+  html += `<div class="stats-dashboard-quick-visuals">
+    <details class="advanced-stats-module" open>
+      <summary><span><strong>Quick visuals</strong><small>Training mix and volume trend for the active scope</small></span><span class="advanced-module-chevron">›</span></summary>
+      <div class="advanced-module-body stats-graph-group">${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}</div>
+    </details>
   </div>`;
 
-  const diagnosticsHtml = [
-    statsModule(uiLabel("performanceStability"), "Reliability, volatility, and repeatability", renderPerformanceStability(logs), false),
-    statsModule(uiLabel("staminaDropoff"), "Performance decay or lift inside sessions", renderFatigueSlope(logs), false),
-    statsModule("Difficulty ladder", "Whether targets are too easy, appropriate, or too hard", renderDifficultyLadder(logs), false),
-    statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, rid, rollingWindow), false)
-  ].join("");
-  html += `<h3>Advanced diagnostics</h3><div class="advanced-stats-modules stats-collapsed-diagnostics">${diagnosticsHtml}</div>`;
+  if (!isBasic) {
+    const diagnosticsHtml = [
+      statsModule(uiLabel("performanceStability"), "Reliability, volatility, and repeatability", renderPerformanceStability(logs), false),
+      statsModule(uiLabel("staminaDropoff"), "Performance decay or lift inside sessions", renderFatigueSlope(logs), false),
+      statsModule("Difficulty ladder", "Whether targets are too easy, appropriate, or too hard", renderDifficultyLadder(logs), false),
+      statsModule("Second-order analytics", "Variance, skill gap, and weakness concentration", renderSecondOrderAnalytics(logs, rid, rollingWindow), false)
+    ].join("");
+    html += `<details class="advanced-stats-module stats-dashboard-diagnostics"><summary><span><strong>Advanced diagnostics</strong><small>Collapsed by default to keep the dashboard operational</small></span><span class="advanced-module-chevron">›</span></summary><div class="advanced-module-body"><div class="advanced-stats-modules stats-collapsed-diagnostics">${diagnosticsHtml}</div></div></details>`;
+  } else {
+    html += `<div class="analytics-note"><strong>Basic stats mode.</strong> Dashboard keeps diagnostics collapsed. Switch Stats detail to Advanced for the full analytical layer.</div>`;
+  }
 
   const decisionNotes = [];
-  if (weak) decisionNotes.push(`<div class="analytics-note"><strong>Weakest area:</strong> ${escapeHtml(weak.category)} · hit rate ${weak.hitRate === null ? "N/A" : weak.hitRate.toFixed(1)+"%"} · vs overall ${weak.delta === null ? "N/A" : weak.delta.toFixed(1)+" pts"}</div>`);
+  if (weak) decisionNotes.push(`<div class="analytics-note"><strong>Weakest area:</strong> ${escapeHtml(statsDashboardCategoryLabel(weak.category))} · hit rate ${weak.hitRate === null ? "N/A" : weak.hitRate.toFixed(1)+"%"} · vs overall ${weak.delta === null ? "N/A" : weak.delta.toFixed(1)+" pts"}</div>`);
   if (fatigue) decisionNotes.push(`<div class="analytics-note"><strong>Fatigue curve:</strong> first-third avg ${fatigue.first.toFixed(2)} vs final-third avg ${fatigue.last.toFixed(2)} (${fatigue.deltaPct >= 0 ? "+" : ""}${fatigue.deltaPct.toFixed(1)}%).</div>`);
-  if (decisionNotes.length) html += `<details class="advanced-stats-module stats-decision-notes"><summary><span><strong>Decision notes</strong><small>Extra context behind the dashboard</small></span><span class="advanced-module-chevron">›</span></summary><div class="advanced-module-body">${decisionNotes.join("")}</div></details>`;
+  if (decisionNotes.length) html += `<details class="advanced-stats-module stats-decision-notes"><summary><span><strong>Decision notes</strong><small>Context behind the dashboard recommendation</small></span><span class="advanced-module-chevron">›</span></summary><div class="advanced-module-body">${decisionNotes.join("")}</div></details>`;
 
-  html += `<h3>Compact charts</h3><div class="stats-graph-group">${renderCategoryChart(logs)}${renderTrainingTimeInsightChart(logs, period)}</div>`;
   return html;
 }
 

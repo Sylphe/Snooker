@@ -5577,3 +5577,72 @@ body[data-density="compact"] .stats-scope-panel .stats-filter-advanced>.grid{pad
 .stats-coaching-panel.hidden {
   display: none !important;
 }
+
+/* v5.7.40 Stats Dashboard redesign — Phase 4 Stats UX cleanup */
+.stats-dashboard-hero{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(260px,.9fr);
+  gap:12px;
+  align-items:stretch;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px;
+  margin:10px 0 12px;
+  background:linear-gradient(180deg,var(--panel-bg),var(--panel-bg-2));
+  box-shadow:0 1px 0 rgba(16,43,34,.04);
+}
+.stats-dashboard-eyebrow{
+  display:inline-flex;
+  width:max-content;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  background:var(--card);
+}
+.stats-dashboard-hero-main h3{margin:8px 0 6px;font-size:22px;line-height:1.1;color:var(--text);}
+.stats-dashboard-hero-main p{margin:0;color:var(--muted);font-size:13px;line-height:1.4;font-weight:700;}
+.stats-dashboard-hero-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.stats-dashboard-hero-kpis div{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:10px;min-width:0;}
+.stats-dashboard-hero-kpis strong{display:block;color:var(--primary);font-size:22px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stats-dashboard-hero-kpis span{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.02em;}
+.stats-dashboard-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0;}
+.stats-dashboard-action-card{border:1px solid var(--line);border-radius:15px;background:var(--panel-bg);padding:11px;min-width:0;}
+.stats-dashboard-action-card.primary{grid-column:span 2;background:linear-gradient(180deg,var(--panel-bg-2),var(--panel-bg));border-color:color-mix(in srgb,var(--primary) 32%,var(--line));}
+.stats-dashboard-action-card span{display:block;color:var(--muted);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.025em;line-height:1.2;}
+.stats-dashboard-action-card strong{display:block;margin-top:5px;color:var(--text);font-size:13px;line-height:1.22;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stats-dashboard-action-card.primary strong{font-size:17px;color:var(--primary);}
+.stats-dashboard-action-card small{display:block;margin-top:5px;color:var(--muted);font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stats-dashboard-secondary-kpis{margin-top:10px;}
+.stats-dashboard-secondary-kpis .overview-kpi.primary{grid-column:span 1;}
+.stats-dashboard-quick-visuals{margin-top:10px;}
+.stats-dashboard-diagnostics{margin-top:10px;}
+.stats-dashboard-risk-fatigue{border-color:color-mix(in srgb,#d48a00 35%,var(--line));}
+.stats-dashboard-risk-pressure{border-color:color-mix(in srgb,#a855f7 30%,var(--line));}
+.stats-dashboard-risk-progression{border-color:color-mix(in srgb,var(--primary) 42%,var(--line));}
+body[data-density="compact"] .stats-dashboard-hero{padding:11px;border-radius:16px;gap:9px;}
+body[data-density="compact"] .stats-dashboard-action-grid{gap:6px;margin:9px 0;}
+body[data-density="compact"] .stats-dashboard-action-card{padding:9px;border-radius:13px;}
+@media(max-width:760px){
+  .stats-dashboard-hero{grid-template-columns:1fr;padding:12px;border-radius:16px;}
+  .stats-dashboard-hero-main h3{font-size:20px;}
+  .stats-dashboard-hero-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .stats-dashboard-hero-kpis strong{font-size:20px;}
+  .stats-dashboard-action-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .stats-dashboard-action-card.primary{grid-column:span 2;}
+  .stats-dashboard-action-card strong{font-size:12px;}
+  .stats-dashboard-action-card.primary strong{font-size:15px;}
+}
+@media(max-width:420px){
+  .stats-dashboard-hero-kpis{grid-template-columns:1fr 1fr;gap:6px;}
+  .stats-dashboard-hero-kpis div{padding:8px;border-radius:12px;}
+  .stats-dashboard-hero-kpis strong{font-size:18px;}
+  .stats-dashboard-action-grid{gap:6px;}
+  .stats-dashboard-action-card{padding:8px;}
+  .stats-dashboard-action-card span{font-size:10px;}
+  .stats-dashboard-action-card small{font-size:10px;}
+}
