@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.40";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.40";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.42";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.42";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.40";
+} from "./utils.js?v=5.7.42";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.40";
+} from "./settings.js?v=5.7.42";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.40";
+} from "./analytics.js?v=5.7.42";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.40";
+} from "./bayesian.js?v=5.7.42";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.40";
+} from "./session.js?v=5.7.42";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.40";
+} from "./pressure.js?v=5.7.42";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.40";
+} from "./recommendations.js?v=5.7.42";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.40";
+} from "./store.js?v=5.7.42";
 
 
 
@@ -3534,10 +3534,11 @@ let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
 const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
 const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
-const STATS_MODES = new Set(["overview", "coaching", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
+const STATS_MODES = new Set(["overview", "coaching", "trends", "graphs", "routines", "pressure", "insights", "research"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
   if (v === "advanced") return "trends";
+  if (["bayesian", "ab", "counterfactual", "tournament"].includes(v)) return "research";
   return STATS_MODES.has(v) ? v : "overview";
 }
 let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
@@ -3803,12 +3804,19 @@ function renderStatsIfVisible(reason="renderStatsIfVisible") {
 }
 function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible") {
   if (!shouldRenderStatsPanel()) return;
+  const mode = normalizeStatsMode(statsMode);
+  if (!(mode === "insights" || mode === "research")) return;
   const scopedLogs = safeCall(`${reason} getScopedStatsLogs`, getScopedStatsLogs, []) || [];
-  safeCall(`${reason} renderPhaseOneInsights`, () => renderPhaseOneInsights(scopedLogs));
-  safeCall(`${reason} renderBayesianAnalyticsValidation`, () => renderBayesianAnalyticsValidation(scopedLogs));
-  safeCall(`${reason} renderTrainingLoad`, () => renderTrainingLoad(scopedLogs));
-  safeCall(`${reason} renderWeeklyReview`, () => renderWeeklyReview(scopedLogs));
-  safeCall(`${reason} renderABComparison`, renderABComparison);
+  if (mode === "insights") {
+    safeCall(`${reason} renderPhaseOneInsights`, () => renderPhaseOneInsights(scopedLogs));
+    safeCall(`${reason} renderTrainingLoad`, () => renderTrainingLoad(scopedLogs));
+    safeCall(`${reason} renderWeeklyReview`, () => renderWeeklyReview(scopedLogs));
+    return;
+  }
+  if (mode === "research") {
+    safeCall(`${reason} renderBayesianAnalyticsValidation`, () => renderBayesianAnalyticsValidation(scopedLogs));
+    safeCall(`${reason} renderABComparison`, renderABComparison);
+  }
 }
 function shouldRenderCoachingPanels() {
   return shouldRenderStatsPanel() && normalizeStatsMode(statsMode) === "coaching";
@@ -8404,10 +8412,7 @@ function getStatsModeMeta(mode = statsMode) {
     graphs:{tier:"Advanced", label:"Graphs", purpose:"Graphs"},
     routines:{tier:"Advanced", label:"Routines", purpose:"Exercise-level comparison"},
     pressure:{tier:"Advanced", label:"Pressure", purpose:"Pressure-mode performance"},
-    bayesian:{tier:"Research", label:"True Skill", purpose:"Probabilistic estimates"},
-    ab:{tier:"Research", label:"A/B", purpose:"Period comparison"},
-    counterfactual:{tier:"Research", label:"Drill Compare", purpose:"Alternative drill comparison"},
-    tournament:{tier:"Research", label:"Tournament", purpose:"Readiness modelling"}
+    research:{tier:"Research", label:"Research Lab", purpose:"Experimental diagnostics"}
   };
   return map[normalizeStatsMode(mode)] || map.overview;
 }
@@ -8696,6 +8701,24 @@ function renderStatsCoaching(logs, { range }) {
     <p class="muted">${escapeHtml(intro)}</p>`;
 }
 
+function renderStatsResearchSection(logs, { range, rid }) {
+  const filterWarning = rid ? `<div class="analytics-note"><strong>Scope note:</strong> Tournament readiness ignores the single-exercise filter and uses all exercises in the selected period. Other research tools follow the active Stats scope where applicable.</div>` : "";
+  const countText = `${logs.length} log${logs.length === 1 ? "" : "s"}`;
+  return `<h3>Research Lab — ${escapeHtml(range.label)}</h3>
+    <div class="analytics-note stats-research-brief"><strong>Purpose:</strong> Experimental tools are isolated here so the daily dashboard and coaching flow stay clean. Use this area for validation, comparisons, uncertainty, and tournament-readiness diagnostics rather than normal session decisions.</div>
+    ${filterWarning}
+    <div class="research-lab-grid">
+      <div class="research-lab-card"><strong>True Skill</strong><span>Probabilistic estimates for success-rate routines.</span></div>
+      <div class="research-lab-card"><strong>A/B comparison</strong><span>Compare two practice periods or blocks.</span></div>
+      <div class="research-lab-card"><strong>Drill Compare</strong><span>Compare selected drills using recent evidence.</span></div>
+      <div class="research-lab-card"><strong>Tournament</strong><span>Readiness modelling across all relevant routines.</span></div>
+    </div>
+    <div class="advanced-stats-modules stats-research-modules">
+      ${statsModule("Research usage", "Experimental diagnostics, not daily training commands", `<p>Current research scope contains <strong>${countText}</strong>. Treat outputs as directional evidence until sample sizes are mature.</p>`, true)}
+      ${statsModule(uiLabel("tournamentPrep"), "Readiness modelling across practice categories", tournamentPrepPlannerHtml(getTournamentPlannerLogs ? getTournamentPlannerLogs() : logs), false)}
+    </div>`;
+}
+
 function renderStatsBayesianSection(logs, { range }) {
   const note = logs.length
     ? `True Skill models use the active stats scope where applicable. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
@@ -8727,15 +8750,15 @@ function renderStatsTournamentSection(logs, { range, rid }) {
 
 function toggleStatsStandalonePanels() {
   const abPanel = $("statsABPanel");
-  if (abPanel) abPanel.classList.toggle("hidden", statsMode !== "ab");
+  if (abPanel) abPanel.classList.toggle("hidden", statsMode !== "research");
   const regretPanel = $("regretEnginePanel");
-  if (regretPanel) regretPanel.classList.toggle("hidden", statsMode !== "counterfactual");
+  if (regretPanel) regretPanel.classList.toggle("hidden", statsMode !== "research");
   const phasePanel = $("phaseOneInsightsPanel");
   if (phasePanel) phasePanel.classList.toggle("hidden", statsMode !== "insights");
   const weekly = $("weeklyReviewBox");
   if (weekly) weekly.classList.toggle("hidden", statsMode !== "insights");
   const bayesianPanel = $("statsBayesianPanel");
-  if (bayesianPanel) bayesianPanel.classList.toggle("hidden", statsMode !== "bayesian");
+  if (bayesianPanel) bayesianPanel.classList.toggle("hidden", statsMode !== "research");
   const tableStats = $("tableStatsBox");
   if (tableStats) tableStats.classList.toggle("hidden", !(statsMode === "overview" || statsMode === "routines"));
   const showCoaching = statsMode === "coaching";
@@ -8760,9 +8783,13 @@ function renderStats() {
     const benchmarkWindow = Math.max(3, Number($("benchmarkWindowInput")?.value || 10));
 
     let scopedLogs = getScopedStatsLogs();
-    if (statsMode === "tournament") scopedLogs = getTournamentPlannerLogs(scope);
     const scopedAnalyticsLogs = analyticsWindow(scopedLogs);
-    renderTableStats(scopedLogs);
+    const tableStats = $("tableStats");
+    if (statsMode === "overview" || statsMode === "routines") {
+      renderTableStats(scopedLogs);
+    } else if (tableStats) {
+      tableStats.innerHTML = "";
+    }
 
     renderStatsScopeChips(scope, scopedLogs);
     let html = renderStatsSectionIntro(scopedLogs, range);
@@ -8780,14 +8807,8 @@ function renderStats() {
       html += renderStatsPressure(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "insights") {
       html += renderStatsInsights(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-    } else if (statsMode === "bayesian") {
-      html += renderStatsBayesianSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-    } else if (statsMode === "ab") {
-      html += renderStatsABSection(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-    } else if (statsMode === "counterfactual") {
-      html += renderStatsCounterfactualSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
-    } else if (statsMode === "tournament") {
-      html += renderStatsTournamentSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
+    } else if (statsMode === "research") {
+      html += renderStatsResearchSection(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else {
       statsMode = "overview";
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
@@ -8795,8 +8816,10 @@ function renderStats() {
     output.innerHTML = "";
     output.innerHTML = html;
     toggleStatsStandalonePanels();
-    renderStatsCoachingPanels("renderStats");
-    try { renderBayesianAnalyticsValidation?.(); } catch(e) { logAppError(e, "renderStats bayesian side panels"); }
+    if (statsMode === "coaching") renderStatsCoachingPanels("renderStats");
+    if (statsMode === "research") {
+      try { renderBayesianAnalyticsValidation?.(scopedAnalyticsLogs); } catch(e) { logAppError(e, "renderStats bayesian side panels"); }
+    }
     applyStoredStatsModeVisual();
   } catch (err) {
     logAppError(err, "renderStats hard failure");
@@ -14929,7 +14952,7 @@ function renderBayesianAnalyticsValidation(logsArg=null) {
   const box = $("bayesianValidationOutput");
   const panel = $("statsBayesianPanel") || box?.closest?.(".card");
   if (!box) return;
-  if (statsMode !== "bayesian") {
+  if (statsMode !== "research") {
     box.innerHTML = "";
     if (panel) panel.classList.add("hidden");
     return;
@@ -15465,8 +15488,7 @@ function handleTournamentPrepInputChange(event) {
     id === "tournamentPrepRisk" ||
     id === "tournamentPrepMinutes"
   ) {
-    if (statsMode === "tournament") debouncedRenderStats();
-    else renderBayesianAnalyticsValidation?.();
+    if (statsMode === "research") debouncedRenderStats();
   }
 }
 document.addEventListener("input", handleTournamentPrepInputChange);

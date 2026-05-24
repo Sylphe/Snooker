@@ -1,17 +1,17 @@
-# Snooker Practice PWA v5.7.40
+# Snooker Practice PWA v5.7.42
 
-## v5.7.40 — Stats Dashboard redesign
+## v5.7.42 — Stats render performance pass
 
-Phase 4 of the Stats UX re-architecture.
+This release applies Phase 6 of the Stats information-architecture work. It keeps the v5.7.41 Research Lab structure intact, but reduces unnecessary Stats rendering work.
 
-Changes:
-- Reworked the Stats Overview into an operational training dashboard.
-- Added a compact training cockpit hero with current performance, target-hit rate, training volume, and latest-session evidence.
-- Added decision-oriented dashboard cards for next action, latest session, consistency, weakest area, exercise signal, positive signal, pressure, and side balance.
-- Kept Graphs and Coaching inside the Stats tab rather than promoting them to main navigation.
-- Preserved existing analytics engines and data calculations.
-- Collapsed advanced diagnostics by default to reduce dashboard clutter.
-- Preserved selected-exercise dashboard behavior.
-- No schema, log, IndexedDB, or import/export changes.
+### Changes
 
-All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.40.
+- Heavy standalone Stats panels now render only for the active Stats mode that needs them.
+- Insights-only panels render only in Insights.
+- Research-only panels render only in Research Lab.
+- Coaching decision engines render only in the Coaching Stats subtab.
+- Table stats render only where visible/useful: Overview and Routines.
+- Tournament/research input changes no longer trigger hidden Bayesian panel refreshes outside Research Lab.
+- No schema, log, routine, IndexedDB, or backup format changes.
+
+Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.42.
