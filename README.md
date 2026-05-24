@@ -1,17 +1,15 @@
-# Snooker Practice PWA v5.7.42
+# Snooker Practice PWA v5.7.43
 
-## v5.7.42 — Stats render performance pass
+## v5.7.43 — Inferred skill UI clarity
 
-This release applies Phase 6 of the Stats information-architecture work. It keeps the v5.7.41 Research Lab structure intact, but reduces unnecessary Stats rendering work.
+Small UI/UX refinement focused on the Stats > Insights inferred-skill panel.
 
 ### Changes
+- Restructured the Inferred Skill Levels insight panel.
+- Added a helper explaining the difference between break-class rating, benchmark class, and L1–L7 domain levels.
+- Grouped global player rating and benchmark player class into clearer summary tiles.
+- Improved dark-mode treatment for the two inferred-skill rating tiles.
+- Made the inferred-skill radar grid, labels, points, and outer ring more visible in dark mode.
+- Preserved existing calculations, logs, schema, analytics, and recommendation logic.
 
-- Heavy standalone Stats panels now render only for the active Stats mode that needs them.
-- Insights-only panels render only in Insights.
-- Research-only panels render only in Research Lab.
-- Coaching decision engines render only in the Coaching Stats subtab.
-- Table stats render only where visible/useful: Overview and Routines.
-- Tournament/research input changes no longer trigger hidden Bayesian panel refreshes outside Research Lab.
-- No schema, log, routine, IndexedDB, or backup format changes.
-
-Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.42.
+Build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.43.

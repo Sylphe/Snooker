@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.42";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.42";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.43";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.43";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.42";
+} from "./utils.js?v=5.7.43";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.42";
+} from "./settings.js?v=5.7.43";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.42";
+} from "./analytics.js?v=5.7.43";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.42";
+} from "./bayesian.js?v=5.7.43";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.42";
+} from "./session.js?v=5.7.43";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.42";
+} from "./pressure.js?v=5.7.43";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.42";
+} from "./recommendations.js?v=5.7.43";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.42";
+} from "./store.js?v=5.7.43";
 
 
 
@@ -2500,25 +2500,39 @@ function estimateGlobalPlayerRating(skillProfile, logs=(data.logs||[])){
 }
 function globalPlayerRatingInsightBlock(skillProfile, logs){
   const rating = estimateGlobalPlayerRating(skillProfile, logs);
-  return `<div class="player-rating-card">
+  return `<div class="player-rating-card inferred-rating-tile">
     <div><span class="muted tiny">Global player rating</span><strong>${htmlText(rating.stableBand.label)}</strong><span class="muted">${htmlText(rating.confidence)} confidence · ${numText(rating.evidenceN,"0")} evidence logs</span></div>
     <div class="player-rating-scale" aria-label="Player rating scale"><span class="${rating.stableBand.short==="<30"?"active":""}">Sub-30</span><span class="${rating.stableBand.short==="30+"?"active":""}">30+</span><span class="${rating.stableBand.short==="50+"?"active":""}">50+</span><span class="${rating.stableBand.short==="70+"?"active":""}">70+</span><span class="${rating.stableBand.short==="100+"?"active":""}">100+</span></div>
     <div class="context-row"><span>Match-stable rating</span><strong>${htmlText(rating.stableBand.short)}</strong><span>${numText(rating.matchScore)}/100</span></div>
     <div class="context-row"><span>Technical potential</span><strong>${htmlText(rating.technicalBand.short)}</strong><span>${numText(rating.technicalScore)}/100</span></div>
-    <div class="muted small">${htmlText(rating.reason)}</div>
+    <details class="skill-helper-details"><summary>How this rating is inferred</summary><div class="muted small">${htmlText(rating.reason)} Break-class bands: Sub-30 below 44, 30+ from 44, 50+ from 58, 70+ from 70, and 100+ from 82. The match-stable score is capped by weaker execution and pressure domains so one peak break does not overstate repeatable level.</div></details>
   </div>`;
+}
+
+function inferredSkillLevelGuideBlock(){
+  return `<details class="skill-helper-details inferred-skill-guide" open>
+    <summary>How to read this panel</summary>
+    <div class="skill-guide-grid">
+      <div><strong>Break class</strong><span>Global 0–100 player estimate. It blends technical domains and explicit best-break evidence, then caps the match-stable score for weak pressure/execution links.</span></div>
+      <div><strong>Benchmark class</strong><span>External benchmark-pack scale: Below Junior, Junior, Club, Senior, Pro. This only uses routines with benchmark ladders.</span></div>
+      <div><strong>L-levels</strong><span>Domain-specific latent skills from L1 to L7. L1–L2 are limiters, L3 is foundation, L4–L5 developing, L6–L7 advanced.</span></div>
+    </div>
+  </details>`;
 }
 
 function inferredSkillLevelInsight(logs){
   const profile = inferLatentSkillLevels(logs || data.logs || [], activeRoutines());
   const weakestLinks = detectWeakestLink(profile);
-  const rows = (profile.profile || []).map(x => `<div class="context-row"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
+  const rows = (profile.profile || []).map(x => `<div class="context-row skill-level-row level-${htmlText(String(x.level||"L0").toLowerCase())}"><span>${htmlText(x.label)}<br><span class="muted">${htmlText(x.confidence)} confidence · ${x.n} evidence logs</span></span><strong>${htmlText(x.level)}</strong><span>${Number(x.score).toFixed(1)} · ${htmlText(x.band)}</span></div>`).join("");
   const main = weakestLinks[0];
   const bridge = main?.limiter && main?.affected ? bridgeDrillCandidates(main.affected.id, main.limiter.id).slice(0,2) : [];
-  return `<div class="insight-card watch inferred-skill-card"><strong>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</strong>
-    ${globalPlayerRatingInsightBlock(profile, logs || data.logs || [])}
-    ${benchmarkPlayerClassCard(logs || data.logs || [])}
-    <div class="skill-radar-wrap">${skillRadarSvg(profile)}<div>${rows}</div></div>
+  return `<div class="insight-card watch inferred-skill-card"><div class="section-head"><div><h3>${htmlText(getInsightLanguageSetting()==="friendly"?"Inferred skill levels":"Inferred Skill Level System")}</h3><p class="muted">Three separate views: break-class potential, benchmark-pack class, and domain-specific L-levels.</p></div><span class="pill">L1–L7</span></div>
+    ${inferredSkillLevelGuideBlock()}
+    <div class="inferred-summary-grid">
+      ${globalPlayerRatingInsightBlock(profile, logs || data.logs || [])}
+      ${benchmarkPlayerClassCard(logs || data.logs || [])}
+    </div>
+    <div class="skill-radar-section"><div class="skill-radar-panel">${skillRadarSvg(profile)}</div><div class="skill-level-list"><div class="muted tiny section-kicker">Domain L-levels</div>${rows}</div></div>
     ${main?`<div class="adaptive-rationale"><strong>Weakest-link diagnosis:</strong> ${htmlText(main.message)} ${htmlText(main.recommendation)}</div>`:""}
     ${bridge.length?`<div class="adaptive-rationale"><strong>Bridge drills:</strong> ${bridge.map(x=>`${htmlText(x.routine.name)} → ${htmlText(skillLabel(x.skill))}`).join(" · ")}</div>`:""}
   </div>`;
