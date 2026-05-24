@@ -1,8 +1,10 @@
-# Snooker Practice PWA v5.7.35
+# Snooker Practice PWA v5.7.36
 
-## v5.7.35 — Migration constant initialization fix
+## v5.7.36 — Focus common-break live input fix
 
-Corrective release based on v5.7.34 and the updated debug export `snooker-debug-5.7.34-benchmark-init-order-fix-2026-05-24.json`. Fixes the remaining startup ReferenceError: `Cannot access 'INSIGHT_LANGUAGE_KEY' before initialization`. The migration-required language constants and label helpers are now initialized before the first `loadData()` / migration pass, matching the earlier `BENCHMARK_LEVELS` fix. Also updates all module cache-busting references, the service-worker cache name, and build labels to v5.7.35. No scoring, log schema, IndexedDB, or backup format changes.
+Narrow corrective release based on v5.7.35. Adds `commonBreakBandValue` to the Focus Mode live input listener list and inline stepper wiring, so the v5.7.31 break-target consistency field refreshes the live performance card immediately and behaves consistently with score, attempts, time, best attempt, completion count, highest break, and setup size fields. Also carries the same value into the “Same as last” helper when available. No scoring formula, log schema, IndexedDB, backup, import/export, or migration logic changed.
+
+All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.36.
 
 Validation performed: JavaScript syntax checks, JSON checks, and zip integrity check.
 

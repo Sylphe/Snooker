@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.35";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.35";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.36";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.36";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.35";
+} from "./utils.js?v=5.7.36";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.35";
+} from "./settings.js?v=5.7.36";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.35";
+} from "./analytics.js?v=5.7.36";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.35";
+} from "./bayesian.js?v=5.7.36";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.35";
+} from "./session.js?v=5.7.36";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.35";
+} from "./pressure.js?v=5.7.36";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.35";
+} from "./recommendations.js?v=5.7.36";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.35";
+} from "./store.js?v=5.7.36";
 
 
 
@@ -5422,7 +5422,7 @@ function renderScoreInputs(r) {
   $("rightSideScoreValue")?.addEventListener("input", syncSideSplitTotal);
   syncScoreMax();
   syncSideSplitTotal();
-  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
+  ["scoreValue","attemptsValue","manualTimeValue","bestAttemptValue","completionCountValue","highestBreakValue","commonBreakBandValue","leftSideScoreValue","rightSideScoreValue","sessionTotalUnitsValue"].forEach(id => {
     const el = $(id);
     if (el) {
       el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); saveCurrentRoutine(); } });
@@ -5451,6 +5451,7 @@ function renderFocusScoreSteppers(r) {
     {id:"bestAttemptValue", label:"Best", deltas:[-1,1]},
     {id:"completionCountValue", label:"Completions", deltas:[-1,1]},
     {id:"highestBreakValue", label:"Break", deltas:[-1,1]},
+    {id:"commonBreakBandValue", label:"Common band", deltas:[-1,1]},
     {id:"sessionTotalUnitsValue", label:"Size", deltas:[-1,1]}
   ].filter(f => $(f.id));
   fieldDefs.forEach(f => {
@@ -5498,6 +5499,7 @@ function fillSameAsLastTime() {
   if ($("bestAttemptValue")) $("bestAttemptValue").value = last.bestAttempt || "";
   if ($("completionCountValue")) $("completionCountValue").value = last.completionCount || "";
   if ($("highestBreakValue")) $("highestBreakValue").value = last.highestBreak || "";
+  if ($("commonBreakBandValue")) $("commonBreakBandValue").value = last.commonBreakBand || last.commonBreakBandAtLog || "";
   if ($("leftSideScoreValue")) $("leftSideScoreValue").value = last.leftSideScore || last.sideLeftScore || "";
   if ($("rightSideScoreValue")) $("rightSideScoreValue").value = last.rightSideScore || last.sideRightScore || "";
   if ($("sessionRating") && last.sessionRating) $("sessionRating").value = last.sessionRating;
