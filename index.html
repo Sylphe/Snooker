@@ -9,16 +9,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.38"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.38" />
-  <link rel="stylesheet" href="styles.css?v=5.7.38" />
-  <link rel="icon" href="icon.svg?v=5.7.38" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.39"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.39" />
+  <link rel="stylesheet" href="styles.css?v=5.7.39" />
+  <link rel="icon" href="icon.svg?v=5.7.39" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.38 · Build 2026-05-24 20:05 CEST — Sticky Stats scope bar.</p>
+      <p>v5.7.39 · Build 2026-05-24 20:05 CEST — Stats Coaching subtab.</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -925,12 +925,16 @@
     <section id="stats" class="panel">
       <div class="card">
         <h2>Stats</h2>
-        <p class="muted">Stats are organized as a progressive workflow: Core first, Advanced only when needed, Research for experimental diagnostics.</p>
+        <p class="muted">Stats are organized as a progressive workflow: Core first, Coaching for decisions, Advanced for analysis, Research for experimental diagnostics.</p>
         <div class="stats-subtabs stats-internal-nav stats-hub-nav" role="tablist" aria-label="Stats sections">
           <div class="stats-nav-group" aria-label="Core stats">
             <span class="stats-nav-label">Core</span>
             <button id="statsOverviewBtn" class="secondary active-subtab stats-nav-btn" type="button" data-stats-mode="overview">Overview</button>
             <button id="statsInsightsBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="insights">Insights</button>
+          </div>
+          <div class="stats-nav-group" aria-label="Coaching decision engines">
+            <span class="stats-nav-label">Coaching</span>
+            <button id="statsCoachingBtn" class="secondary stats-nav-btn" type="button" data-stats-mode="coaching">Coaching</button>
           </div>
           <div class="stats-nav-group" aria-label="Advanced training analysis">
             <span class="stats-nav-label">Advanced</span>
@@ -1069,13 +1073,12 @@
           <div id="phaseOneInsightsOutput"></div>
         </div>
 
-        <div id="adaptiveTargetEnginePanel" class="adaptive-target-engine stats-hierarchy-section" aria-live="polite"></div>
-        <div id="dynamicRoutineDifficultyPanel" class="dynamic-routine-difficulty-panel stats-hierarchy-section" aria-live="polite"></div>
-        <div id="sessionArchitecturePanel" class="session-architecture-panel stats-hierarchy-section" aria-live="polite"></div>
-        <div id="matchSimulationPanel" class="match-simulation-panel stats-hierarchy-section" aria-live="polite"></div>
-        
         <div id="tableStatsBox"></div>
         <div id="statsOutput" class="stats"></div>
+        <div id="adaptiveTargetEnginePanel" class="adaptive-target-engine stats-hierarchy-section stats-coaching-panel hidden" aria-live="polite"></div>
+        <div id="dynamicRoutineDifficultyPanel" class="dynamic-routine-difficulty-panel stats-hierarchy-section stats-coaching-panel hidden" aria-live="polite"></div>
+        <div id="sessionArchitecturePanel" class="session-architecture-panel stats-hierarchy-section stats-coaching-panel hidden" aria-live="polite"></div>
+        <div id="matchSimulationPanel" class="match-simulation-panel stats-hierarchy-section stats-coaching-panel hidden" aria-live="polite"></div>
       </div>
     </section>
 
@@ -1467,7 +1470,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.38"></script>
+  <script type="module" src="app.js?v=5.7.39"></script>
 </body>
 
 

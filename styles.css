@@ -5516,7 +5516,7 @@ body[data-theme="dark"] .routine-import-source-label{
   }
 }
 
-/* v5.7.38 Sticky Stats scope bar — Phase 2 Stats UX cleanup */
+/* v5.7.39 Stats Coaching subtab — Phase 2 Stats UX cleanup */
 .stats-scope-panel{
   position:sticky;
   top:8px;
@@ -5571,4 +5571,9 @@ body[data-density="compact"] .stats-scope-panel .stats-filter-advanced>.grid{pad
 }
 @media(max-width:430px){
   .stats-scope-panel .stats-filter-grid{grid-template-columns:1fr!important;}
+}
+
+/* v5.7.39 Stats Coaching subtab — Phase 3 Stats UX cleanup */
+.stats-coaching-panel.hidden {
+  display: none !important;
 }

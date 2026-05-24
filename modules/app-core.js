@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.38";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.38";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.39";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.39";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.38";
+} from "./utils.js?v=5.7.39";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.38";
+} from "./settings.js?v=5.7.39";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.38";
+} from "./analytics.js?v=5.7.39";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.38";
+} from "./bayesian.js?v=5.7.39";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.38";
+} from "./session.js?v=5.7.39";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.38";
+} from "./pressure.js?v=5.7.39";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.38";
+} from "./recommendations.js?v=5.7.39";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.38";
+} from "./store.js?v=5.7.39";
 
 
 
@@ -3534,7 +3534,7 @@ let deferredInstallPrompt = null;
 const STATS_MODE_KEY = "snookerPracticePWA.statsMode";
 const EXERCISE_FORM_MODE_KEY = "snookerPracticePWA.exerciseFormMode";
 const STATS_DETAIL_MODE_KEY = "snookerPracticePWA.statsDetailMode";
-const STATS_MODES = new Set(["overview", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
+const STATS_MODES = new Set(["overview", "coaching", "trends", "graphs", "routines", "pressure", "insights", "bayesian", "ab", "counterfactual", "tournament"]);
 function normalizeStatsMode(value) {
   const v = String(value || "overview");
   if (v === "advanced") return "trends";
@@ -3810,14 +3810,19 @@ function renderStatsHeavyPanelsIfVisible(reason="renderStatsHeavyPanelsIfVisible
   safeCall(`${reason} renderWeeklyReview`, () => renderWeeklyReview(scopedLogs));
   safeCall(`${reason} renderABComparison`, renderABComparison);
 }
+function shouldRenderCoachingPanels() {
+  return shouldRenderStatsPanel() && normalizeStatsMode(statsMode) === "coaching";
+}
+function renderStatsCoachingPanels(reason="renderStatsCoachingPanels") {
+  if (!shouldRenderCoachingPanels()) return;
+  safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
+  safeCall(`${reason} renderDynamicRoutineDifficultyModel`, renderDynamicRoutineDifficultyModel);
+  safeCall(`${reason} renderSessionArchitectureEngine`, renderSessionArchitectureEngine);
+  safeCall(`${reason} renderMatchSimulationLayer`, renderMatchSimulationLayer);
+}
 function renderStatsBundleIfVisible(reason="renderStatsBundleIfVisible") {
   renderStatsIfVisible(reason);
-  if (shouldRenderStatsPanel()) {
-    safeCall(`${reason} renderAdaptiveTargetEngine`, renderAdaptiveTargetEngine);
-    safeCall(`${reason} renderDynamicRoutineDifficultyModel`, renderDynamicRoutineDifficultyModel);
-    safeCall(`${reason} renderSessionArchitectureEngine`, renderSessionArchitectureEngine);
-    safeCall(`${reason} renderMatchSimulationLayer`, renderMatchSimulationLayer);
-  }
+  renderStatsCoachingPanels(reason);
   renderStatsHeavyPanelsIfVisible(reason);
 }
 
@@ -4611,10 +4616,7 @@ function renderAll() {
     ["renderPlanBuilder", renderPlanBuilder],
     ["renderPlanList", renderPlanList],
     ["renderStats", () => renderStatsIfVisible("renderAll")],
-    ["renderAdaptiveTargetEngine", () => { if (shouldRenderStatsPanel()) renderAdaptiveTargetEngine(); }],
-    ["renderDynamicRoutineDifficultyModel", () => { if (shouldRenderStatsPanel()) renderDynamicRoutineDifficultyModel(); }],
-    ["renderSessionArchitectureEngine", () => { if (shouldRenderStatsPanel()) renderSessionArchitectureEngine(); }],
-    ["renderMatchSimulationLayer", () => { if (shouldRenderStatsPanel()) renderMatchSimulationLayer(); }],
+    ["renderStatsCoachingPanels", () => renderStatsCoachingPanels("renderAll")],
     ["renderToday", renderToday],
     ["renderPracticeTodayCommand", renderPracticeTodayCommand],
     ["renderSmartRecommendation", renderSmartRecommendation],
@@ -8396,7 +8398,8 @@ function renderStatsScopeBanner(scope, logs) {
 function getStatsModeMeta(mode = statsMode) {
   const map = {
     overview:{tier:"Core", label:"Overview", purpose:"Immediate decisions"},
-    insights:{tier:"Core", label:"Insights", purpose:"Coaching signals"},
+    insights:{tier:"Core", label:"Insights", purpose:"Pattern signals"},
+    coaching:{tier:"Coaching", label:"Coaching", purpose:"Decision engines"},
     trends:{tier:"Advanced", label:"Trends", purpose:"Trend review"},
     graphs:{tier:"Advanced", label:"Graphs", purpose:"Graphs"},
     routines:{tier:"Advanced", label:"Routines", purpose:"Exercise-level comparison"},
@@ -8675,11 +8678,22 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
   if (!logs.length) return renderStatsEmptySection("Insights", range);
   return `<h3>${htmlText(uiLabel("statsInsights"))} — ${escapeHtml(range.label)}</h3>
     <div class="advanced-stats-modules">
-      ${statsModule(uiLabel("coachingEngine"), "Decision-oriented recommendations", renderCoachingEngine(logs), true)}
       ${statsModule(uiLabel("weaknessConcentration"), "Where underperformance is concentrated", renderSecondOrderAnalytics(logs, rid, rollingWindow), true)}
       ${statsModule(uiLabel("performanceStability"), "Consistency and volatility signals", renderPerformanceStability(logs), false)}
       ${statsModule(uiLabel("staminaDropoff"), "Session-order performance decay or lift", renderFatigueSlope(logs), false)}
     </div>`;
+}
+
+function renderStatsCoaching(logs, { range }) {
+  const intro = logs.length
+    ? `Decision engines use the active Stats scope where applicable. Current scope contains ${logs.length} log${logs.length === 1 ? "" : "s"}.`
+    : "Coaching engines will become more useful once you log practice sessions.";
+  return `<h3>Coaching — ${escapeHtml(range.label)}</h3>
+    <div class="analytics-note"><strong>Purpose:</strong> What should I do next? This area contains recommendation, target-calibration, session-architecture, and match-simulation engines.</div>
+    <div class="advanced-stats-modules">
+      ${statsModule(uiLabel("coachingEngine"), "Decision-oriented recommendations and skill priorities", renderCoachingEngine(logs), true)}
+    </div>
+    <p class="muted">${escapeHtml(intro)}</p>`;
 }
 
 function renderStatsBayesianSection(logs, { range }) {
@@ -8724,6 +8738,11 @@ function toggleStatsStandalonePanels() {
   if (bayesianPanel) bayesianPanel.classList.toggle("hidden", statsMode !== "bayesian");
   const tableStats = $("tableStatsBox");
   if (tableStats) tableStats.classList.toggle("hidden", !(statsMode === "overview" || statsMode === "routines"));
+  const showCoaching = statsMode === "coaching";
+  ["adaptiveTargetEnginePanel", "dynamicRoutineDifficultyPanel", "sessionArchitecturePanel", "matchSimulationPanel"].forEach(id => {
+    const panel = $(id);
+    if (panel) panel.classList.toggle("hidden", !showCoaching);
+  });
 }
 
 function renderStats() {
@@ -8749,6 +8768,8 @@ function renderStats() {
     let html = renderStatsSectionIntro(scopedLogs, range);
     if (statsMode === "overview") {
       html += renderStatsOverview(scopedLogs, rid, period, range, rollingWindow);
+    } else if (statsMode === "coaching") {
+      html += renderStatsCoaching(scopedAnalyticsLogs, { period, rid, range, rollingWindow, benchmarkWindow });
     } else if (statsMode === "trends") {
       html += renderStatsTrends(scopedLogs, { period, rid, range, rollingWindow, benchmarkWindow });
      } else if (statsMode === "graphs") {
@@ -8774,6 +8795,7 @@ function renderStats() {
     output.innerHTML = "";
     output.innerHTML = html;
     toggleStatsStandalonePanels();
+    renderStatsCoachingPanels("renderStats");
     try { renderBayesianAnalyticsValidation?.(); } catch(e) { logAppError(e, "renderStats bayesian side panels"); }
     applyStoredStatsModeVisual();
   } catch (err) {

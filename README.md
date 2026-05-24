@@ -1,15 +1,16 @@
-# Snooker Practice PWA v5.7.38
+# Snooker Practice PWA v5.7.39
 
-## v5.7.38 — Sticky Stats scope bar
+## v5.7.39 — Stats Coaching subtab
 
-This release implements Phase 2 of the Stats UX cleanup while keeping Graphs inside the Stats tab rather than adding Graphs to the main app navigation.
+Phase 3 Stats UX architecture update built from v5.7.38.
 
-Changes:
-- Added a sticky, collapsible Analytics Scope bar inside Stats.
-- Consolidated shared filters for Stats view, reference date, exercise, and detail level.
-- Kept Graphs as a Stats sub-section with Overview / Insights / Trends / Graphs / Routines / Pressure / Research navigation unchanged.
-- Removed the repeated active-scope banner from Stats output because the scope is now always visible in the control bar.
-- Reduced filter copy and vertical weight for mobile use.
-- Preserved all existing stats, graph, research, and recommendation logic.
+### Changes
+- Added a dedicated Coaching subtab inside Stats, not as a main application tab.
+- Moved decision engines out of the always-visible Stats flow.
+- Coaching now contains decision-oriented recommendations plus Adaptive Target Engine, Dynamic Routine Difficulty, Session Architecture, and Match Simulation panels.
+- Insights now focuses on analytical signals: weakness concentration, consistency, and stamina/fatigue patterns.
+- Graphs remain inside the Stats tab.
+- Existing shared Stats scope bar, filters, and graph/data pipelines are preserved.
+- No schema, storage, routine, or log migration changes.
 
-All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.38.
+All build labels, module cache-busting references, service-worker cache version, and README metadata updated to v5.7.39.
