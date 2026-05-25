@@ -5836,3 +5836,154 @@ body[data-theme="dark"] .player-rating-scale span.active{background:rgba(199,167
     font-size: 0.8rem;
   }
 }
+
+
+/* v5.7.54 restored prediction visual summary */
+.prediction-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.prediction-visual-card {
+  border: 1px solid var(--border, rgba(148, 163, 184, .25));
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--card, rgba(255,255,255,.04));
+  box-shadow: 0 10px 26px rgba(0,0,0,.08);
+}
+.prediction-visual-card.wide {
+  grid-column: span 2;
+}
+.prediction-visual-card h4 {
+  margin: 0 0 10px;
+  font-size: .95rem;
+}
+.prediction-visual-row {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+.prediction-visual-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.prediction-visual-row-head span {
+  font-weight: 700;
+}
+.prediction-visual-row-head strong {
+  font-variant-numeric: tabular-nums;
+}
+.prediction-visual-row small,
+.prediction-scale-marker small {
+  color: var(--muted, #64748b);
+  font-size: .76rem;
+}
+.prediction-bar,
+.prediction-scale,
+.prediction-domain-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .22);
+}
+.prediction-bar span,
+.prediction-scale-fill,
+.prediction-domain-track b {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .72;
+}
+.prediction-visual-row.good { color: var(--success, #16a34a); }
+.prediction-visual-row.watch { color: var(--warning, #d97706); }
+.prediction-visual-row.risk { color: var(--danger, #dc2626); }
+.prediction-scale i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: translateX(-1px);
+}
+.prediction-mini-chart {
+  display: grid;
+  gap: 12px;
+}
+.prediction-domain-list {
+  display: grid;
+  gap: 8px;
+}
+.prediction-domain-bar {
+  display: grid;
+  grid-template-columns: minmax(105px, 1.2fr) minmax(80px, 2fr) 36px 40px;
+  gap: 8px;
+  align-items: center;
+  font-size: .84rem;
+}
+.prediction-domain-bar span {
+  font-weight: 700;
+}
+.prediction-domain-bar strong,
+.prediction-domain-bar small {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.prediction-domain-track b {
+  background: var(--accent, #2563eb);
+}
+[data-theme="dark"] .prediction-visual-card,
+[data-theme-mode="dark"] .prediction-visual-card {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .28);
+}
+[data-theme="dark"] .prediction-bar,
+[data-theme="dark"] .prediction-scale,
+[data-theme="dark"] .prediction-domain-track,
+[data-theme-mode="dark"] .prediction-bar,
+[data-theme-mode="dark"] .prediction-scale,
+[data-theme-mode="dark"] .prediction-domain-track {
+  background: rgba(148, 163, 184, .18);
+}
+@media (max-width: 720px) {
+  .prediction-visual-card.wide { grid-column: span 1; }
+  .prediction-domain-bar {
+    grid-template-columns: 1fr 1.2fr 34px;
+  }
+  .prediction-domain-bar small { display: none; }
+}
+
+
+/* v5.7.54 ETU cumulative axis and benchmark references */
+.prediction-etu-axis-card {
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+  border-radius: 14px;
+  padding: 10px;
+  background: var(--surface, rgba(255,255,255,0.75));
+}
+.prediction-etu-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.prediction-etu-svg .axis { stroke: var(--muted, #64748b); stroke-width: 1; opacity: 0.75; }
+.prediction-etu-svg .axis-label { fill: var(--muted, #64748b); font-size: 9px; }
+.prediction-etu-svg .axis-label.end { text-anchor: end; }
+.prediction-etu-ref line { stroke: var(--warning, #d97706); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.7; }
+.prediction-etu-ref text { fill: var(--muted, #64748b); font-size: 8px; }
+.prediction-etu-line { fill: none; stroke: var(--accent, #2563eb); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.prediction-etu-dot { fill: var(--accent, #2563eb); stroke: var(--surface, #fff); stroke-width: 1.5; }
+[data-theme="dark"] .prediction-etu-axis-card,
+[data-theme-mode="dark"] .prediction-etu-axis-card {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.26);
+}
+[data-theme="dark"] .prediction-etu-svg .axis,
+[data-theme-mode="dark"] .prediction-etu-svg .axis,
+[data-theme="dark"] .prediction-etu-svg .axis-label,
+[data-theme-mode="dark"] .prediction-etu-svg .axis-label,
+[data-theme="dark"] .prediction-etu-ref text,
+[data-theme-mode="dark"] .prediction-etu-ref text {
+  fill: rgba(203, 213, 225, 0.86);
+  stroke: rgba(203, 213, 225, 0.55);
+}

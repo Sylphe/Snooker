@@ -1,2 +1,2 @@
-export const APP_VERSION = "5.7.53-etu-history-visuals";
-export const APP_BUILD_TIMESTAMP = "2026-05-25 09:05 CEST";
+export const APP_VERSION = '5.7.54-prediction-visuals-etu-benchmark-path';
+export const BUILD_LABEL = 'Prediction visuals and ETU benchmark path';
