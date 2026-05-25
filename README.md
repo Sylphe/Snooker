@@ -1,17 +1,15 @@
-# Snooker Practice PWA — v5.7.62 Smart Builder ETU wiring fix
+# Snooker Practice PWA — v5.7.63 Session-end review dashboard
 
-Build: 2026-05-25 18:05 CEST
+Built from v5.7.62.
 
-## What changed
+## Changes
+- Added additive Session-End Review Dashboard after the existing post-session reflection/evaluation flow.
+- Existing post-session evaluation remains first and unchanged.
+- Session review snapshot persists on the session record without changing historical log requirements.
+- Today view can reopen each completed session review.
+- Predictions tab includes a Last Session Impact module.
+- Review summarizes ETU, hit rate, main focus, positive signal, main constraint, readiness impact, and next-session guidance.
+- Updated build/cache/module query strings to v5.7.63.
 
-- Fixed the Smart Builder ETU context so it reads calibrated ETU rows from the Predictions ETU engine instead of relying on missing legacy fields.
-- Corrected recent ETU, latest-session ETU, acute/baseline ratio and undertrained-domain display in Smart Builder rationale.
-- Fixed the static top-bar build label in `index.html`, which was still showing v5.7.59 despite newer module/cache versions.
-- Preserved v5.7.60 domain ETU ledger and v5.7.61 Smart Builder ETU scoring adjustments.
-
-## Technical notes
-
-- No storage schema changes.
-- No log migration required.
-- Build/cache/module query strings updated to v5.7.62.
-- Service-worker cache renamed to `5.7.62-smart-builder-etu-wiring-fix`.
+## Compatibility
+No required schema migration. Existing logs and sessions remain valid; review snapshots are generated lazily for older sessions when viewed.

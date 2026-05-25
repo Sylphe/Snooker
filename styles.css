@@ -6048,3 +6048,21 @@ body[data-theme="dark"] .player-rating-scale span.active{background:rgba(199,167
   .prediction-domain-etu-value { min-width: 96px; }
   .prediction-domain-etu-main > small { font-size: .72rem; }
 }
+
+/* v5.7.63 Session-end review dashboard */
+.session-review-card{border:1px solid var(--line);background:var(--panel-bg);color:var(--text);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 0 rgba(16,43,34,.04);}
+.session-review-card.good{border-left:4px solid var(--success,#39a86b);}
+.session-review-card.watch{border-left:4px solid var(--warning,#d8a13a);}
+.session-review-card.risk{border-left:4px solid var(--danger,#d35a5a);}
+.session-review-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.session-review-hero h3{margin:2px 0 4px;font-size:1.12rem;line-height:1.15;}
+.session-review-etu{flex:0 0 auto;min-width:86px;text-align:right;border:1px solid var(--line);background:var(--panel-bg-2);border-radius:14px;padding:9px 10px;}
+.session-review-etu strong{display:block;font-size:1.45rem;line-height:1;color:var(--primary);}
+.session-review-etu span,.session-review-etu small{display:block;color:var(--muted);font-weight:800;font-size:.72rem;line-height:1.25;margin-top:3px;}
+.session-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
+.session-review-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0;}
+.session-review-details{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-bg-2);padding:8px 10px;}
+.session-review-details summary{font-weight:900;cursor:pointer;color:var(--primary);}
+body[data-theme="dark"] .session-review-card,body[data-theme-mode="dark"] .session-review-card{background:var(--panel-bg);color:var(--text);border-color:var(--line);}
+body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .session-review-etu,body[data-theme="dark"] .session-review-details,body[data-theme-mode="dark"] .session-review-details{background:var(--panel-bg-2);border-color:var(--line);}
+@media(max-width:700px){.session-review-hero{flex-direction:column}.session-review-etu{text-align:left;width:100%;box-sizing:border-box}.session-review-grid{grid-template-columns:1fr}.session-review-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
