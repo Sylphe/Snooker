@@ -5990,3 +5990,61 @@ body[data-theme="dark"] .player-rating-scale span.active{background:rgba(199,167
   fill: rgba(203, 213, 225, 0.86);
   stroke: rgba(203, 213, 225, 0.55);
 }
+
+
+/* v5.7.60 ETU by skill domain ledger layout */
+.prediction-domain-etu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 140px);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(148, 163, 184, .24));
+  border-radius: 14px;
+  background: var(--surface, rgba(255,255,255,.72));
+}
+.prediction-domain-etu-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.prediction-domain-etu-main > strong {
+  font-size: .92rem;
+  line-height: 1.15;
+}
+.prediction-domain-etu-main > small {
+  color: var(--muted, #64748b);
+  line-height: 1.25;
+}
+.prediction-domain-etu-value {
+  min-width: 112px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.prediction-domain-etu-value strong {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.1;
+}
+.prediction-domain-etu-value span,
+.prediction-domain-etu-value small {
+  display: block;
+  color: var(--muted, #64748b);
+  font-size: .74rem;
+  line-height: 1.2;
+}
+[data-theme="dark"] .prediction-domain-etu-row,
+[data-theme-mode="dark"] .prediction-domain-etu-row {
+  background: rgba(15, 23, 42, .68);
+  border-color: rgba(148, 163, 184, .28);
+}
+@media (max-width: 520px) {
+  .prediction-domain-etu-row {
+    grid-template-columns: minmax(0, 1fr) minmax(96px, 112px);
+    gap: 8px;
+    padding: 9px 10px;
+  }
+  .prediction-domain-etu-value { min-width: 96px; }
+  .prediction-domain-etu-main > small { font-size: .72rem; }
+}

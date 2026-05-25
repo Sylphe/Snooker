@@ -1,4 +1,21 @@
-# Snooker Practice PWA — v5.7.59.2 Prediction calibration v2
+# Snooker Practice PWA — v5.7.60 ETU by skill domain
+
+This build formalizes ETU by skill domain and improves the Predictions-domain ledger layout for mobile readability.
+
+## Changes
+- Added a clearer ETU by skill domain ledger in Predictions.
+- Allocates effective ETU across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure.
+- Shows each domain's effective ETU, raw ETU, logs, minutes, hit-rate, current level and progress toward the next L-band.
+- Fixed the compressed ETU value column by giving ETU values a stable right-side width and tabular numeric formatting.
+- Retained v5.7.59.2 prediction calibration logic: sustainable pace caps, confidence penalties, nonlinear milestone scaling and benchmark forecastability guards.
+- Updated build name, cache version, module cache-busting references and README.
+
+## Compatibility
+No schema, storage, routine, or log changes.
+
+---
+
+# Snooker Practice PWA — v5.7.60 Prediction calibration v2
 
 This build adds the second prediction calibration pass: forecasts now use domain-specific ETU, sustainable pace caps, benchmark-distance guards, confidence penalties, nonlinear milestone scaling, and a Domain ETU ledger inside Predictions. No storage schema or log migration changes.
 
@@ -17,3 +34,4 @@ This maintenance release builds on v5.7.58 and keeps the recovery/readiness engi
 
 ### Compatibility
 No schema, storage, routine, or log changes.
+
