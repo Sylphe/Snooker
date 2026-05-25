@@ -5992,7 +5992,7 @@ body[data-theme="dark"] .player-rating-scale span.active{background:rgba(199,167
 }
 
 
-/* v5.7.60 ETU by skill domain ledger layout */
+/* v5.7.61 Smart Builder ETU integration ledger layout */
 .prediction-domain-etu-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(112px, 140px);

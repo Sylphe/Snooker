@@ -1,4 +1,4 @@
-# Snooker Practice PWA — v5.7.60 ETU by skill domain
+# Snooker Practice PWA — v5.7.61 Smart Builder ETU integration
 
 This build formalizes ETU by skill domain and improves the Predictions-domain ledger layout for mobile readability.
 
@@ -15,7 +15,7 @@ No schema, storage, routine, or log changes.
 
 ---
 
-# Snooker Practice PWA — v5.7.60 Prediction calibration v2
+# Snooker Practice PWA — v5.7.61 Prediction calibration v2
 
 This build adds the second prediction calibration pass: forecasts now use domain-specific ETU, sustainable pace caps, benchmark-distance guards, confidence penalties, nonlinear milestone scaling, and a Domain ETU ledger inside Predictions. No storage schema or log migration changes.
 
