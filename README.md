@@ -1,29 +1,24 @@
-# Snooker Practice PWA v5.7.55
+# Snooker Practice PWA v5.7.56
 
-## v5.7.55 — Prediction bootstrap version fix
+## v5.7.56 — ETU calibration pass
 
-This release builds on the stable v5.7.55 prediction/bootstrap baseline and adds historical Effective Training Unit views inside the Stats > Predictions tab.
+This release builds on the stable v5.7.55 prediction/bootstrap baseline and refines Effective Training Units inside Stats > Predictions.
 
-### Added
+### Main changes
 
-- ETU Development Load panel in Predictions.
-- Session ETU timeline for recent training sessions.
-- 7-day and 14-day ETU load indicators.
-- Recent cumulative ETU path.
-- ETU quality mix: micro/recovery, light/maintenance, development, and high-development sessions.
-- Helper wording clarifying that ETU is a development-load metric, not a volume target to maximize.
+- Separates **raw ETU** from **effective ETU**.
+- Adds calibrated diminishing returns for session duration, especially after roughly 90 minutes.
+- Adds ETU component breakdown: duration, diversity, routine density, pressure, transfer, adaptive alignment, challenge quality, subjective quality, and fatigue.
+- Updates the ETU helper copy so the metric is clearly framed as a development-load signal, not a volume target.
+- Keeps ETU history visuals, cumulative ETU path, benchmark references, prediction visuals, and bootstrap-safe rendering.
 
-### Technical notes
+### Compatibility
 
-- Forecast logic remains bootstrap-safe and guarded.
-- No storage schema change.
-- No log migration.
-- No IndexedDB/localStorage data impact.
-- Updated build label, service-worker cache version, module cache-busting references, index build text, and README metadata to v5.7.55.
+- No storage schema changes.
+- No log migration changes.
+- Existing logs remain compatible; missing fatigue/quality/adaptive fields fall back to neutral ETU weights.
 
+### Build hygiene
 
-## v5.7.55
-- Restored compact prediction visual summary from the prediction visualization layer.
-- Kept ETU history visuals added in v5.7.55.
-- Reworked cumulative ETU path with axes, labels, and Junior / Club / Senior directional ETU reference lines.
-- Updated build name, cache versions, and module references.
+- Updated build label, service-worker cache version, module cache-busting references, index build text, and README metadata to v5.7.56.
+- JavaScript syntax, JSON validity, duplicate-function scan, and zip integrity checked.
