@@ -1,7 +1,15 @@
-# Snooker Practice PWA v5.7.58
+# Snooker Practice PWA v5.7.59
 
-## v5.7.58 — Recovery and readiness engine
+## v5.7.59 — Recovery/readiness ETU helper and compact scope fix
 
-Adds a recovery/readiness layer to the Predictions tab. The engine combines calibrated ETU load, acute-vs-baseline ratio, latest session load, subjective fatigue/quality where available, load consistency, and recent training gaps to recommend the next session type: acquisition, transfer, pressure, consolidation, recovery, or rest.
+This maintenance release builds on v5.7.58 and keeps the recovery/readiness engine intact while improving explainability and mobile usability.
 
-This release keeps ETU as a load-quality signal rather than a volume target and does not change storage schema, routine schema, or historical logs.
+### Changes
+- Expanded the ETU helper with clearer explanation of raw ETU vs effective ETU, diminishing returns after ~90 minutes, quality/fatigue weighting, and why ETU should not be maximized mechanically.
+- Removed duplicate Recovery/readiness output from the ETU Development Load panel; recovery/readiness now appears only in its dedicated Prediction module.
+- Kept ETU Development Load focused on historical load, rolling windows, cumulative ETU path, quality mix, and component calibration.
+- Made the sticky Analytics Scope panel more compact on mobile and collapsed by default to avoid blocking the screen.
+- Updated build name, cache version, module cache-busting references, and README.
+
+### Compatibility
+No schema, storage, routine, or log changes.
