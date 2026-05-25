@@ -1,3 +1,7 @@
+# Snooker Practice PWA — v5.7.59.2 Prediction calibration v2
+
+This build adds the second prediction calibration pass: forecasts now use domain-specific ETU, sustainable pace caps, benchmark-distance guards, confidence penalties, nonlinear milestone scaling, and a Domain ETU ledger inside Predictions. No storage schema or log migration changes.
+
 # Snooker Practice PWA v5.7.59
 
 ## v5.7.59 — Recovery/readiness ETU helper and compact scope fix
