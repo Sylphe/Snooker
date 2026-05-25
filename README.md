@@ -1,24 +1,29 @@
-# Snooker Practice PWA v5.7.56
+# Snooker Practice PWA v5.7.57
 
-## v5.7.56 — ETU calibration pass
+## v5.7.57 — ETU history and load management
 
-This release builds on the stable v5.7.55 prediction/bootstrap baseline and refines Effective Training Units inside Stats > Predictions.
+This release extends the v5.7.56 ETU calibration layer into a practical training-load view inside the Stats > Predictions tab.
 
-### Main changes
+### Added
 
-- Separates **raw ETU** from **effective ETU**.
-- Adds calibrated diminishing returns for session duration, especially after roughly 90 minutes.
-- Adds ETU component breakdown: duration, diversity, routine density, pressure, transfer, adaptive alignment, challenge quality, subjective quality, and fatigue.
-- Updates the ETU helper copy so the metric is clearly framed as a development-load signal, not a volume target.
-- Keeps ETU history visuals, cumulative ETU path, benchmark references, prediction visuals, and bootstrap-safe rendering.
+- ETU load-management panel inside Predictions.
+- 7-day, 14-day and 28-day ETU load views.
+- Acute-vs-baseline ETU ratio.
+- Load status bands: low load, productive load, high load, overload risk.
+- Load consistency score based on recent ETU volatility.
+- Next-load guidance for recovery, consolidation, normal training or acquisition.
+- Continued ETU session timeline, cumulative ETU path, quality mix and component breakdown.
 
-### Compatibility
+### Preserved
 
-- No storage schema changes.
-- No log migration changes.
-- Existing logs remain compatible; missing fatigue/quality/adaptive fields fall back to neutral ETU weights.
+- Raw ETU vs effective ETU.
+- Diminishing returns after roughly 90 minutes.
+- Existing prediction visuals and forecast guardrails.
+- Existing storage schema, logs, sessions, routines and IndexedDB/localStorage behavior.
 
-### Build hygiene
+### Technical notes
 
-- Updated build label, service-worker cache version, module cache-busting references, index build text, and README metadata to v5.7.56.
-- JavaScript syntax, JSON validity, duplicate-function scan, and zip integrity checked.
+- No schema migration required.
+- No log mutation performed.
+- Prediction and ETU rendering remain guarded so UI errors cannot block bootstrap or storage hydration.
+- Build label, cache version, module cache-busting references, index build text and README metadata updated to v5.7.57.

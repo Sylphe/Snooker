@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.56";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.56";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.57";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.57";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.56";
+} from "./utils.js?v=5.7.57";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.56";
+} from "./settings.js?v=5.7.57";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.56";
+} from "./analytics.js?v=5.7.57";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.56";
+} from "./bayesian.js?v=5.7.57";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.56";
+} from "./session.js?v=5.7.57";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.56";
+} from "./pressure.js?v=5.7.57";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.56";
+} from "./recommendations.js?v=5.7.57";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.56";
+} from "./store.js?v=5.7.57";
 
 
 
@@ -8705,7 +8705,7 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
 
 
 
-/* v5.7.56 Prediction Engine — restored visuals plus ETU benchmark path */
+/* v5.7.57 Prediction Engine — restored visuals plus ETU benchmark path */
 function predictionConfidenceLabelSafe(logCount, evidenceN, volatility) {
   const n = Number(logCount || 0) + Number(evidenceN || 0) / 10;
   const vol = Number.isFinite(Number(volatility)) ? Math.max(0, Number(volatility) - 14) / 26 : 0.45;
@@ -8936,7 +8936,7 @@ function predictionRowsForDomainsSafe(profile, velocity, confidence) {
 }
 
 
-/* v5.7.56 Prediction calibration override — nonlinear ETU scaling, sustainable pace and ETU history */
+/* v5.7.57 Prediction calibration and load-management layer — nonlinear ETU scaling, sustainable pace and ETU history */
 function sustainablePredictionPaceSafe(load) {
   const raw = Math.max(0, Number(load?.etuPerWeek || 0));
   if (!raw) return 0;
@@ -9179,6 +9179,68 @@ function predictionEtuComponentBreakdownSafe(load) {
   }).join("")}</div>`;
 }
 
+
+function predictionRollingEtuWindowSafe(rows, days) {
+  const dated = (rows || []).filter(r => Number.isFinite(Number(r.dateValue))).slice().sort((a,b)=>Number(a.dateValue)-Number(b.dateValue));
+  if (!dated.length) return { etu:0, sessions:0, days:Number(days || 0), start:null, end:null };
+  const end = Number(dated[dated.length - 1].dateValue);
+  const span = Math.max(1, Number(days || 7));
+  const start = end - span * 86400000;
+  const selected = dated.filter(r => Number(r.dateValue) >= start);
+  return {
+    etu: selected.reduce((sum, r) => sum + Math.max(0, Number(r.etu || r.effectiveEtu || 0)), 0),
+    sessions: selected.length,
+    days: span,
+    start,
+    end
+  };
+}
+function predictionLoadManagementSafe(rows, load) {
+  const list = Array.isArray(rows) ? rows : [];
+  const w7 = predictionRollingEtuWindowSafe(list, 7);
+  const w14 = predictionRollingEtuWindowSafe(list, 14);
+  const w28 = predictionRollingEtuWindowSafe(list, 28);
+  const baseline = Math.max(0.35, w28.etu > 0 ? w28.etu / 4 : w14.etu > 0 ? w14.etu / 2 : Number(load?.avgEtuPerSession || 0) * 2);
+  const acuteRatio = w7.etu / baseline;
+  let status = {label:"Build baseline", cls:"watch", note:"Log two stable weeks before treating load guidance as strong."};
+  if (w14.sessions >= 3 || w28.sessions >= 5) {
+    if (w7.etu < 2.5 || acuteRatio < 0.65) status = {label:"Low load", cls:"watch", note:"Useful for recovery or maintenance; add acquisition only if you feel fresh."};
+    else if (w7.etu <= 8.5 && acuteRatio <= 1.35) status = {label:"Productive load", cls:"good", note:"Current load looks developmentally useful without obvious overload signal."};
+    else if (w7.etu <= 12.0 && acuteRatio <= 1.85) status = {label:"High load", cls:"watch", note:"Good adaptation stimulus, but the next block should usually be lighter or more consolidated."};
+    else status = {label:"Overload risk", cls:"risk", note:"Short-term load is materially above baseline; prioritize recovery or low-pressure consolidation."};
+  }
+  const recent = list.slice(-8).map(r => Number(r.etu || r.effectiveEtu || 0)).filter(Number.isFinite);
+  const mean = recent.length ? avg(recent) : 0;
+  const variance = recent.length > 1 ? recent.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / recent.length : 0;
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+  const consistency = Math.max(0, Math.min(100, 100 - cv * 55));
+  const latest = list.length ? list[list.length - 1] : null;
+  const latestEtu = Number(latest?.etu || latest?.effectiveEtu || 0);
+  let recommendation = "Build more ETU history before using load recommendations.";
+  if (status.cls === "risk") recommendation = "Rest or 15–25 min very light recovery. Avoid benchmark or pressure work.";
+  else if (status.label === "High load" || latestEtu >= 3.6) recommendation = "Use a short consolidation/recovery block next: easy cueing, low pressure, stop before quality drops.";
+  else if (status.label === "Low load") recommendation = "If fresh, add one focused acquisition block; otherwise keep it as recovery.";
+  else if (status.label === "Productive load") recommendation = "Continue normal training rhythm; rotate acquisition and transfer rather than adding volume for its own sake.";
+  return { w7, w14, w28, baseline, acuteRatio, status, consistency, recommendation, latestEtu };
+}
+function predictionLoadBarSafe(label, value, max, detail) {
+  const pct = Math.max(3, Math.min(100, Number(value || 0) / Math.max(1, Number(max || 1)) * 100));
+  return `<div class="prediction-domain-bar"><span>${htmlText(label)}</span><div class="prediction-domain-track"><b style="width:${pct.toFixed(1)}%"></b></div><strong>${numText(value)}</strong><small>${htmlText(detail || "ETU")}</small></div>`;
+}
+function renderPredictionEtuLoadManagementSafe(load) {
+  try {
+    const rows = Array.isArray(load?.rows) ? load.rows : [];
+    const mgmt = predictionLoadManagementSafe(rows, load || {});
+    const max = Math.max(6, mgmt.w7.etu, mgmt.w14.etu / 2, mgmt.w28.etu / 4, mgmt.baseline * 1.8);
+    const ratioPct = Math.max(3, Math.min(100, mgmt.acuteRatio / 2.0 * 100));
+    const consistencyPct = Math.max(0, Math.min(100, mgmt.consistency));
+    return `<div class="prediction-load-management"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary ${mgmt.status.cls}"><span>Load status</span><div class="value">${htmlText(mgmt.status.label)}</div><small>${htmlText(mgmt.status.note)}</small></div><div class="overview-kpi"><span>7-day load</span><div class="value">${numText(mgmt.w7.etu)}</div><small>${mgmt.w7.sessions} sessions</small></div><div class="overview-kpi"><span>Baseline pace</span><div class="value">${numText(mgmt.baseline)}</div><small>weekly equivalent from recent history</small></div><div class="overview-kpi"><span>Acute / baseline</span><div class="value">${numText(mgmt.acuteRatio)}×</div><small>short-term load pressure</small></div><div class="overview-kpi"><span>Load consistency</span><div class="value">${Math.round(consistencyPct)}/100</div><small>last 8 sessions</small></div></div><div class="prediction-etu-component-list">${predictionLoadBarSafe("7-day ETU", mgmt.w7.etu, max, "acute load")}${predictionLoadBarSafe("14-day avg/week", mgmt.w14.etu / 2, max, "short baseline")}${predictionLoadBarSafe("28-day avg/week", mgmt.w28.etu / 4, max, "longer baseline")}${predictionLoadBarSafe("Sustainable cap", sustainablePredictionPaceSafe(load), max, "forecast cap")}<div class="prediction-domain-bar"><span>Acute / baseline ratio</span><div class="prediction-domain-track"><b style="width:${ratioPct.toFixed(1)}%"></b></div><strong>${numText(mgmt.acuteRatio)}×</strong><small>~1.0× is balanced; >1.8× is caution</small></div><div class="prediction-domain-bar"><span>Load consistency</span><div class="prediction-domain-track"><b style="width:${consistencyPct.toFixed(1)}%"></b></div><strong>${Math.round(consistencyPct)}/100</strong><small>stable load beats sporadic spikes</small></div></div><div class="analytics-note"><strong>Next-load guidance:</strong> ${htmlText(mgmt.recommendation)}</div></div>`;
+  } catch (err) {
+    try { logAppError(err, "renderPredictionEtuLoadManagementSafe"); } catch (_) {}
+    return `<div class="analytics-note warn"><strong>ETU load guidance unavailable.</strong> ETU history remains safe.</div>`;
+  }
+}
+
 function renderPredictionEtuVisualsSafe(load) {
   try {
     const rows = Array.isArray(load?.rows) ? load.rows : [];
@@ -9186,7 +9248,7 @@ function renderPredictionEtuVisualsSafe(load) {
     const rolling14 = predictionRollingEtuSafe(rows, 14);
     const latest = rows.length ? rows[rows.length - 1] : null;
     const latestBand = predictionEtuBandSafe(latest?.etu);
-    return `<div class="prediction-etu-visuals"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Latest effective load</span><div class="value">${latest ? numText(latest.effectiveEtu || latest.etu) : "—"} ETU</div><small>${htmlText(latest ? latestBand.label : "Add a session to classify load")}</small></div><div class="overview-kpi"><span>Raw exposure</span><div class="value">${latest ? numText(latest.rawEtu) : "—"}</div><small>table-time equivalent before quality weighting</small></div><div class="overview-kpi"><span>7-day ETU</span><div class="value">${numText(rolling7)}</div><small>short-term effective load</small></div><div class="overview-kpi"><span>14-day ETU</span><div class="value">${numText(rolling14)}</div><small>baseline load window</small></div><div class="overview-kpi"><span>Sustainable pace</span><div class="value">${numText(sustainablePredictionPaceSafe(load))}</div><small>capped ETU/week for forecasts</small></div></div><div class="analytics-note"><strong>Read ETU as load quality, not a target to maximize.</strong> v5.7.56 separates raw exposure from effective ETU. Duration is capped with diminishing returns after roughly 90 minutes, then adjusted for diversity, density, pressure/transfer work, adaptive alignment, challenge quality, subjective quality and fatigue.</div><h4>Session ETU timeline</h4>${predictionEtuTimelineBarsSafe(rows)}<h4>Cumulative ETU path</h4>${predictionCumulativeEtuSafe(rows)}<h4>ETU quality mix</h4>${predictionEtuQualityMixSafe(rows)}<h4>ETU component calibration</h4>${predictionEtuComponentBreakdownSafe(load)}</div>`;
+    return `<div class="prediction-etu-visuals"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Latest effective load</span><div class="value">${latest ? numText(latest.effectiveEtu || latest.etu) : "—"} ETU</div><small>${htmlText(latest ? latestBand.label : "Add a session to classify load")}</small></div><div class="overview-kpi"><span>Raw exposure</span><div class="value">${latest ? numText(latest.rawEtu) : "—"}</div><small>table-time equivalent before quality weighting</small></div><div class="overview-kpi"><span>7-day ETU</span><div class="value">${numText(rolling7)}</div><small>short-term effective load</small></div><div class="overview-kpi"><span>14-day ETU</span><div class="value">${numText(rolling14)}</div><small>baseline load window</small></div><div class="overview-kpi"><span>Sustainable pace</span><div class="value">${numText(sustainablePredictionPaceSafe(load))}</div><small>capped ETU/week for forecasts</small></div></div><div class="analytics-note"><strong>Read ETU as load quality, not a target to maximize.</strong> v5.7.57 adds load management on top of ETU calibration: acute load, baseline pace, consistency and recovery guidance. Duration is still capped with diminishing returns after roughly 90 minutes.</div><h4>ETU load management</h4>${renderPredictionEtuLoadManagementSafe(load)}<h4>Session ETU timeline</h4>${predictionEtuTimelineBarsSafe(rows)}<h4>Cumulative ETU path</h4>${predictionCumulativeEtuSafe(rows)}<h4>ETU quality mix</h4>${predictionEtuQualityMixSafe(rows)}<h4>ETU component calibration</h4>${predictionEtuComponentBreakdownSafe(load)}</div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEtuVisualsSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>ETU visuals unavailable.</strong> Forecasts remain safe.</div>`;
@@ -9206,7 +9268,7 @@ function renderPredictionEngineSafe(logs) {
     const bottleneck = domains[0]?.label || "Insufficient evidence";
     const secondBottleneck = domains[1]?.label || "Build more benchmark and pressure evidence";
     const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving but noisy" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.56 layer restores compact prediction visuals and uses nonlinear ETU scaling, sustainable pace caps, ETU history, distance-to-threshold, evidence quality, volatility, benchmark distance and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence)}</div>`, false)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts unequal sessions into a comparable training-load unit. Duration is the base, but the score is adjusted for routine diversity, pressure or transfer work, adaptive/recommendation work, productive target difficulty, subjective quality and fatigue. A short single-drill hit may count below 1 ETU; a structured 90–100 minute adaptive session with several routines can count several ETU. Forecasts use ETU first, then translate to calendar timing from a capped sustainable pace rather than a short-term training burst. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require progressively more consolidation, not just more minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
+    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.57 layer keeps calibrated ETU and adds load management and uses nonlinear ETU scaling, sustainable pace caps, ETU history, distance-to-threshold, evidence quality, volatility, benchmark distance and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence)}</div>`, false)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts unequal sessions into a comparable training-load unit. Duration is the base, but the score is adjusted for routine diversity, pressure or transfer work, adaptive/recommendation work, productive target difficulty, subjective quality and fatigue. A short single-drill hit may count below 1 ETU; a structured 90–100 minute adaptive session with several routines can count several ETU. Forecasts use ETU first, then translate to calendar timing from a capped sustainable pace rather than a short-term training burst. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require progressively more consolidation, not just more minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEngineSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> This panel failed safely and did not block storage or hydration.</div>`;
