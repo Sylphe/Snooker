@@ -1,29 +1,7 @@
-# Snooker Practice PWA v5.7.57
+# Snooker Practice PWA v5.7.58
 
-## v5.7.57 — ETU history and load management
+## v5.7.58 — Recovery and readiness engine
 
-This release extends the v5.7.56 ETU calibration layer into a practical training-load view inside the Stats > Predictions tab.
+Adds a recovery/readiness layer to the Predictions tab. The engine combines calibrated ETU load, acute-vs-baseline ratio, latest session load, subjective fatigue/quality where available, load consistency, and recent training gaps to recommend the next session type: acquisition, transfer, pressure, consolidation, recovery, or rest.
 
-### Added
-
-- ETU load-management panel inside Predictions.
-- 7-day, 14-day and 28-day ETU load views.
-- Acute-vs-baseline ETU ratio.
-- Load status bands: low load, productive load, high load, overload risk.
-- Load consistency score based on recent ETU volatility.
-- Next-load guidance for recovery, consolidation, normal training or acquisition.
-- Continued ETU session timeline, cumulative ETU path, quality mix and component breakdown.
-
-### Preserved
-
-- Raw ETU vs effective ETU.
-- Diminishing returns after roughly 90 minutes.
-- Existing prediction visuals and forecast guardrails.
-- Existing storage schema, logs, sessions, routines and IndexedDB/localStorage behavior.
-
-### Technical notes
-
-- No schema migration required.
-- No log mutation performed.
-- Prediction and ETU rendering remain guarded so UI errors cannot block bootstrap or storage hydration.
-- Build label, cache version, module cache-busting references, index build text and README metadata updated to v5.7.57.
+This release keeps ETU as a load-quality signal rather than a volume target and does not change storage schema, routine schema, or historical logs.
