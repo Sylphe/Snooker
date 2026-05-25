@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.65";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.65";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.67";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.67";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.65";
+} from "./utils.js?v=5.7.67";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.65";
+} from "./settings.js?v=5.7.67";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.65";
+} from "./analytics.js?v=5.7.67";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.65";
+} from "./bayesian.js?v=5.7.67";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.65";
+} from "./session.js?v=5.7.67";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.65";
+} from "./pressure.js?v=5.7.67";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.65";
+} from "./recommendations.js?v=5.7.67";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.65";
+} from "./store.js?v=5.7.67";
 
 
 
@@ -7291,7 +7291,7 @@ function smartRecommendationModeLabel(mode){
 }
 
 
-/* v5.7.65 Session-end review dashboard — use calibrated ETU rows, not legacy training-load fallbacks */
+/* v5.7.67 Session-end review dashboard — use calibrated ETU rows, not legacy training-load fallbacks */
 function predictionLoadRowsSafe(load) {
   try {
     const rows = Array.isArray(load?.rows) ? load.rows : Array.isArray(load?.sessions) ? load.sessions : [];
@@ -7340,6 +7340,7 @@ function smartBuilderEtuContextSafe(logs=data.logs || []) {
     const sortedDomains = (domainLoads || []).slice().filter(d => Number(d?.etu || 0) > 0).sort((a,b)=>Number(a.etu||0)-Number(b.etu||0));
     const undertrained = sortedDomains.slice(0, Math.min(3, sortedDomains.length));
     const overloaded = sortedDomains.slice(-2).reverse();
+    const strategic = smartBuilderStrategicContextSafe(scoped);
     let state = "productive";
     let label = "Productive ETU load";
     let guidance = "normal acquisition and transfer work is acceptable";
@@ -7357,10 +7358,10 @@ function smartBuilderEtuContextSafe(logs=data.logs || []) {
       label = "Moderately high ETU";
       guidance = "keep pressure controlled and avoid stacking too many volatile drills";
     }
-    return {load, domainLoads, latestSession, acute, baseline, ratio, sustainable, undertrained, overloaded, state, label, guidance};
+    return {load, domainLoads, latestSession, acute, baseline, ratio, sustainable, undertrained, overloaded, strategic, state, label, guidance};
   } catch (err) {
     try { logAppError(err, "smartBuilderEtuContextSafe"); } catch (_) {}
-    return {load:null, domainLoads:[], latestSession:null, acute:0, baseline:0, ratio:1, sustainable:0, undertrained:[], overloaded:[], state:"unknown", label:"ETU unavailable", guidance:"use normal builder logic"};
+    return {load:null, domainLoads:[], latestSession:null, acute:0, baseline:0, ratio:1, sustainable:0, undertrained:[], overloaded:[], strategic:null, state:"unknown", label:"ETU unavailable", guidance:"use normal builder logic"};
   }
 }
 function smartBuilderRoutineDomainKeySafe(routine) {
@@ -7372,47 +7373,135 @@ function smartBuilderRoutineDomainKeySafe(routine) {
     return "general";
   }
 }
+
+function smartBuilderRoutineStrategicKeysSafe(routine) {
+  try {
+    const map = getRoutineSkillMap(routine || {});
+    const keys = new Set();
+    [map?.primarySkill, ...(map?.secondarySkills || []), ...(map?.transferTags || []), routine?.category, routine?.folder, routine?.name].filter(Boolean).forEach(raw => keys.add(predictionDomainKeyFromLogSafe({category:raw, routineName:routine?.name})));
+    const benchDomain = typeof dominantBenchmarkDomainForRoutine === "function" ? dominantBenchmarkDomainForRoutine(routine || {}) : null;
+    if (benchDomain?.label) keys.add(predictionDomainKeyFromLogSafe({category:benchDomain.label, routineName:routine?.name}));
+    if (benchDomain?.id) keys.add(predictionDomainKeyFromLogSafe({category:benchDomain.id, routineName:routine?.name}));
+    return Array.from(keys).filter(Boolean);
+  } catch (_) {
+    return [smartBuilderRoutineDomainKeySafe(routine || {})];
+  }
+}
+function smartBuilderLatestSessionReviewSafe() {
+  try {
+    const sessions = (data.sessions || []).slice().filter(s => s?.sessionReview).sort((a,b)=>(Date.parse(b.endedAt || b.updatedAt || b.createdAt || "")||0)-(Date.parse(a.endedAt || a.updatedAt || a.createdAt || "")||0));
+    return sessions[0]?.sessionReview || null;
+  } catch (_) { return null; }
+}
+function smartBuilderReviewDomainHintsSafe(review) {
+  try {
+    const text = [review?.mainConstraint, review?.mainConstraintText, review?.strongestSignal, review?.whatImproved, review?.nextRecommendation].filter(Boolean).join(" ");
+    const key = predictionDomainKeyFromLogSafe({category:text});
+    return key && key !== "general" ? [key] : [];
+  } catch (_) { return []; }
+}
+function smartBuilderStrategicContextSafe(scopedLogs) {
+  try {
+    const logs = Array.isArray(scopedLogs) ? scopedLogs : (data.logs || []);
+    const benchmark = typeof estimateBenchmarkPlayerClass === "function" ? estimateBenchmarkPlayerClass(logs, activeRoutines()) : null;
+    const skillProfile = typeof inferLatentSkillLevels === "function" ? inferLatentSkillLevels(logs, activeRoutines()) : null;
+    const weakestSkills = (skillProfile?.profile || []).slice().sort((a,b)=>(Number(a.score||0)-Number(b.score||0))).slice(0,3).map(x => ({key:predictionDomainKeyFromLogSafe({category:x.label}), label:x.label, score:Number(x.score || 0), level:x.level || "L?"}));
+    const benchmarkDomains = typeof benchmarkRoadmapDomainGapsSafe === "function" ? benchmarkRoadmapDomainGapsSafe(benchmark).slice(0,3).map(d => ({key:predictionDomainKeyFromLogSafe({category:d.label}), label:d.label, index:Number(d.index || 0), band:d.band || "<Junior"})) : [];
+    const levels = typeof benchmarkRoadmapTargetLevelsSafe === "function" ? benchmarkRoadmapTargetLevelsSafe() : [];
+    const nextBenchmark = levels.find(l => Number(benchmark?.matchIndex || 0) < Number(l.targetIndex || 0)) || levels[0] || {label:"Junior", targetIndex:0.75};
+    const review = smartBuilderLatestSessionReviewSafe();
+    const reviewKeys = smartBuilderReviewDomainHintsSafe(review);
+    const bottleneckKeys = new Set([...weakestSkills.map(x=>x.key), ...benchmarkDomains.map(x=>x.key), ...reviewKeys].filter(Boolean));
+    const bottleneckLabel = weakestSkills[0]?.label || benchmarkDomains[0]?.label || "current development bottleneck";
+    return {benchmark, skillProfile, weakestSkills, benchmarkDomains, nextBenchmark, review, reviewKeys, bottleneckKeys, bottleneckLabel};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderStrategicContextSafe"); } catch (_) {}
+    return {benchmark:null, skillProfile:null, weakestSkills:[], benchmarkDomains:[], nextBenchmark:null, review:null, reviewKeys:[], bottleneckKeys:new Set(), bottleneckLabel:"current development bottleneck"};
+  }
+}
+function smartBuilderStrategicLabelSafe(strategy) {
+  try {
+    const target = strategy?.nextBenchmark?.label || "next benchmark";
+    const weak = (strategy?.weakestSkills || []).slice(0,2).map(x => `${x.label} ${x.level || ""}`).join(" · ") || "skill evidence building";
+    const bench = (strategy?.benchmarkDomains || []).slice(0,2).map(x => `${x.label} ${x.band || ""}`).join(" · ") || "benchmark evidence building";
+    return `benchmark path: ${target}; bottlenecks: ${weak}; benchmark gaps: ${bench}`;
+  } catch (_) { return "benchmark and skill calibration active"; }
+}
 function smartBuilderEtuAdjustmentSafe(state, etuContext) {
   try {
     const ctx = etuContext || {};
     const energy = routineEnergyProfile(state);
     const phase = String(state?.phase || "");
     const domainKey = smartBuilderRoutineDomainKeySafe(state?.routine || {});
+    const routineKeys = new Set(smartBuilderRoutineStrategicKeysSafe(state?.routine || {}));
     const undertrainedKeys = new Set((ctx.undertrained || []).map(d => String(d.key || "")));
     const overloadedKeys = new Set((ctx.overloaded || []).map(d => String(d.key || "")));
+    const strategic = ctx.strategic || {};
+    const benchmarkKeys = new Set((strategic.benchmarkDomains || []).map(d => String(d.key || "")));
+    const weakestKeys = new Set((strategic.weakestSkills || []).map(d => String(d.key || "")));
+    const reviewKeys = new Set((strategic.reviewKeys || []).map(k => String(k || "")));
+    const layerModifiers = {etuLoad:0, readiness:0, benchmark:0, prediction:0, lastSession:0};
+    const layerReasons = {etuLoad:[], readiness:[], benchmark:[], prediction:[], lastSession:[]};
+    const addLayer = (layer, value, reason) => {
+      const v = Number(value || 0);
+      layerModifiers[layer] = Number(layerModifiers[layer] || 0) + v;
+      if (reason) layerReasons[layer].push(reason);
+      return v;
+    };
     let adj = 0;
     const reasons = [];
     if (undertrainedKeys.has(domainKey)) {
-      adj += ctx.state === "high" ? 2.5 : 7;
-      reasons.push(`ETU undertrained domain: ${predictionDomainLabelSafe(domainKey)}`);
+      const reason = `ETU undertrained domain: ${predictionDomainLabelSafe(domainKey)}`;
+      adj += addLayer("etuLoad", ctx.state === "high" ? 2.5 : 7, reason);
+      reasons.push(reason);
+    }
+    if ([...routineKeys].some(k => benchmarkKeys.has(k))) {
+      const reason = `Benchmark roadmap fit: supports ${strategic.nextBenchmark?.label || "next benchmark"} gap`;
+      adj += addLayer("benchmark", ctx.state === "high" ? 1.5 : 5.5, reason);
+      reasons.push(reason);
+    }
+    if ([...routineKeys].some(k => weakestKeys.has(k))) {
+      const reason = `Prediction bottleneck fit: targets ${strategic.bottleneckLabel || "current limiter"}`;
+      adj += addLayer("prediction", 5, reason);
+      reasons.push(reason);
+    }
+    if ([...routineKeys].some(k => reviewKeys.has(k))) {
+      const reason = "Last-session follow-up: addresses recent review signal";
+      adj += addLayer("lastSession", ctx.state === "high" ? 1.5 : 3, reason);
+      reasons.push(reason);
     }
     if (ctx.state === "high" || ctx.state === "moderate_high") {
       if (Number(energy.fatigue || 0) >= 4 || Number(energy.cognitive || 0) >= 4) {
-        adj -= ctx.state === "high" ? 8 : 4;
-        reasons.push("ETU load guard: reduce high-energy drill stacking");
+        const reason = "Readiness guard: reduce high-energy drill stacking";
+        adj += addLayer("readiness", ctx.state === "high" ? -8 : -4, reason);
+        reasons.push(reason);
       }
       if (["recover","maintain","stabilize"].includes(phase)) {
-        adj += ctx.state === "high" ? 6 : 3;
-        reasons.push("ETU load guard: favors consolidation/recovery");
+        const reason = "Readiness guard: favors consolidation/recovery";
+        adj += addLayer("readiness", ctx.state === "high" ? 6 : 3, reason);
+        reasons.push(reason);
       }
       if (state?.blockType === "pressure" && ctx.state === "high") {
-        adj -= 5;
-        reasons.push("ETU load guard: pressure capped after high load");
+        const reason = "Readiness guard: pressure capped after high load";
+        adj += addLayer("readiness", -5, reason);
+        reasons.push(reason);
       }
     } else if (ctx.state === "low") {
       if (["progress","baseline"].includes(phase) || state?.blockType === "primary") {
-        adj += 5;
-        reasons.push("ETU load low: acquisition capacity available");
+        const reason = "Readiness: acquisition capacity available after low recent load";
+        adj += addLayer("readiness", 5, reason);
+        reasons.push(reason);
       }
     }
-    if (overloadedKeys.has(domainKey) && ctx.state === "high") {
-      adj -= 3;
-      reasons.push(`ETU balance: ${predictionDomainLabelSafe(domainKey)} already heavily loaded`);
+    if ((overloadedKeys.has(domainKey) || [...routineKeys].some(k => overloadedKeys.has(k))) && ctx.state === "high") {
+      const reason = `ETU balance: ${predictionDomainLabelSafe(domainKey)} already heavily loaded`;
+      adj += addLayer("etuLoad", -3, reason);
+      reasons.push(reason);
     }
-    return {adjustment:adj, reasons};
+    return {adjustment:adj, reasons, layerModifiers, layerReasons};
   } catch (err) {
     try { logAppError(err, "smartBuilderEtuAdjustmentSafe"); } catch (_) {}
-    return {adjustment:0, reasons:[]};
+    return {adjustment:0, reasons:[], layerModifiers:{etuLoad:0, readiness:0, benchmark:0, prediction:0, lastSession:0}, layerReasons:{}};
   }
 }
 function renderSmartBuilderEtuContextSafe(ctx) {
@@ -7421,7 +7510,8 @@ function renderSmartBuilderEtuContextSafe(ctx) {
     const ratio = Number(ctx.ratio || 0);
     const latest = Number(ctx.latestSession?.effectiveEtu || 0);
     const under = (ctx.undertrained || []).slice(0,2).map(d => `${predictionDomainLabelSafe(d.key)} ${numText(d.etu)} ETU`).join(" · ") || "none yet";
-    return `<div class="adaptive-rationale"><strong>ETU-aware builder:</strong> ${escapeHtml(ctx.label)} · 7d ${numText(ctx.acute)} ETU vs baseline ${numText(ctx.baseline)} (${numText(ratio)}×) · latest ${numText(latest)} ETU · undertrained: ${escapeHtml(under)}. ${escapeHtml(ctx.guidance)}</div>`;
+    const strategyText = ctx.strategic ? smartBuilderStrategicLabelSafe(ctx.strategic) : "benchmark and skill calibration active";
+    return `<div class="adaptive-rationale"><strong>ETU-aware builder:</strong> ${escapeHtml(ctx.label)} · 7d ${numText(ctx.acute)} ETU vs baseline ${numText(ctx.baseline)} (${numText(ratio)}×) · latest ${numText(latest)} ETU · undertrained: ${escapeHtml(under)}. ${escapeHtml(ctx.guidance)}<br><strong>Smart Builder v2:</strong> ${escapeHtml(strategyText)}.</div>`;
   } catch (_) {
     return `<div class="adaptive-rationale">ETU-aware builder active.</div>`;
   }
@@ -7499,6 +7589,64 @@ function normalizeSmartSessionPlan(plan, goal="auto", duration=60) {
 }
 
 
+function smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, options = {}) {
+  try {
+    const goal = String(options.goal || effectiveGoal || "auto");
+    const intensity = String(options.intensity || "balanced");
+    const strategy = String(options.strategy || "balanced");
+    const ctxState = String(etuContext?.state || "unknown");
+    const strategic = etuContext?.strategic || {};
+    const nextBenchmark = strategic?.nextBenchmark?.label || "next benchmark";
+    if (effectiveGoal === "recovery" || ctxState === "high") {
+      return {key:"recovery", label:"Recovery block", purpose:"Protect cueing quality, reduce volatility and finish with confidence-preserving drills.", layer:"readiness"};
+    }
+    if (intensity === "pressure") {
+      return {key:"pressure", label:"Pressure block", purpose:"Keep challenge high enough to test transfer while capping total cognitive load.", layer:"readiness"};
+    }
+    if (strategy === "explore") {
+      return {key:"acquisition", label:"Acquisition block", purpose:"Use controlled exploration to gather evidence and expose new development opportunities.", layer:"bayesian"};
+    }
+    if (strategic?.nextBenchmark && effectiveGoal !== "recovery") {
+      return {key:"benchmark_prep", label:"Benchmark-prep block", purpose:`Align drill selection with the ${nextBenchmark} benchmark path while preserving load constraints.`, layer:"benchmark"};
+    }
+    if (effectiveGoal === "progression") {
+      return {key:"acquisition", label:"Acquisition block", purpose:"Prioritize high-value skill acquisition before fatigue accumulates.", layer:"bayesian"};
+    }
+    if (effectiveGoal === "variety") {
+      return {key:"transfer", label:"Transfer block", purpose:"Bridge isolated technical work into adjacent skills and match-like execution.", layer:"bayesian"};
+    }
+    return {key:"consolidation", label:"Consolidation block", purpose:"Stabilize useful routines, reduce variance and reinforce current bottleneck work.", layer:"readiness"};
+  } catch (_) {
+    return {key:"standard", label:"Standard smart session", purpose:"Default builder structure with layered recommendations.", layer:"builder"};
+  }
+}
+function renderSmartBuilderTemplateSafe(template) {
+  try {
+    if (!template) return "";
+    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(template.label || "Smart session")} · ${escapeHtml(template.purpose || "Layered session structure active.")} <span class="badge">Layer: ${escapeHtml(template.layer || "builder")}</span></div>`;
+  } catch (_) { return ""; }
+}
+function roundSmartAuditNumber(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? Math.round(n * 10) / 10 : 0;
+}
+function renderRecommendationLayerAuditSafe(p) {
+  try {
+    const audit = p?.recommendationAudit;
+    if (!audit) return "";
+    const rows = [
+      ["Bayesian skill layer", audit.bayesianContribution, "base drill value / uncertainty"],
+      ["ETU load layer", audit.etuModifier, "dose and domain-load modulation"],
+      ["Readiness layer", audit.readinessModifier, "recovery/acquisition constraints"],
+      ["Benchmark layer", audit.benchmarkModifier, "benchmark-roadmap alignment"],
+      ["Prediction layer", audit.predictionModifier, "current bottleneck fit"],
+      ["Last-session layer", audit.lastSessionModifier, "review follow-up"],
+    ].map(([label, value, text]) => `<div class="adaptive-rationale"><strong>${escapeHtml(label)}:</strong> ${numText(value)} · ${escapeHtml(text)}</div>`).join("");
+    const constraints = (audit.constraintsApplied || []).slice(0,4).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>No hard constraints applied.</li>`;
+    return `<details class="recommendation-audit"><summary>Recommendation layer audit</summary><div class="adaptive-rationale"><strong>Final fit:</strong> ${numText(audit.finalScore)} · <strong>Base skill score:</strong> ${numText(audit.baseSkillScore)} · <strong>Strategy modifier:</strong> ${numText(audit.strategyModifier)}</div>${rows}<ul class="reason-list">${constraints}</ul></details>`;
+  } catch (_) { return ""; }
+}
+
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -7531,12 +7679,31 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
     if (profile?.selectionType === "exploration") boost += 4;
     const etuAdjustment = smartBuilderEtuAdjustmentSafe(s, etuContext);
+    const strategyModifier = boost;
+    const baseSkillScore = adaptivePriorityScore(s, goal);
+    const bayesianContribution = recommendationScore * 0.28;
     boost += Number(etuAdjustment.adjustment || 0);
-    const baseAdaptiveScore = adaptivePriorityScore(s, goal) + boost + recommendationScore * 0.28;
+    const baseAdaptiveScore = baseSkillScore + boost + bayesianContribution;
     const smartScore = scoreWithSmartSessionArchitecture(s, baseAdaptiveScore, goal);
     const transferValue = routineTransferValue(s.routine);
     const energyProfile = routineEnergyProfile(s);
-    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, etuReasons:(etuAdjustment.reasons || []), reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(etuAdjustment.reasons || []), buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
+    const layerModifiers = etuAdjustment.layerModifiers || {};
+    const recommendationAudit = {
+      version:"5.7.67",
+      baseSkillScore:roundSmartAuditNumber(baseSkillScore),
+      bayesianScore:roundSmartAuditNumber(recommendationScore),
+      bayesianContribution:roundSmartAuditNumber(bayesianContribution),
+      strategyModifier:roundSmartAuditNumber(strategyModifier),
+      etuModifier:roundSmartAuditNumber(layerModifiers.etuLoad),
+      readinessModifier:roundSmartAuditNumber(layerModifiers.readiness),
+      benchmarkModifier:roundSmartAuditNumber(layerModifiers.benchmark),
+      predictionModifier:roundSmartAuditNumber(layerModifiers.prediction),
+      lastSessionModifier:roundSmartAuditNumber(layerModifiers.lastSession),
+      finalScore:roundSmartAuditNumber(smartScore),
+      selectedReason:(etuAdjustment.reasons || [])[0] || (profile?.reasons || [])[0] || "Base Bayesian / adaptive ranking",
+      constraintsApplied:(etuAdjustment.reasons || [])
+    };
+    return {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, recommendationAudit, etuReasons:(etuAdjustment.reasons || []), reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(etuAdjustment.reasons || []), buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   const anchors = ranked.filter(s => s.routine.isAnchor).slice(0, strictness === "high" ? 3 : 2);
   const main = ranked.filter(s => !anchors.some(a=>a.routine.id===s.routine.id));
@@ -7587,6 +7754,9 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   } else {
     globalReasons.push(`manual goal: ${goal}`);
   }
+
+  const sessionTemplate = smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, {goal, strategy, intensity, daysToCompetition});
+  if (sessionTemplate?.label) globalReasons.push(`template: ${sessionTemplate.label}`);
 
   let blocks = [];
   const used = new Set();
@@ -7642,7 +7812,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
   const budgetUsage = budgetUsageForBlocks(blocks);
-  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext};
+  return {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate};
 }
 
 
@@ -7704,6 +7874,7 @@ function renderAdaptiveSessionInternal() {
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("targetDuration"))}: ${formatDurationHuman(plan.targetMinutes)} · ${escapeHtml(uiLabel("loadedEstimate"))}: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} ${escapeHtml(uiLabel("drillSlots"))} · ${escapeHtml(uiLabel("recommendationMode"))}: ${escapeHtml(smartRecommendationModeLabel(mode))}</div>
     ${renderSmartBuilderEtuContextSafe(plan.etuContext)}
+    ${renderSmartBuilderTemplateSafe(plan.sessionTemplate)}
     ${budgetHtml}
     <div class="adaptive-rationale">${escapeHtml(uiLabel("feedbackTracked"))}: ${feedback.accepted} ${escapeHtml(uiLabel("accepted"))} · ${feedback.skipped} ${escapeHtml(uiLabel("skipped"))} · ${feedback.completed} ${escapeHtml(uiLabel("completed"))}. ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Completed picks help the app learn what works next time.":"Completed recommendations capture score-after and improvement-after-recommendation once logged.")}</div>
   </div>${renderRecommendationLogicPanel(rankRoutinesByMode($("orchestratorFocus")?.value || "all", $("orchestratorStrategy")?.value || "balanced", mode), mode)}` + plan.blocks.map(block => `<div class="adaptive-phase smart-block-card" data-block-type="${attrText(block.blockType || "")}">
@@ -7713,6 +7884,7 @@ function renderAdaptiveSessionInternal() {
       <div><strong>${escapeHtml(p.routine.name)}${reps > 1 ? ` ×${reps}` : ""}</strong>
         <div class="adaptive-rationale">${escapeHtml(getInsightLanguageSetting()==="friendly"?"Mode":"Phase")}: ${escapeHtml(p.phase)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Next":"Action")}: ${escapeHtml(adaptiveActionForState(p))} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Time":"Est.")} ${formatDurationHuman(adaptiveRoutineExpectedMinutes(p.routine) * reps)} · ${escapeHtml(getInsightLanguageSetting()==="friendly"?"Carryover":"Transfer")} ${Number(p.transferValue || routineTransferValue(p.routine))}/100 · ${escapeHtml(uiLabel("mentalLoad"))} ${energy.cognitive} · ${escapeHtml(uiLabel("energyCost"))} ${energy.fatigue} · ${escapeHtml(uiLabel("confidenceRisk"))} ${energy.confidence}</div>
         <ul class="reason-list">${(p.reasons || []).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>
+        ${renderRecommendationLayerAuditSafe(p)}
         ${renderFeedbackButtons(p.routine.id, "smart_session_builder")}
         ${p.upgrade ? renderTargetUpgradeButton(p.routine.id) : ""}
       </div>
@@ -8854,7 +9026,7 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
 
 
 
-/* v5.7.65 Prediction Engine — ETU recovery/readiness and Smart Builder wiring */
+/* v5.7.67 Prediction Engine — ETU recovery/readiness and Smart Builder wiring */
 function predictionConfidenceLabelSafe(logCount, evidenceN, volatility) {
   const n = Number(logCount || 0) + Number(evidenceN || 0) / 10;
   const vol = Number.isFinite(Number(volatility)) ? Math.max(0, Number(volatility) - 14) / 26 : 0.45;
@@ -9027,7 +9199,7 @@ function estimateEffectiveTrainingLoadSafe(logs) {
 }
 
 
-/* v5.7.65 Session-end review dashboard — additive post-reflection coaching snapshot */
+/* v5.7.67 Session-end review dashboard — additive post-reflection coaching snapshot */
 function sessionRecordByIdSafe(sessionId) {
   return (data.sessions || []).find(s => String(s.id || "") === String(sessionId || "")) || null;
 }
@@ -9138,7 +9310,7 @@ function generateSessionReviewSnapshotSafe(sessionId) {
   const nextType = readiness?.nextType || (quality.cls === "risk" ? "Recovery" : row.effectiveEtu >= 3.4 ? "Consolidation" : "Acquisition");
   const recommendation = quality.cls === "risk" ? "Stop hard acquisition today; use rest, review or a very light confidence block." : row.effectiveEtu >= 3.4 ? "Next block should bias toward light consolidation or recovery, not more benchmark pressure." : "A normal smart session remains acceptable if readiness is good.";
   return {
-    version:"5.7.65",
+    version:"5.7.67",
     sessionId:String(sessionId || ""),
     timestamp:new Date().toISOString(),
     sessionName:session.name || logs[0]?.sessionName || getPlanName(logs[0]) || "Session",
@@ -9268,7 +9440,7 @@ function domainConfidenceIndexSafe(label) {
 }
 
 
-/* v5.7.65 Smart Builder ETU integration — readable domain ledger and domain load formalization */
+/* v5.7.67 Smart Builder session templates and layer audit — ETU, benchmark roadmap, prediction bottlenecks and last-session impact */
 function predictionDomainKeyFromLogSafe(log) {
   const routine = routineById(log?.routineId) || {};
   const raw = log?.primarySkill || log?.skill || log?.skillCategory || log?.category || routine.primarySkill || routine.skill || routine.category || routine.folder || "General";
@@ -9396,7 +9568,7 @@ function renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark) 
 
 
 
-/* v5.7.65 Benchmark roadmap — benchmark gap, domains and prep blocks */
+/* v5.7.67 Benchmark roadmap — benchmark gap, domains and prep blocks */
 function benchmarkRoadmapTargetLevelsSafe() {
   return [
     {key:"junior", label:"Junior", targetIndex:0.75},
@@ -9532,7 +9704,7 @@ function predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads
   }).join("");
 }
 
-/* v5.7.65 Prediction calibration, load-management and recovery-readiness layer */
+/* v5.7.67 Prediction calibration, load-management and recovery-readiness layer */
 function sustainablePredictionPaceSafe(load) {
   const raw = Math.max(0, Number(load?.etuPerWeek || 0));
   if (!raw) return 0;
@@ -9971,7 +10143,7 @@ function renderPredictionEngineSafe(logs) {
     const bottleneck = domains[0]?.label || "Insufficient evidence";
     const secondBottleneck = domains[1]?.label || "Build more benchmark and pressure evidence";
     const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving but noisy" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.65 layer connects ETU to Smart Builder decisions and formalizes ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts very different sessions into one comparable development-load unit. Raw ETU is roughly table-time exposure; effective ETU is the calibrated load used by predictions and readiness. The app starts from duration, then applies diminishing returns after about 90 minutes so a two-hour session is not treated as double a one-hour session. It then adjusts for routine diversity, drill density, pressure/transfer content, adaptive or recommendation-led work, productive target difficulty, subjective quality and fatigue. A short single-drill hit can be below 1 ETU; a dense 90–110 minute adaptive session can be several ETU. Do not maximize ETU mechanically: the useful target is productive load, not volume. Forecasts use accumulated effective ETU and a capped sustainable ETU/week pace, because a temporary training burst should not imply unrealistic calendar predictions. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require consolidation, automaticity, pressure stability and variance reduction, not just extra minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
+    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.67 layer connects ETU, benchmark roadmap, last-session review and prediction bottlenecks to Smart Builder decisions while formalizing ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts very different sessions into one comparable development-load unit. Raw ETU is roughly table-time exposure; effective ETU is the calibrated load used by predictions and readiness. The app starts from duration, then applies diminishing returns after about 90 minutes so a two-hour session is not treated as double a one-hour session. It then adjusts for routine diversity, drill density, pressure/transfer content, adaptive or recommendation-led work, productive target difficulty, subjective quality and fatigue. A short single-drill hit can be below 1 ETU; a dense 90–110 minute adaptive session can be several ETU. Do not maximize ETU mechanically: the useful target is productive load, not volume. Forecasts use accumulated effective ETU and a capped sustainable ETU/week pace, because a temporary training burst should not imply unrealistic calendar predictions. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require consolidation, automaticity, pressure stability and variance reduction, not just extra minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEngineSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> This panel failed safely and did not block storage or hydration.</div>`;
