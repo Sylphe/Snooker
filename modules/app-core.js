@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.47";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.47";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.48";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.48";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.47";
+} from "./utils.js?v=5.7.48";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.47";
+} from "./settings.js?v=5.7.48";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.47";
+} from "./analytics.js?v=5.7.48";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.47";
+} from "./bayesian.js?v=5.7.48";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.47";
+} from "./session.js?v=5.7.48";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.47";
+} from "./pressure.js?v=5.7.48";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.47";
+} from "./recommendations.js?v=5.7.48";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.47";
+} from "./store.js?v=5.7.48";
 
 
 
@@ -8705,7 +8705,7 @@ function renderStatsInsights(logs, { range, rid, rollingWindow }) {
 
 
 
-/* v5.7.47 Prediction Engine — conservative calibrated, bootstrap-safe */
+/* v5.7.48 Prediction Engine — conservative calibrated, bootstrap-safe */
 function predictionConfidenceLabelSafe(logCount, evidenceN, volatility) {
   const n = Number(logCount || 0) + Number(evidenceN || 0) / 10;
   const vol = Number.isFinite(Number(volatility)) ? Math.max(0, Number(volatility) - 14) / 26 : 0.45;
@@ -8759,15 +8759,76 @@ function predictionProbabilitySafe(current, target, velocity, confidenceIndex, v
   const raw = Math.exp(-gap / denominator);
   return Math.round(Math.max(0.01, Math.min(0.82, raw * conf * 0.82)) * 100);
 }
-function predictionReadinessWindowSafe(current, target, velocity, confidenceLabel) {
+function predictionEtuSessionKeySafe(log) {
+  return String(log?.sessionId || log?.sessionKey || log?.trainingSessionId || log?.createdDate || safeDateString(log?.createdAt || log?.date || "") || "single-session");
+}
+function estimateEffectiveTrainingLoadSafe(logs) {
+  const scoped = Array.isArray(logs) ? logs : [];
+  const sessions = new Map();
+  scoped.forEach((log, idx) => {
+    const key = predictionEtuSessionKeySafe(log) || `log-${idx}`;
+    if (!sessions.has(key)) sessions.set(key, []);
+    sessions.get(key).push(log);
+  });
+  const rows = Array.from(sessions.values()).map(arr => {
+    const minutes = arr.reduce((sum, log) => sum + Math.max(0, Number(log?.timeMinutes || log?.minutes || 0)), 0);
+    const uniqueRoutines = new Set(arr.map(log => String(log?.routineId || log?.routineName || log?.routine || "routine"))).size || 1;
+    const normalized = arr.map(log => Number(log?.normalizedScore ?? normalizeScore(log))).filter(Number.isFinite);
+    const hitRate = targetHitRate(arr);
+    const avgScore = normalized.length ? avg(normalized) : 0;
+    const pressureShare = arr.filter(log => log?.pressureEnabled || log?.sessionType === "pressure" || log?.pressureMode).length / Math.max(1, arr.length);
+    const adaptiveShare = arr.filter(log => log?.recommendationId || log?.recommendationAccepted || log?.source === "smart" || log?.sessionType === "adaptive" || log?.planType === "adaptive").length / Math.max(1, arr.length);
+    const qualityVals = arr.map(log => Number(log?.subjectiveQuality || log?.sessionQuality || log?.qualityRating)).filter(Number.isFinite);
+    const fatigueVals = arr.map(log => Number(log?.fatigue || log?.fatigueRating)).filter(Number.isFinite);
+    const baseMinutes = minutes > 0 ? Math.sqrt(Math.max(4, minutes) / 25) : Math.sqrt(Math.max(1, arr.length) / 4);
+    const minuteFactor = Math.max(0.25, Math.min(2.25, baseMinutes));
+    const diversityFactor = 1 + Math.min(0.75, Math.max(0, uniqueRoutines - 1) * 0.09);
+    const pressureFactor = 1 + Math.min(0.18, pressureShare * 0.18);
+    const adaptiveFactor = 1 + Math.min(0.18, adaptiveShare * 0.18);
+    const challengeFactor = hitRate >= 35 && hitRate <= 75 ? 1.10 : hitRate < 15 || hitRate > 90 ? 0.88 : 1.0;
+    const qualityFactor = qualityVals.length ? Math.max(0.80, Math.min(1.15, avg(qualityVals) / 3.4)) : 1.0;
+    const fatigueFactor = fatigueVals.length ? Math.max(0.78, Math.min(1.05, 1.08 - Math.max(0, avg(fatigueVals) - 2.5) * 0.12)) : 1.0;
+    const etu = Math.max(0.15, Math.min(4.8, minuteFactor * diversityFactor * pressureFactor * adaptiveFactor * challengeFactor * qualityFactor * fatigueFactor));
+    const dateValue = Math.min(...arr.map(log => Date.parse(log?.createdAt || log?.date || "")).filter(Number.isFinite));
+    return {etu, minutes, uniqueRoutines, logCount: arr.length, avgScore, hitRate, dateValue:Number.isFinite(dateValue) ? dateValue : null};
+  });
+  const totalEtu = rows.reduce((sum, row) => sum + row.etu, 0);
+  const totalMinutes = rows.reduce((sum, row) => sum + row.minutes, 0);
+  const sessionCount = Math.max(1, rows.length);
+  const logCount = Math.max(1, scoped.length);
+  const dated = rows.map(r => r.dateValue).filter(Number.isFinite).sort((a,b)=>a-b);
+  const daySpan = dated.length >= 2 ? Math.max(1, (dated[dated.length - 1] - dated[0]) / 86400000) : 7;
+  const etuPerWeek = totalEtu > 0 ? totalEtu / Math.max(1, daySpan / 7) : 0;
+  return {
+    totalEtu,
+    totalMinutes,
+    sessionCount,
+    logCount,
+    avgEtuPerSession: totalEtu / sessionCount,
+    avgEtuPerLog: totalEtu / logCount,
+    etuPerWeek,
+    typicalSessionMinutes: totalMinutes / sessionCount,
+    typicalRoutinesPerSession: rows.reduce((sum, row) => sum + row.uniqueRoutines, 0) / sessionCount
+  };
+}
+function formatPredictionCalendarWindowSafe(lowEtu, highEtu, load) {
+  const pace = Math.max(0, Number(load?.etuPerWeek || 0));
+  if (!pace || pace < 0.35) return "calendar timing not yet reliable";
+  const lowWeeks = lowEtu / pace;
+  const highWeeks = highEtu / pace;
+  const fmt = weeks => weeks < 8 ? `${Math.max(1, Math.round(weeks))}w` : `${Math.max(2, Math.round(weeks / 4.345))}mo`;
+  return `at recent pace: ${fmt(lowWeeks)}–${fmt(highWeeks)}`;
+}
+function predictionReadinessWindowSafe(current, target, velocity, confidenceLabel, load) {
   const gap = Number(target) - Number(current);
   if (!Number.isFinite(gap) || gap <= 0) return "already in range";
   const slope = Math.max(0.05, Number(velocity || 0.05));
   const logsNeeded = Math.ceil(gap / slope);
-  const sessionsNeeded = Math.max(4, Math.ceil(logsNeeded / 5));
-  const low = Math.max(3, Math.round(sessionsNeeded * (confidenceLabel === "high" ? 1.0 : confidenceLabel === "moderate" ? 1.25 : 1.6)));
-  const high = Math.max(low + 4, Math.round(sessionsNeeded * (confidenceLabel === "high" ? 2.0 : confidenceLabel === "moderate" ? 2.75 : 3.6)));
-  return `${low}–${high} sessions if trajectory holds`;
+  const avgEtuPerLog = Math.max(0.12, Number(load?.avgEtuPerLog || 0.38));
+  const baseEtu = logsNeeded * avgEtuPerLog;
+  const low = Math.max(3, Math.round(baseEtu * (confidenceLabel === "high" ? 0.9 : confidenceLabel === "moderate" ? 1.15 : 1.45)));
+  const high = Math.max(low + 4, Math.round(baseEtu * (confidenceLabel === "high" ? 1.8 : confidenceLabel === "moderate" ? 2.55 : 3.3)));
+  return `${low}–${high} ETU · ${formatPredictionCalendarWindowSafe(low, high, load)}`;
 }
 function benchmarkProbabilitySafe(currentIndex, targetIndex, velocity, confidenceIndex, evidenceCount) {
   const current = Number(currentIndex || 0);
@@ -8782,14 +8843,17 @@ function benchmarkProbabilitySafe(currentIndex, targetIndex, velocity, confidenc
   const trendBoost = Math.min(0.10, trend * 7);
   return Math.round(Math.max(0.01, Math.min(0.55, (distancePenalty + trendBoost) * conf)) * 100);
 }
-function benchmarkReadinessWindowSafe(currentIndex, targetIndex, velocity, confidenceLabel) {
+function benchmarkReadinessWindowSafe(currentIndex, targetIndex, velocity, confidenceLabel, load) {
   const gap = Number(targetIndex) - Number(currentIndex);
   if (!Number.isFinite(gap) || gap <= 0) return "already in range";
+  if (gap > 1.15) return "not yet forecastable; needs multiple benchmark-domain upgrades";
   const slope = Math.max(0.0015, Number(velocity || 0));
-  const sessionsNeeded = Math.max(10, Math.ceil(gap / slope / 5));
-  const low = Math.max(8, Math.round(sessionsNeeded * (confidenceLabel === "high" ? 1.0 : confidenceLabel === "moderate" ? 1.25 : 1.6)));
-  const high = Math.max(low + 8, Math.round(sessionsNeeded * (confidenceLabel === "high" ? 2.2 : confidenceLabel === "moderate" ? 3.0 : 4.0)));
-  return `${low}–${high} sessions if benchmark evidence improves`;
+  const logsNeeded = Math.max(20, Math.ceil(gap / slope));
+  const avgEtuPerLog = Math.max(0.12, Number(load?.avgEtuPerLog || 0.38));
+  const baseEtu = logsNeeded * avgEtuPerLog;
+  const low = Math.max(8, Math.round(baseEtu * (confidenceLabel === "high" ? 0.95 : confidenceLabel === "moderate" ? 1.25 : 1.65)));
+  const high = Math.max(low + 8, Math.round(baseEtu * (confidenceLabel === "high" ? 2.15 : confidenceLabel === "moderate" ? 3.0 : 4.0)));
+  return `${low}–${high} ETU if benchmark evidence improves · ${formatPredictionCalendarWindowSafe(low, high, load)}`;
 }
 function domainConfidenceIndexSafe(label) {
   const text = String(label || "").toLowerCase();
@@ -8798,7 +8862,7 @@ function domainConfidenceIndexSafe(label) {
   if (text.includes("low") || text.includes("early")) return 0.30;
   return 0.42;
 }
-function predictionRowsForBreakMilestonesSafe(rating, velocity, confidence) {
+function predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load) {
   const milestones = [
     {label:"Stable 30+ profile", target:44, note:"repeatable match-stable break class"},
     {label:"Stable 50+ profile", target:58, note:"break-building plus execution stability"},
@@ -8809,10 +8873,10 @@ function predictionRowsForBreakMilestonesSafe(rating, velocity, confidence) {
   return milestones.map(m => {
     const prob = predictionProbabilitySafe(rating?.matchScore, m.target, effectiveVelocity, confidence?.index, velocity?.volatility);
     const status = predictionBandStatusSafe(prob);
-    return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(m.label)}<br><span class="muted">${htmlText(m.note)} · ${htmlText(predictionReadinessWindowSafe(rating?.matchScore, m.target, effectiveVelocity, confidence?.label))}</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
+    return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(m.label)}<br><span class="muted">${htmlText(m.note)} · ${htmlText(predictionReadinessWindowSafe(rating?.matchScore, m.target, effectiveVelocity, confidence?.label, load))}</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
   }).join("");
 }
-function predictionRowsForBenchmarksSafe(benchmark, velocity, confidence) {
+function predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load) {
   const levels = [
     {label:"Junior benchmark", target:0.75},
     {label:"Club benchmark", target:1.75},
@@ -8825,7 +8889,7 @@ function predictionRowsForBenchmarksSafe(benchmark, velocity, confidence) {
   return levels.map(l => {
     const prob = benchmarkProbabilitySafe(index, l.target, scaledVelocity, confidence?.index, evidenceCount);
     const status = predictionBandStatusSafe(prob);
-    const window = index >= l.target ? "already in range" : benchmarkReadinessWindowSafe(index, l.target, scaledVelocity, confidence?.label);
+    const window = index >= l.target ? "already in range" : benchmarkReadinessWindowSafe(index, l.target, scaledVelocity, confidence?.label, load);
     return `<div class="context-row prediction-row ${status.cls}"><span>${htmlText(l.label)}<br><span class="muted">Benchmark-pack ladder · current ${numText(index)}/4 · target ${numText(l.target)}/4 · ${htmlText(window)}</span></span><strong>${prob}%</strong><span>${htmlText(status.label)}</span></div>`;
   }).join("");
 }
@@ -8849,12 +8913,13 @@ function renderPredictionEngineSafe(logs) {
     const rating = estimateGlobalPlayerRating(profile, scoped);
     const benchmark = estimateBenchmarkPlayerClass(scoped, activeRoutines());
     const velocity = estimatePredictionVelocitySafe(scoped);
+    const load = estimateEffectiveTrainingLoadSafe(scoped);
     const confidence = predictionConfidenceLabelSafe(scoped.length, rating?.evidenceN, velocity?.volatility);
     const domains = (profile?.profile || []).slice().sort((a,b)=>(Number(a.score)||0)-(Number(b.score)||0));
     const bottleneck = domains[0]?.label || "Insufficient evidence";
     const secondBottleneck = domains[1]?.label || "Build more benchmark and pressure evidence";
     const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving but noisy" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.47 layer is deliberately conservative. It uses distance-to-threshold, evidence quality, volatility, benchmark distance, and weakest-link constraints. It should estimate readiness ranges, not promise fast promotion.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${statsModule("Break milestone forecasts", "Stable class trajectory, not one-off peak breaks", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence)}</div>`, true)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence)}</div>`, true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence)}</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
+    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.48 layer is deliberately conservative. It uses distance-to-threshold, evidence quality, volatility, benchmark distance, weakest-link constraints, and Effective Training Units. It should estimate readiness ranges, not promise fast promotion.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(load.etuPerWeek)} ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence)}</div>`, false)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts unequal sessions into a comparable training-load unit. Duration is the base, but the score is adjusted for routine diversity, pressure or transfer work, adaptive/recommendation work, productive target difficulty, subjective quality and fatigue. A short single-drill hit may count below 1 ETU; a structured 90–100 minute adaptive session with several routines can count several ETU. Forecasts use ETU first, then translate to calendar timing from your recent ETU/week pace.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEngineSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> This panel failed safely and did not block storage or hydration.</div>`;
