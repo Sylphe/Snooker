@@ -1,17 +1,12 @@
-# Snooker Practice PWA — v5.7.67.7.1 Smart Builder Disclosure Cleanup
+# Snooker Practice PWA — v5.7.67.8 ETU Session Budgeting
 
-## v5.7.67.7.1 changes
+## v5.7.67.8 changes
 
-- Removed duplicated global recommendation ranking from generated Smart Session output.
-- Preserved the top global ranking as the pre-session ranking before template constraints.
-- Contextualized rationale labels so Recovery and Consolidation sessions no longer show stale Acquisition rationale wording.
-- Removed development-facing Priority 7 production note.
-- Cleaned recommendation taxonomy display: Acquisition · Consolidation · Recovery · Pressure · Benchmark · Exploration.
-- Preserved collapsed disclosure behavior, audit bars, raw audit details, ETU bypass, template constraints, weighted sport-domain logic, bottleneck semantics, and duration discipline.
+- Added Smart Builder ETU Session Budgeting.
+- Each session template now has a target ETU range, separate from raw duration.
+- Recovery, consolidation, acquisition, pressure and benchmark-prep templates now compare planned ETU against a template budget.
+- Smart Builder can trim generated plans when ETU load exceeds the session budget.
+- The Smart Builder header now shows planned ETU, target ETU range and block-level ETU distribution.
+- Preserved Bayesian ranking, ETU load modulation, readiness, benchmark roadmap, bottleneck semantics, audit visualization, and progressive disclosure.
 
-## Validation
-
-- JavaScript syntax check passed.
-- JSON validity check passed.
-- Duplicate-function scan passed.
-- Zip integrity check passed.
+Local-first PWA. No account. No backend. Export JSON backups regularly.
