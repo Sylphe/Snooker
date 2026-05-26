@@ -1,14 +1,14 @@
-# Snooker Practice PWA — v5.7.67.5.2 Audit Renderer Stabilization
+# Snooker Practice PWA — v5.7.67.6 Bottleneck Semantics and Progressive Disclosure
 
-## v5.7.67.5.2 changes
+## v5.7.67.6 changes
 
-Corrective release on top of v5.7.67.5.1.
-
-- Fixed the Smart Builder recommendation audit renderer so contribution bars render instead of falling back to the safe error message.
-- Replaced the undefined audit clamp call with the existing app-safe `clampNumber` helper.
-- Removed the production-facing "Audit render failed safely" message; invalid audit payloads now fail silently rather than polluting the coaching UI.
-- Preserved the raw audit values inside the advanced details block.
-- Preserved the recovery-template taxonomy fixes and ETU wording separation introduced in v5.7.67.5.1.
-- Updated app header, build timestamp, module cache-busting refs, service worker cache name, and README.
+- Added bottleneck relationship semantics to Smart Builder recommendations.
+- Replaced generic “targets Break-building” wording with direct bottleneck, supporting bottleneck, transfer support, stability support, pressure stabilization, and specialist-support explanations.
+- Added progressive disclosure in Smart Builder drill cards: short rationale first, layer audit and raw audit values only when expanded.
+- Collapsed Recommendation Layer Audit behind “Why this drill? Layer audit”.
+- Kept raw audit values hidden inside Advanced raw audit values.
+- Reduced visible rationale density while preserving full auditability.
+- Kept Bayesian, ETU, readiness, benchmark, prediction, template, and sport-mix layers separated.
+- Preserved v5.7.67.1–5.7.67.5.2 logic: template constraints, weighted snooker-domain diversity, duration discipline, taxonomy normalization, and audit renderer stabilization.
 
 No storage, log schema, or IndexedDB migration changes.
