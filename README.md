@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.74A-routine-management-console
+Version: 5.7.74C-routine-console-validation-dashboard
 
-## v5.7.74A
+## v5.7.74C
 
 Routine Management Console foundation.
 
@@ -18,3 +18,11 @@ Validation:
 - node --check modules/app-core.js
 - node --check app.js
 - zip integrity test
+
+
+### v5.7.74C
+- Added Routine Console validation dashboard.
+- Added dedicated ETU subtype bulk editor.
+- Added benchmark semantics bulk editor.
+- Added transfer graph metadata bulk editor.
+- Preserved Routine Pack Manager and bootstrap/hydration fixes.

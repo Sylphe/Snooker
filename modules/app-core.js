@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74A.1.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74C";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18556,6 +18556,122 @@ function renderRoutineConsoleOverviewSafe(rows) {
     </div>`;
   } catch (_) {}
 }
+
+/* ===== v5.7.74B Routine Pack Manager ===== */
+function routinePackManagerRowsSafe(rows = routineConsoleRowsSafe()) {
+  try {
+    const map = new Map();
+    (rows || []).forEach(row => {
+      const name = String(row.packSource || row.routine?.routinePackSource || row.routine?.packSource || "App routines").trim() || "App routines";
+      const version = String(row.routine?.routinePackVersion || row.routine?.packVersion || "").trim();
+      const key = `${name}@@${version}`;
+      if (!map.has(key)) map.set(key, {key, name, version, count:0, benchmark:0, etuMissing:0, validationRisk:0, transfer:0, routineIds:[]});
+      const rec = map.get(key);
+      rec.count += 1;
+      rec.routineIds.push(String(row.id));
+      if (row.benchmarkMode !== "support" || Number(row.benchmarkExposureWeight || 0) > 0) rec.benchmark += 1;
+      if ((row.technicalEtu + row.cognitiveEtu + row.confidenceEtu + row.pressureEtu) <= 0) rec.etuMissing += 1;
+      if (/critical|risk/.test(String(row.status || "")) || Number(row.validity || 100) < 80) rec.validationRisk += 1;
+      if (String(row.transferTags || "").trim()) rec.transfer += 1;
+    });
+    return Array.from(map.values()).sort((a,b) => (b.count - a.count) || a.name.localeCompare(b.name));
+  } catch (err) { try { logAppError(err, "routinePackManagerRowsSafe"); } catch (_) {}; return []; }
+}
+function renderRoutinePackManagerSafe(rows = routineConsoleRowsSafe()) {
+  try {
+    const host = $("routinePackManager");
+    const select = $("routinePackManagerSelect");
+    if (!host && !select) return;
+    const packs = routinePackManagerRowsSafe(rows);
+    const current = select?.value || "";
+    if (select) {
+      select.innerHTML = `<option value="">All / choose pack</option>` + packs.map(p => `<option value="${attrText(p.key)}">${escapeHtml(p.name)}${p.version ? ` v${escapeHtml(p.version)}` : ""} (${numText(p.count)})</option>`).join("");
+      if (current && packs.some(p => p.key === current)) select.value = current;
+    }
+    if (!host) return;
+    const body = packs.map(p => `<tr>
+      <td><button type="button" class="link-button" data-action="routine-pack-select" data-id="${attrText(p.key)}">${escapeHtml(p.name)}</button><div class="muted small">${p.version ? `v${escapeHtml(p.version)}` : "no version"}</div></td>
+      <td>${numText(p.count)}</td>
+      <td>${numText(p.benchmark)}</td>
+      <td>${numText(p.transfer)}</td>
+      <td>${numText(p.etuMissing)}</td>
+      <td>${numText(p.validationRisk)}</td>
+    </tr>`).join("");
+    host.innerHTML = body ? `<div class="routine-pack-scroll"><table class="routine-console-table routine-pack-table"><thead><tr><th>Pack</th><th>Routines</th><th>Benchmark</th><th>Transfer</th><th>Missing ETU</th><th>Validation risk</th></tr></thead><tbody>${body}</tbody></table></div>` : `<p class="muted">No routine packs found.</p>`;
+  } catch (err) { try { logAppError(err, "renderRoutinePackManagerSafe"); } catch (_) {} }
+}
+function routinePackManagerSelectedPackSafe() {
+  const key = $("routinePackManagerSelect")?.value || "";
+  if (!key) return null;
+  const [name, version=""] = key.split("@@");
+  return {key, name, version};
+}
+function selectRoutinePackManagerPack(key) {
+  const sel = $("routinePackManagerSelect");
+  if (sel) sel.value = key || "";
+  const pack = routinePackManagerSelectedPackSafe();
+  if ($("routinePackManagerName")) $("routinePackManagerName").value = pack?.name || "";
+  if ($("routinePackManagerVersion")) $("routinePackManagerVersion").value = pack?.version || "";
+}
+function routinePackBuildFromRoutineIdsSafe(ids, overrides = {}) {
+  const idSet = new Set((ids || []).map(String));
+  const routines = (data.routines || []).filter(r => idSet.has(String(r.id)) && !r.isDeleted).map(exportableRoutineRecord);
+  const name = String(overrides.name || "Snooker Practice Routine Pack").trim() || "Snooker Practice Routine Pack";
+  const version = String(overrides.version || APP_VERSION).trim() || APP_VERSION;
+  return {
+    packMeta: routinePackMetaDefaults({name, version, notes: overrides.notes || "Exported from Routine Management Console v5.7.74B"}),
+    taxonomyVersion: data.skillTaxonomy?.version || "1.0",
+    skillTaxonomy: normalizeSkillTaxonomy(data.skillTaxonomy || defaultSkillTaxonomy()),
+    routines,
+    skillMaps: routines.map(r => ({canonicalId:r.canonicalId, routineId:r.id, ...normalizeRoutineSkillMap(r, r.skillMap)})),
+    targetProfiles: routines.map(r => ({canonicalId:r.canonicalId, routineId:r.id, activeTargetProfileId:r.activeTargetProfileId || "", targetHistory:Array.isArray(r.targetHistory) ? structuredCloneSafe(r.targetHistory) : []}))
+  };
+}
+function routinePackIdsForSelectedPackSafe() {
+  const pack = routinePackManagerSelectedPackSafe();
+  if (!pack) return (data.routines || []).filter(r => !r.isDeleted).map(r => String(r.id));
+  return (data.routines || []).filter(r => !r.isDeleted && String(r.routinePackSource || r.packSource || "App routines") === pack.name && String(r.routinePackVersion || r.packVersion || "") === pack.version).map(r => String(r.id));
+}
+function routinePackExportSelectedSafe() {
+  try {
+    const pack = routinePackManagerSelectedPackSafe();
+    const ids = routinePackIdsForSelectedPackSafe();
+    if (!ids.length) return alert("No routines found for the selected pack.");
+    const name = $("routinePackManagerName")?.value || pack?.name || "Snooker Practice Routine Pack";
+    const version = $("routinePackManagerVersion")?.value || pack?.version || APP_VERSION;
+    const payload = routinePackBuildFromRoutineIdsSafe(ids, {name, version});
+    const filename = `${slugifyToken(name) || "snooker-routine-pack"}-${new Date().toISOString().slice(0,10)}.json`;
+    return exportFile(filename, JSON.stringify(payload, null, 2), "application/json");
+  } catch (err) { try { logAppError(err, "routinePackExportSelectedSafe"); } catch (_) {}; alert("Routine pack export failed."); }
+}
+function routinePackAssignSelectedSafe() {
+  try {
+    const ids = routineStudioSelectedIdsSafe();
+    const name = String($("routinePackManagerName")?.value || "").trim();
+    const version = String($("routinePackManagerVersion")?.value || "").trim();
+    if (!ids.length) return alert("Select routines in the table before assigning them to a pack.");
+    if (!name) return alert("Enter a pack name before assigning routines.");
+    const idSet = new Set(ids.map(String));
+    const now = new Date().toISOString();
+    data.routines = (data.routines || []).map(r => idSet.has(String(r.id)) ? {...r, routinePackSource:name, routinePackVersion:version, packSource:name, packVersion:version, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:now} : r);
+    saveData({render:"all", immediateIDB:true});
+    showTransientNotice?.(`Assigned ${ids.length} routine(s) to ${name}${version ? ` v${version}` : ""}.`, "success");
+  } catch (err) { try { logAppError(err, "routinePackAssignSelectedSafe"); } catch (_) {}; alert("Routine pack assignment failed."); }
+}
+function routinePackImportClickSafe() { $("routineConsolePackImportInput")?.click(); }
+async function routineConsoleImportPackFileSafe(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  try {
+    const pack = JSON.parse(await file.text());
+    const validation = validateRoutinePack(pack);
+    if (!validation.ok) return alert(`Routine pack validation failed:\n${validation.errors.slice(0,8).join("\n")}`);
+    openRoutinePackImportPreview(pack, {sourceName:pack.packMeta?.name || file.name.replace(/\.json$/i, "") || "Imported routine pack", sourceVersion:pack.packMeta?.version || "", afterImport:() => { try { renderRoutineStudioLite(); } catch (_) {} }});
+  } catch (err) { try { logAppError(err, "routineConsoleImportPackFileSafe"); } catch (_) {}; alert("Could not import this routine pack."); }
+  finally { if (input) input.value = ""; }
+}
+/* ===== end v5.7.74B Routine Pack Manager ===== */
 function renderRoutineConsoleEditor(id) {
   try {
     const host = $("routineConsoleEditor");
@@ -18604,6 +18720,9 @@ function renderRoutineStudioLite() {
     if (!host && !summaryHost) return;
     const allRows = routineConsoleRowsSafe();
     renderRoutineConsoleOverviewSafe(allRows);
+    renderRoutinePackManagerSafe(allRows);
+    renderRoutineConsoleValidationDashboardSafe(allRows);
+    renderRoutineConsoleSemanticEditorSummarySafe(allRows);
     const filter = $("routineStudioAuditFilter")?.value || "all";
     const query = $("routineStudioSearch")?.value || "";
     const rows = allRows.filter(row => routineConsoleRowMatchesFilterSafe(row, filter, query));
@@ -18611,7 +18730,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74A:</strong> this is the desktop governance surface for app routines and routine packs. It lists core parameters, relationships, tags, ETU weights, benchmark semantics and validation status in one place.</p><p class="muted">Use the table for scanning and filtering. Select a routine to edit its metadata profile in the side panel. The classic exercise form remains available for scoring setup and legacy fields.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74C:</strong> this is the desktop governance surface for app routines and routine packs. It now adds a validation dashboard plus dedicated ETU, benchmark and transfer editors, so routine metadata can be governed before prediction calibration depends on it.</p><p class="muted">Use the table for scanning and filtering. Select a routine to edit its metadata profile in the side panel. The classic exercise form remains available for scoring setup and legacy fields.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     const body = rows.slice(0,300).map(row => {
@@ -18715,9 +18834,131 @@ function routineConsoleExportVisibleJson() {
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
+
+
+/* ===== v5.7.74C Routine Console semantic editors ===== */
+function routineConsoleSeverityRankSafe(sev) {
+  return sev === "critical" ? 4 : sev === "risk" ? 3 : sev === "watch" ? 2 : sev === "info" ? 1 : 0;
+}
+function routineConsoleIssueRowsSafe(rows) {
+  try {
+    return (rows || []).flatMap(row => (row.issues || row.validationRow?.findings || []).map(issue => ({
+      routineId: row.id,
+      routineName: row.name,
+      severity: issue.severity || row.status || "info",
+      code: issue.code || "issue",
+      label: issue.label || issue.detail || issue.code || "Validation issue",
+      detail: issue.detail || issue.label || "",
+      fix: issue.fix || "Review metadata in the Routine Console.",
+      row
+    }))).sort((a,b)=>routineConsoleSeverityRankSafe(b.severity)-routineConsoleSeverityRankSafe(a.severity) || String(a.routineName).localeCompare(String(b.routineName)));
+  } catch (err) { try { logAppError(err, "routineConsoleIssueRowsSafe"); } catch (_) {}; return []; }
+}
+function renderRoutineConsoleValidationDashboardSafe(rows) {
+  try {
+    const host = $("routineConsoleValidationDashboard");
+    if (!host) return;
+    const all = rows || routineConsoleRowsSafe();
+    const issues = routineConsoleIssueRowsSafe(all);
+    const critical = issues.filter(x => x.severity === "critical").length;
+    const risks = issues.filter(x => x.severity === "risk").length;
+    const watches = issues.filter(x => x.severity === "watch").length;
+    const missingEtu = all.filter(x => (Number(x.technicalEtu||0)+Number(x.cognitiveEtu||0)+Number(x.confidenceEtu||0)+Number(x.pressureEtu||0)) <= 0).length;
+    const topCodes = Array.from(issues.reduce((m,x)=>m.set(x.code, (m.get(x.code)||0)+1), new Map()).entries()).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const codeChips = topCodes.map(([code,count]) => `<span class="adaptive-pill compact">${escapeHtml(code)}: ${numText(count)}</span>`).join("") || `<span class="adaptive-pill compact">No major issue cluster</span>`;
+    const issueRows = issues.slice(0,12).map(x => `<tr><td>${escapeHtml(x.severity)}</td><td><button type="button" class="link-button" data-action="routine-console-select" data-id="${attrText(x.routineId)}">${escapeHtml(x.routineName)}</button></td><td>${escapeHtml(x.label)}<div class="muted small">${escapeHtml(x.detail)}</div></td><td>${escapeHtml(x.fix)}</td></tr>`).join("");
+    host.innerHTML = `<div class="routine-console-kpis compact"><div class="kpi-card"><strong>${numText(critical)}</strong><span>critical</span></div><div class="kpi-card"><strong>${numText(risks)}</strong><span>risks</span></div><div class="kpi-card"><strong>${numText(watches)}</strong><span>watches</span></div><div class="kpi-card"><strong>${numText(missingEtu)}</strong><span>missing ETU</span></div></div><div class="smart-builder-constraint-summary">${codeChips}</div>${issueRows ? `<div class="routine-console-scroll compact"><table class="routine-console-table routine-validation-table"><thead><tr><th>Severity</th><th>Routine</th><th>Issue</th><th>Suggested fix</th></tr></thead><tbody>${issueRows}</tbody></table></div>` : `<p class="muted">No validation issues detected in the visible routine database.</p>`}`;
+  } catch (err) { try { logAppError(err, "renderRoutineConsoleValidationDashboardSafe"); } catch (_) {} }
+}
+function renderRoutineConsoleSemanticEditorSummarySafe(rows) {
+  try {
+    const host = $("routineConsoleSemanticEditorSummary");
+    if (!host) return;
+    const all = rows || routineConsoleRowsSafe();
+    const selected = routineStudioSelectedIdsSafe();
+    const etuDefined = all.filter(x => String(x.etuSource || "").includes("routine-defined")).length;
+    const benchmarkTests = all.filter(x => ["test","pressure-test"].includes(String(x.benchmarkMode || ""))).length;
+    const withTransfer = all.filter(x => String(x.transferTags || "").trim()).length;
+    host.innerHTML = `Selected ${numText(selected.length)} routine(s). Routine-defined ETU ${numText(etuDefined)} / ${numText(all.length)} · benchmark tests ${numText(benchmarkTests)} · transfer-tagged ${numText(withTransfer)}.`;
+  } catch (err) { try { logAppError(err, "renderRoutineConsoleSemanticEditorSummarySafe"); } catch (_) {} }
+}
+function routineConsolePatchSelectedRoutinesSafe(patcher, label="metadata") {
+  try {
+    const ids = routineStudioSelectedIdsSafe();
+    if (!ids.length) return alert("Select at least one routine in the Routine Console table.");
+    let count = 0;
+    data.routines = (data.routines || []).map(r => {
+      if (!ids.includes(String(r.id))) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      patcher(next);
+      count += 1;
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Updated ${count} routine(s): ${label}.`, "success");
+  } catch (err) { try { logAppError(err, "routineConsolePatchSelectedRoutinesSafe"); } catch (_) {}; alert("Routine Console update failed. Review the error log."); }
+}
+function routineConsoleNullableNumberSafe(id, min=0, max=8) {
+  const raw = String($(id)?.value ?? "").trim();
+  if (raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? clampNumber(n, min, max) : null;
+}
+function applyRoutineConsoleEtuEditorSafe() {
+  const tech = routineConsoleNullableNumberSafe("routineConsoleBulkTechnicalEtu", 0, 8);
+  const cog = routineConsoleNullableNumberSafe("routineConsoleBulkCognitiveEtu", 0, 8);
+  const conf = routineConsoleNullableNumberSafe("routineConsoleBulkConfidenceEtu", 0, 8);
+  const pres = routineConsoleNullableNumberSafe("routineConsoleBulkPressureEtu", 0, 8);
+  if ([tech,cog,conf,pres].every(v => v === null)) return alert("Enter at least one ETU subtype value.");
+  routineConsolePatchSelectedRoutinesSafe(next => {
+    const etu = {...(next.etuProfile || {})};
+    if (tech !== null) etu.technical = tech;
+    if (cog !== null) etu.cognitive = cog;
+    if (conf !== null) etu.confidence = conf;
+    if (pres !== null) etu.pressure = pres;
+    etu.source = "routine-defined";
+    next.etuProfile = etu;
+    next.etuSource = "routine-defined";
+  }, "ETU subtype profile");
+}
+function applyRoutineConsoleBenchmarkEditorSafe() {
+  const mode = String($("routineConsoleBulkBenchmarkMode")?.value || "").trim();
+  const strictness = String($("routineConsoleBulkBenchmarkStrictness")?.value || "").trim();
+  const exposure = routineConsoleNullableNumberSafe("routineConsoleBulkBenchmarkExposure", 0, 1);
+  if (!mode && !strictness && exposure === null) return alert("Set at least one benchmark metadata field.");
+  routineConsolePatchSelectedRoutinesSafe(next => {
+    if (mode) next.benchmarkMode = normalizeBenchmarkMode(mode);
+    if (strictness) next.benchmarkStrictness = normalizeBenchmarkStrictness(strictness);
+    if (exposure !== null) next.benchmarkExposureWeight = exposure;
+  }, "benchmark semantics");
+}
+function routineConsoleMergeUniqueListSafe(existing, added) {
+  const out = [];
+  [...routineConsoleParseListSafe(existing), ...routineConsoleParseListSafe(added)].forEach(x => { const v = String(x || "").trim(); if (v && !out.some(y => y.toLowerCase() === v.toLowerCase())) out.push(v); });
+  return out;
+}
+function applyRoutineConsoleTransferEditorSafe() {
+  const direct = String($("routineConsoleBulkDirectTransfer")?.value || "").trim();
+  const supporting = String($("routineConsoleBulkSupportingTransfer")?.value || "").trim();
+  const interference = String($("routineConsoleBulkInterferenceTransfer")?.value || "").trim();
+  if (!direct && !supporting && !interference) return alert("Enter at least one transfer tag list.");
+  routineConsolePatchSelectedRoutinesSafe(next => {
+    const profile = {...(next.transferProfile || {})};
+    if (direct) profile.direct = routineConsoleMergeUniqueListSafe(profile.direct || [], direct);
+    if (supporting) profile.supporting = routineConsoleMergeUniqueListSafe(profile.supporting || next.transferTags || [], supporting);
+    if (interference) profile.interference = routineConsoleMergeUniqueListSafe(profile.interference || [], interference);
+    next.transferProfile = profile;
+    next.transferTags = routineConsoleMergeUniqueListSafe(next.transferTags || [], [direct, supporting].filter(Boolean).join(","));
+  }, "transfer graph metadata");
+}
+/* ===== end v5.7.74C Routine Console semantic editors ===== */
+
 ["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue"].forEach(id => {
   if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", renderRoutineStudioLite);
 });
+safeOn("routinePackManagerSelect", "change", () => selectRoutinePackManagerPack($("routinePackManagerSelect")?.value || ""));
+safeOn("routineConsolePackImportInput", "change", routineConsoleImportPackFileSafe);
 /* ===== end v5.7.74A Routine Management Console foundation ===== */
 
 function setTemplatesMainTab(tab){
@@ -18850,6 +19091,16 @@ function handleDelegatedUIAction(event) {
     case "routine-console-select": return renderRoutineConsoleEditor(id);
     case "routine-console-save": return routineConsoleSaveSelected();
     case "routine-console-export-visible": return routineConsoleExportVisibleJson();
+    case "routine-pack-refresh": return renderRoutineStudioLite();
+    case "routine-pack-select": return selectRoutinePackManagerPack(id);
+    case "routine-pack-assign-selected": return routinePackAssignSelectedSafe();
+    case "routine-pack-export-selected": return routinePackExportSelectedSafe();
+    case "routine-pack-import-click": return routinePackImportClickSafe();
+    case "routine-pack-install-curated": return installBundledCuratedRoutinePack();
+    case "routine-pack-install-nolan": return installBundledNolanBenchmarkPack();
+    case "routine-console-apply-etu-editor": return applyRoutineConsoleEtuEditorSafe();
+    case "routine-console-apply-benchmark-editor": return applyRoutineConsoleBenchmarkEditorSafe();
+    case "routine-console-apply-transfer-editor": return applyRoutineConsoleTransferEditorSafe();
     case "edit-skill-tag": return editSkillTag(id);
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);

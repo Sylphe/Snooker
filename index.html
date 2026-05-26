@@ -848,6 +848,69 @@
           <p class="muted">Desktop-first routine governance dashboard. Use this console to load the app routine database, scan all parameters, relationships, tags and weights, edit routine metadata, validate schema quality, and prepare routine packs without compiling anything.</p>
           <div id="routineStudioSummary" class="analytics-note">Routine Console will load the routine schema audit here.</div>
           <div id="routineConsoleOverview" class="routine-console-overview"></div>
+          <div class="routine-pack-manager analytics-note">
+            <h3>Routine Pack Manager</h3>
+            <p class="muted">Manage routine packs from the same desktop console: review current pack coverage, assign selected routines to a pack, export one pack, import JSON packs, or reinstall bundled packs. This is still browser-only and requires no compilation.</p>
+            <div class="grid three">
+              <div><label>Pack</label><select id="routinePackManagerSelect"><option value="">All / choose pack</option></select></div>
+              <div><label>Pack name</label><input id="routinePackManagerName" placeholder="e.g. Safety Tactical Pack" /></div>
+              <div><label>Pack version</label><input id="routinePackManagerVersion" placeholder="e.g. 1.0.0" /></div>
+            </div>
+            <div class="row compact-row">
+              <button type="button" class="secondary" data-action="routine-pack-refresh">Refresh packs</button>
+              <button type="button" class="secondary" data-action="routine-pack-assign-selected">Assign selected routines to pack</button>
+              <button type="button" class="secondary" data-action="routine-pack-export-selected">Export selected pack</button>
+              <button type="button" class="secondary" data-action="routine-pack-import-click">Import JSON pack</button>
+              <button type="button" class="secondary" data-action="routine-pack-install-curated">Install curated pack</button>
+              <button type="button" class="secondary" data-action="routine-pack-install-nolan">Install Nolan pack</button>
+              <input id="routineConsolePackImportInput" type="file" accept="application/json,.json" class="hidden" />
+            </div>
+            <div id="routinePackManager" class="routine-pack-manager-list"></div>
+          </div>
+
+          <div class="routine-console-74c-grid">
+            <div class="analytics-note routine-console-validation-card">
+              <h3>Validation Dashboard</h3>
+              <p class="muted">Global validation cockpit for metadata errors, risks and suggested fixes. Use it to triage routine schema quality before changing recommendation or prediction logic.</p>
+              <div id="routineConsoleValidationDashboard"></div>
+            </div>
+            <div class="analytics-note routine-console-editor-card">
+              <h3>ETU / Benchmark / Transfer Editors</h3>
+              <p class="muted">Apply semantic metadata to selected routines. These editors update the same routine database used by Smart Builder, routine packs and validation.</p>
+              <div class="routine-console-editor-tabs">
+                <div class="routine-console-editor-section">
+                  <h4>ETU subtype editor</h4>
+                  <div class="grid four">
+                    <div><label>Technical</label><input id="routineConsoleBulkTechnicalEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
+                    <div><label>Cognitive</label><input id="routineConsoleBulkCognitiveEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
+                    <div><label>Confidence</label><input id="routineConsoleBulkConfidenceEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
+                    <div><label>Pressure</label><input id="routineConsoleBulkPressureEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
+                  </div>
+                  <button type="button" class="secondary" data-action="routine-console-apply-etu-editor">Apply ETU to selected</button>
+                </div>
+                <div class="routine-console-editor-section">
+                  <h4>Benchmark semantics editor</h4>
+                  <div class="grid three">
+                    <div><label>Mode</label><select id="routineConsoleBulkBenchmarkMode"><option value="">Keep</option><option value="none">None</option><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
+                    <div><label>Strictness</label><select id="routineConsoleBulkBenchmarkStrictness"><option value="">Keep</option><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
+                    <div><label>Exposure weight</label><input id="routineConsoleBulkBenchmarkExposure" type="number" min="0" max="1" step="0.05" placeholder="keep" /></div>
+                  </div>
+                  <button type="button" class="secondary" data-action="routine-console-apply-benchmark-editor">Apply benchmark metadata</button>
+                </div>
+                <div class="routine-console-editor-section">
+                  <h4>Transfer graph editor</h4>
+                  <div class="grid three">
+                    <div><label>Direct transfer tags</label><input id="routineConsoleBulkDirectTransfer" placeholder="comma separated" /></div>
+                    <div><label>Supporting transfer tags</label><input id="routineConsoleBulkSupportingTransfer" placeholder="comma separated" /></div>
+                    <div><label>Interference tags</label><input id="routineConsoleBulkInterferenceTransfer" placeholder="comma separated" /></div>
+                  </div>
+                  <button type="button" class="secondary" data-action="routine-console-apply-transfer-editor">Apply transfer graph metadata</button>
+                </div>
+              </div>
+              <div id="routineConsoleSemanticEditorSummary" class="muted small"></div>
+            </div>
+          </div>
+
           <div class="grid three">
             <div>
               <label>Audit filter</label>
