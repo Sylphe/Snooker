@@ -911,7 +911,19 @@
             </div>
           </div>
 
-          <div class="grid three">
+          <div class="grid four">
+            <div>
+              <label>Grid view</label>
+              <select id="routineConsoleGridView">
+                <option value="core" selected>Core metadata view</option>
+                <option value="etu">ETU / load view</option>
+                <option value="benchmark">Benchmark view</option>
+                <option value="transfer">Transfer view</option>
+                <option value="validation">Validation view</option>
+                <option value="minimal">Minimal governance view</option>
+                <option value="all">All columns</option>
+              </select>
+            </div>
             <div>
               <label>Audit filter</label>
               <select id="routineStudioAuditFilter">
@@ -954,7 +966,29 @@
             </div>
             <div>
               <label>Selection</label>
-              <button type="button" class="secondary" data-action="routine-studio-select-visible">Select visible</button>
+              <div class="row compact-row"><button type="button" class="secondary" data-action="routine-studio-select-visible">Select visible</button><button type="button" class="secondary" data-action="routine-studio-clear-selection">Clear</button></div>
+            </div>
+            <div>
+              <label>Copy down field</label>
+              <select id="routineConsoleCopyDownField">
+                <option value="">Choose field</option>
+                <option value="benchmarkMode">Benchmark mode</option>
+                <option value="benchmarkStrictness">Benchmark strictness</option>
+                <option value="benchmarkExposureWeight">Benchmark exposure weight</option>
+                <option value="volatilityProfile">Volatility</option>
+                <option value="recoverySuitability">Recovery suitability</option>
+                <option value="pressureSuitability">Pressure suitability</option>
+                <option value="technicalEtu">Technical ETU</option>
+                <option value="cognitiveEtu">Cognitive ETU</option>
+                <option value="confidenceEtu">Confidence ETU</option>
+                <option value="pressureEtu">Pressure ETU</option>
+                <option value="primarySkill">Primary skill</option>
+                <option value="transferTags">Transfer tags</option>
+              </select>
+            </div>
+            <div>
+              <label>Copy down</label>
+              <button type="button" class="secondary" data-action="routine-console-copy-down">Copy first selected down</button>
             </div>
             <div>
               <label>Apply</label>

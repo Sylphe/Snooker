@@ -18465,6 +18465,35 @@ function renderRoutineValidationEngineSummarySafe(validation) {
 /* ===== v5.7.74A Routine Management Console foundation ===== */
 let routineConsoleSelectedRoutineId = "";
 let routineConsoleLastRows = [];
+let routineConsoleSelectedIdsSet = new Set();
+let routineConsoleGridView = "core";
+let routineConsoleSortState = {field:"name", direction:"asc"};
+
+const ROUTINE_CONSOLE_GRID_COLUMNS = [
+  {key:"name", label:"Routine", type:"text", editable:true, preset:["core","minimal"]},
+  {key:"folder", label:"Folder", type:"text", editable:true, preset:["core","minimal","validation"]},
+  {key:"subfolder", label:"Subfolder", type:"text", editable:true, preset:["core"]},
+  {key:"category", label:"Category", type:"text", editable:true, preset:["core","minimal","validation"]},
+  {key:"primarySkill", label:"Primary skill", type:"text", editable:true, preset:["core","transfer","validation"]},
+  {key:"secondarySkills", label:"Secondary skills", type:"list", editable:true, preset:["core","transfer"]},
+  {key:"transferTags", label:"Transfer tags", type:"list", editable:true, preset:["transfer"]},
+  {key:"benchmarkMode", label:"Benchmark mode", type:"select", editable:true, options:["support","calibration","test","pressure-test"], preset:["benchmark"]},
+  {key:"benchmarkStrictness", label:"Strictness", type:"select", editable:true, options:["loose","normal","strict"], preset:["benchmark"]},
+  {key:"benchmarkExposureWeight", label:"Benchmark w", type:"number", editable:true, min:0, max:1, step:"0.05", preset:["benchmark"]},
+  {key:"technicalEtu", label:"Tech ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
+  {key:"cognitiveEtu", label:"Cog ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
+  {key:"confidenceEtu", label:"Conf ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
+  {key:"pressureEtu", label:"Press ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
+  {key:"etuSource", label:"ETU source", type:"readonly", preset:["etu","validation"]},
+  {key:"volatilityProfile", label:"Volatility", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","validation"]},
+  {key:"recoverySuitability", label:"Recovery", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
+  {key:"pressureSuitability", label:"Pressure fit", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
+  {key:"recommendationMode", label:"Reco", type:"select", editable:true, options:["active","occasional","excluded"], preset:["validation","minimal"]},
+  {key:"packSource", label:"Pack", type:"readonly", preset:["validation"]},
+  {key:"completeness", label:"Completeness", type:"readonly", preset:["validation","minimal"]},
+  {key:"validity", label:"Validation", type:"readonly", preset:["validation","minimal"]},
+  {key:"issues", label:"Issues", type:"readonly", preset:["validation"]}
+];
 
 function routineConsoleArrayTextSafe(value) {
   try {
@@ -18672,6 +18701,166 @@ async function routineConsoleImportPackFileSafe(event) {
   finally { if (input) input.value = ""; }
 }
 /* ===== end v5.7.74B Routine Pack Manager ===== */
+
+/* ===== v5.7.74D Spreadsheet Grid Engine ===== */
+function routineConsoleVisibleGridColumnsSafe() {
+  const view = String($("routineConsoleGridView")?.value || routineConsoleGridView || "core");
+  routineConsoleGridView = view;
+  if (view === "all") return ROUTINE_CONSOLE_GRID_COLUMNS;
+  return ROUTINE_CONSOLE_GRID_COLUMNS.filter(col => (col.preset || []).includes(view));
+}
+function routineConsoleCellValueSafe(row, key) {
+  if (key === "issues") return (row.issues || []).slice(0,3).map(x => x.label || x.detail || x.code || String(x)).join(" · ") || "OK";
+  if (key === "completeness" || key === "validity") return `${numText(row[key])}%`;
+  return row[key] ?? "";
+}
+function routineConsoleSortRowsSafe(rows) {
+  try {
+    const field = routineConsoleSortState.field || "name";
+    const dir = routineConsoleSortState.direction === "desc" ? -1 : 1;
+    return [...(rows || [])].sort((a,b) => {
+      const av = routineConsoleCellValueSafe(a, field);
+      const bv = routineConsoleCellValueSafe(b, field);
+      const an = Number(av); const bn = Number(bv);
+      if (Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * dir;
+      return String(av || "").localeCompare(String(bv || ""), undefined, {numeric:true, sensitivity:"base"}) * dir;
+    });
+  } catch (_) { return rows || []; }
+}
+function routineConsoleStatusClassSafe(row) {
+  const validity = Number(row.validity || 100);
+  const completeness = Number(row.completeness || 0);
+  const status = String(row.status || "").toLowerCase();
+  if (/critical/.test(status) || validity < 50) return "grid-critical";
+  if (/risk/.test(status) || validity < 80 || completeness < 70) return "grid-risk";
+  if (/watch/.test(status) || completeness < 90) return "grid-watch";
+  return "grid-ok";
+}
+function routineConsoleRenderGridCellSafe(row, col) {
+  const value = routineConsoleCellValueSafe(row, col.key);
+  const common = `data-routine-id="${attrText(row.id)}" data-field="${attrText(col.key)}"`;
+  if (!col.editable) return `<span class="routine-grid-readonly">${escapeHtml(String(value || ""))}</span>`;
+  if (col.type === "select") {
+    const opts = (col.options || []).map(opt => `<option value="${attrText(opt)}"${String(value)===String(opt)?" selected":""}>${escapeHtml(opt)}</option>`).join("");
+    return `<select class="routine-grid-input routine-grid-select" ${common}>${opts}</select>`;
+  }
+  if (col.type === "number") return `<input class="routine-grid-input" type="number" min="${numAttr(col.min ?? 0)}" max="${numAttr(col.max ?? 999)}" step="${attrText(col.step || "0.1")}" value="${numAttr(Number(value || 0))}" ${common} />`;
+  return `<input class="routine-grid-input" type="text" value="${attrText(String(value || ""))}" ${common} />`;
+}
+function routineConsoleApplyInlineEditSafe(routineId, field, rawValue, options = {}) {
+  try {
+    if (!routineId || !field) return;
+    const col = ROUTINE_CONSOLE_GRID_COLUMNS.find(c => c.key === field);
+    if (!col || !col.editable) return;
+    const value = routineStudioNormalizeBulkValueSafe(field === "confidenceEtu" ? "emotionalEtu" : field, rawValue);
+    data.routines = (data.routines || []).map(r => {
+      if (String(r.id) !== String(routineId)) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu"].includes(field)) {
+        const key = field === "confidenceEtu" ? "confidence" : field.replace("Etu","");
+        next.etuProfile = {...(next.etuProfile || {}), [key]:value, source:"routine-defined"};
+        next.etuSource = "routine-defined";
+      } else if (["secondarySkills","transferTags"].includes(field)) {
+        next[field] = routineConsoleParseListSafe(rawValue);
+      } else if (field === "benchmarkMode") {
+        next[field] = normalizeBenchmarkMode(value);
+      } else if (field === "benchmarkStrictness") {
+        next[field] = normalizeBenchmarkStrictness(value);
+      } else { next[field] = value; }
+      return next;
+    });
+    saveData({render:"none", immediateIDB:true});
+    if (!options.silent) showTransientNotice?.("Routine grid cell saved.", "success");
+  } catch (err) { try { logAppError(err, "routineConsoleApplyInlineEditSafe"); } catch (_) {}; alert("Grid cell update failed. Review the error log."); }
+}
+function routineConsoleToggleGridSort(field) {
+  if (!field) return;
+  if (routineConsoleSortState.field === field) routineConsoleSortState.direction = routineConsoleSortState.direction === "asc" ? "desc" : "asc";
+  else routineConsoleSortState = {field, direction:"asc"};
+  renderRoutineStudioLite();
+}
+function routineConsoleSelectedIdsRefreshFromDomSafe() {
+  try {
+    document.querySelectorAll(".routine-studio-check").forEach(chk => {
+      if (chk.checked) routineConsoleSelectedIdsSet.add(String(chk.value));
+      else routineConsoleSelectedIdsSet.delete(String(chk.value));
+    });
+  } catch (_) {}
+}
+function routineStudioClearSelection() {
+  routineConsoleSelectedIdsSet.clear();
+  document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = false; });
+  renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows);
+}
+function routineConsoleCopyDownSelectedSafe() {
+  try {
+    const field = $("routineConsoleCopyDownField")?.value || "";
+    const ids = routineStudioSelectedIdsSafe();
+    if (!field) return alert("Choose a field to copy down.");
+    if (ids.length < 2) return alert("Select at least two routines. The first selected row is used as the source.");
+    const rowsById = new Map((routineConsoleLastRows || []).map(r => [String(r.id), r]));
+    const source = rowsById.get(String(ids[0])) || routineConsoleRowsSafe().find(r => String(r.id) === String(ids[0]));
+    if (!source) return alert("Could not find the source routine.");
+    const raw = routineConsoleCellValueSafe(source, field);
+    ids.slice(1).forEach(id => routineConsoleApplyInlineEditSafe(id, field, raw, {silent:true}));
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Copied ${field} from first selected routine to ${ids.length - 1} routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "routineConsoleCopyDownSelectedSafe"); } catch (_) {}; alert("Copy-down failed. Review the error log."); }
+}
+function routineConsoleRenderSpreadsheetGridSafe(rows) {
+  const columns = routineConsoleVisibleGridColumnsSafe();
+  const sortedRows = routineConsoleSortRowsSafe(rows).slice(0,500);
+  const sortGlyph = col => routineConsoleSortState.field === col.key ? (routineConsoleSortState.direction === "asc" ? " ↑" : " ↓") : "";
+  const header = `<tr><th class="grid-select-col"><input id="routineConsoleSelectAllVisible" type="checkbox" title="Select all visible rows" /></th>${columns.map(col => `<th class="routine-grid-th" data-action="routine-console-sort" data-id="${attrText(col.key)}">${escapeHtml(col.label)}${sortGlyph(col)}</th>`).join("")}</tr>`;
+  const body = sortedRows.map(row => {
+    const selected = String(row.id) === String(routineConsoleSelectedRoutineId);
+    const checked = routineConsoleSelectedIdsSet.has(String(row.id)) ? " checked" : "";
+    return `<tr class="${selected ? "selected-row" : ""} ${routineConsoleStatusClassSafe(row)}" data-routine-id="${attrText(row.id)}"><td class="grid-select-col"><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}"${checked} /></td>${columns.map((col, idx) => `<td class="${idx === 0 ? "grid-frozen-cell" : ""}" data-col="${attrText(col.key)}">${idx === 0 ? `<button type="button" class="link-button routine-grid-open" data-action="routine-console-select" data-id="${attrText(row.id)}">Open</button>` : ""}${routineConsoleRenderGridCellSafe(row, col)}</td>`).join("")}</tr>`;
+  }).join("");
+  return body ? `<div class="routine-console-scroll routine-console-spreadsheet"><table class="routine-console-table routine-grid-table"><thead>${header}</thead><tbody>${body}</tbody></table></div>` : `<div class="analytics-note">No routines match this Routine Console filter.</div>`;
+}
+function bindRoutineConsoleGridEngineSafe() {
+  if (window.__routineConsoleGridEngineBound) return;
+  window.__routineConsoleGridEngineBound = true;
+  document.addEventListener("change", event => {
+    const target = event.target;
+    if (!target) return;
+    if (target.id === "routineConsoleGridView") return renderRoutineStudioLite();
+    if (target.id === "routineConsoleCopyDownField") return;
+    if (target.id === "routineConsoleSelectAllVisible") {
+      const checked = !!target.checked;
+      document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = checked; checked ? routineConsoleSelectedIdsSet.add(String(chk.value)) : routineConsoleSelectedIdsSet.delete(String(chk.value)); });
+      renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows);
+      return;
+    }
+    if (target.classList?.contains("routine-studio-check")) { routineConsoleSelectedIdsRefreshFromDomSafe(); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); return; }
+    if (target.classList?.contains("routine-grid-input")) {
+      routineConsoleApplyInlineEditSafe(target.dataset.routineId, target.dataset.field, target.value);
+      renderRoutineStudioLite();
+    }
+  });
+  document.addEventListener("paste", event => {
+    const target = event.target;
+    if (!target?.classList?.contains("routine-grid-input")) return;
+    const text = event.clipboardData?.getData("text") || "";
+    if (!text.includes("\t") && !text.includes("\n")) return;
+    event.preventDefault();
+    const rows = text.trim().split(/\r?\n/).map(line => line.split("\t"));
+    const visible = routineConsoleSortRowsSafe(routineConsoleLastRows || []);
+    const startIndex = visible.findIndex(r => String(r.id) === String(target.dataset.routineId));
+    const columns = routineConsoleVisibleGridColumnsSafe();
+    const startCol = Math.max(0, columns.findIndex(c => c.key === target.dataset.field));
+    rows.forEach((cells, rIdx) => cells.forEach((cell, cIdx) => {
+      const row = visible[startIndex + rIdx];
+      const col = columns[startCol + cIdx];
+      if (row && col?.editable) routineConsoleApplyInlineEditSafe(row.id, col.key, cell, {silent:true});
+    }));
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.("Pasted spreadsheet values into Routine Console.", "success");
+  });
+}
 function renderRoutineConsoleEditor(id) {
   try {
     const host = $("routineConsoleEditor");
@@ -18730,32 +18919,21 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74C:</strong> this is the desktop governance surface for app routines and routine packs. It now adds a validation dashboard plus dedicated ETU, benchmark and transfer editors, so routine metadata can be governed before prediction calibration depends on it.</p><p class="muted">Use the table for scanning and filtering. Select a routine to edit its metadata profile in the side panel. The classic exercise form remains available for scoring setup and legacy fields.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74D:</strong> this release adds the spreadsheet grid engine: inline metadata editing, sortable columns, column presets, persistent row selection, copy-down workflows, multi-cell paste support and validation overlays.</p><p class="muted">Use the grid like a light Airtable/Excel surface. Select a view, filter/search routines, edit cells directly, paste values from a spreadsheet, then use copy-down or bulk actions for repetitive metadata governance.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
-    const body = rows.slice(0,300).map(row => {
-      const selected = String(row.id) === String(routineConsoleSelectedRoutineId);
-      const issueText = (row.issues || []).slice(0,3).map(x => x.label || x.detail || x.code || String(x)).join(" · ") || "OK";
-      const etuTotal = row.technicalEtu + row.cognitiveEtu + row.confidenceEtu + row.pressureEtu;
-      return `<tr class="${selected ? "selected-row" : ""}" data-routine-id="${attrText(row.id)}">
-        <td><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}" /></td>
-        <td><button type="button" class="link-button" data-action="routine-console-select" data-id="${attrText(row.id)}">${escapeHtml(row.name)}</button><div class="muted small">${escapeHtml(row.folder)} / ${escapeHtml(row.subfolder)}</div></td>
-        <td>${escapeHtml(row.primarySkill || "—")}<div class="muted small">${escapeHtml(row.secondarySkills || "no secondary tags")}</div></td>
-        <td>${escapeHtml(row.transferTags || "—")}</td>
-        <td>${escapeHtml(row.benchmarkMode)}<div class="muted small">w ${numText(row.benchmarkExposureWeight)} · ${escapeHtml(row.benchmarkStrictness)}</div></td>
-        <td>${numText(etuTotal)}<div class="muted small">T ${numText(row.technicalEtu)} · C ${numText(row.cognitiveEtu)} · E ${numText(row.confidenceEtu)} · P ${numText(row.pressureEtu)}</div></td>
-        <td>${escapeHtml(row.volatilityProfile)}<div class="muted small">rec ${escapeHtml(row.recoverySuitability)} · pres ${escapeHtml(row.pressureSuitability)}</div></td>
-        <td>${numText(row.completeness)}% / ${numText(row.validity)}%<div class="muted small">${escapeHtml(issueText)}</div></td>
-      </tr>`;
-    }).join("");
-    host.innerHTML = body ? `<div class="routine-console-scroll"><table class="routine-console-table"><thead><tr><th></th><th>Routine</th><th>Skills / tags</th><th>Transfer</th><th>Benchmark</th><th>ETU</th><th>Load fit</th><th>Audit</th></tr></thead><tbody>${body}</tbody></table></div>` : `<div class="analytics-note">No routines match this Routine Console filter.</div>`;
+    bindRoutineConsoleGridEngineSafe();
+    host.innerHTML = routineConsoleRenderSpreadsheetGridSafe(rows);
     renderRoutineConsoleEditor(routineConsoleSelectedRoutineId);
   } catch (err) { try { logAppError(err, "renderRoutineStudioLite"); } catch (_) {} }
 }
 function routineStudioSelectedIdsSafe() {
-  try { return Array.from(document.querySelectorAll(".routine-studio-check:checked")).map(x => x.value).filter(Boolean); } catch (_) { return []; }
+  try {
+    routineConsoleSelectedIdsRefreshFromDomSafe();
+    return Array.from(routineConsoleSelectedIdsSet).filter(Boolean);
+  } catch (_) { return []; }
 }
-function routineStudioSelectVisible() { document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; }); }
+function routineStudioSelectVisible() { document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; routineConsoleSelectedIdsSet.add(String(chk.value)); }); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); }
 function routineStudioNormalizeBulkValueSafe(field, raw) {
   const value = String(raw || "").trim();
   if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 1 : 8);
@@ -18830,7 +19008,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.74A", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.74D", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19087,6 +19265,9 @@ function handleDelegatedUIAction(event) {
     case "plans-main-tab": return setPlansMainTab(actionEl.dataset.plansTab || "daily");
     case "templates-main-tab": return setTemplatesMainTab(actionEl.dataset.templatesTab || "exercises");
     case "routine-studio-select-visible": return routineStudioSelectVisible();
+    case "routine-studio-clear-selection": return routineStudioClearSelection();
+    case "routine-console-copy-down": return routineConsoleCopyDownSelectedSafe();
+    case "routine-console-sort": return routineConsoleToggleGridSort(id);
     case "routine-studio-apply-bulk": return applyRoutineStudioBulkMetadata();
     case "routine-console-select": return renderRoutineConsoleEditor(id);
     case "routine-console-save": return routineConsoleSaveSelected();
