@@ -6076,3 +6076,18 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
   .benchmark-roadmap .benchmark-roadmap-row { grid-template-columns: minmax(0,1fr); gap:0.35rem; }
   .benchmark-roadmap .benchmark-roadmap-row strong { text-align:left; min-width:0; }
 }
+
+/* v5.7.67.5 Recommendation audit visualization */
+.audit-summary-card{border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:8px 10px;margin:8px 0;display:grid;gap:3px;font-size:12px;color:var(--text)}
+.audit-summary-card span{color:var(--muted);font-size:11px}
+.audit-layer-grid{display:grid;gap:7px;margin:8px 0}
+.audit-layer-row{border:1px solid var(--border);border-radius:10px;padding:7px 8px;background:var(--surface);display:grid;gap:4px}
+.audit-layer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}
+.audit-layer-head span{font-size:11px;color:var(--muted);white-space:nowrap}
+.audit-layer-bar{height:6px;border-radius:999px;background:var(--surface-3);overflow:hidden;border:1px solid var(--border)}
+.audit-layer-bar span{display:block;height:100%;border-radius:999px;background:var(--accent)}
+.audit-layer-row.suppressing .audit-layer-bar span{background:var(--danger)}
+.audit-layer-row.neutral .audit-layer-bar span{background:var(--muted)}
+.audit-layer-row small{color:var(--muted);font-size:11px;line-height:1.25}
+.audit-raw-values{margin-top:6px;border-top:1px dashed var(--border);padding-top:6px}
+@media (max-width:640px){.audit-layer-head{align-items:flex-start;flex-direction:column;gap:2px}.audit-layer-head span{white-space:normal}.audit-layer-row{padding:7px}}
