@@ -1,17 +1,13 @@
-# Snooker Practice PWA — v5.7.67.5 Recommendation audit visualization
+# Snooker Practice PWA — v5.7.67.5.1 Audit visualization wiring fix
 
-## v5.7.67.5 changes
+## v5.7.67.5.1 changes
 
-- Implemented Priority 5: Recommendation Audit Visualization.
-- Replaced raw Smart Builder audit number dumps with relative contribution bars.
-- Layer audit now highlights main supporting and suppressing layers.
-- Raw audit values remain available inside an advanced nested details block for debugging.
-- Preserved Template Constraint Engine, weighted domain diversity guard, duration discipline, ETU bypass, and recommendation taxonomy refactor.
-- Updated build/cache/module query strings to v5.7.67.5.
+- Rebuilt directly from v5.7.67.5.
+- Fixed header/build timestamp propagation.
+- Fixed Smart Builder audit visualization wiring so contribution bars render inside each generated drill card.
+- Added fallback audit rendering when a pick has layer fields but no explicit audit object.
+- Recovery templates no longer display Benchmark mode unless explicitly allowed.
+- Clarified ETU language between historical undertraining and current generated-session load.
+- Updated cache names, service worker, module query strings and README.
 
-## Validation
-
-- JavaScript syntax check passed.
-- JSON validity check passed.
-- Duplicate-function scan passed.
-- Zip integrity check passed.
+Local-first PWA. No account. No backend. Export JSON backups regularly.
