@@ -6200,7 +6200,7 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
   white-space: normal;
 }
 
-/* v5.7.67.13 ETU Semantic Refinement */
+/* v5.7.67.16 Session Template Formalization */
 .smart-builder-constraint-summary{
   display:flex;
   flex-wrap:wrap;
@@ -6215,3 +6215,24 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
 .smart-builder-why-details.advanced > summary{
   opacity:0.82;
 }
+
+/* v5.7.67.16 Session Template Formalization */
+.template-schema-card {
+  margin: 0.55rem 0;
+}
+.template-schema-card summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+
+/* v5.7.67.16 Recommendation Confidence Layer */
+.recommendation-confidence{border-left:3px solid var(--border,#d9dee7);padding:.55rem .7rem;margin:.45rem 0;border-radius:.65rem;background:rgba(255,255,255,.045);}
+.recommendation-confidence.good{border-left-color:var(--success,#2f855a);}
+.recommendation-confidence.watch{border-left-color:var(--warning,#b7791f);}
+.recommendation-confidence.risk{border-left-color:var(--danger,#c53030);}
+.recommendation-confidence .smart-builder-constraint-summary{margin-top:.35rem;display:flex;gap:.35rem;flex-wrap:wrap;}
+
+/* v5.7.67.17 Cross-Domain Transfer Graph v1 */
+.transfer-graph-v1{border-left:3px solid var(--accent,#3b82f6);padding:.55rem .7rem;margin:.45rem 0;border-radius:.65rem;background:rgba(255,255,255,.04);}
+.adaptive-pill.compact.danger{border-color:var(--danger,#c53030);color:var(--danger,#c53030);}
