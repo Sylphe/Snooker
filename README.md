@@ -1,13 +1,14 @@
-# Snooker Practice PWA — v5.7.67.5.1 Audit visualization wiring fix
+# Snooker Practice PWA — v5.7.67.5.2 Audit Renderer Stabilization
 
-## v5.7.67.5.1 changes
+## v5.7.67.5.2 changes
 
-- Rebuilt directly from v5.7.67.5.
-- Fixed header/build timestamp propagation.
-- Fixed Smart Builder audit visualization wiring so contribution bars render inside each generated drill card.
-- Added fallback audit rendering when a pick has layer fields but no explicit audit object.
-- Recovery templates no longer display Benchmark mode unless explicitly allowed.
-- Clarified ETU language between historical undertraining and current generated-session load.
-- Updated cache names, service worker, module query strings and README.
+Corrective release on top of v5.7.67.5.1.
 
-Local-first PWA. No account. No backend. Export JSON backups regularly.
+- Fixed the Smart Builder recommendation audit renderer so contribution bars render instead of falling back to the safe error message.
+- Replaced the undefined audit clamp call with the existing app-safe `clampNumber` helper.
+- Removed the production-facing "Audit render failed safely" message; invalid audit payloads now fail silently rather than polluting the coaching UI.
+- Preserved the raw audit values inside the advanced details block.
+- Preserved the recovery-template taxonomy fixes and ETU wording separation introduced in v5.7.67.5.1.
+- Updated app header, build timestamp, module cache-busting refs, service worker cache name, and README.
+
+No storage, log schema, or IndexedDB migration changes.
