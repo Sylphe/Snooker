@@ -1,8 +1,11 @@
-# Snooker Practice PWA — v5.7.67.10.1 Builder Debug Console
+# Snooker Practice PWA
 
-## v5.7.67.10.1 changes
+Version: 5.7.67.10.2-benchmark-exposure-metadata-layer
+Build: 2026-05-26 12:05 CEST
 
-- Added developer-facing Smart Builder Debug Console.
-- Shows selected-drill trace, rejected/not-selected drill trace, ETU budget, duration cap, template, sanity state and layer modifiers.
-- Console is collapsed by default and does not change recommendation behavior.
-- Preserves v5.7.67.x template constraints, weighted diversity, duration discipline, audit visualization, ETU budgeting and sanity layer.
+Changes:
+- Added benchmark exposure metadata layer: none, benchmark support, benchmark test, benchmark test — high pressure.
+- Added advanced exercise editor field for benchmark exposure.
+- Smart Builder Recovery templates now suppress high-pressure benchmark tests and distinguish support from tests.
+- Sanity/debug layers use benchmark exposure classification.
+- ETU layer bypass remains available and preserved.
