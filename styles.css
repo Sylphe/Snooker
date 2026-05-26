@@ -6077,7 +6077,7 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
   .benchmark-roadmap .benchmark-roadmap-row strong { text-align:left; min-width:0; }
 }
 
-/* v5.7.67.6 Recommendation audit visualization */
+/* v5.7.67.7 Recommendation audit visualization */
 .audit-summary-card{border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:8px 10px;margin:8px 0;display:grid;gap:3px;font-size:12px;color:var(--text)}
 .audit-summary-card span{color:var(--muted);font-size:11px}
 .audit-layer-grid{display:grid;gap:7px;margin:8px 0}
@@ -6092,7 +6092,51 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
 .audit-raw-values{margin-top:6px;border-top:1px dashed var(--border);padding-top:6px}
 @media (max-width:640px){.audit-layer-head{align-items:flex-start;flex-direction:column;gap:2px}.audit-layer-head span{white-space:normal}.audit-layer-row{padding:7px}}
 
-/* v5.7.67.6 Bottleneck semantics and progressive disclosure */
+/* v5.7.67.7 Progressive disclosure UX pass */
 .recommendation-audit-visible{border:1px solid var(--border);background:var(--surface-2);border-radius:14px;padding:9px 10px;margin:10px 0;display:grid;gap:6px}
 .recommendation-audit-visible.audit-empty{color:var(--muted);font-size:12px}
 .audit-constraints{margin-top:4px}
+
+
+/* v5.7.67.7 Smart Builder progressive disclosure UX pass */
+.smart-builder-card-summary{
+  margin: 0.35rem 0 0.45rem;
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+.smart-builder-why-details,
+.recommendation-audit-details,
+.audit-raw-values,
+.audit-constraint-values{
+  margin-top: 0.45rem;
+}
+.smart-builder-why-details > summary,
+.recommendation-audit-details > summary,
+.audit-raw-values > summary,
+.audit-constraint-values > summary{
+  cursor:pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+  padding: 0.25rem 0;
+}
+.smart-builder-why-details[open],
+.recommendation-audit-details[open]{
+  border-top: 1px dashed var(--border);
+  padding-top: 0.35rem;
+}
+.recommendation-audit-visible.compact{
+  padding: 0.55rem 0.65rem;
+}
+.recommendation-audit-visible.compact .audit-summary-card{
+  margin:0;
+}
+.recommendation-candidate-list .recommendation-candidate-row span:last-child{
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+@media (max-width:640px){
+  .recommendation-audit-visible.compact{padding:0.5rem;}
+  .smart-builder-card-summary{font-size:0.84rem;}
+}

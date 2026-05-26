@@ -1,6 +1,22 @@
-# Snooker Practice PWA — v5.7.67.6 Bottleneck Semantics and Progressive Disclosure
+# Snooker Practice PWA — v5.7.67.7 Progressive Disclosure UX Pass
 
-## v5.7.67.6 changes
+## v5.7.67.7 changes
+
+- Implemented Priority 7 Smart Builder progressive disclosure.
+- Drill cards now show a compact summary first.
+- Full rationale is collapsed behind “Why this drill?”.
+- Layer contribution bars are collapsed behind “Show layer contribution bars”.
+- Raw audit values remain hidden behind Advanced raw audit values.
+- Global recommendation ranking is labelled as pre-session ranking before template constraints.
+- Preserved Priority 1–6 logic: template constraints, weighted domain diversity, duration discipline, taxonomy normalization, audit visualization, and bottleneck semantics.
+- Updated build number, cache versions, module refs, service worker, and README.
+
+
+---
+
+# Snooker Practice PWA — v5.7.67.7 Progressive Disclosure UX Pass
+
+## v5.7.67.7 changes
 
 - Added bottleneck relationship semantics to Smart Builder recommendations.
 - Replaced generic “targets Break-building” wording with direct bottleneck, supporting bottleneck, transfer support, stability support, pressure stabilization, and specialist-support explanations.
