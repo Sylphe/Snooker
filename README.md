@@ -1,9 +1,8 @@
-# Snooker Practice PWA — v5.7.67.9 Recommendation Sanity Layer
+# Snooker Practice PWA — v5.7.67.10 Builder Debug Console
 
-## v5.7.67.9 changes
+## v5.7.67.10 changes
 
-- Added final Smart Builder Recommendation Sanity Layer.
-- Checks recovery-template violations, benchmark density, ETU/duration excess, repeated-domain collapse and confidence-risk stacking.
-- Displays a compact pass/watch/risk summary with expandable findings.
-- Preserves Bayesian ranking, ETU budget, template constraints, weighted domain diversity and progressive disclosure.
-- Updated build number, cache versions, module references and service worker.
+- Added developer-facing Smart Builder Debug Console.
+- Shows selected-drill trace, rejected/not-selected drill trace, ETU budget, duration cap, template, sanity state and layer modifiers.
+- Console is collapsed by default and does not change recommendation behavior.
+- Preserves v5.7.67.x template constraints, weighted diversity, duration discipline, audit visualization, ETU budgeting and sanity layer.
