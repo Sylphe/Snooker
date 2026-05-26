@@ -6199,3 +6199,19 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
 .debug-table th:last-child {
   white-space: normal;
 }
+
+/* v5.7.67.13 ETU Semantic Refinement */
+.smart-builder-constraint-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.35rem;
+  margin-top:0.35rem;
+}
+.adaptive-pill.compact{
+  font-size:0.75rem;
+  padding:0.18rem 0.45rem;
+  line-height:1.25;
+}
+.smart-builder-why-details.advanced > summary{
+  opacity:0.82;
+}
