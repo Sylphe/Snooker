@@ -451,7 +451,7 @@
         </div>
         <div class="templates-main-nav" role="tablist" aria-label="Exercise sections">
           <button type="button" class="templates-nav-btn active-subtab" data-action="templates-main-tab" data-templates-tab="exercises" role="tab" aria-selected="true">Exercise Database</button>
-          <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="routine-studio" role="tab" aria-selected="false">Routine Studio Lite</button>
+          <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="routine-studio" role="tab" aria-selected="false">Routine Console</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="tables" role="tab" aria-selected="false">Table/Venue Database</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="skills" role="tab" aria-selected="false">Skill Tags</button>
         </div>
@@ -844,9 +844,10 @@
 
       <div class="templates-tab-panel hidden" data-templates-panel="routine-studio">
         <div class="card routine-studio-lite-card">
-          <h2>Routine Studio Lite</h2>
-          <p class="muted">Bulk metadata governance for recommendation quality. Use this area to review schema completeness, benchmark classification, ETU semantics, volatility, recovery/pressure suitability and recommendation eligibility. v5.7.73 adds the Routine Validation Engine for contradictory metadata, unrealistic ETU, benchmark ladder checks, transfer graph loops, over/under-tagging and taxonomy duplication.</p>
-          <div id="routineStudioSummary" class="analytics-note">Routine Studio will load the routine schema audit here.</div>
+          <h2>Routine Management Console</h2>
+          <p class="muted">Desktop-first routine governance dashboard. Use this console to load the app routine database, scan all parameters, relationships, tags and weights, edit routine metadata, validate schema quality, and prepare routine packs without compiling anything.</p>
+          <div id="routineStudioSummary" class="analytics-note">Routine Console will load the routine schema audit here.</div>
+          <div id="routineConsoleOverview" class="routine-console-overview"></div>
           <div class="grid three">
             <div>
               <label>Audit filter</label>
@@ -896,8 +897,15 @@
               <label>Apply</label>
               <button type="button" class="primary-start-btn" data-action="routine-studio-apply-bulk">Apply to selected routines</button>
             </div>
+            <div>
+              <label>Console export</label>
+              <button type="button" class="secondary" data-action="routine-console-export-visible">Export visible JSON</button>
+            </div>
           </div>
-          <div id="routineStudioList" class="routine-studio-list"></div>
+          <div class="routine-console-layout">
+            <div id="routineStudioList" class="routine-studio-list routine-console-table-host"></div>
+            <aside id="routineConsoleEditor" class="routine-console-editor analytics-note">Select a routine to edit its full metadata profile.</aside>
+          </div>
         </div>
       </div>
 
