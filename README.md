@@ -1,32 +1,24 @@
 # Snooker Practice PWA
 
-Version: 5.7.67.17-cross-domain-transfer-graph-v1
-Build: 2026-05-26 15:05 CEST
+Version: 5.7.71-routine-schema-audit
 
-Changes:
-- Added Cross-Domain Transfer Graph v1 on top of the existing Smart Builder audit and contradiction stack.
-- Computes per-pick confidence, evidence depth, statistical stability and fit-score uncertainty bands.
-- Adds a plan-level confidence summary showing average confidence, evidence depth, stability and low-confidence picks.
-- Injects confidence into each recommendation audit object while preserving ranking, template constraints, ETU semantics and contradiction detection.
+## v5.7.71
+- Added Routine Schema Audit on top of v5.7.70 Skill Level History.
+- Audits active routine metadata for benchmark mode, benchmark exposure, volatility profile, confidence risk, ETU subtype profile, transfer strength, and acquisition/recovery/pressure suitability.
+- Flags missing primary skills, weak categories, missing scoring/target ladders, benchmark-test routines without targets, support drills with excessive benchmark weight, pressure-mode mismatch, high-volatility recovery mismatch, over-tagging, missing transfer tags, and duration/ETU mismatches.
+- Added Smart Builder routine schema audit panel with completeness score, priority issue chips, and highest-priority routine metadata checks.
+- Preserved the v5.7.67.x calibration lock and all Phase 2 skill progression/history layers.
 
-## v5.7.67.17
-- Added `smartBuilderRecommendationConfidenceSafe()` for routine-level confidence scoring.
-- Added `smartBuilderAttachRecommendationConfidenceSafe()` to enrich generated plans after contradiction analysis.
-- Added `renderSmartBuilderRecommendationConfidenceSafe()` and `renderSmartBuilderPlanConfidenceSafe()` to expose confidence in Smart Builder output.
-- Confidence uses sample size, evidence strength, recent volatility, Bayesian profile availability, recommendation feedback and hard-template flags.
-
-## v5.7.67.14 retained
-- First-class session template schemas with allowed/forbidden domains, benchmark-density caps, volatility caps, ETU caps, recovery floors, pressure caps and switching caps.
-- Template compliance panel and template-aware ranking modifiers.
-
-## v5.7.67.13 retained
-- ETU split into technical, cognitive, confidence/emotional and pressure subtypes.
-- Planned-session and historical subtype allocation.
-
-## v5.7.67.12 retained
-- Three-level recommendation explanation architecture: one-line reason, constraint summary and advanced audit.
-- Rationale fragments are normalized and deduplicated locally and across the generated session.
-
-## v5.7.67.11 retained
-- Benchmark exposure metadata layer: none, support, calibration, test, pressure-test.
-- Smart Builder recovery/sanity logic distinguishes benchmark support from benchmark testing.
+## Prior layers retained
+- v5.7.67.11 Benchmark semantics separation.
+- v5.7.67.12 Recommendation explanation compression.
+- v5.7.67.13 ETU semantic refinement.
+- v5.7.67.14 Session template formalization.
+- v5.7.67.15 Builder contradiction engine.
+- v5.7.67.16 Recommendation confidence layer.
+- v5.7.67.17 Cross-domain transfer graph v1.
+- v5.7.67.18 Session composition optimization.
+- v5.7.67.19 Builder calibration lock.
+- v5.7.68 Skill progression ledger.
+- v5.7.69 Skill-domain detail pages.
+- v5.7.70 Skill level history.

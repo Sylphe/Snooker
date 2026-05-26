@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.67.17";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.67.17";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.71";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.71";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.67.17";
+} from "./utils.js?v=5.7.71";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.67.17";
+} from "./settings.js?v=5.7.71";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.67.17";
+} from "./analytics.js?v=5.7.71";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.67.17";
+} from "./bayesian.js?v=5.7.71";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.67.17";
+} from "./session.js?v=5.7.71";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.67.17";
+} from "./pressure.js?v=5.7.71";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.67.17";
+} from "./recommendations.js?v=5.7.71";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.67.17";
+} from "./store.js?v=5.7.71";
 
 
 
@@ -903,7 +903,7 @@ function skillReasonText(routine){
   return parts.join("; ");
 }
 
-const SKILL_TRANSFER_MODEL_VERSION = "v5.7.67.17";
+const SKILL_TRANSFER_MODEL_VERSION = "v5.7.67.18";
 const SKILL_TRANSFER_EDGE_TYPES = Object.freeze({
   direct:{label:"Direct transfer", scoreWeight:1.00, description:"The drill directly develops a downstream match skill."},
   supporting:{label:"Supporting transfer", scoreWeight:0.62, description:"The drill supports a related skill but should not be treated as direct practice."},
@@ -7164,7 +7164,7 @@ function renderSmartBuilderDurationDisciplineSafe(plan) {
 }
 
 
-/* v5.7.67.17 Session Template Formalization — split generic ETU into technical, cognitive, confidence/emotional and pressure load. */
+/* v5.7.67.18 Session Template Formalization — split generic ETU into technical, cognitive, confidence/emotional and pressure load. */
 function smartBuilderEtuSubtypeLabelsSafe() {
   return {
     technical:{label:"Technical ETU", short:"Tech"},
@@ -7471,7 +7471,7 @@ function renderSmartBuilderRecommendationSanitySafe(plan) {
 
 
 
-/* v5.7.67.17 Builder Contradiction Engine — formal contradiction detection after template, ETU and duration trimming. */
+/* v5.7.67.18 Builder Contradiction Engine — formal contradiction detection after template, ETU and duration trimming. */
 function smartBuilderContradictionSeverityRankSafe(severity) {
   const key = String(severity || "info").toLowerCase();
   if (key === "critical") return 4;
@@ -8554,7 +8554,7 @@ function applySmartBuilderTemplateConstraintsSafe(ranked, template, etuContext, 
       const constraintsApplied = [...(currentAudit.constraintsApplied || []), ...(c.reasons || []), ...(d.reasons || [])];
       const recommendationAudit = {
         ...currentAudit,
-        version:"5.7.67.17",
+        version:"5.7.71",
         templateModifier:roundSmartAuditNumber(c.modifier),
         sportDiversityModifier:roundSmartAuditNumber(Number(currentAudit.sportDiversityModifier || 0) + Number(d.adjustment || 0)),
         finalScore:roundSmartAuditNumber(finalScore),
@@ -8846,7 +8846,7 @@ function normalizeSmartSessionPlan(plan, goal="auto", duration=60) {
 }
 
 
-/* v5.7.67.17 Session Template Formalization — first-class template schemas and admissibility rules. */
+/* v5.7.67.18 Session Template Formalization — first-class template schemas and admissibility rules. */
 function smartBuilderVolatilityRankSafe(level) {
   const key = String(level || "medium").toLowerCase().replace(/[\s-]+/g, "_");
   if (key === "low") return 1;
@@ -8910,9 +8910,9 @@ function smartBuilderFormalizeTemplateSafe(template, overrides = {}) {
     merged.maxPressureDrills = Math.max(0, Number(merged.maxPressureDrills ?? base.maxPressureDrills ?? 2));
     merged.maxHighRiskDrills = Math.max(0, Number(merged.maxHighRiskDrills ?? base.maxHighRiskDrills ?? 3));
     merged.requiredRecoveryDrills = Math.max(0, Number(merged.requiredRecoveryDrills ?? base.requiredRecoveryDrills ?? 0));
-    merged.templateSchemaVersion = "5.7.67.17";
+    merged.templateSchemaVersion = "5.7.67.18";
     return merged;
-  } catch (_) { return {key:"standard", label:"Standard smart session", layer:"builder", purpose:"Default builder structure.", templateSchemaVersion:"5.7.67.17"}; }
+  } catch (_) { return {key:"standard", label:"Standard smart session", layer:"builder", purpose:"Default builder structure.", templateSchemaVersion:"5.7.67.18"}; }
 }
 function smartBuilderPressureLikeStateSafe(state, block=null) {
   try {
@@ -9021,7 +9021,7 @@ function renderSmartBuilderTemplateSafe(template) {
   try {
     if (!template) return "";
     const t = smartBuilderFormalizeTemplateSafe(template || {});
-    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.67.17")}</span></div>${renderSmartBuilderFormalTemplateSafe(t)}`;
+    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.67.18")}</span></div>${renderSmartBuilderFormalTemplateSafe(t)}`;
   } catch (_) { return ""; }
 }
 function roundSmartAuditNumber(value) {
@@ -9051,7 +9051,7 @@ function smartBuilderAuditFallbackSafe(p) {
     const bayesianContribution = Number(a.bayesianContribution ?? p?.recommendationProfile?.hybridScore ?? p?.recommendationProfile?.score ?? 0) * (a.bayesianContribution == null ? 0.28 : 1);
     return {
       ...a,
-      version: a.version || "5.7.67.17",
+      version: a.version || "5.7.67.18",
       baseSkillScore,
       bayesianContribution:Number(a.bayesianContribution ?? bayesianContribution),
       strategyModifier:Number(a.strategyModifier || 0),
@@ -9103,7 +9103,7 @@ function renderRecommendationLayerAuditSafe(p) {
 }
 
 
-/* ===== v5.7.67.17 Recommendation Confidence Layer ===== */
+/* ===== v5.7.67.18 Recommendation Confidence Layer ===== */
 function smartBuilderRecommendationConfidenceSafe(state, profile=null, context={}) {
   try {
     const logs = Array.isArray(state?.logs) ? state.logs : [];
@@ -9140,10 +9140,10 @@ function smartBuilderRecommendationConfidenceSafe(state, profile=null, context={
     if (profile) reasons.push("Bayesian profile available");
     if (feedbackRows.length) reasons.push("recommendation feedback observed");
     if (templatePenalty) reasons.push("template hard flag present");
-    return {version:"5.7.67.17", score:Math.round(confidenceScore), band, evidenceDepth:Math.round(evidenceDepth), statisticalStability:Math.round(stabilityScore), evidenceLabel:evidence.label, sampleSize:n, volatility:volatility === null ? null : Math.round(volatility * 10) / 10, uncertainty:{lower, upper, width:uncertaintyWidth, unit:"fit score"}, reasons:reasons.slice(0,4)};
+    return {version:"5.7.71", score:Math.round(confidenceScore), band, evidenceDepth:Math.round(evidenceDepth), statisticalStability:Math.round(stabilityScore), evidenceLabel:evidence.label, sampleSize:n, volatility:volatility === null ? null : Math.round(volatility * 10) / 10, uncertainty:{lower, upper, width:uncertaintyWidth, unit:"fit score"}, reasons:reasons.slice(0,4)};
   } catch (err) {
     try { logAppError(err, "smartBuilderRecommendationConfidenceSafe"); } catch (_) {}
-    return {version:"5.7.67.17", score:0, band:"unavailable", evidenceDepth:0, statisticalStability:0, sampleSize:0, uncertainty:null, reasons:["confidence layer unavailable"]};
+    return {version:"5.7.71", score:0, band:"unavailable", evidenceDepth:0, statisticalStability:0, sampleSize:0, uncertainty:null, reasons:["confidence layer unavailable"]};
   }
 }
 function smartBuilderAttachRecommendationConfidenceSafe(plan) {
@@ -9160,7 +9160,7 @@ function smartBuilderAttachRecommendationConfidenceSafe(plan) {
     const avgEvidenceDepth = confs.length ? Math.round(avg(confs.map(x => Number(x.evidenceDepth || 0)))) : 0;
     const avgStability = confs.length ? Math.round(avg(confs.map(x => Number(x.statisticalStability || 0)))) : 0;
     const lowCount = confs.filter(x => ["calibrating","low","unavailable"].includes(String(x.band))).length;
-    plan.recommendationConfidenceLayer = {version:"5.7.67.17", avgConfidence, avgEvidenceDepth, avgStability, lowCount, total:confs.length, label:avgConfidence >= 75 ? "High-confidence plan" : avgConfidence >= 55 ? "Moderate-confidence plan" : "Calibration-heavy plan"};
+    plan.recommendationConfidenceLayer = {version:"5.7.71", avgConfidence, avgEvidenceDepth, avgStability, lowCount, total:confs.length, label:avgConfidence >= 75 ? "High-confidence plan" : avgConfidence >= 55 ? "Moderate-confidence plan" : "Calibration-heavy plan"};
   } catch (err) { try { logAppError(err, "smartBuilderAttachRecommendationConfidenceSafe"); } catch (_) {} }
   return plan;
 }
@@ -9178,10 +9178,842 @@ function renderSmartBuilderPlanConfidenceSafe(plan) {
     const c = plan?.recommendationConfidenceLayer;
     if (!c) return "";
     const cls = c.avgConfidence >= 75 ? "adaptive-ok" : c.avgConfidence >= 55 ? "adaptive-watch" : "adaptive-risk";
-    return `<div class="adaptive-rationale ${cls}"><strong>Recommendation confidence layer:</strong> ${escapeHtml(c.label)} · confidence ${numText(c.avgConfidence)}/100 · evidence depth ${numText(c.avgEvidenceDepth)} · statistical stability ${numText(c.avgStability)} · low-confidence picks ${numText(c.lowCount)}/${numText(c.total)}.</div>`;
+    return `<div class="adaptive-rationale ${cls}"><strong>Session composition optimization:</strong> ${escapeHtml(c.label)} · confidence ${numText(c.avgConfidence)}/100 · evidence depth ${numText(c.avgEvidenceDepth)} · statistical stability ${numText(c.avgStability)} · low-confidence picks ${numText(c.lowCount)}/${numText(c.total)}.</div>`;
   } catch (_) { return ""; }
 }
-/* ===== end v5.7.67.17 Recommendation Confidence Layer ===== */
+/* ===== end v5.7.67.18 Recommendation Confidence Layer ===== */
+
+
+
+/* ===== v5.7.67.18 Session Composition Optimization ===== */
+function smartBuilderOptimizationBlockRoleSafe(block) {
+  const t = String(block?.blockType || block?.name || "completion").toLowerCase();
+  if (t.includes("warm")) return "warmup";
+  if (t.includes("primary")) return "primary";
+  if (t.includes("transfer") || t.includes("carry")) return "transfer";
+  if (t.includes("pressure")) return "pressure";
+  if (t.includes("confidence")) return "confidence";
+  if (t.includes("recovery")) return "recovery";
+  return String(block?.blockType || "completion").toLowerCase() || "completion";
+}
+function smartBuilderOptimizationStateDomainSafe(state) {
+  try { return smartBuilderRoutineDomainKeySafe(state?.routine || state || {}); } catch (_) { return "other"; }
+}
+function smartBuilderOptimizationVolatilityScoreSafe(state) {
+  try {
+    const lvl = String(smartBuilderVolatilityLevelSafe(state) || state?.volatilityProfile?.level || "medium").toLowerCase();
+    if (lvl === "high") return 3;
+    if (lvl === "medium") return 2;
+    if (lvl === "low") return 1;
+    return 1.5;
+  } catch (_) { return 1.5; }
+}
+function smartBuilderOptimizationCandidateFitSafe(state, block, context={}) {
+  try {
+    const role = smartBuilderOptimizationBlockRoleSafe(block);
+    const template = context.template || smartBuilderFormalizeTemplateSafe(context.sessionTemplate || {});
+    const effectiveGoal = String(context.effectiveGoal || "standard").toLowerCase();
+    const energy = state?.energyProfile || routineEnergyProfile(state);
+    const etu = (typeof smartBuilderRoutineEtuProfileSafe !== "undefined") ? smartBuilderRoutineEtuProfileSafe(state?.routine || state, {state}) : null;
+    const etuTotal = Number(etu?.total ?? etu?.base ?? energy?.fatigue ?? 1) || 1;
+    const transferGraph = state?.transferGraphProfile || smartBuilderTransferGraphFitSafe?.(state, context) || null;
+    const confidence = state?.recommendationConfidence || null;
+    const adaptive = Number(state?.adaptiveScore || state?.recommendationAudit?.finalScore || 0);
+    const transferValue = Number(state?.transferValue || routineTransferValue(state?.routine || state) || 0);
+    const readinessPenalty = Number(state?.recommendationAudit?.readinessModifier || 0) < -2 ? Math.abs(Number(state.recommendationAudit.readinessModifier)) : 0;
+    const benchmarkMode = String(smartBuilderBenchmarkModeSafe(state) || "support");
+    const benchmarkExposureWeight = Number(smartBuilderBenchmarkExposureWeightSafe(state) || 0);
+    const isBenchmarkTest = smartBuilderIsBenchmarkTestRoutineSafe(state);
+    const isPressure = smartBuilderPressureLikeStateSafe(state, block);
+    const isRecovery = smartBuilderRecoveryLikeStateSafe(state);
+    const volScore = smartBuilderOptimizationVolatilityScoreSafe(state);
+    let roleFit = 0;
+    if (role === "warmup" && (isRecovery || Number(state?.logs?.length || 0) >= 4 || state?.routine?.isAnchor)) roleFit += 9;
+    if (role === "primary" && ["progress","stabilize"].includes(String(state?.phase || ""))) roleFit += 8;
+    if (role === "transfer" && (transferValue >= 55 || Number(transferGraph?.modifier || 0) > 0)) roleFit += 9;
+    if (role === "pressure" && (isPressure || benchmarkMode === "pressure_test")) roleFit += 10;
+    if (role === "confidence" && (Number(confidence?.score || 0) >= 55 || Number(state?.logs?.length || 0) >= 4)) roleFit += 7;
+    if (role === "recovery" && isRecovery) roleFit += 10;
+    if (effectiveGoal === "recovery" && (isPressure || isBenchmarkTest || volScore >= 3)) roleFit -= 16;
+    if (effectiveGoal === "progression" && String(state?.phase || "") === "progress") roleFit += 5;
+    if (template?.forbiddenDomains && Array.isArray(template.forbiddenDomains) && template.forbiddenDomains.includes(smartBuilderOptimizationStateDomainSafe(state))) roleFit -= 30;
+    if (template?.allowedDomains && Array.isArray(template.allowedDomains) && template.allowedDomains.length && !template.allowedDomains.includes(smartBuilderOptimizationStateDomainSafe(state))) roleFit -= 8;
+    const confidenceTerm = confidence ? (Number(confidence.score || 0) - 50) * 0.08 : 0;
+    const benchmarkTerm = (effectiveGoal === "benchmark_prep" || template?.key === "benchmark_prep") ? benchmarkExposureWeight * 10 : isBenchmarkTest ? -2 : benchmarkExposureWeight * 2;
+    const etuPenalty = Math.max(0, etuTotal - 2.5) * (effectiveGoal === "recovery" ? 5 : 1.5);
+    const volatilityPenalty = Math.max(0, volScore - 2) * (template?.maxVolatility === "low" ? 8 : template?.maxVolatility === "medium" ? 4 : 1.5);
+    const score = adaptive * 0.48 + transferValue * 0.16 + Number(transferGraph?.modifier || 0) * 1.25 + roleFit + confidenceTerm + benchmarkTerm - etuPenalty - volatilityPenalty - readinessPenalty;
+    return {score, roleFit, etuTotal, volatility:volScore, domain:smartBuilderOptimizationStateDomainSafe(state), isBenchmarkTest, isPressure, isRecovery};
+  } catch (_) { return {score:Number(state?.adaptiveScore || 0), roleFit:0, etuTotal:1, volatility:1.5, domain:"other", isBenchmarkTest:false, isPressure:false, isRecovery:false}; }
+}
+function smartBuilderOptimizationConstraintPenaltySafe(blocks, context={}) {
+  try {
+    const rows = smartBuilderFlattenPlanPicksSafe(blocks);
+    const total = Math.max(1, rows.length);
+    const template = context.template || smartBuilderFormalizeTemplateSafe(context.sessionTemplate || {});
+    const effectiveGoal = String(context.effectiveGoal || "standard").toLowerCase();
+    const duration = adaptivePlanExpectedMinutes(blocks);
+    const target = Number(context.targetMinutes || duration || 60);
+    const usage = smartBuilderBlocksEtuUsageSafe ? smartBuilderBlocksEtuUsageSafe(blocks) : null;
+    const etuTotal = Number(usage?.total || 0);
+    const etuCap = Number(context.etuCap || template?.maxEtu || target / 18 || 999);
+    const benchmarkCount = rows.filter(x => smartBuilderIsBenchmarkTestRoutineSafe(x.state)).length;
+    const pressureCount = rows.filter(x => smartBuilderPressureLikeStateSafe(x.state, x.block)).length;
+    const highVolCount = rows.filter(x => smartBuilderOptimizationVolatilityScoreSafe(x.state) >= 3).length;
+    const domains = new Map();
+    rows.forEach(x => { const d = smartBuilderOptimizationStateDomainSafe(x.state); domains.set(d, (domains.get(d) || 0) + 1); });
+    const topShare = Math.max(0, ...Array.from(domains.values()).map(v => v / total));
+    let penalty = 0;
+    penalty += Math.max(0, Math.abs(duration - target) - Math.max(5, target * 0.08)) * 0.35;
+    penalty += Math.max(0, etuTotal - etuCap) * 14;
+    penalty += Math.max(0, benchmarkCount / total - Number(template?.maxBenchmarkDensity ?? 1)) * 60;
+    penalty += Math.max(0, pressureCount - Number(template?.maxPressureDrills ?? 99)) * 9;
+    const maxVol = String(template?.maxVolatility || "high");
+    if (maxVol !== "high") penalty += Math.max(0, highVolCount / total - (maxVol === "low" ? 0.10 : 0.35)) * 45;
+    penalty += Math.max(0, topShare - 0.58) * 26;
+    if ((effectiveGoal === "recovery" || template?.key === "recovery") && pressureCount) penalty += pressureCount * 18;
+    if ((effectiveGoal === "recovery" || template?.key === "recovery") && benchmarkCount) penalty += benchmarkCount * 12;
+    return {penalty, duration, etuTotal, benchmarkDensity:benchmarkCount / total, pressureCount, highVolDensity:highVolCount / total, topDomainShare:topShare};
+  } catch (_) { return {penalty:0}; }
+}
+function smartBuilderOptimizationObjectiveSafe(blocks, context={}) {
+  try {
+    let raw = 0;
+    const rows = smartBuilderFlattenPlanPicksSafe(blocks);
+    rows.forEach(row => { raw += smartBuilderOptimizationCandidateFitSafe(row.state, row.block, context).score * Math.max(1, Number(row.pick?.reps || 1)); });
+    const c = smartBuilderOptimizationConstraintPenaltySafe(blocks, context);
+    return {score:raw - c.penalty, raw, constraintPenalty:c.penalty, metrics:c};
+  } catch (_) { return {score:0, raw:0, constraintPenalty:0, metrics:{}}; }
+}
+function smartBuilderCloneBlocksForOptimizationSafe(blocks) {
+  return (blocks || []).map(b => ({...b, picks:(b.picks || []).map(p => ({...p, state:p.state || p}))}));
+}
+function smartBuilderOptimizeSessionCompositionSafe(plan) {
+  try {
+    const template = smartBuilderFormalizeTemplateSafe(plan?.sessionTemplate || {});
+    const policy = plan?.etuSessionBudget?.policy || smartBuilderEtuSessionBudgetPolicySafe?.(template, plan?.effectiveGoal, plan?.targetMinutes, "normal") || {};
+    const context = {...plan, template, etuCap:Number(policy?.max || template?.maxEtu || 999)};
+    let blocks = smartBuilderCloneBlocksForOptimizationSafe(plan?.blocks || []);
+    const ranked = Array.isArray(plan?.ranked) ? plan.ranked : [];
+    const before = smartBuilderOptimizationObjectiveSafe(blocks, context);
+    const usedIds = () => new Set(smartBuilderFlattenPlanPicksSafe(blocks).map(x => String(x.state?.routine?.id || "")).filter(Boolean));
+    let substitutions = 0;
+    let iterations = 0;
+    const maxIterations = 18;
+    while (iterations < maxIterations) {
+      iterations += 1;
+      let best = null;
+      const current = smartBuilderOptimizationObjectiveSafe(blocks, context);
+      const currentUsed = usedIds();
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const block = blocks[bi];
+        for (let pi = 0; pi < (block.picks || []).length; pi++) {
+          const oldPick = block.picks[pi];
+          const oldId = String((oldPick.state || oldPick)?.routine?.id || "");
+          for (const cand of ranked.slice(0, 42)) {
+            const cid = String(cand?.routine?.id || "");
+            if (!cid || (cid !== oldId && currentUsed.has(cid))) continue;
+            if ((cand.templateHardFlags || []).length && template?.key !== "pressure") continue;
+            const trial = smartBuilderCloneBlocksForOptimizationSafe(blocks);
+            trial[bi].picks[pi] = normalizeAdaptivePick(cand, Math.max(1, Number(oldPick.reps || 1)));
+            const obj = smartBuilderOptimizationObjectiveSafe(trial, context);
+            const gain = obj.score - current.score;
+            if (gain > 1.15 && (!best || gain > best.gain)) best = {gain, blocks:trial, from:oldPick.state || oldPick, to:cand, block:block.name || block.blockType || "Block", obj};
+          }
+        }
+      }
+      if (!best) break;
+      blocks = best.blocks;
+      substitutions += 1;
+    }
+    blocks = blocks.map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p.state || p, Math.max(1, Number(p.reps || 1))))}));
+    const after = smartBuilderOptimizationObjectiveSafe(blocks, context);
+    const delta = after.score - before.score;
+    const label = delta > 3 ? "Optimized session composition" : "Session composition already near-constrained optimum";
+    return {version:"5.7.67.19", blocks, label, status:delta > 3 ? "optimized" : "stable", objectiveBefore:Math.round(before.score * 10) / 10, objectiveAfter:Math.round(after.score * 10) / 10, objectiveDelta:Math.round(delta * 10) / 10, substitutions, iterations, constraints:after.metrics, rawValue:Math.round(after.raw * 10) / 10, constraintPenalty:Math.round(after.constraintPenalty * 10) / 10, method:"greedy constrained substitution over ranked candidates", objective:"maximize progression + transfer + readiness fit + benchmark value subject to ETU, duration, volatility, switching and template constraints"};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderOptimizeSessionCompositionSafe"); } catch (_) {}
+    return {version:"5.7.67.19", blocks:plan?.blocks || [], label:"Session composition optimization unavailable", status:"fallback", objectiveBefore:0, objectiveAfter:0, objectiveDelta:0, substitutions:0, iterations:0, constraints:{}, method:"fallback"};
+  }
+}
+function renderSmartBuilderCompositionOptimizationSafe(plan) {
+  try {
+    const o = plan?.compositionOptimization;
+    if (!o) return "";
+    const cls = o.status === "optimized" ? "adaptive-ok" : o.status === "stable" ? "adaptive-watch" : "adaptive-risk";
+    const c = o.constraints || {};
+    const txt = `objective ${numText(o.objectiveBefore)} → ${numText(o.objectiveAfter)} (${Number(o.objectiveDelta || 0) >= 0 ? "+" : ""}${numText(o.objectiveDelta)}) · substitutions ${numText(o.substitutions)} · ETU ${numText(c.etuTotal)} · benchmark ${Math.round(Number(c.benchmarkDensity || 0) * 100)}% · high-vol ${Math.round(Number(c.highVolDensity || 0) * 100)}%`;
+    return `<div class="adaptive-rationale ${cls}"><strong>Session composition optimization:</strong> ${escapeHtml(o.label || "Checked")} · ${escapeHtml(txt)}.<br><span class="muted small">Objective: progression + transfer + readiness compatibility + benchmark value, constrained by ETU, duration, volatility, switching and template rules.</span></div>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.67.18 Session Composition Optimization ===== */
+
+/* ===== v5.7.67.19 Builder Calibration Lock =====
+   Locks the semantic contract used by Smart Builder before the next roadmap phase.
+   This is deliberately declarative: future changes should bump the lock version and
+   create an explicit migration note instead of silently drifting taxonomy/ETU/template semantics. */
+const SMART_BUILDER_CALIBRATION_LOCK_VERSION = "5.7.67.19";
+const SMART_BUILDER_CALIBRATION_LOCK = Object.freeze({
+  version: SMART_BUILDER_CALIBRATION_LOCK_VERSION,
+  lockedAt: "2026-05-26",
+  status: "locked",
+  taxonomyModes: Object.freeze(["acquisition","recovery","consolidation","exploration","pressure","benchmark"]),
+  etuSubtypes: Object.freeze(["technical","cognitive","emotional","pressure"]),
+  templateKeys: Object.freeze(["recovery","consolidation","acquisition","transfer","pressure","benchmark_prep","standard"]),
+  contradictionCodes: Object.freeze([
+    "empty_session","recovery_pressure","recovery_pressure_benchmark","recovery_benchmark_test","recovery_exploration","recovery_floor_missing",
+    "etu_budget_impossible","pressure_etu_dominance","recovery_cognitive_emotional_load","benchmark_density_overload","benchmark_stack",
+    "calibration_test_mix_recovery","support_test_mix_recovery","same_domain_repetition","overloaded_domain_repetition","volatility_concentration",
+    "risk_stack","pressure_cap_breach","exploration_overload","pressure_benchmark_etu_stack"
+  ]),
+  transferEdgeTypes: Object.freeze(["direct","supporting","weak","interference"]),
+  optimizerObjectiveWeights: Object.freeze({progression:0.34, transfer:0.24, readiness:0.22, benchmark:0.12, confidence:0.08}),
+  hardConstraints: Object.freeze(["etu_cap","duration_cap","template_admissibility","benchmark_density","volatility_density","switching_cost","pressure_cap"]),
+  migrationRule: "Changing taxonomy, ETU subtypes, template keys, contradiction codes or optimizer weights requires a new calibration-lock version."
+});
+function smartBuilderCalibrationLockFingerprintSafe(lock = SMART_BUILDER_CALIBRATION_LOCK) {
+  try {
+    const payload = [
+      lock.version,
+      (lock.taxonomyModes || []).join("|"),
+      (lock.etuSubtypes || []).join("|"),
+      (lock.templateKeys || []).join("|"),
+      (lock.contradictionCodes || []).join("|"),
+      (lock.transferEdgeTypes || []).join("|"),
+      Object.entries(lock.optimizerObjectiveWeights || {}).map(([k,v]) => `${k}:${v}`).join("|"),
+      (lock.hardConstraints || []).join("|")
+    ].join("::");
+    let hash = 0;
+    for (let i = 0; i < payload.length; i++) hash = ((hash << 5) - hash + payload.charCodeAt(i)) | 0;
+    return `sbcl-${Math.abs(hash).toString(36)}`;
+  } catch (_) { return "sbcl-unavailable"; }
+}
+function smartBuilderCalibrationLockSnapshotSafe() {
+  try {
+    return {
+      ...SMART_BUILDER_CALIBRATION_LOCK,
+      fingerprint: smartBuilderCalibrationLockFingerprintSafe(),
+      templateSchemaVersion: "5.7.67.19",
+      etuSchemaVersion: "5.7.67.19",
+      contradictionSchemaVersion: "5.7.67.19",
+      optimizerSchemaVersion: "5.7.67.19"
+    };
+  } catch (_) { return {version:SMART_BUILDER_CALIBRATION_LOCK_VERSION, status:"fallback", fingerprint:"sbcl-unavailable"}; }
+}
+function smartBuilderCalibrationLockAuditSafe(plan) {
+  try {
+    const lock = smartBuilderCalibrationLockSnapshotSafe();
+    const templateLibrary = smartBuilderFormalTemplateLibrarySafe();
+    const templateKeys = Object.keys(templateLibrary || {});
+    const etuKeys = Object.keys(blankEtuSubtypeProfileSafe());
+    const taxonomyKeys = Object.keys(SMART_BUILDER_TAXONOMY || {});
+    const transferTypes = Array.from(new Set(Object.values(SKILL_TRANSFER_GRAPH || {}).flatMap(edges => Object.values(edges || {}).map(e => String(e.type || "").toLowerCase()).filter(Boolean))));
+    const contradictionFindings = Array.isArray(plan?.contradictionEngine?.findings) ? plan.contradictionEngine.findings : [];
+    const contradictionCodes = Array.from(new Set(contradictionFindings.map(f => String(f.code || "")).filter(Boolean)));
+    const missing = [];
+    const extra = [];
+    const checkSet = (name, actual, locked) => {
+      const a = new Set(actual || []); const l = new Set(locked || []);
+      (locked || []).forEach(x => { if (!a.has(x)) missing.push(`${name}:${x}`); });
+      (actual || []).forEach(x => { if (!l.has(x)) extra.push(`${name}:${x}`); });
+    };
+    checkSet("taxonomy", taxonomyKeys, lock.taxonomyModes);
+    checkSet("etu", etuKeys, lock.etuSubtypes);
+    checkSet("template", templateKeys, lock.templateKeys);
+    transferTypes.forEach(t => { if (!lock.transferEdgeTypes.includes(t)) extra.push(`transfer:${t}`); });
+    contradictionCodes.forEach(c => { if (!lock.contradictionCodes.includes(c)) extra.push(`contradiction:${c}`); });
+    const template = smartBuilderFormalizeTemplateSafe(plan?.sessionTemplate || {});
+    const templateLocked = lock.templateKeys.includes(String(template?.key || "standard"));
+    const optimizerLocked = String(plan?.compositionOptimization?.version || "").includes("5.7.67.19") || String(plan?.compositionOptimization?.version || "").includes("5.7.67.18");
+    const findings = [];
+    if (!templateLocked) findings.push("active template key is outside the locked template set");
+    if (missing.length) findings.push(`${missing.length} locked semantic item(s) missing`);
+    if (extra.length) findings.push(`${extra.length} unlocked semantic item(s) detected`);
+    const status = findings.length ? "watch" : "locked";
+    return {lock, status, label:status === "locked" ? "Calibration lock passed" : "Calibration drift watch", findings, missing, extra, templateKey:String(template?.key || "standard"), optimizerLocked};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderCalibrationLockAuditSafe"); } catch (_) {}
+    return {lock:smartBuilderCalibrationLockSnapshotSafe(), status:"unknown", label:"Calibration lock unavailable", findings:["lock audit could not run"], missing:[], extra:[]};
+  }
+}
+function renderSmartBuilderCalibrationLockSafe(plan) {
+  try {
+    const audit = plan?.calibrationLock || smartBuilderCalibrationLockAuditSafe(plan || {});
+    const lock = audit.lock || smartBuilderCalibrationLockSnapshotSafe();
+    const cls = audit.status === "locked" ? "adaptive-ok" : audit.status === "watch" ? "adaptive-watch" : "adaptive-risk";
+    const weights = Object.entries(lock.optimizerObjectiveWeights || {}).map(([k,v]) => `${k} ${Math.round(Number(v || 0) * 100)}%`).join(" · ");
+    const details = (audit.findings || []).length
+      ? `<br><span class="muted small">${escapeHtml((audit.findings || []).join(" · "))}</span>`
+      : `<br><span class="muted small">Taxonomy, ETU subtypes, template keys, contradiction codes, transfer edge types and optimizer weights match the locked semantic contract.</span>`;
+    return `<div class="adaptive-rationale ${cls}"><strong>Builder calibration lock:</strong> ${escapeHtml(audit.label || "Checked")} · v${escapeHtml(lock.version || SMART_BUILDER_CALIBRATION_LOCK_VERSION)} · ${escapeHtml(lock.fingerprint || "sbcl")}.<br><span class="muted small">Locked objective weights: ${escapeHtml(weights)}.</span>${details}</div>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.67.19 Builder Calibration Lock ===== */
+
+/* ===== v5.7.68 Skill Progression Ledger =====
+   Phase 2 foundation: converts historical logs into a domain-level development ledger.
+   The ledger is intentionally read-only: it surfaces progression state without changing
+   the locked v5.7.67.x builder calibration contract. */
+function smartBuilderSkillLevelFromScoreSafe(score, evidenceN=0) {
+  try {
+    const s = Math.max(0, Math.min(100, Number(score || 0)));
+    const n = Math.max(0, Number(evidenceN || 0));
+    let level = 1;
+    if (s >= 88 && n >= 14) level = 7;
+    else if (s >= 78 && n >= 11) level = 6;
+    else if (s >= 66 && n >= 9) level = 5;
+    else if (s >= 54 && n >= 7) level = 4;
+    else if (s >= 42 && n >= 5) level = 3;
+    else if (s >= 28 && n >= 3) level = 2;
+    const thresholds = [0, 28, 42, 54, 66, 78, 88, 96];
+    const next = level >= 7 ? 100 : thresholds[level];
+    const prev = thresholds[Math.max(0, level - 1)] || 0;
+    return {level, label:`L${level}`, previousThreshold:prev, nextThreshold:next, progressToNext:level >= 7 ? 100 : Math.max(0, Math.min(100, (s - prev) / Math.max(1, next - prev) * 100))};
+  } catch (_) { return {level:1, label:"L1", previousThreshold:0, nextThreshold:28, progressToNext:0}; }
+}
+function smartBuilderDomainEtuSubtypeEstimateSafe(domainKey, etu, logsForDomain=[]) {
+  try {
+    const key = String(domainKey || "general");
+    const total = Math.max(0, Number(etu || 0));
+    const text = logsForDomain.map(textForLog).join(" ").toLowerCase();
+    const raw = {technical:0.54, cognitive:0.23, emotional:0.14, pressure:0.09};
+    if (["break_building","cue_ball_control","long_potting","rest_play","cueing"].includes(key)) raw.technical += 0.12;
+    if (["safety","tactical","tactical_decision_making"].includes(key)) raw.cognitive += 0.16;
+    if (key === "pressure" || /pressure|match|decider|competition/.test(text)) raw.pressure += 0.24;
+    if (/confidence|recovery|easy|baseline/.test(text)) raw.emotional += 0.10;
+    return allocateEtuSubtypeLoadSafe(total, raw);
+  } catch (_) { return blankEtuSubtypeProfileSafe(); }
+}
+function smartBuilderSkillProgressionLedgerSafe(logs=(data.logs || []), context={}) {
+  try {
+    const scoped = Array.isArray(logs) ? logs : [];
+    const domainLoads = Array.isArray(context?.etuContext?.domainLoads) ? context.etuContext.domainLoads : estimatePredictionDomainEtuSafe(scoped);
+    const loadByKey = new Map((domainLoads || []).map(d => [String(d.key || "general"), d]));
+    const buckets = new Map();
+    const ensure = (key) => {
+      const k = String(key || "general");
+      if (!buckets.has(k)) buckets.set(k, {key:k, label:predictionDomainLabelSafe(k), logs:[], scores:[], dates:[]});
+      return buckets.get(k);
+    };
+    scoped.forEach(log => {
+      const key = predictionDomainKeyFromLogSafe(log);
+      const score = safeNormalizedLogScore(log);
+      const t = Date.parse(log?.createdAt || log?.date || "");
+      const b = ensure(key);
+      b.logs.push(log);
+      if (Number.isFinite(score)) b.scores.push(score);
+      if (Number.isFinite(t)) b.dates.push(t);
+    });
+    try {
+      (activeRoutines() || []).forEach(r => ensure(smartBuilderRoutineDomainKeySafe(r)));
+    } catch (_) {}
+    const rows = Array.from(buckets.values()).map(b => {
+      const load = loadByKey.get(b.key) || {etu:0, rawEtu:0, logs:b.logs.length, minutes:0, hitRate:null};
+      const scores = b.scores.slice();
+      const n = scores.length;
+      const recentN = Math.max(1, Math.min(8, Math.ceil(n * 0.35)));
+      const recent = scores.slice(-recentN);
+      const prior = scores.slice(0, Math.max(0, n - recentN));
+      const currentScore = n ? avg(recent) : 0;
+      const baseline = prior.length ? avg(prior) : (n ? avg(scores) : 0);
+      const velocity = n >= 4 ? currentScore - baseline : 0;
+      const volatility = n >= 3 ? (stdDev(recent.length >= 3 ? recent : scores) || 0) : null;
+      const levelInfo = smartBuilderSkillLevelFromScoreSafe(currentScore, n);
+      const etu = Math.max(0, Number(load.etu || 0));
+      const lastDate = b.dates.length ? Math.max(...b.dates) : null;
+      const daysSince = lastDate ? Math.max(0, Math.round((Date.now() - lastDate) / 86400000)) : null;
+      const etuSinceLastLevelChange = Math.max(0, Math.round(Math.min(etu, etu * (0.35 + Math.min(0.45, Math.max(0, levelInfo.progressToNext || 0) / 220))) * 10) / 10);
+      const benchmarkExposure = b.logs.filter(log => {
+        const r = routineById(log?.routineId) || {};
+        const text = `${textForLog(log)} ${r.name || ""} ${r.category || ""}`.toLowerCase();
+        return /benchmark|test|calibration|target|pressure/.test(text) || r.isBenchmark || r.benchmarkMode;
+      }).length;
+      const benchmarkExposureRate = b.logs.length ? benchmarkExposure / b.logs.length : 0;
+      const volatilityStability = volatility === null ? 45 : Math.max(0, Math.min(100, 100 - volatility * 2.6));
+      const evidenceConfidence = Math.max(12, Math.min(95, n * 6 + Math.min(32, etu * 2.6) + (benchmarkExposure ? 8 : 0) - (volatility || 0) * 0.35));
+      let plateauType = "none";
+      let plateauRisk = 0;
+      if (n < 4 || etu < 2) { plateauType = "underexposure plateau"; plateauRisk = 28; }
+      else if (velocity < -3 && Number(context?.etuContext?.ratio || 1) >= 1.15) { plateauType = "fatigue plateau"; plateauRisk = 72; }
+      else if ((volatility || 0) >= 14) { plateauType = "volatility plateau"; plateauRisk = 66; }
+      else if (Math.abs(velocity) <= 2 && etu >= 6) { plateauType = "true plateau watch"; plateauRisk = 58; }
+      else if (velocity > 3) { plateauType = "progressing"; plateauRisk = 18; }
+      else { plateauType = "stable"; plateauRisk = 34; }
+      const subtype = smartBuilderDomainEtuSubtypeEstimateSafe(b.key, etu, b.logs);
+      return {
+        key:b.key,
+        label:b.label,
+        currentLevel:levelInfo.label,
+        levelNum:levelInfo.level,
+        score:Math.round(currentScore * 10) / 10,
+        baselineScore:Math.round(baseline * 10) / 10,
+        progressionVelocity:Math.round(velocity * 10) / 10,
+        plateauRisk:Math.round(plateauRisk),
+        plateauType,
+        nextLBandRequirement:levelInfo.level >= 7 ? "ceiling band" : `${levelInfo.label} → L${levelInfo.level + 1} at ${numText(levelInfo.nextThreshold)} score`,
+        progressToNext:Math.round(levelInfo.progressToNext),
+        etu:Math.round(etu * 10) / 10,
+        rawEtu:Math.round(Number(load.rawEtu || 0) * 10) / 10,
+        etuSinceLastLevelChange,
+        etuSubtypes:subtype,
+        recentLogs:n,
+        totalLogs:b.logs.length,
+        minutes:Math.round(Number(load.minutes || 0)),
+        daysSinceLastLog:daysSince,
+        benchmarkExposure,
+        benchmarkExposureRate:Math.round(benchmarkExposureRate * 100),
+        volatility:volatility === null ? null : Math.round(volatility * 10) / 10,
+        volatilityStability:Math.round(volatilityStability),
+        evidenceConfidence:Math.round(evidenceConfidence)
+      };
+    }).filter(r => r.totalLogs || r.etu || ["break_building","cue_ball_control","long_potting","safety","pressure","tactical"].includes(r.key));
+    const priorityRows = rows.slice().sort((a,b) => (Number(b.plateauRisk || 0) + Math.max(0, 50 - Number(b.evidenceConfidence || 0)) * 0.35 + Math.max(0, 20 - Number(b.benchmarkExposureRate || 0)) * 0.20) - (Number(a.plateauRisk || 0) + Math.max(0, 50 - Number(a.evidenceConfidence || 0)) * 0.35 + Math.max(0, 20 - Number(a.benchmarkExposureRate || 0)) * 0.20)).slice(0,5);
+    const avgConfidence = rows.length ? avg(rows.map(r => Number(r.evidenceConfidence || 0))) : 0;
+    const avgVelocity = rows.length ? avg(rows.map(r => Number(r.progressionVelocity || 0))) : 0;
+    const highPlateau = rows.filter(r => Number(r.plateauRisk || 0) >= 60).length;
+    const label = rows.length ? (highPlateau ? "Progression ledger: plateau watch" : avgVelocity > 2 ? "Progression ledger: positive velocity" : "Progression ledger: stable") : "Progression ledger pending";
+    return {version:"5.7.68", label, rows:rows.sort((a,b)=>Number(b.etu||0)-Number(a.etu||0)), priorityRows, avgConfidence:Math.round(avgConfidence), avgVelocity:Math.round(avgVelocity * 10) / 10, highPlateau, totalDomains:rows.length};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderSkillProgressionLedgerSafe"); } catch (_) {}
+    return {version:"5.7.68", label:"Progression ledger unavailable", rows:[], priorityRows:[], avgConfidence:0, avgVelocity:0, highPlateau:0, totalDomains:0};
+  }
+}
+function renderSmartBuilderSkillProgressionLedgerSafe(plan) {
+  try {
+    const ledger = plan?.skillProgressionLedger || smartBuilderSkillProgressionLedgerSafe(data.logs || [], {etuContext:plan?.etuContext});
+    const rows = (ledger.rows || []).slice(0,6);
+    if (!rows.length) return `<div class="adaptive-rationale"><strong>Skill progression ledger:</strong> add more logged routines to estimate level, ETU exposure, velocity and plateau risk by domain.</div>`;
+    const cls = Number(ledger.highPlateau || 0) ? "adaptive-watch" : Number(ledger.avgVelocity || 0) > 2 ? "adaptive-ok" : "";
+    const cards = rows.map(r => {
+      const width = Math.max(3, Math.min(100, Number(r.progressToNext || 0)));
+      const stale = r.daysSinceLastLog === null ? "no recent log" : `${numText(r.daysSinceLastLog)}d since log`;
+      return `<div class="prediction-domain-etu-row">
+        <div class="prediction-domain-etu-main">
+          <strong>${escapeHtml(r.label)}</strong>
+          <small>${escapeHtml(r.currentLevel)} · score ${numText(r.score)} · velocity ${Number(r.progressionVelocity || 0) >= 0 ? "+" : ""}${numText(r.progressionVelocity)} · ${escapeHtml(r.plateauType)} · confidence ${numText(r.evidenceConfidence)}%</small>
+          <div class="prediction-domain-track"><b style="width:${width.toFixed(1)}%"></b></div>
+        </div>
+        <div class="prediction-domain-etu-value"><strong>${numText(r.etu)}</strong><span>ETU</span><small>${escapeHtml(r.nextLBandRequirement)} · ${escapeHtml(stale)}</small></div>
+      </div>`;
+    }).join("");
+    const priority = (ledger.priorityRows || []).slice(0,3).map(r => `${r.label}: ${r.plateauType}, ${numText(r.etu)} ETU`).join(" · ") || "none";
+    return `<details class="smart-builder-why-details ${cls}" open><summary>Skill progression ledger v5.7.68</summary><div class="adaptive-rationale ${cls}"><strong>${escapeHtml(ledger.label || "Progression ledger")}</strong> · domains ${numText(ledger.totalDomains)} · avg confidence ${numText(ledger.avgConfidence)}% · avg velocity ${Number(ledger.avgVelocity || 0) >= 0 ? "+" : ""}${numText(ledger.avgVelocity)} · plateau-watch domains ${numText(ledger.highPlateau)}.<br><span class="muted small">Priority watch: ${escapeHtml(priority)}.</span></div>${cards}</details>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.68 Skill Progression Ledger ===== */
+
+
+/* ===== v5.7.69 Skill-Domain Detail Pages =====
+   Adds domain-level drill pages on top of the v5.7.68 ledger. These pages are
+   diagnostic surfaces only: they explain what each domain needs next without
+   changing the locked builder calibration or session optimizer. */
+function smartBuilderDomainIncomingTransferEdgesSafe(domainKey) {
+  try {
+    const key = String(domainKey || "general");
+    const rows = [];
+    Object.entries(SKILL_TRANSFER_GRAPH || {}).forEach(([from, edges]) => {
+      Object.entries(edges || {}).forEach(([to, edge]) => {
+        if (String(to) !== key) return;
+        const e = normalizeTransferEdgeSafe(edge);
+        rows.push({from, to, type:e.type, weight:Number(e.weight || 0), reason:e.reason || "incoming transfer"});
+      });
+    });
+    return rows.sort((a,b)=>Math.abs(Number(b.weight||0))-Math.abs(Number(a.weight||0))).slice(0,6);
+  } catch (_) { return []; }
+}
+function smartBuilderRoutineDomainFitForDetailSafe(routine, domainKey) {
+  try {
+    const key = String(domainKey || "general");
+    const ownDomain = smartBuilderRoutineDomainKeySafe(routine);
+    const graph = routineGraphTransferProfile(routine);
+    const direct = ownDomain === key ? 1 : 0;
+    const downstream = (graph?.topDownstream || []).find(x => String(x.skill) === key);
+    const incoming = smartBuilderDomainIncomingTransferEdgesSafe(key).find(x => String(x.from) === ownDomain);
+    const transferWeight = downstream ? Math.max(0, Number(downstream.weight || 0)) : incoming ? Math.max(0, Number(incoming.weight || 0)) : 0;
+    const interference = downstream && Number(downstream.weight || 0) < 0 ? Math.abs(Number(downstream.weight || 0)) : 0;
+    const score = direct * 100 + transferWeight * 55 - interference * 45 + Number(routineTransferValue?.(routine) || 0) * 0.18;
+    const relation = direct ? "direct domain" : transferWeight >= 0.22 ? "strong transfer" : transferWeight >= 0.10 ? "supporting transfer" : interference ? "interference watch" : "weak fit";
+    return {score:Math.round(score * 10) / 10, relation, ownDomain, graph, transferWeight:Math.round(transferWeight * 100) / 100, interference:Math.round(interference * 100) / 100};
+  } catch (_) { return {score:0, relation:"unknown fit", ownDomain:"general", graph:null, transferWeight:0, interference:0}; }
+}
+function smartBuilderDomainRoutineStatsSafe(domainKey, logs=(data.logs || [])) {
+  try {
+    const key = String(domainKey || "general");
+    const byRoutine = new Map();
+    (Array.isArray(logs) ? logs : []).forEach(log => {
+      const r = routineById(log?.routineId) || {};
+      const rKey = smartBuilderRoutineDomainKeySafe(r);
+      const lKey = predictionDomainKeyFromLogSafe(log);
+      const fit = smartBuilderRoutineDomainFitForDetailSafe(r, key);
+      if (rKey !== key && lKey !== key && Number(fit.transferWeight || 0) < 0.10) return;
+      const id = log?.routineId || r.id || `${key}-unknown`;
+      const rec = byRoutine.get(id) || {id, name:r.name || log?.routineName || "Exercise", logs:0, scores:[], minutes:0, fit};
+      const score = safeNormalizedLogScore(log);
+      rec.logs += 1;
+      if (Number.isFinite(score)) rec.scores.push(score);
+      rec.minutes += Number(log?.minutes || log?.duration || log?.durationMinutes || 0);
+      byRoutine.set(id, rec);
+    });
+    return Array.from(byRoutine.values()).map(x => ({...x, avgScore:x.scores.length ? Math.round(avg(x.scores) * 10) / 10 : null, minutes:Math.round(Number(x.minutes || 0))})).sort((a,b)=>(Number(b.logs||0)*3 + Number(b.fit?.score||0)*0.08) - (Number(a.logs||0)*3 + Number(a.fit?.score||0)*0.08)).slice(0,6);
+  } catch (_) { return []; }
+}
+function smartBuilderDomainRecommendedDrillsSafe(domainRow, logs=(data.logs || [])) {
+  try {
+    const key = String(domainRow?.key || "general");
+    const loggedCounts = new Map();
+    (Array.isArray(logs) ? logs : []).forEach(log => loggedCounts.set(log?.routineId, (loggedCounts.get(log?.routineId) || 0) + 1));
+    const pool = (activeRoutines() || []).map(r => {
+      const fit = smartBuilderRoutineDomainFitForDetailSafe(r, key);
+      const mode = (typeof smartBuilderBenchmarkModeForRoutineSafe === "function" ? smartBuilderBenchmarkModeForRoutineSafe(r) : null) || r.benchmarkMode || "support";
+      const energy = routineEnergyProfile(r);
+      const exposurePenalty = Math.min(10, Number(loggedCounts.get(r.id) || 0) * 0.7);
+      let score = Number(fit.score || 0) - exposurePenalty;
+      if (Number(domainRow?.plateauRisk || 0) >= 55 && fit.relation !== "weak fit") score += 8;
+      if (Number(domainRow?.evidenceConfidence || 0) < 45 && String(mode).includes("test")) score += 5;
+      if (String(domainRow?.plateauType || "").includes("fatigue") && Number(energy.fatigue || 0) >= 3) score -= 9;
+      if (String(domainRow?.plateauType || "").includes("volatility") && Number(energy.confidence || 0) >= 3) score -= 7;
+      return {routine:r, fit, score:Math.round(score * 10) / 10, benchmarkMode:mode, energy};
+    }).filter(x => x.fit.relation !== "weak fit" || Number(x.fit.score || 0) >= 12).sort((a,b)=>Number(b.score||0)-Number(a.score||0)).slice(0,5);
+    return pool.map(x => ({id:x.routine.id, name:x.routine.name || "Exercise", relation:x.fit.relation, score:x.score, benchmarkMode:x.benchmarkMode, transfer:x.fit.transferWeight, cognitive:x.energy.cognitive, fatigue:x.energy.fatigue, confidence:x.energy.confidence}));
+  } catch (_) { return []; }
+}
+function smartBuilderDomainConstraintSummarySafe(row) {
+  try {
+    const out = [];
+    if (Number(row?.plateauRisk || 0) >= 60) out.push(`${row.plateauType || "plateau"}: reduce noise before adding load`);
+    if (Number(row?.evidenceConfidence || 0) < 45) out.push("low evidence: use calibration drills before hard conclusions");
+    if (Number(row?.benchmarkExposureRate || 0) < 15) out.push("benchmark underexposure: add controlled benchmark support");
+    if (Number(row?.volatilityStability || 0) < 55) out.push("volatile results: favor stable repeatable setups");
+    if (Number(row?.daysSinceLastLog || 0) > 14) out.push("stale domain: reintroduce with moderate ETU");
+    if (!out.length) out.push("no binding constraint: progress with normal ETU discipline");
+    return out.slice(0,4);
+  } catch (_) { return ["constraint summary unavailable"]; }
+}
+function smartBuilderDomainSensitivitiesSafe(row) {
+  try {
+    const sub = row?.etuSubtypes || {};
+    const total = Math.max(0.1, Object.values(sub).reduce((a,b)=>a+Number(b||0),0));
+    const pressureShare = Number(sub.pressure || 0) / total;
+    const emotionalShare = Number(sub.emotional || 0) / total;
+    const recoverySensitivity = String(row?.plateauType || "").includes("fatigue") || Number(row?.plateauRisk || 0) >= 65 ? "high" : emotionalShare >= 0.22 ? "medium-high" : "normal";
+    const pressureSensitivity = pressureShare >= 0.22 || String(row?.key || "").includes("pressure") ? "high" : Number(row?.benchmarkExposureRate || 0) >= 30 ? "medium" : "low-medium";
+    return {recoverySensitivity, pressureSensitivity, pressureShare:Math.round(pressureShare*100), emotionalShare:Math.round(emotionalShare*100)};
+  } catch (_) { return {recoverySensitivity:"unknown", pressureSensitivity:"unknown", pressureShare:0, emotionalShare:0}; }
+}
+function smartBuilderSkillDomainDetailPagesSafe(ledger=null, context={}) {
+  try {
+    const base = ledger || smartBuilderSkillProgressionLedgerSafe(data.logs || [], context);
+    const logs = Array.isArray(context?.logs) ? context.logs : (data.logs || []);
+    const rows = (base.rows || []).map(row => {
+      const outgoing = Object.entries(SKILL_TRANSFER_GRAPH?.[row.key] || {}).map(([to, edge]) => { const e = normalizeTransferEdgeSafe(edge); return {to, type:e.type, weight:Number(e.weight || 0), reason:e.reason || "transfer edge"}; }).sort((a,b)=>Math.abs(Number(b.weight||0))-Math.abs(Number(a.weight||0))).slice(0,6);
+      const incoming = smartBuilderDomainIncomingTransferEdgesSafe(row.key);
+      const dominantRoutines = smartBuilderDomainRoutineStatsSafe(row.key, logs);
+      const recommendedDrills = smartBuilderDomainRecommendedDrillsSafe(row, logs);
+      const constraints = smartBuilderDomainConstraintSummarySafe(row);
+      const sensitivities = smartBuilderDomainSensitivitiesSafe(row);
+      const benchmarkPath = Number(row.benchmarkExposureRate || 0) >= 30 ? "maintain benchmark exposure and raise strictness gradually" : Number(row.benchmarkExposure || 0) ? "convert support exposure into calibration tests" : "add low-pressure benchmark support before formal testing";
+      const nextAction = constraints[0] || "continue normal progression";
+      return {version:"5.7.69", ...row, dominantRoutines, recommendedDrills, constraints, outgoingTransfer:outgoing, incomingTransfer:incoming, benchmarkPath, sensitivities, nextAction};
+    }).sort((a,b)=>(Number(b.plateauRisk||0)*1.1 + Math.max(0,55-Number(b.evidenceConfidence||0))*0.6 + Number(b.etu||0)*0.15) - (Number(a.plateauRisk||0)*1.1 + Math.max(0,55-Number(a.evidenceConfidence||0))*0.6 + Number(a.etu||0)*0.15));
+    return {version:"5.7.69", label:rows.length ? "Skill-domain detail pages ready" : "Skill-domain details pending", rows, totalDomains:rows.length, generatedAt:new Date().toISOString()};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderSkillDomainDetailPagesSafe"); } catch (_) {}
+    return {version:"5.7.69", label:"Skill-domain details unavailable", rows:[], totalDomains:0};
+  }
+}
+function renderSmartBuilderSkillDomainDetailPagesSafe(plan) {
+  try {
+    const details = plan?.skillDomainDetails || smartBuilderSkillDomainDetailPagesSafe(plan?.skillProgressionLedger, {etuContext:plan?.etuContext});
+    const rows = (details.rows || []).slice(0,8);
+    if (!rows.length) return `<div class="adaptive-rationale"><strong>Skill-domain detail pages:</strong> log more sessions to create domain pages with routines, ETU, trend, constraints and transfer dependencies.</div>`;
+    const cards = rows.map(row => {
+      const cls = Number(row.plateauRisk || 0) >= 60 ? "adaptive-watch" : Number(row.progressionVelocity || 0) > 2 ? "adaptive-ok" : "";
+      const routineRows = (row.dominantRoutines || []).slice(0,4).map(r => `<div class="context-row"><span>${escapeHtml(r.name)}<br><span class="muted">${numText(r.logs)} logs · ${escapeHtml(r.fit?.relation || "fit")} · avg ${r.avgScore === null ? "—" : numText(r.avgScore)}</span></span><strong>${numText(r.fit?.score || 0)}</strong></div>`).join("") || `<div class="muted small">No dominant routine evidence yet.</div>`;
+      const drillRows = (row.recommendedDrills || []).slice(0,4).map(r => `<div class="context-row"><span>${escapeHtml(r.name)}<br><span class="muted">${escapeHtml(r.relation)} · ${escapeHtml(String(r.benchmarkMode || "support"))} · confidence risk ${numText(r.confidence)}</span></span><strong>${numText(r.score)}</strong></div>`).join("") || `<div class="muted small">No active drill fit found.</div>`;
+      const transferRows = [
+        ...(row.outgoingTransfer || []).slice(0,3).map(e => `${skillLabel(e.to)} (${e.type}, ${numText(e.weight)})`),
+        ...(row.incomingTransfer || []).slice(0,2).map(e => `${skillLabel(e.from)} → this (${e.type})`)
+      ].join(" · ") || "no explicit transfer dependency";
+      const constraints = (row.constraints || []).map(x => `<span class="adaptive-pill compact">${escapeHtml(x)}</span>`).join("");
+      return `<details class="smart-builder-why-details skill-domain-detail-page ${cls}"><summary>${escapeHtml(row.label)} · ${escapeHtml(row.currentLevel)} · ${numText(row.etu)} ETU · ${escapeHtml(row.plateauType)}</summary>
+        <div class="adaptive-rationale ${cls}"><strong>Domain cockpit:</strong> score ${numText(row.score)} · velocity ${Number(row.progressionVelocity || 0) >= 0 ? "+" : ""}${numText(row.progressionVelocity)} · confidence ${numText(row.evidenceConfidence)}% · next ${escapeHtml(row.nextLBandRequirement)}.<br><span class="muted small">Benchmark path: ${escapeHtml(row.benchmarkPath)} · recovery sensitivity ${escapeHtml(row.sensitivities?.recoverySensitivity || "unknown")} · pressure sensitivity ${escapeHtml(row.sensitivities?.pressureSensitivity || "unknown")}.</span></div>
+        <div class="smart-builder-constraint-summary">${constraints}</div>
+        <div class="grid two skill-domain-detail-grid"><div class="analytics-note"><strong>Dominant routines</strong>${routineRows}</div><div class="analytics-note"><strong>Recommended next drills</strong>${drillRows}</div></div>
+        <div class="analytics-note"><strong>Transfer dependencies:</strong> ${escapeHtml(transferRows)}.<br><span class="muted small">Next constraint: ${escapeHtml(row.nextAction || "continue normal progression")}.</span></div>
+      </details>`;
+    }).join("");
+    return `<details class="smart-builder-why-details skill-domain-pages" open><summary>Skill-domain detail pages v5.7.69</summary><div class="adaptive-rationale"><strong>${escapeHtml(details.label || "Skill-domain details")}</strong> · ${numText(details.totalDomains)} domains. Each page links level, ETU load, trend, constraints, drill selection, transfer dependencies, benchmark path and recovery/pressure sensitivity.</div>${cards}</details>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.69 Skill-Domain Detail Pages ===== */
+
+
+/* ===== v5.7.70 Skill Level History =====
+   Adds a read-only chronology above the v5.7.68 ledger and v5.7.69 domain pages.
+   It estimates rolling domain level history, confidence intervals, phase-change markers,
+   benchmark breakthroughs, ETU spikes and fatigue-crash signals from existing logs. */
+function smartBuilderHistoryLogTimeSafe(log, fallbackIndex=0) {
+  try {
+    const raw = log?.createdAt || log?.updatedAt || log?.date || log?.sessionDate || log?.playedAt || "";
+    const t = Date.parse(raw);
+    return Number.isFinite(t) ? t : (Date.now() - Math.max(0, fallbackIndex) * 86400000);
+  } catch (_) { return Date.now() - Math.max(0, fallbackIndex) * 86400000; }
+}
+function smartBuilderHistoryLogEtuSafe(log) {
+  try {
+    const minutes = Math.max(0, Number(log?.timeMinutes || log?.minutes || log?.duration || log?.durationMinutes || 0));
+    if (minutes > 0) return Math.round(Math.max(0.12, minutes / 45) * 100) / 100;
+    const attempts = Math.max(0, Number(log?.attempts || log?.tries || log?.shots || 0));
+    if (attempts > 0) return Math.round(Math.max(0.10, Math.min(1.2, attempts / 35)) * 100) / 100;
+    return 0.25;
+  } catch (_) { return 0.25; }
+}
+function smartBuilderHistoryBenchmarkFlagSafe(log) {
+  try {
+    const r = routineById(log?.routineId) || {};
+    const text = `${textForLog(log)} ${r.name || ""} ${r.category || ""} ${r.benchmarkMode || ""}`.toLowerCase();
+    return !!(r.isBenchmark || r.benchmarkMode || /benchmark|calibration|test|target|pressure/.test(text));
+  } catch (_) { return false; }
+}
+function smartBuilderHistoryFatigueFlagSafe(log) {
+  try {
+    const text = `${textForLog(log)} ${log?.notes || ""} ${log?.reflection || ""}`.toLowerCase();
+    const fatigue = Number(log?.fatigue ?? log?.fatigueRating ?? log?.energyCost ?? NaN);
+    const quality = Number(log?.quality ?? log?.qualityRating ?? NaN);
+    return /fatigue|tired|low energy|rushed|drained|heavy/.test(text) || (Number.isFinite(fatigue) && fatigue >= 4) || (Number.isFinite(quality) && quality <= 2);
+  } catch (_) { return false; }
+}
+function smartBuilderScoreConfidenceIntervalSafe(scores) {
+  try {
+    const arr = (Array.isArray(scores) ? scores : []).map(Number).filter(Number.isFinite);
+    if (!arr.length) return {low:0, high:0, width:100, n:0};
+    const mean = avg(arr);
+    const sd = arr.length >= 2 ? (stdDev(arr) || 0) : 18;
+    const evidencePenalty = arr.length < 5 ? (5 - arr.length) * 2.8 : 0;
+    const halfWidth = Math.max(4, Math.min(28, 1.64 * sd / Math.sqrt(Math.max(1, arr.length)) + evidencePenalty));
+    return {low:Math.max(0, Math.round((mean - halfWidth) * 10) / 10), high:Math.min(100, Math.round((mean + halfWidth) * 10) / 10), width:Math.round(halfWidth * 2 * 10) / 10, n:arr.length};
+  } catch (_) { return {low:0, high:100, width:100, n:0}; }
+}
+function smartBuilderDomainSkillHistoryRowSafe(domainRow, logs=(data.logs || [])) {
+  try {
+    const key = String(domainRow?.key || "general");
+    const domainLogs = (Array.isArray(logs) ? logs : []).map((log, idx) => ({log, idx, time:smartBuilderHistoryLogTimeSafe(log, idx)}))
+      .filter(x => predictionDomainKeyFromLogSafe(x.log) === key)
+      .sort((a,b)=>a.time-b.time);
+    const points = [];
+    const markers = [];
+    let lastLevel = null;
+    let cumulativeEtu = 0;
+    let bestRolling = -Infinity;
+    domainLogs.forEach((item, i) => {
+      const score = safeNormalizedLogScore(item.log);
+      if (!Number.isFinite(score)) return;
+      const etu = smartBuilderHistoryLogEtuSafe(item.log);
+      cumulativeEtu += etu;
+      const window = domainLogs.slice(Math.max(0, i - 5), i + 1).map(x => safeNormalizedLogScore(x.log)).filter(Number.isFinite);
+      const rolling = window.length ? avg(window) : score;
+      const levelInfo = smartBuilderSkillLevelFromScoreSafe(rolling, i + 1);
+      const ci = smartBuilderScoreConfidenceIntervalSafe(window);
+      const dateIso = new Date(item.time).toISOString().slice(0,10);
+      const benchmark = smartBuilderHistoryBenchmarkFlagSafe(item.log);
+      const fatigue = smartBuilderHistoryFatigueFlagSafe(item.log);
+      const point = {date:dateIso, time:item.time, score:Math.round(score*10)/10, rollingScore:Math.round(rolling*10)/10, level:levelInfo.label, levelNum:levelInfo.level, ciLow:ci.low, ciHigh:ci.high, ciWidth:ci.width, etu:Math.round(etu*100)/100, cumulativeEtu:Math.round(cumulativeEtu*10)/10, benchmark, fatigue};
+      if (lastLevel !== null && levelInfo.level !== lastLevel) {
+        markers.push({type:levelInfo.level > lastLevel ? "level-up" : "level-down", date:dateIso, label:`${levelInfo.level > lastLevel ? "Level-up" : "Level-down"}: L${lastLevel} → ${levelInfo.label}`, score:point.rollingScore});
+      }
+      if (benchmark && rolling > bestRolling + 3) markers.push({type:"benchmark-breakthrough", date:dateIso, label:`Benchmark breakthrough at ${numText(point.rollingScore)}`, score:point.rollingScore});
+      if (etu >= 0.9) markers.push({type:"etu-spike", date:dateIso, label:`ETU spike ${numText(etu)}`, score:point.rollingScore});
+      if (fatigue && i >= 2) {
+        const prev = points.slice(-3).map(p => p.rollingScore);
+        const prevAvg = prev.length ? avg(prev) : rolling;
+        if (rolling <= prevAvg - 4 || Number(domainRow?.plateauType || "").toString().includes("fatigue")) markers.push({type:"fatigue-crash", date:dateIso, label:`Fatigue crash watch at ${numText(point.rollingScore)}`, score:point.rollingScore});
+      }
+      bestRolling = Math.max(bestRolling, rolling);
+      lastLevel = levelInfo.level;
+      points.push(point);
+    });
+    const recent = points.slice(-6);
+    const first = points[0] || null;
+    const last = points[points.length - 1] || null;
+    const trend = first && last ? Math.round((last.rollingScore - first.rollingScore) * 10) / 10 : 0;
+    const latestCi = recent.length ? smartBuilderScoreConfidenceIntervalSafe(recent.map(p=>p.rollingScore)) : {low:0, high:0, width:0, n:0};
+    return {version:"5.7.70", key, label:domainRow?.label || predictionDomainLabelSafe(key), currentLevel:domainRow?.currentLevel || last?.level || "L1", points, markers:markers.slice(-12), trend, latestConfidenceInterval:latestCi, totalEvents:points.length, cumulativeEtu:Math.round(cumulativeEtu*10)/10, lastPoint:last};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderDomainSkillHistoryRowSafe"); } catch (_) {}
+    return {version:"5.7.70", key:String(domainRow?.key || "general"), label:domainRow?.label || "General", points:[], markers:[], trend:0, latestConfidenceInterval:{low:0, high:0, width:0, n:0}, totalEvents:0, cumulativeEtu:0};
+  }
+}
+function smartBuilderSkillLevelHistorySafe(ledger=null, context={}) {
+  try {
+    const base = ledger || smartBuilderSkillProgressionLedgerSafe(data.logs || [], context);
+    const logs = Array.isArray(context?.logs) ? context.logs : (data.logs || []);
+    const rows = (base.rows || []).map(row => smartBuilderDomainSkillHistoryRowSafe(row, logs))
+      .filter(row => row.totalEvents || row.cumulativeEtu)
+      .sort((a,b)=>(Number(b.markers?.length||0)*3 + Number(b.cumulativeEtu||0)) - (Number(a.markers?.length||0)*3 + Number(a.cumulativeEtu||0)));
+    const allMarkers = rows.flatMap(row => (row.markers || []).map(m => ({...m, domain:row.label, domainKey:row.key}))).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,16);
+    const levelUps = allMarkers.filter(m => m.type === "level-up").length;
+    const breakthroughs = allMarkers.filter(m => m.type === "benchmark-breakthrough").length;
+    const fatigueCrashes = allMarkers.filter(m => m.type === "fatigue-crash").length;
+    const etuSpikes = allMarkers.filter(m => m.type === "etu-spike").length;
+    const label = rows.length ? (levelUps || breakthroughs ? "Skill history: progression events detected" : fatigueCrashes ? "Skill history: fatigue-crash watch" : "Skill history: stable chronology") : "Skill history pending";
+    return {version:"5.7.70", label, rows, markers:allMarkers, totalDomains:rows.length, levelUps, breakthroughs, fatigueCrashes, etuSpikes, generatedAt:new Date().toISOString()};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderSkillLevelHistorySafe"); } catch (_) {}
+    return {version:"5.7.70", label:"Skill history unavailable", rows:[], markers:[], totalDomains:0, levelUps:0, breakthroughs:0, fatigueCrashes:0, etuSpikes:0};
+  }
+}
+function renderSmartBuilderSkillHistorySparklineSafe(row) {
+  try {
+    const pts = (row.points || []).slice(-12);
+    if (pts.length < 2) return `<div class="muted small">Insufficient points for trend line.</div>`;
+    const width = 180, height = 44, pad = 4;
+    const scores = pts.map(p=>Number(p.rollingScore||0));
+    const min = Math.max(0, Math.min(...scores) - 5);
+    const max = Math.min(100, Math.max(...scores) + 5);
+    const span = Math.max(1, max - min);
+    const coords = pts.map((p,i) => {
+      const x = pad + (width - pad*2) * (i / Math.max(1, pts.length - 1));
+      const y = height - pad - (height - pad*2) * ((Number(p.rollingScore||0) - min) / span);
+      return `${Math.round(x)},${Math.round(y)}`;
+    }).join(" ");
+    const band = pts.map((p,i) => {
+      const x = pad + (width - pad*2) * (i / Math.max(1, pts.length - 1));
+      const y = height - pad - (height - pad*2) * ((Number(p.ciHigh||p.rollingScore||0) - min) / span);
+      return `${Math.round(x)},${Math.round(y)}`;
+    }).join(" ") + " " + pts.slice().reverse().map((p,i) => {
+      const x = pad + (width - pad*2) * ((pts.length-1-i) / Math.max(1, pts.length - 1));
+      const y = height - pad - (height - pad*2) * ((Number(p.ciLow||p.rollingScore||0) - min) / span);
+      return `${Math.round(x)},${Math.round(y)}`;
+    }).join(" ");
+    return `<svg class="skill-history-sparkline" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(row.label)} skill history"><polygon points="${escapeHtml(band)}" opacity="0.16"></polygon><polyline points="${escapeHtml(coords)}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>`;
+  } catch (_) { return ""; }
+}
+function renderSmartBuilderSkillLevelHistorySafe(plan) {
+  try {
+    const history = plan?.skillLevelHistory || smartBuilderSkillLevelHistorySafe(plan?.skillProgressionLedger, {logs:data.logs || [], etuContext:plan?.etuContext});
+    const rows = (history.rows || []).slice(0,8);
+    if (!rows.length) return `<div class="adaptive-rationale"><strong>Skill level history:</strong> log more dated routines to build level chronology, phase-change markers, breakthrough markers and fatigue-crash detection.</div>`;
+    const markerSummary = (history.markers || []).slice(0,6).map(m => `<span class="adaptive-pill compact">${escapeHtml(m.date)} · ${escapeHtml(m.domain)} · ${escapeHtml(m.label)}</span>`).join("") || `<span class="muted small">No major markers yet.</span>`;
+    const cards = rows.map(row => {
+      const last = row.lastPoint || {};
+      const ci = row.latestConfidenceInterval || {};
+      const cls = (row.markers || []).some(m=>m.type==="fatigue-crash") ? "adaptive-watch" : Number(row.trend || 0) > 3 ? "adaptive-ok" : "";
+      const markers = (row.markers || []).slice(-5).reverse().map(m => `<span class="adaptive-pill compact">${escapeHtml(m.date)} · ${escapeHtml(m.label)}</span>`).join("") || `<span class="muted small">No phase-change marker.</span>`;
+      return `<details class="smart-builder-why-details skill-level-history-card ${cls}"><summary>${escapeHtml(row.label)} · ${escapeHtml(row.currentLevel || last.level || "L?")} · trend ${Number(row.trend||0)>=0?"+":""}${numText(row.trend)} · ${numText(row.totalEvents)} events</summary>
+        <div class="adaptive-rationale ${cls}"><strong>History:</strong> latest rolling score ${numText(last.rollingScore || 0)} · confidence interval ${numText(ci.low)}–${numText(ci.high)} · cumulative ETU ${numText(row.cumulativeEtu)}.<br><span class="muted small">Markers capture level changes, benchmark breakthroughs, ETU spikes and fatigue-crash warnings.</span></div>
+        ${renderSmartBuilderSkillHistorySparklineSafe(row)}
+        <div class="smart-builder-constraint-summary">${markers}</div>
+      </details>`;
+    }).join("");
+    return `<details class="smart-builder-why-details skill-level-history" open><summary>Skill level history v5.7.70</summary><div class="adaptive-rationale"><strong>${escapeHtml(history.label || "Skill history")}</strong> · domains ${numText(history.totalDomains)} · level-ups ${numText(history.levelUps)} · benchmark breakthroughs ${numText(history.breakthroughs)} · ETU spikes ${numText(history.etuSpikes)} · fatigue-crash watches ${numText(history.fatigueCrashes)}.</div><div class="smart-builder-constraint-summary">${markerSummary}</div>${cards}</details>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.70 Skill Level History ===== */
+
+
+
+/* ===== v5.7.71 Routine Schema Audit ===== */
+function smartBuilderRoutineAuditNormalizeListSafe(values) {
+  return Array.isArray(values) ? values.filter(Boolean).map(x => String(x).trim()).filter(Boolean) : [];
+}
+function smartBuilderRoutineAuditSuitabilitySafe(routine, state=null) {
+  const stats = routineStats(routine?.id);
+  const volatility = routineVolatilityProfile(routine, stats);
+  const energy = routineEnergyProfile(state || {routine, phase:"maintain"});
+  const benchmarkMode = smartBuilderBenchmarkModeSafe(state || {routine});
+  const transfer = routineTransferValue(routine);
+  const skillMap = getRoutineSkillMap(routine);
+  const skills = new Set([skillMap.primarySkill, ...(skillMap.secondarySkills || []), ...(skillMap.transferTags || [])].filter(Boolean));
+  const acquisition = clampNumber(Math.round(52 + (transfer >= 65 ? 12 : 0) + (volatility.level === "low" ? 10 : volatility.level === "medium" ? 4 : -8) - Math.max(0, energy.cognitive - 3) * 4), 0, 100);
+  const recovery = clampNumber(Math.round(62 + (routine?.isAnchor ? 12 : 0) + (volatility.level === "low" ? 14 : volatility.level === "medium" ? 2 : -16) - (energy.cognitive + energy.fatigue + energy.confidence - 6) * 4 - (benchmarkMode === "test" || benchmarkMode === "pressure-test" ? 14 : 0)), 0, 100);
+  const pressure = clampNumber(Math.round(38 + (skills.has("pressure_resilience") ? 22 : 0) + (benchmarkMode === "pressure-test" ? 18 : benchmarkMode === "test" ? 10 : 0) + (volatility.level === "high" ? 8 : 0) + Math.max(0, energy.confidence - 2) * 5), 0, 100);
+  return {acquisition, recovery, pressure, volatility, energy, transfer};
+}
+function smartBuilderRoutineSchemaAuditRowSafe(routine, context={}) {
+  try {
+    const state = (context.ranked || []).find(x => String(x?.routine?.id) === String(routine?.id)) || {routine};
+    const skillMap = getRoutineSkillMap(routine);
+    const primary = String(skillMap.primarySkill || "").trim();
+    const secondary = smartBuilderRoutineAuditNormalizeListSafe(skillMap.secondarySkills);
+    const transferTags = smartBuilderRoutineAuditNormalizeListSafe(skillMap.transferTags);
+    const benchmarkMode = normalizeBenchmarkMode(routine?.benchmarkMode || inferBenchmarkModeFromRoutine(routine));
+    const benchmarkExposure = normalizeBenchmarkExposure(routine?.benchmarkExposure || inferBenchmarkExposureFromRoutine(routine));
+    const benchmarkExposureWeight = normalizeBenchmarkExposureWeight(routine?.benchmarkExposureWeight, benchmarkMode);
+    const benchmarkStrictness = normalizeBenchmarkStrictness(routine?.benchmarkStrictness);
+    const suitability = smartBuilderRoutineAuditSuitabilitySafe(routine, state);
+    const etu = smartBuilderPickEtuSubtypeEstimateSafe({state, reps:1}, {blockType:state?.blockType || "primary"});
+    const transferProfile = routineGraphTransferProfile?.(routine) || {};
+    const transferStrength = Number.isFinite(Number(state?.transferValue)) ? Number(state.transferValue) : routineTransferValue(routine);
+    const issues = [];
+    const warnings = [];
+    const addIssue = (code, label, severity="risk") => issues.push({code, label, severity});
+    const addWarn = (code, label) => warnings.push({code, label, severity:"watch"});
+    if (!primary) addIssue("missing_primary_skill", "Missing primary skill");
+    if (!routine?.category || String(routine.category).toLowerCase() === "uncategorized") addWarn("missing_category", "Weak/missing category");
+    if (!routine?.scoringMode && !routine?.scoringRule) addWarn("missing_scoring_rule", "Scoring rule not explicit");
+    if (!routine?.target && !routine?.targetScore && !routine?.benchmarks && !hasBenchmarkTargets(routine)) addWarn("missing_target_ladder", "No target or benchmark ladder");
+    if (["test","pressure-test"].includes(benchmarkMode) && !hasBenchmarkTargets(routine)) addIssue("benchmark_test_without_targets", "Benchmark test lacks explicit targets", "critical");
+    if (benchmarkMode === "support" && Number(benchmarkExposureWeight || 0) > 55) addWarn("support_weight_too_high", "Support drill has high benchmark weight");
+    if (benchmarkMode === "pressure-test" && suitability.pressure < 55) addIssue("pressure_mode_low_pressure_fit", "Pressure-test mode but low pressure suitability");
+    if (suitability.volatility.level === "high" && suitability.recovery > 65) addWarn("high_vol_recovery_fit", "High volatility conflicts with recovery suitability");
+    if (secondary.length + transferTags.length > 8) addWarn("over_tagging", "Many skill tags; check over-tagging");
+    if (!transferTags.length && transferStrength >= 65) addWarn("transfer_missing_tags", "High transfer score but no transfer tags");
+    if ((routine?.duration || 0) && Number(routine.duration) > 35 && suitability.energy.fatigue <= 2) addWarn("duration_etu_mismatch", "Long routine but low fatigue ETU");
+    const completenessFields = [primary, routine?.category, routine?.folder, routine?.subfolder, benchmarkMode, benchmarkExposure, Number.isFinite(benchmarkExposureWeight), Number.isFinite(benchmarkStrictness), routine?.target || routine?.targetScore || hasBenchmarkTargets(routine), secondary.length || transferTags.length, routine?.duration || routine?.estimatedMinutes];
+    const completeness = Math.round(100 * completenessFields.filter(Boolean).length / completenessFields.length);
+    const riskScore = issues.filter(x=>x.severity==="critical").length * 35 + issues.filter(x=>x.severity!=="critical").length * 20 + warnings.length * 8;
+    const status = issues.some(x=>x.severity==="critical") ? "critical" : issues.length ? "risk" : warnings.length ? "watch" : "ok";
+    return {
+      routineId:routine?.id || "", routineName:routine?.name || "Exercise", category:routine?.category || "uncategorized", primarySkill:primary || "missing", secondarySkills:secondary, transferTags,
+      benchmarkMode, benchmarkExposure, benchmarkExposureWeight, benchmarkStrictness,
+      volatilityProfile:suitability.volatility, confidenceRisk:suitability.energy.confidence, etuProfile:etu, transferStrength, transferEdgeCount:Object.keys(transferProfile || {}).length,
+      acquisitionSuitability:suitability.acquisition, recoverySuitability:suitability.recovery, pressureSuitability:suitability.pressure,
+      issues, warnings, completeness, riskScore, status
+    };
+  } catch (err) {
+    try { logAppError(err, "smartBuilderRoutineSchemaAuditRowSafe"); } catch (_) {}
+    return {routineId:routine?.id || "", routineName:routine?.name || "Exercise", status:"risk", completeness:0, issues:[{code:"audit_error", label:"Routine audit failed", severity:"risk"}], warnings:[]};
+  }
+}
+function smartBuilderRoutineSchemaAuditSafe(context={}) {
+  try {
+    const routines = activeRoutines();
+    const rows = routines.map(r => smartBuilderRoutineSchemaAuditRowSafe(r, context)).sort((a,b) => (b.riskScore || 0) - (a.riskScore || 0) || (a.completeness || 0) - (b.completeness || 0));
+    const total = rows.length;
+    const critical = rows.filter(x=>x.status === "critical").length;
+    const risk = rows.filter(x=>x.status === "risk").length;
+    const watch = rows.filter(x=>x.status === "watch").length;
+    const ok = rows.filter(x=>x.status === "ok").length;
+    const avgCompleteness = total ? Math.round(avg(rows.map(x=>Number(x.completeness || 0)))) : 0;
+    const missingPrimary = rows.filter(x=>x.issues?.some(i=>i.code === "missing_primary_skill")).length;
+    const benchmarkMismatches = rows.filter(x=>[...(x.issues||[]), ...(x.warnings||[])].some(i=>/benchmark|support_weight/.test(i.code))).length;
+    const etuMismatches = rows.filter(x=>[...(x.issues||[]), ...(x.warnings||[])].some(i=>/etu|duration|recovery|pressure/.test(i.code))).length;
+    const transferGaps = rows.filter(x=>[...(x.issues||[]), ...(x.warnings||[])].some(i=>/transfer|tag/.test(i.code))).length;
+    const topIssues = rows.flatMap(r => [...(r.issues || []), ...(r.warnings || [])].map(i => ({...i, routineName:r.routineName}))).slice(0,10);
+    const status = critical ? "critical" : risk ? "risk" : watch ? "watch" : "ok";
+    return {version:"5.7.71", label:"Routine schema audit", status, total, critical, risk, watch, ok, avgCompleteness, missingPrimary, benchmarkMismatches, etuMismatches, transferGaps, topIssues, rows};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderRoutineSchemaAuditSafe"); } catch (_) {}
+    return {version:"5.7.71", label:"Routine schema audit unavailable", status:"risk", total:0, rows:[], topIssues:[]};
+  }
+}
+function renderSmartBuilderRoutineSchemaAuditSafe(plan) {
+  try {
+    const audit = plan?.routineSchemaAudit || smartBuilderRoutineSchemaAuditSafe({ranked:plan?.ranked || []});
+    const cls = audit.status === "critical" ? "adaptive-risk" : audit.status === "risk" ? "adaptive-risk" : audit.status === "watch" ? "adaptive-watch" : "adaptive-ok";
+    const summary = `routines ${numText(audit.total)} · complete ${numText(audit.avgCompleteness)}% · ok ${numText(audit.ok)} · watch ${numText(audit.watch)} · risk ${numText(audit.risk)} · critical ${numText(audit.critical)}`;
+    const issueChips = (audit.topIssues || []).slice(0,8).map(i => `<span class="adaptive-pill compact">${escapeHtml(i.routineName || "Routine")} · ${escapeHtml(i.label || i.code)}</span>`).join("") || `<span class="muted small">No major schema issue detected.</span>`;
+    const rows = (audit.rows || []).slice(0,12).map(r => {
+      const issueText = [...(r.issues || []), ...(r.warnings || [])].slice(0,4).map(i=>i.label).join(" · ") || "Schema coherent";
+      const subtype = r.etuProfile ? `ETU T${numText(r.etuProfile.technical)} / C${numText(r.etuProfile.cognitive)} / E${numText(r.etuProfile.emotional)} / P${numText(r.etuProfile.pressure)}` : "ETU profile unavailable";
+      const rowCls = r.status === "critical" || r.status === "risk" ? "adaptive-risk" : r.status === "watch" ? "adaptive-watch" : "adaptive-ok";
+      return `<div class="context-row ${rowCls}"><span>${escapeHtml(r.routineName)}<br><span class="muted small">${escapeHtml(r.primarySkill)} · benchmark ${escapeHtml(r.benchmarkMode)} · volatility ${escapeHtml(r.volatilityProfile?.level || "n/a")} · transfer ${numText(r.transferStrength)}/100</span></span><strong>${escapeHtml(String(r.completeness || 0))}%</strong><span>${escapeHtml(issueText)}<br><span class="muted small">${escapeHtml(subtype)} · fit A${numText(r.acquisitionSuitability)} / R${numText(r.recoverySuitability)} / P${numText(r.pressureSuitability)}</span></span></div>`;
+    }).join("");
+    return `<details class="smart-builder-why-details routine-schema-audit" open><summary>Routine schema audit v5.7.71</summary><div class="adaptive-rationale ${cls}"><strong>${escapeHtml(audit.label || "Routine schema audit")}:</strong> ${escapeHtml(summary)}.<br><span class="muted small">Checks benchmark mode, volatility profile, confidence risk, ETU profile, transfer strength, acquisition/recovery/pressure suitability and metadata completeness.</span></div><div class="smart-builder-constraint-summary">${issueChips}</div><details class="smart-builder-why-details"><summary>Highest-priority routine metadata checks</summary>${rows || `<div class="muted small">No active routines to audit.</div>`}</details></details>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.71 Routine Schema Audit ===== */
+
 
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
@@ -9226,7 +10058,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     const energyProfile = routineEnergyProfile(s);
     const layerModifiers = etuAdjustment.layerModifiers || {};
     const recommendationAudit = {
-      version:"5.7.67.17",
+      version:"5.7.71",
       baseSkillScore:roundSmartAuditNumber(baseSkillScore),
       bayesianScore:roundSmartAuditNumber(recommendationScore),
       bayesianContribution:roundSmartAuditNumber(bayesianContribution),
@@ -9359,14 +10191,25 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   blocks = etuSessionBudget.blocks;
   (etuSessionBudget.reasons || []).forEach(r => globalReasons.push(r));
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
+  const preOptimizationPlan = {effectiveGoal, targetMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, ranked, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, orchestratorStrategy:strategy, orchestratorIntensity:intensity};
+  const compositionOptimization = smartBuilderOptimizeSessionCompositionSafe(preOptimizationPlan);
+  blocks = compositionOptimization.blocks || blocks;
+  if (compositionOptimization?.status === "optimized") globalReasons.push("composition optimized under constraints");
+  blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
   const budgetUsage = budgetUsageForBlocks(blocks);
-  const templateCompliance = smartBuilderTemplateSessionComplianceSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget});
-  const recommendationSanity = smartBuilderRecommendationSanityLayerSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance});
-  const contradictionEngine = smartBuilderContradictionEngineSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, recommendationSanity, orchestratorStrategy:strategy, orchestratorIntensity:intensity});
-  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, recommendationSanity, contradictionEngine};
+  const templateCompliance = smartBuilderTemplateSessionComplianceSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization});
+  const recommendationSanity = smartBuilderRecommendationSanityLayerSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, compositionOptimization});
+  const contradictionEngine = smartBuilderContradictionEngineSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, recommendationSanity, compositionOptimization, orchestratorStrategy:strategy, orchestratorIntensity:intensity});
+  const calibrationLock = smartBuilderCalibrationLockAuditSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateCompliance, recommendationSanity, contradictionEngine});
+  if (calibrationLock?.status === "locked") globalReasons.push("builder calibration locked");
+  const skillProgressionLedger = smartBuilderSkillProgressionLedgerSafe(data.logs || [], {etuContext, effectiveGoal, sessionTemplate, blocks, ranked});
+  const skillDomainDetails = smartBuilderSkillDomainDetailPagesSafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
+  const skillLevelHistory = smartBuilderSkillLevelHistorySafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
+  const routineSchemaAudit = smartBuilderRoutineSchemaAuditSafe({effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
+  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateCompliance, recommendationSanity, contradictionEngine, calibrationLock, skillProgressionLedger, skillDomainDetails, skillLevelHistory, routineSchemaAudit};
   plan.transferGraphSummary = smartBuilderPlanTransferGraphSummarySafe(plan);
   return smartBuilderAttachRecommendationConfidenceSafe(plan);
 }
@@ -9535,8 +10378,14 @@ function renderAdaptiveSessionInternal() {
     ${renderSmartBuilderTaxonomyNoteSafe()}
     ${renderSmartBuilderDurationDisciplineSafe(plan)}
     ${renderSmartBuilderEtuSessionBudgetSafe(plan)}
+    ${renderSmartBuilderCompositionOptimizationSafe(plan)}
     ${renderSmartBuilderRecommendationSanitySafe(plan)}
     ${renderSmartBuilderContradictionEngineSafe(plan)}
+    ${renderSmartBuilderCalibrationLockSafe(plan)}
+    ${renderSmartBuilderSkillProgressionLedgerSafe(plan)}
+    ${renderSmartBuilderSkillDomainDetailPagesSafe(plan)}
+    ${renderSmartBuilderSkillLevelHistorySafe(plan)}
+    ${renderSmartBuilderRoutineSchemaAuditSafe(plan)}
     ${renderSmartBuilderPlanConfidenceSafe(plan)}
     ${renderSmartBuilderPlanTransferGraphSafe(plan)}
     ${renderSmartBuilderDebugConsoleSafe(plan)}
@@ -10985,7 +11834,7 @@ function generateSessionReviewSnapshotSafe(sessionId) {
   const nextType = readiness?.nextType || (quality.cls === "risk" ? "Recovery" : row.effectiveEtu >= 3.4 ? "Consolidation" : "Acquisition");
   const recommendation = quality.cls === "risk" ? "Stop hard acquisition today; use rest, review or a very light confidence block." : row.effectiveEtu >= 3.4 ? "Next block should bias toward light consolidation or recovery, not more benchmark pressure." : "A normal smart session remains acceptable if readiness is good.";
   return {
-    version:"5.7.67.17",
+    version:"5.7.71",
     sessionId:String(sessionId || ""),
     timestamp:new Date().toISOString(),
     sessionName:session.name || logs[0]?.sessionName || getPlanName(logs[0]) || "Session",
@@ -11116,7 +11965,7 @@ function domainConfidenceIndexSafe(label) {
 }
 
 
-/* v5.7.67.17 Recommendation audit visualization — target-time enforcement, overflow caps and session realism */
+/* v5.7.67.18 Recommendation audit visualization — target-time enforcement, overflow caps and session realism */
 function predictionDomainKeyFromLogSafe(log) {
   const routine = routineById(log?.routineId) || {};
   const raw = log?.primarySkill || log?.skill || log?.skillCategory || log?.category || routine.primarySkill || routine.skill || routine.category || routine.folder || "General";
@@ -11819,7 +12668,7 @@ function renderPredictionEngineSafe(logs) {
     const bottleneck = domains[0]?.label || "Insufficient evidence";
     const secondBottleneck = domains[1]?.label || "Build more benchmark and pressure evidence";
     const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving but noisy" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.67.17 layer connects ETU, benchmark roadmap, last-session review and prediction bottlenecks to Smart Builder decisions while formalizing ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts very different sessions into one comparable development-load unit. Raw ETU is roughly table-time exposure; effective ETU is the calibrated load used by predictions and readiness. The app starts from duration, then applies diminishing returns after about 90 minutes so a two-hour session is not treated as double a one-hour session. It then adjusts for routine diversity, drill density, pressure/transfer content, adaptive or recommendation-led work, productive target difficulty, subjective quality and fatigue. A short single-drill hit can be below 1 ETU; a dense 90–110 minute adaptive session can be several ETU. Do not maximize ETU mechanically: the useful target is productive load, not volume. Forecasts use accumulated effective ETU and a capped sustainable ETU/week pace, because a temporary training burst should not imply unrealistic calendar predictions. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require consolidation, automaticity, pressure stability and variance reduction, not just extra minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
+    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.67.18 layer connects ETU, benchmark roadmap, last-session review and prediction bottlenecks to Smart Builder decisions while formalizing ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions", `<div class="analytics-note"><strong>ETU = Effective Training Unit.</strong> It converts very different sessions into one comparable development-load unit. Raw ETU is roughly table-time exposure; effective ETU is the calibrated load used by predictions and readiness. The app starts from duration, then applies diminishing returns after about 90 minutes so a two-hour session is not treated as double a one-hour session. It then adjusts for routine diversity, drill density, pressure/transfer content, adaptive or recommendation-led work, productive target difficulty, subjective quality and fatigue. A short single-drill hit can be below 1 ETU; a dense 90–110 minute adaptive session can be several ETU. Do not maximize ETU mechanically: the useful target is productive load, not volume. Forecasts use accumulated effective ETU and a capped sustainable ETU/week pace, because a temporary training burst should not imply unrealistic calendar predictions. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require consolidation, automaticity, pressure stability and variance reduction, not just extra minutes.</div>`, false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEngineSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> This panel failed safely and did not block storage or hydration.</div>`;

@@ -6233,6 +6233,6 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
 .recommendation-confidence.risk{border-left-color:var(--danger,#c53030);}
 .recommendation-confidence .smart-builder-constraint-summary{margin-top:.35rem;display:flex;gap:.35rem;flex-wrap:wrap;}
 
-/* v5.7.67.17 Cross-Domain Transfer Graph v1 */
+/* v5.7.67.18 Session Composition Optimization */
 .transfer-graph-v1{border-left:3px solid var(--accent,#3b82f6);padding:.55rem .7rem;margin:.45rem 0;border-radius:.65rem;background:rgba(255,255,255,.04);}
 .adaptive-pill.compact.danger{border-color:var(--danger,#c53030);color:var(--danger,#c53030);}
