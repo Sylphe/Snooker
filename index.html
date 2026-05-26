@@ -113,6 +113,21 @@
                 <option value="recovery">Recovery / light</option>
                 <option value="variety">Robustness / variety</option>
               </select>
+              <p class="helper-text">Goal defines the training intent. Template defines the hard composition rules used by the builder.</p>
+            </div>
+            <div>
+              <label>Session template <button type="button" class="stat-help" data-action="field-help" data-help-key="adaptiveSessionTemplate">?</button></label>
+              <select id="adaptiveSessionTemplate">
+                <option value="auto" selected>Auto — infer from goal/readiness</option>
+                <option value="consolidation">Consolidation</option>
+                <option value="recovery">Recovery</option>
+                <option value="acquisition">Acquisition</option>
+                <option value="transfer">Transfer</option>
+                <option value="pressure">Pressure</option>
+                <option value="benchmark_prep">Benchmark prep</option>
+                <option value="standard">Standard</option>
+              </select>
+              <p class="helper-text">Use this to force Recovery, Pressure, Benchmark prep, etc. Auto may override the visible goal when ETU/readiness requires it.</p>
             </div>
             <div>
               <label>Session length</label>
@@ -436,6 +451,7 @@
         </div>
         <div class="templates-main-nav" role="tablist" aria-label="Exercise sections">
           <button type="button" class="templates-nav-btn active-subtab" data-action="templates-main-tab" data-templates-tab="exercises" role="tab" aria-selected="true">Exercise Database</button>
+          <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="routine-studio" role="tab" aria-selected="false">Routine Studio Lite</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="tables" role="tab" aria-selected="false">Table/Venue Database</button>
           <button type="button" class="templates-nav-btn" data-action="templates-main-tab" data-templates-tab="skills" role="tab" aria-selected="false">Skill Tags</button>
         </div>
@@ -822,6 +838,66 @@
             </div>
           </div>
           <div id="skillManagerList" class="list grouped"></div>
+        </div>
+      </div>
+
+
+      <div class="templates-tab-panel hidden" data-templates-panel="routine-studio">
+        <div class="card routine-studio-lite-card">
+          <h2>Routine Studio Lite</h2>
+          <p class="muted">Bulk metadata governance for recommendation quality. Use this area to review schema completeness, benchmark classification, ETU semantics, volatility, recovery/pressure suitability and recommendation eligibility. v5.7.73 adds the Routine Validation Engine for contradictory metadata, unrealistic ETU, benchmark ladder checks, transfer graph loops, over/under-tagging and taxonomy duplication.</p>
+          <div id="routineStudioSummary" class="analytics-note">Routine Studio will load the routine schema audit here.</div>
+          <div class="grid three">
+            <div>
+              <label>Audit filter</label>
+              <select id="routineStudioAuditFilter">
+                <option value="all" selected>All active routines</option>
+                <option value="critical">Critical / risk only</option>
+                <option value="watch">Watch items</option>
+                <option value="missing">Missing metadata</option>
+                <option value="benchmark">Benchmark issues</option>
+                <option value="etu">ETU / volatility issues</option>
+                <option value="transfer">Transfer issues</option>
+                <option value="validation">Validation engine issues</option>
+              </select>
+            </div>
+            <div>
+              <label>Search</label>
+              <input id="routineStudioSearch" placeholder="Search routine, folder, skill..." />
+            </div>
+            <div>
+              <label>Bulk action</label>
+              <select id="routineStudioBulkField">
+                <option value="">Choose metadata field</option>
+                <option value="recommendationMode">Recommendation eligibility</option>
+                <option value="benchmarkMode">Benchmark mode</option>
+                <option value="benchmarkStrictness">Benchmark strictness</option>
+                <option value="benchmarkExposureWeight">Benchmark exposure weight</option>
+                <option value="volatilityProfile">Volatility profile</option>
+                <option value="pressureSuitability">Pressure suitability</option>
+                <option value="recoverySuitability">Recovery suitability</option>
+                <option value="technicalEtu">Technical ETU</option>
+                <option value="cognitiveEtu">Cognitive ETU</option>
+                <option value="emotionalEtu">Confidence / emotional ETU</option>
+                <option value="pressureEtu">Pressure ETU</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid three">
+            <div>
+              <label>Bulk value</label>
+              <input id="routineStudioBulkValue" placeholder="e.g. support, normal, 2.5, active" />
+            </div>
+            <div>
+              <label>Selection</label>
+              <button type="button" class="secondary" data-action="routine-studio-select-visible">Select visible</button>
+            </div>
+            <div>
+              <label>Apply</label>
+              <button type="button" class="primary-start-btn" data-action="routine-studio-apply-bulk">Apply to selected routines</button>
+            </div>
+          </div>
+          <div id="routineStudioList" class="routine-studio-list"></div>
         </div>
       </div>
 

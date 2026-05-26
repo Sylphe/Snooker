@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.71";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.71";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.73";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.73";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.71";
+} from "./utils.js?v=5.7.73";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.71";
+} from "./settings.js?v=5.7.73";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.71";
+} from "./analytics.js?v=5.7.73";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.71";
+} from "./bayesian.js?v=5.7.73";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.71";
+} from "./session.js?v=5.7.73";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.71";
+} from "./pressure.js?v=5.7.73";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.71";
+} from "./recommendations.js?v=5.7.73";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.71";
+} from "./store.js?v=5.7.73";
 
 
 
@@ -8910,9 +8910,9 @@ function smartBuilderFormalizeTemplateSafe(template, overrides = {}) {
     merged.maxPressureDrills = Math.max(0, Number(merged.maxPressureDrills ?? base.maxPressureDrills ?? 2));
     merged.maxHighRiskDrills = Math.max(0, Number(merged.maxHighRiskDrills ?? base.maxHighRiskDrills ?? 3));
     merged.requiredRecoveryDrills = Math.max(0, Number(merged.requiredRecoveryDrills ?? base.requiredRecoveryDrills ?? 0));
-    merged.templateSchemaVersion = "5.7.67.18";
+    merged.templateSchemaVersion = "5.7.73";
     return merged;
-  } catch (_) { return {key:"standard", label:"Standard smart session", layer:"builder", purpose:"Default builder structure.", templateSchemaVersion:"5.7.67.18"}; }
+  } catch (_) { return {key:"standard", label:"Standard smart session", layer:"builder", purpose:"Default builder structure.", templateSchemaVersion:"5.7.73"}; }
 }
 function smartBuilderPressureLikeStateSafe(state, block=null) {
   try {
@@ -8999,19 +8999,29 @@ function smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, options = {}
     const goal = String(options.goal || effectiveGoal || "auto");
     const intensity = String(options.intensity || "balanced");
     const strategy = String(options.strategy || "balanced");
+    const manualTemplate = String(options.sessionTemplate || options.templateOverride || "auto").toLowerCase();
     const ctxState = String(etuContext?.state || "unknown");
     const strategic = etuContext?.strategic || {};
     const nextBenchmark = strategic?.nextBenchmark?.label || "next benchmark";
     let key = "consolidation";
     let overrides = {};
-    if (effectiveGoal === "recovery" || ctxState === "high") key = "recovery";
+    let source = "auto";
+    if (manualTemplate && manualTemplate !== "auto") {
+      key = manualTemplate;
+      source = "manual";
+      overrides.selectionReason = `Manually selected template: ${manualTemplate.replace(/_/g, " ")}. Goal still shapes ranking, but template rules control admissibility.`;
+    } else if (effectiveGoal === "recovery" || ctxState === "high") key = "recovery";
     else if (intensity === "pressure") key = "pressure";
     else if (strategy === "explore") key = "acquisition";
     else if (strategic?.nextBenchmark && effectiveGoal !== "recovery") { key = "benchmark_prep"; overrides.purpose = `Align drill selection with the ${nextBenchmark} benchmark path while preserving load constraints.`; }
     else if (effectiveGoal === "progression") key = "acquisition";
     else if (effectiveGoal === "variety") key = "transfer";
     const t = smartBuilderFormalizeTemplateSafe({key}, overrides);
-    if (goal === "auto") t.selectionReason = "Auto-selected from goal, readiness, strategy and benchmark context.";
+    t.templateSelectionSource = source;
+    t.requestedGoal = goal;
+    t.effectiveGoal = effectiveGoal;
+    if (goal === "auto" && source === "auto") t.selectionReason = "Auto-selected from goal, readiness, strategy and benchmark context.";
+    if (source === "auto" && goal !== "auto" && key !== String(effectiveGoal || goal)) t.selectionReason = `Auto template derived from effective goal/readiness: ${key.replace(/_/g, " ")}.`;
     return t;
   } catch (_) {
     return smartBuilderFormalizeTemplateSafe({key:"standard"});
@@ -9021,7 +9031,7 @@ function renderSmartBuilderTemplateSafe(template) {
   try {
     if (!template) return "";
     const t = smartBuilderFormalizeTemplateSafe(template || {});
-    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.67.18")}</span></div>${renderSmartBuilderFormalTemplateSafe(t)}`;
+    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">${escapeHtml(t.templateSelectionSource === "manual" ? "Manual template" : "Auto template")}</span> <span class="badge">Goal: ${escapeHtml(t.requestedGoal || "auto")}</span> <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.73")}</span>${t.selectionReason ? `<br><span class="muted small">${escapeHtml(t.selectionReason)}</span>` : ""}</div>${renderSmartBuilderFormalTemplateSafe(t)}`;
   } catch (_) { return ""; }
 }
 function roundSmartAuditNumber(value) {
@@ -10009,7 +10019,7 @@ function renderSmartBuilderRoutineSchemaAuditSafe(plan) {
       const rowCls = r.status === "critical" || r.status === "risk" ? "adaptive-risk" : r.status === "watch" ? "adaptive-watch" : "adaptive-ok";
       return `<div class="context-row ${rowCls}"><span>${escapeHtml(r.routineName)}<br><span class="muted small">${escapeHtml(r.primarySkill)} · benchmark ${escapeHtml(r.benchmarkMode)} · volatility ${escapeHtml(r.volatilityProfile?.level || "n/a")} · transfer ${numText(r.transferStrength)}/100</span></span><strong>${escapeHtml(String(r.completeness || 0))}%</strong><span>${escapeHtml(issueText)}<br><span class="muted small">${escapeHtml(subtype)} · fit A${numText(r.acquisitionSuitability)} / R${numText(r.recoverySuitability)} / P${numText(r.pressureSuitability)}</span></span></div>`;
     }).join("");
-    return `<details class="smart-builder-why-details routine-schema-audit" open><summary>Routine schema audit v5.7.71</summary><div class="adaptive-rationale ${cls}"><strong>${escapeHtml(audit.label || "Routine schema audit")}:</strong> ${escapeHtml(summary)}.<br><span class="muted small">Checks benchmark mode, volatility profile, confidence risk, ETU profile, transfer strength, acquisition/recovery/pressure suitability and metadata completeness.</span></div><div class="smart-builder-constraint-summary">${issueChips}</div><details class="smart-builder-why-details"><summary>Highest-priority routine metadata checks</summary>${rows || `<div class="muted small">No active routines to audit.</div>`}</details></details>`;
+    return `<details class="smart-builder-why-details routine-schema-audit" open><summary>Routine schema impact summary v5.7.73</summary><div class="adaptive-rationale ${cls}"><strong>${escapeHtml(audit.label || "Routine schema audit")}:</strong> ${escapeHtml(summary)}.<br><span class="muted small">Checks benchmark mode, volatility, ETU profile, transfer strength and suitability. Full editing now lives in Library → Routine Studio Lite.</span></div><div class="smart-builder-constraint-summary">${issueChips}</div><details class="smart-builder-why-details"><summary>Highest-priority routine metadata checks</summary>${rows || `<div class="muted small">No active routines to audit.</div>`}</details></details>`;
   } catch (_) { return ""; }
 }
 /* ===== end v5.7.71 Routine Schema Audit ===== */
@@ -10126,7 +10136,8 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     globalReasons.push(`manual goal: ${goal}`);
   }
 
-  const sessionTemplate = smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, {goal, strategy, intensity, daysToCompetition});
+  const sessionTemplateOverride = String(periodization?.sessionTemplate || periodization?.templateOverride || "auto");
+  const sessionTemplate = smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, {goal, strategy, intensity, daysToCompetition, sessionTemplate:sessionTemplateOverride});
   if (sessionTemplate?.label) globalReasons.push(`template: ${sessionTemplate.label}`);
   ranked = applySmartBuilderTemplateConstraintsSafe(ranked, sessionTemplate, etuContext, {goal, effectiveGoal, strategy, intensity, strictness});
   const diversityAllowed = smartBuilderDiversityTakeFactory(ranked, sessionTemplate, etuContext);
@@ -10344,9 +10355,10 @@ function renderAdaptiveSessionInternal() {
   const baseDuration = Number($("adaptiveDuration")?.value || "60");
   const duration = Math.max(30, Math.round(baseDuration * phaseInfo.settings.durationMultiplier));
   const strictness = $("adaptiveStrictness")?.value || "normal";
+  const sessionTemplateOverride = $("adaptiveSessionTemplate")?.value || "auto";
   let plan;
   try {
-    plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || ""});
+    plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || "", sessionTemplate: sessionTemplateOverride});
     plan = normalizeSmartSessionPlan(plan, goal, duration);
   } catch(error) {
     logAppError?.(error, "renderAdaptiveSession build");
@@ -10802,7 +10814,7 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
   if (el) el.addEventListener("change", renderABComparison);
 });
 
-["adaptiveGoal","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer"].forEach(id => {
+["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer"].forEach(id => {
   safeOn(id, "change", event => {
     if (id === "smartBuilderEtuLayer") setSmartBuilderEtuLayerMode(event?.target?.value || "on");
     if ($("adaptiveEngineOutput")) renderAdaptiveSession();
@@ -17165,6 +17177,10 @@ FIELD_HELP.adaptiveSessionGoal = {
     <p><strong>Variety:</strong> adds robustness and avoids overfitting to one setup.</p>
   </div>`
 };
+FIELD_HELP.adaptiveSessionTemplate = {
+  title:"Session template",
+  body:`<p><strong>What it controls:</strong> the hard composition rules for Smart Builder: benchmark density, max ETU, volatility cap, pressure cap, recovery floor, domain admissibility and switching cost.</p><p><strong>Decision logic:</strong> Session goal tells the ranking engine what you want to achieve. Session template tells the builder what type of session is allowed. If template is Auto, readiness and ETU can override the visible goal; if you force Recovery, the recovery template should dominate composition even when the goal is not recovery.</p><div class="example"><strong>Example:</strong> choose goal Progression + template Recovery only when you want light acquisition. Choose goal Recovery + template Recovery for a true deload session.</div>`
+};
 FIELD_HELP.adaptiveStrictness = {
   title:"Adaptive Engine — Strictness",
   body:`<div class="help-rich">
@@ -18264,8 +18280,227 @@ function restorePlansMainTab(){
 }
 
 
+
+
+/* ===== v5.7.73 Routine Validation Engine ===== */
+function routineValidationNormalizeSkillSafe(value) {
+  return String(value || "").trim().toLowerCase().replace(/[\s_/-]+/g, "_");
+}
+function routineValidationIssueSafe(severity, code, label, detail, fix="") {
+  const weight = severity === "critical" ? 40 : severity === "risk" ? 24 : severity === "watch" ? 10 : 4;
+  return {severity, code, label, detail, fix, weight};
+}
+function routineValidationEngineRowSafe(routine, schemaRow=null) {
+  try {
+    const r = routine || {};
+    const skillMap = getRoutineSkillMap(r);
+    const primary = routineValidationNormalizeSkillSafe(skillMap.primarySkill || r.primarySkill || r.skill);
+    const secondary = smartBuilderRoutineAuditNormalizeListSafe([...(skillMap.secondarySkills || []), ...(r.secondarySkills || [])]).map(routineValidationNormalizeSkillSafe).filter(Boolean);
+    const transferTags = smartBuilderRoutineAuditNormalizeListSafe([...(skillMap.transferTags || []), ...(r.transferTags || [])]).map(routineValidationNormalizeSkillSafe).filter(Boolean);
+    const allTags = [primary, ...secondary, ...transferTags].filter(Boolean);
+    const uniqueTags = Array.from(new Set(allTags));
+    const benchmarkMode = normalizeBenchmarkMode(r.benchmarkMode || inferBenchmarkModeFromRoutine(r));
+    const benchmarkExposureWeight = normalizeBenchmarkExposureWeight(r.benchmarkExposureWeight, benchmarkMode);
+    const benchmarkStrictness = normalizeBenchmarkStrictness(r.benchmarkStrictness);
+    const volatility = String(r.volatilityProfile || r.volatility || routineVolatilityProfile(r, routineStats(r.id)).level || "auto").toLowerCase();
+    const etu = {
+      technical:Number(r.etuProfile?.technical ?? r.technicalEtu ?? 0),
+      cognitive:Number(r.etuProfile?.cognitive ?? r.cognitiveEtu ?? 0),
+      emotional:Number(r.etuProfile?.emotional ?? r.emotionalEtu ?? r.confidenceEtu ?? 0),
+      pressure:Number(r.etuProfile?.pressure ?? r.pressureEtu ?? 0)
+    };
+    const etuTotal = Object.values(etu).reduce((a,b)=>a+(Number.isFinite(b)?Math.max(0,b):0),0);
+    const duration = Number(r.duration || r.estimatedMinutes || r.minutes || 0);
+    const totalUnits = Number(r.totalUnits || r.completionSize || r.targetUnits || 0);
+    const findings = [];
+    const add = (sev, code, label, detail, fix="") => findings.push(routineValidationIssueSafe(sev, code, label, detail, fix));
+
+    if (!primary) add("critical", "missing_primary_skill", "Missing primary skill", "Routine cannot be reliably mapped to a progression domain.", "Assign one primary skill/domain.");
+    if (secondary.includes(primary) || transferTags.includes(primary)) add("watch", "primary_duplicated_as_secondary", "Primary skill duplicated", "Primary skill also appears as secondary/transfer metadata.", "Remove duplicate secondary/transfer tag.");
+    if (uniqueTags.length > 10) add("risk", "over_tagging", "Over-tagging", `${uniqueTags.length} skill/transfer tags are attached.`, "Keep only the causal skills the drill actually trains.");
+    if (uniqueTags.length <= 1) add("watch", "under_tagging", "Under-tagging", "Routine has little secondary or transfer metadata.", "Add 1–3 secondary/transfer tags when they are genuinely causal.");
+    if (new Set(allTags).size !== allTags.length) add("watch", "duplicate_taxonomy_tags", "Duplicate taxonomy tags", "Same skill tag appears more than once after normalization.", "Deduplicate routine skill metadata.");
+    if (/uncategorized|unknown|general/i.test(String(r.category || ""))) add("watch", "weak_category", "Weak category", "Category is too generic for schema governance.", "Set a stable sport-domain category.");
+
+    if (["test","pressure-test"].includes(benchmarkMode) && !hasBenchmarkTargets(r)) add("critical", "benchmark_test_without_ladder", "Benchmark test without ladder", "Testing mode requires explicit target/benchmark levels.", "Add benchmark ladder, target score, or strict test criteria.");
+    if (benchmarkMode === "support" && benchmarkExposureWeight > 0.60) add("risk", "support_exposure_too_high", "Support mode exposure too high", `Support drill carries ${Math.round(benchmarkExposureWeight*100)}% benchmark exposure.`, "Reduce exposure or reclassify as calibration/test.");
+    if (benchmarkMode === "none" && benchmarkExposureWeight > 0.20) add("risk", "none_exposure_conflict", "Benchmark exposure conflict", "Benchmark mode is none but exposure weight is meaningful.", "Set mode to support/calibration or lower exposure.");
+    if (benchmarkMode === "pressure-test" && benchmarkStrictness === "loose") add("watch", "pressure_test_loose_strictness", "Pressure test has loose strictness", "Pressure-test classification normally needs normal/strict criteria.", "Increase strictness or reclassify to pressure support.");
+    if (String(r.scoring || r.scoringMode || "").includes("progressive") && totalUnits <= 0) add("critical", "progressive_without_completion_size", "Progressive scoring without completion size", "Progressive-completion routines need a bounded unit size.", "Set totalUnits/completionSize.");
+    if (String(r.scoring || r.scoringMode || "") === "highest_break" && totalUnits > 0 && !r.repeatOnClear && totalUnits <= 40) add("watch", "bounded_highest_break_needs_repeat_semantics", "Bounded break routine lacks repeat semantics", "Highest-break scoring on bounded setups should state whether clearing repeats until miss.", "Add repeatOnClear/setupCycleValue metadata if relevant.");
+
+    if (etuTotal <= 0) add("risk", "missing_etu_profile", "Missing ETU profile", "No explicit technical/cognitive/emotional/pressure ETU profile found.", "Set ETU subtype profile in Routine Studio.");
+    if (duration > 0 && etuTotal > 0 && etuTotal / Math.max(1,duration) > 0.45) add("watch", "etu_duration_ratio_high", "ETU/duration ratio high", `${numText(etuTotal)} ETU for ${numText(duration)} minutes may be too dense.`, "Check if ETU is per block rather than per routine.");
+    if (duration >= 25 && etuTotal < 1.2) add("watch", "long_duration_low_etu", "Long routine with low ETU", `${numText(duration)} minutes but only ${numText(etuTotal)} ETU.`, "Increase ETU subtypes or shorten estimated duration.");
+    if (volatility === "high" && Number(etu.emotional || 0) < 1.2) add("watch", "high_vol_low_confidence_etu", "High volatility but low confidence ETU", "Volatile routines usually carry emotional/confidence load.", "Raise emotional ETU or lower volatility.");
+    if (Number(etu.pressure || 0) >= 2.5 && !["test","pressure-test"].includes(benchmarkMode) && String(r.pressureSuitability || "auto") === "low") add("risk", "pressure_etu_low_suitability", "Pressure ETU conflicts with suitability", "Pressure load is high while pressure suitability is low.", "Align pressure suitability, pressure ETU, and benchmark mode.");
+    if (String(r.recoverySuitability || "auto") === "high" && (volatility === "high" || Number(etu.pressure || 0) > 1.5 || benchmarkMode === "pressure-test")) add("risk", "recovery_conflict", "Recovery suitability contradiction", "Routine marked recovery-friendly but has high volatility/pressure/test load.", "Lower recovery suitability or reduce pressure/volatility metadata.");
+
+    const graphProfile = typeof routineGraphTransferProfile === "function" ? routineGraphTransferProfile(r) : null;
+    const transferStrength = Number(schemaRow?.transferStrength ?? r.transferStrength ?? routineTransferValue(r) ?? 0);
+    if (transferStrength >= 65 && transferTags.length === 0) add("risk", "transfer_strength_without_tags", "Transfer strength without tags", "Routine scores as high transfer but has no transfer tags.", "Add explicit transfer tags/edges.");
+    if (transferTags.includes(primary)) add("watch", "self_transfer_loop", "Self-transfer loop", "Transfer tag repeats the primary domain.", "Remove self-transfer edge.");
+    if (graphProfile?.interference && Number(graphProfile.interference || 0) > 0.35 && String(r.recommendationMode || "active") === "active") add("watch", "interference_active", "Active routine has interference risk", "Transfer graph indicates possible anti-transfer/interference.", "Keep active only if deliberately used; otherwise make occasional.");
+
+    const riskScore = findings.reduce((a,x)=>a+Number(x.weight||0),0);
+    const severityOrder = {critical:3,risk:2,watch:1,info:0};
+    const maxSeverity = findings.reduce((m,x)=>severityOrder[x.severity] > severityOrder[m] ? x.severity : m, "info");
+    const status = findings.length ? maxSeverity : "ok";
+    const validityScore = clampNumber(Math.round(100 - riskScore), 0, 100);
+    return {routineId:r.id || "", routineName:r.name || "Exercise", status, validityScore, riskScore, findings, criticalCount:findings.filter(x=>x.severity==="critical").length, riskCount:findings.filter(x=>x.severity==="risk").length, watchCount:findings.filter(x=>x.severity==="watch").length, benchmarkMode, benchmarkExposureWeight, benchmarkStrictness, etuTotal, transferStrength, tagCount:uniqueTags.length};
+  } catch (err) {
+    try { logAppError(err, "routineValidationEngineRowSafe"); } catch (_) {}
+    return {routineId:routine?.id || "", routineName:routine?.name || "Exercise", status:"risk", validityScore:0, findings:[routineValidationIssueSafe("risk","validation_exception","Validation failed","Routine validation engine could not evaluate this routine.","Open the routine and inspect metadata.")]};
+  }
+}
+function routineValidationEngineSafe(rows=null) {
+  try {
+    const schemaAudit = rows ? {rows} : (typeof smartBuilderRoutineSchemaAuditSafe === "function" ? smartBuilderRoutineSchemaAuditSafe() : {rows:[]});
+    const byId = new Map((schemaAudit.rows || []).map(row => [String(row.routineId || row.id || ""), row]));
+    const routines = (data.routines || []).filter(r => !r.deleted && !r.archived);
+    const validationRows = routines.map(r => routineValidationEngineRowSafe(r, byId.get(String(r.id)) || null));
+    const critical = validationRows.reduce((a,r)=>a+Number(r.criticalCount||0),0);
+    const risks = validationRows.reduce((a,r)=>a+Number(r.riskCount||0),0);
+    const watches = validationRows.reduce((a,r)=>a+Number(r.watchCount||0),0);
+    const avgValidity = validationRows.length ? Math.round(validationRows.reduce((a,r)=>a+Number(r.validityScore||0),0) / validationRows.length) : 100;
+    const status = critical ? "critical" : risks ? "risk" : watches ? "watch" : "ok";
+    const issueFrequency = new Map();
+    validationRows.forEach(row => (row.findings || []).forEach(f => {
+      const key = f.code || f.label || "issue";
+      const prev = issueFrequency.get(key) || {code:key, label:f.label || key, severity:f.severity || "watch", count:0, fix:f.fix || ""};
+      prev.count += 1;
+      issueFrequency.set(key, prev);
+    }));
+    const topIssues = Array.from(issueFrequency.values()).sort((a,b)=>b.count-a.count).slice(0,8);
+    return {label:"Routine Validation Engine", version:"5.7.73", total:validationRows.length, rows:validationRows, critical, risks, watches, avgValidity, status, topIssues};
+  } catch (err) { try { logAppError(err, "routineValidationEngineSafe"); } catch (_) {}; return {label:"Routine Validation Engine", version:"5.7.73", total:0, rows:[], critical:0, risks:0, watches:0, avgValidity:0, status:"unavailable", topIssues:[]}; }
+}
+function renderRoutineValidationEngineSummarySafe(validation) {
+  try {
+    const v = validation || routineValidationEngineSafe();
+    const cls = v.status === "critical" ? "adaptive-risk" : v.status === "risk" ? "adaptive-watch" : v.status === "watch" ? "adaptive-info" : "adaptive-ok";
+    const chips = (v.topIssues || []).map(x => `<span class="adaptive-pill compact">${escapeHtml(x.label)} ×${numText(x.count)}</span>`).join("") || `<span class="adaptive-pill compact">No systemic issue</span>`;
+    return `<div class="adaptive-rationale ${cls}"><strong>Validation Engine v5.7.73:</strong> ${numText(v.total)} routines · validity ${numText(v.avgValidity)}% · critical ${numText(v.critical)} · risks ${numText(v.risks)} · watches ${numText(v.watches)}.<br><span class="muted small">Validates contradictory metadata, unrealistic ETU, benchmark ladder semantics, transfer graph loops, over/under-tagging and taxonomy duplication.</span></div><div class="smart-builder-constraint-summary">${chips}</div>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.73 Routine Validation Engine ===== */
+
+/* ===== v5.7.73 Routine Studio Lite ===== */
+function routineStudioAuditRowsSafe() {
+  try {
+    const audit = typeof smartBuilderRoutineSchemaAuditSafe === "function" ? smartBuilderRoutineSchemaAuditSafe() : {rows:[]};
+    return Array.isArray(audit.rows) ? audit.rows : [];
+  } catch (_) { return []; }
+}
+function routineStudioRowRoutineSafe(row) {
+  try { return routineById(row?.routineId || row?.id) || null; } catch (_) { return null; }
+}
+function routineStudioMetadataValueSafe(r, field) {
+  try {
+    if (!r) return "";
+    if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu"].includes(field)) return r.etuProfile?.[field.replace("Etu","")] ?? r[field] ?? "";
+    return r[field] ?? r.recommendationMetadata?.[field] ?? "";
+  } catch (_) { return ""; }
+}
+function routineStudioRowMatchesFilterSafe(row, filter, query) {
+  try {
+    const r = routineStudioRowRoutineSafe(row);
+    const text = `${r?.name||""} ${r?.folder||""} ${r?.subfolder||""} ${r?.category||""} ${r?.primarySkill||""} ${(row?.issues||[]).map(x=>x.label||x.detail||x).join(" ")}`.toLowerCase();
+    const q = String(query || "").trim().toLowerCase();
+    if (q && !text.includes(q)) return false;
+    const status = String(row?.status || row?.severity || "ok").toLowerCase();
+    const issues = (row?.issues || row?.findings || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`.toLowerCase()).join(" ");
+    if (filter === "critical") return /critical|risk/.test(status) || /critical|risk/.test(issues);
+    if (filter === "watch") return /watch/.test(status) || /watch/.test(issues);
+    if (filter === "missing") return /missing|primary skill|metadata|completeness/.test(issues) || Number(row?.completeness || row?.completenessScore || 100) < 75;
+    if (filter === "benchmark") return /benchmark/.test(issues);
+    if (filter === "etu") return /etu|volatility|confidence risk|pressure suitability|recovery suitability/.test(issues);
+    if (filter === "transfer") return /transfer/.test(issues);
+    if (filter === "validation") return /validation|contradiction|duplicate|over-tagging|under-tagging|ladder|loop|conflict/.test(issues) || Number(row?.validityScore || 100) < 80;
+    return true;
+  } catch (_) { return true; }
+}
+function renderRoutineStudioLite() {
+  try {
+    const host = $("routineStudioList");
+    const summaryHost = $("routineStudioSummary");
+    if (!host && !summaryHost) return;
+    const audit = typeof smartBuilderRoutineSchemaAuditSafe === "function" ? smartBuilderRoutineSchemaAuditSafe() : {rows:[], total:0, status:"unavailable", avgCompleteness:0};
+    const validation = routineValidationEngineSafe(audit.rows || []);
+    const validationById = new Map((validation.rows || []).map(v => [String(v.routineId || ""), v]));
+    const filter = $("routineStudioAuditFilter")?.value || "all";
+    const query = $("routineStudioSearch")?.value || "";
+    const rows = (audit.rows || []).filter(row => routineStudioRowMatchesFilterSafe(row, filter, query));
+    if (summaryHost) {
+      summaryHost.innerHTML = renderRoutineValidationEngineSummarySafe(validation) + `<div class="muted small"><strong>Routine Studio Lite v5.7.73:</strong> schema completeness ${numText(audit.avgCompleteness || 0)}% · schema status ${escapeHtml(audit.status || "unknown")}. Validation is now the governance layer; Smart Builder keeps only the recommendation-impact summary.</div>`;
+    }
+    if (!host) return;
+    const html = rows.slice(0,120).map(row => {
+      const r = routineStudioRowRoutineSafe(row) || {};
+      const validationRow = validationById.get(String(r.id || row.routineId || "")) || {};
+      const issues = ([...(validationRow.findings || []), ...(row.issues || []), ...(row.warnings || []), ...(row.findings || []), ...(row.topIssues || [])]).slice(0,5).map(x => `<span class="adaptive-pill compact">${escapeHtml(x.label || x.detail || x.code || String(x))}</span>`).join("") || `<span class="adaptive-pill compact">No major issue</span>`;
+      const completeness = Number(row.completeness || row.completenessScore || row.metadataCompleteness || 0);
+      const validity = Number(validationRow.validityScore ?? 100);
+      const rowCls = validationRow.status === "critical" ? "adaptive-risk" : validationRow.status === "risk" ? "adaptive-watch" : "";
+      const fixes = (validationRow.findings || []).slice(0,3).map(x => x.fix ? `<li>${escapeHtml(x.fix)}</li>` : "").join("");
+      return `<div class="routine-studio-row ${rowCls}" data-routine-id="${attrText(r.id || row.routineId || "")}">
+        <label class="routine-studio-select"><input type="checkbox" class="routine-studio-check" value="${attrText(r.id || row.routineId || "")}" /> <strong>${escapeHtml(r.name || row.routineName || row.name || "Unnamed routine")}</strong></label>
+        <div class="muted small">${escapeHtml(r.folder || "Unfiled")} / ${escapeHtml(r.subfolder || "General")} · ${escapeHtml(r.category || "uncategorized")} · ${escapeHtml(r.primarySkill || r.skillMap?.primarySkill || "no primary skill")}</div>
+        <div class="smart-builder-constraint-summary">${issues}</div>
+        <div class="muted small">Completeness ${numText(completeness)}% · validity ${numText(validity)}% · benchmark ${escapeHtml(r.benchmarkMode || validationRow.benchmarkMode || "none")} · exposure ${numText(r.benchmarkExposureWeight || validationRow.benchmarkExposureWeight || 0)} · strictness ${escapeHtml(r.benchmarkStrictness || validationRow.benchmarkStrictness || "normal")} · ETU ${numText(validationRow.etuTotal || 0)} · volatility ${escapeHtml(r.volatilityProfile || "auto")}</div>
+        ${fixes ? `<details class="smart-builder-why-details"><summary>Validation fixes</summary><ul class="muted small">${fixes}</ul></details>` : ""}
+        <div class="row compact-row"><button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(r.id || row.routineId || "")}">Edit routine</button></div>
+      </div>`;
+    }).join("") || `<div class="analytics-note">No routines match this Routine Studio filter.</div>`;
+    host.innerHTML = html;
+  } catch (err) { try { logAppError(err, "renderRoutineStudioLite"); } catch (_) {} }
+}
+function routineStudioSelectedIdsSafe() {
+  try { return Array.from(document.querySelectorAll(".routine-studio-check:checked")).map(x => x.value).filter(Boolean); } catch (_) { return []; }
+}
+function routineStudioSelectVisible() {
+  document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; });
+}
+function routineStudioNormalizeBulkValueSafe(field, raw) {
+  const value = String(raw || "").trim();
+  if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 1 : 8);
+  if (field === "recommendationMode") return ["active","occasional","excluded"].includes(value) ? value : "active";
+  if (field === "benchmarkMode") return normalizeBenchmarkMode(value || "support");
+  if (field === "benchmarkStrictness") return normalizeBenchmarkStrictness(value || "normal");
+  if (field === "volatilityProfile") return ["low","medium","high","auto"].includes(value.toLowerCase()) ? value.toLowerCase() : "auto";
+  if (["pressureSuitability","recoverySuitability"].includes(field)) return ["low","medium","high","auto"].includes(value.toLowerCase()) ? value.toLowerCase() : "auto";
+  return value;
+}
+function applyRoutineStudioBulkMetadata() {
+  try {
+    const ids = routineStudioSelectedIdsSafe();
+    const field = $("routineStudioBulkField")?.value || "";
+    if (!ids.length) return alert("Select at least one visible routine in Routine Studio Lite.");
+    if (!field) return alert("Choose a metadata field to update.");
+    const value = routineStudioNormalizeBulkValueSafe(field, $("routineStudioBulkValue")?.value || "");
+    data.routines = (data.routines || []).map(r => {
+      if (!ids.includes(String(r.id))) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu"].includes(field)) {
+        const key = field.replace("Etu","");
+        next.etuProfile = {...(next.etuProfile || {}), [key]:value};
+      } else {
+        next[field] = value;
+      }
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Updated ${ids.length} routine(s) in Routine Studio Lite.`, "success");
+  } catch (err) { try { logAppError(err, "applyRoutineStudioBulkMetadata"); } catch (_) {}; alert("Routine Studio bulk update failed. Review the error log."); }
+}
+["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue"].forEach(id => {
+  if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", renderRoutineStudioLite);
+});
+/* ===== end v5.7.73 Routine Studio Lite ===== */
+
 function setTemplatesMainTab(tab){
-  const allowed = new Set(["exercises", "tables", "skills"]);
+  const allowed = new Set(["exercises", "routine-studio", "tables", "skills"]);
   const clean = allowed.has(tab) ? tab : "exercises";
   document.querySelectorAll("[data-templates-panel]").forEach(panel => {
     const active = panel.dataset.templatesPanel === clean;
@@ -18280,6 +18515,9 @@ function setTemplatesMainTab(tab){
   try { localStorage.setItem("snookerTemplatesMainTab", clean); } catch(e) {}
   if (clean === "exercises") {
     try { renderRoutineList(); } catch(e) { logAppError(e, "setTemplatesMainTab exercises"); }
+  }
+  if (clean === "routine-studio") {
+    try { renderRoutineStudioLite(); } catch(e) { logAppError(e, "setTemplatesMainTab routine-studio"); }
   }
   if (clean === "tables") {
     try { renderTableDatabase(); } catch(e) { logAppError(e, "setTemplatesMainTab tables"); }
@@ -18386,6 +18624,8 @@ function handleDelegatedUIAction(event) {
     case "practice-main-tab": return setPracticeMainTab(actionEl.dataset.practiceTab || "regular");
     case "plans-main-tab": return setPlansMainTab(actionEl.dataset.plansTab || "daily");
     case "templates-main-tab": return setTemplatesMainTab(actionEl.dataset.templatesTab || "exercises");
+    case "routine-studio-select-visible": return routineStudioSelectVisible();
+    case "routine-studio-apply-bulk": return applyRoutineStudioBulkMetadata();
     case "edit-skill-tag": return editSkillTag(id);
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);

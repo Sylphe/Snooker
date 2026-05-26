@@ -6236,3 +6236,9 @@ body[data-theme="dark"] .session-review-etu,body[data-theme-mode="dark"] .sessio
 /* v5.7.67.18 Session Composition Optimization */
 .transfer-graph-v1{border-left:3px solid var(--accent,#3b82f6);padding:.55rem .7rem;margin:.45rem 0;border-radius:.65rem;background:rgba(255,255,255,.04);}
 .adaptive-pill.compact.danger{border-color:var(--danger,#c53030);color:var(--danger,#c53030);}
+
+/* v5.7.72 Routine Studio Lite */
+.routine-studio-list{display:grid;gap:10px;margin-top:14px;}
+.routine-studio-row{border:1px solid var(--border, rgba(120,120,120,.25));border-radius:14px;padding:12px;background:var(--card-bg, rgba(255,255,255,.04));}
+.routine-studio-select{display:flex;gap:8px;align-items:center;margin-bottom:4px;}
+.compact-row{gap:8px;margin-top:8px;}

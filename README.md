@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.71-routine-schema-audit
+Version: 5.7.72-routine-studio-lite
 
-## v5.7.71
+## v5.7.72
 - Added Routine Schema Audit on top of v5.7.70 Skill Level History.
 - Audits active routine metadata for benchmark mode, benchmark exposure, volatility profile, confidence risk, ETU subtype profile, transfer strength, and acquisition/recovery/pressure suitability.
 - Flags missing primary skills, weak categories, missing scoring/target ladders, benchmark-test routines without targets, support drills with excessive benchmark weight, pressure-mode mismatch, high-volatility recovery mismatch, over-tagging, missing transfer tags, and duration/ETU mismatches.
