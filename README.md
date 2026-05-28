@@ -1,22 +1,22 @@
-# Snooker Practice PWA
+# Snooker Practice Log
 
-Version: 5.7.76G-left-navigation-rail
+Version: 5.7.76H-focus-inspector-system
 
-## v5.7.76G — Left Navigation Rail
+## v5.7.76H — Focus Inspector System
 
-This release adds a persistent left navigation rail to the Routine Management Console so desktop users can move between Dashboard, Grid, Graph, Validation, Benchmark, Analytics and Routine workspaces without relying on the long vertical page flow.
+This release adds a persistent Focus Inspector to the Routine Management Console. The inspector keeps the selected routine visible while the user works through the grid, transfer graph, dependency chain, validation dock and ETU/benchmark editor.
 
 Included:
-- persistent desktop left navigation rail inside the full-screen Routine Console;
-- Dashboard / Grid / Graph / Validation / Benchmark / Analytics / Routine rail entries;
-- synchronized active state with the existing workspace system;
-- compact mobile-safe horizontal rail behavior;
-- top workspace tab bar hidden in desktop mode to reduce duplication;
-- v5.7.76F Semantic Chip Hierarchy Pass preserved;
-- v5.7.76E Grid Database Pass v2 preserved;
-- v5.7.75K Derived Metadata Explainability preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.76G.
+
+- selected-routine focus inspector below the grid and above the full editor;
+- compact validity, ETU, transfer, dependency, benchmark and recovery status;
+- semantic chip summary for archetype, preset, ETU and validation state;
+- quick section navigation buttons for Core, Transfer, Dependency and ETU / benchmark;
+- desktop sticky behavior and mobile-safe stacking;
+- v5.7.76G left navigation rail preserved;
+- build identity, version module, cache keys and visible app panel updated to v5.7.76H.
 
 Validation:
-- ES module syntax check passed;
+
+- node syntax checks passed;
 - zip integrity test passed.

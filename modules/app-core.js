@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76D";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76D";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76H";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76H";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.76D";
+} from "./utils.js?v=5.7.76H";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.76D";
+} from "./settings.js?v=5.7.76H";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.76D";
+} from "./analytics.js?v=5.7.76H";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.76D";
+} from "./bayesian.js?v=5.7.76H";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.76D";
+} from "./session.js?v=5.7.76H";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.76D";
+} from "./pressure.js?v=5.7.76H";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.76D";
+} from "./recommendations.js?v=5.7.76H";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.76D";
+} from "./store.js?v=5.7.76H";
 
 
 
@@ -20077,12 +20077,13 @@ function renderRoutineConsoleEditor(id) {
     const host = $("routineConsoleEditor");
     if (!host) return;
     const r = routineById(id || routineConsoleSelectedRoutineId);
-    if (!r) { host.innerHTML = `<strong>Routine editor</strong><p class="muted">Select a routine from the table to edit its metadata profile.</p>`; return; }
+    if (!r) { renderRoutineConsoleFocusInspectorSafe(null); host.innerHTML = `<strong>Routine editor</strong><p class="muted">Select a routine from the table to edit its metadata profile.</p>`; return; }
     routineConsoleSelectedRoutineId = String(r.id || "");
     const m = routineConsoleRoutineMetaSafe(r);
     const selectedRow = routineConsoleRowsSafe().find(row => String(row.id) === String(m.id)) || { ...m, routine:r, issues:[] };
     const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><div class="routine-derived-chip-row">${routineConsoleChipSafe(`Recovery ${d.recoverySuitability}`, "recovery", d.recoverySuitability)}${routineConsoleChipSafe(`Confidence risk ${d.confidenceRisk}`, "validation", d.confidenceRisk === "high" ? "risk" : d.confidenceRisk === "medium" ? "watch" : "ok")}${routineConsoleChipSafe(`Cognitive ${d.cognitiveLoad}`, "derived", d.cognitiveLoad)}${routineConsoleChipSafe(`Benchmark ${d.benchmarkDensity}`, "benchmark", d.benchmarkDensity)}${routineConsoleChipSafe(`Transfer ${d.transferIntensity}`, "transfer", d.transferIntensity)}</div><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>${routineDerivedExplainabilityHtmlSafe(r, d, {compact:true})}`; })();
     const validationDockHtml = routineConsoleRenderContextualValidationDockSafe(selectedRow);
+    renderRoutineConsoleFocusInspectorSafe(selectedRow);
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
       <div class="routine-console-editor-context">${derivedHtml}${validationDockHtml}</div>${routineConsoleEditorChipRailSafe(selectedRow)}
@@ -20166,7 +20167,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76G</strong><span>Left Navigation Rail</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Left Navigation Rail tightens chip density, improves chip category hierarchy, adds subtle letter-prefix markers and keeps chip contrast readable in dark mode.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76H</strong><span>Focus Inspector System</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Inspector keeps selected-routine context visible with validation, ETU, transfer and dependency status plus quick section navigation.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -20265,7 +20266,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75K", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.76H", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -20323,6 +20324,60 @@ function routineConsoleFocusEditorSectionSafe(section) {
   } catch (err) { try { logAppError(err, "routineConsoleFocusEditorSectionSafe"); } catch (_) {} }
 }
 /* ===== end v5.7.75F Contextual Validation Dock ===== */
+
+/* ===== v5.7.76H Focus Inspector System ===== */
+function routineConsoleFocusInspectorHtmlSafe(row) {
+  try {
+    if (!row) {
+      return `<div class="routine-focus-inspector-empty"><strong>Focus inspector</strong><span class="muted small">Select a routine to keep its semantic context visible while editing.</span></div>`;
+    }
+    const r = row.routine || routineById(row.id) || {};
+    const d = routineDerivedMetadataSafe(r);
+    const issues = routineConsoleIssueRowsSafe([row]);
+    const issueCount = issues.length;
+    const severity = issues.some(x => x.severity === "critical") ? "critical" : issues.some(x => x.severity === "risk") ? "risk" : issueCount ? "watch" : "ok";
+    const transferProfile = routineTransferGraphNormalizeProfileAfterEditSafe(r);
+    const edgeCount = ["direct","supporting","weak","interference"].reduce((sum, key) => sum + (Array.isArray(transferProfile?.[key]) ? transferProfile[key].length : 0), 0);
+    const dep = routineDependencyProfileSafe(r);
+    const depCount = ["prerequisites","enables","blockedBy"].reduce((sum, key) => sum + (Array.isArray(dep?.[key]) ? dep[key].length : 0), 0);
+    const etuTotal = Number(row.technicalEtu||0)+Number(row.cognitiveEtu||0)+Number(row.confidenceEtu||0)+Number(row.pressureEtu||0);
+    const name = row.name || r.name || "Selected routine";
+    const sub = [row.folder, row.subfolder].filter(Boolean).join(" / ") || row.category || "Unfiled";
+    return `<aside class="routine-focus-inspector routine-focus-inspector-${attrText(severity)}" aria-label="Selected routine focus inspector">
+      <div class="routine-focus-inspector-head">
+        <div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(sub)}</span></div>
+        <div class="routine-focus-score"><span>${numText(row.validity ?? 100)}%</span><small>validity</small></div>
+      </div>
+      <div class="routine-focus-chipline">
+        ${routineConsoleChipSafe(row.routineArchetype || "no archetype", "archetype", row.routineArchetype || "unknown")}
+        ${routineConsoleChipSafe(row.semanticPreset || "no preset", "preset", row.semanticPreset || "unknown")}
+        ${routineConsoleChipSafe(`ETU ${etuTotal ? numText(etuTotal) : "missing"}`, "etu", etuTotal ? "routine-defined" : "fallback")}
+        ${routineConsoleChipSafe(`Validation ${issueCount}`, "validation", severity)}
+      </div>
+      <div class="routine-focus-metrics">
+        <span><strong>${numText(edgeCount)}</strong><small>transfer edges</small></span>
+        <span><strong>${numText(depCount)}</strong><small>dependency links</small></span>
+        <span><strong>${escapeHtml(d.recoverySuitability || "auto")}</strong><small>recovery</small></span>
+        <span><strong>${escapeHtml(d.benchmarkDensity || "low")}</strong><small>benchmark</small></span>
+      </div>
+      <div class="routine-focus-actions">
+        <button type="button" class="secondary small" data-action="routine-console-focus-editor-section" data-section="core">Core</button>
+        <button type="button" class="secondary small" data-action="routine-console-focus-editor-section" data-section="transfer">Transfer</button>
+        <button type="button" class="secondary small" data-action="routine-console-focus-editor-section" data-section="dependency">Dependency</button>
+        <button type="button" class="secondary small" data-action="routine-console-focus-editor-section" data-section="load">ETU / benchmark</button>
+      </div>
+    </aside>`;
+  } catch (err) { try { logAppError(err, "routineConsoleFocusInspectorHtmlSafe"); } catch (_) {}; return ""; }
+}
+function renderRoutineConsoleFocusInspectorSafe(row) {
+  try {
+    const host = $("routineConsoleFocusInspector");
+    if (!host) return;
+    host.innerHTML = routineConsoleFocusInspectorHtmlSafe(row || null);
+  } catch (err) { try { logAppError(err, "renderRoutineConsoleFocusInspectorSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.76H Focus Inspector System ===== */
+
 function renderRoutineConsoleValidationDashboardSafe(rows) {
   try {
     const host = $("routineConsoleValidationDashboard");
