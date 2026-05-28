@@ -1,24 +1,20 @@
 # Snooker Practice PWA
 
-Version: 5.7.75D-spreadsheet-ux-density-pass
+Version: 5.7.75F-contextual-validation-dock
 
-## v5.7.75D — Spreadsheet UX Density Pass
+## v5.7.75F — Contextual Validation Dock
 
-This build improves the desktop Routine Console grid so it behaves more like an operational spreadsheet rather than a loose HTML table. It preserves v5.7.75C Interactive Governance Metrics and the v5.7.75B Dependency Chain Engine.
+This build adds contextual validation directly to the selected routine workflow in the Routine Management Console.
 
 ### Included
 
-- denser spreadsheet rows;
-- stronger sticky headers;
-- clearer column separators;
-- alternating row backgrounds;
-- hover-row highlighting;
-- selected-row highlighting;
-- active-cell/focus highlighting;
-- smaller inline inputs and controls;
-- improved desktop viewport usage for the routine grid;
-- build identity, version module, cache keys and visible panel updated to v5.7.75D.
+- selected routine validation dock beside the derived metadata summary;
+- routine-level issues now appear next to the routine editor instead of only in the global validation table;
+- section shortcuts route issues to Core, Transfer, Dependency, or Benchmark / ETU fields;
+- Quick Edit Mode from v5.7.75E is retained;
+- spreadsheet density, governance metrics, workflow simplification, dependency chains and visual transfer graph remain in place;
+- build identity, version module, cache keys and visible app panel updated to v5.7.75F.
 
-### Notes
+### Validation
 
-No routine data-model changes were introduced in this release. The change is a visual-density and usability pass for the Routine Console.
+Run `node --check app.js` and `node --check modules/app-core.js` after unpacking. The release package was generated after those checks passed.

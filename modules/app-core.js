@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75D";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75F";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18540,7 +18540,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75D";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75F";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18939,7 +18939,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75D",
+    version: "5.7.75F",
     updatedAt: new Date().toISOString()
   };
 }
@@ -18956,7 +18956,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18976,7 +18976,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18986,7 +18986,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
   } catch (err) { try { logAppError(err, "routineTransferGraphRemoveEdgeSafe"); } catch (_) {}; alert("Could not remove transfer graph edge."); }
 }
 
-/* ===== v5.7.75D Dependency Chain Engine ===== */
+/* ===== v5.7.75E Dependency Chain Engine ===== */
 function routineDependencyProfileSafe(routine) {
   try {
     const profile = routine?.dependencyProfile && typeof routine.dependencyProfile === "object" ? routine.dependencyProfile : {};
@@ -18997,9 +18997,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75D"
+      version: profile.version || "5.7.75F"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75D"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75F"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19055,7 +19055,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19071,7 +19071,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19079,7 +19079,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
     showTransientNotice?.("Dependency chain link removed.", "success");
   } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
 }
-/* ===== end v5.7.75D Dependency Chain Engine ===== */
+/* ===== end v5.7.75E Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
   const skillMap = r?.skillMap || {};
@@ -19415,7 +19415,7 @@ function routineConsoleUpdateSelectionBarSafe(rows = routineConsoleLastRows) {
     const count = ids.length;
     if (host) {
       const visibleCount = (rows || []).length;
-      host.innerHTML = `<strong>${numText(count)}</strong> selected routine${count === 1 ? "" : "s"}<span class="muted small"> · ${numText(visibleCount)} visible · bulk actions ${count ? "enabled" : "disabled until selection"}</span>`;
+      host.innerHTML = `<strong>${numText(count)}</strong> selected routine${count === 1 ? "" : "s"}<span class="muted small"> · ${numText(visibleCount)} visible · bulk actions ${count ? "enabled" : "disabled until selection"}</span><div class="routine-console-quickedit-help"><span>Double-click: edit</span><span>Enter: save + down</span><span>Tab: save + across</span><span>Esc: cancel</span><span>Ctrl+D: fill selected</span></div>`;
       host.classList.toggle("has-selection", count > 0);
     }
     document.querySelectorAll("[data-routine-requires-selection]").forEach(btn => { btn.disabled = count <= 0; btn.classList.toggle("disabled", count <= 0); });
@@ -19429,6 +19429,77 @@ function routineConsoleSelectedIdsRefreshFromDomSafe() {
     });
   } catch (_) {}
 }
+
+/* ===== v5.7.75E Quick Edit Mode ===== */
+function routineConsoleGridInputsSafe() {
+  try { return Array.from(document.querySelectorAll(".routine-console-spreadsheet .routine-grid-input")); }
+  catch (_) { return []; }
+}
+function routineConsoleMarkActiveCellSafe(target) {
+  try {
+    document.querySelectorAll(".routine-grid-cell.active-cell,.routine-grid-input.quick-editing").forEach(el => {
+      el.classList.remove("active-cell");
+      el.classList.remove("quick-editing");
+    });
+    const cell = target?.closest?.(".routine-grid-cell");
+    if (cell) cell.classList.add("active-cell");
+    target?.classList?.add("quick-editing");
+    if (target && target.dataset && target.dataset.originalValue === undefined) target.dataset.originalValue = target.value ?? "";
+  } catch (_) {}
+}
+function routineConsoleOpenQuickEditSafe(target) {
+  try {
+    if (!target?.classList?.contains("routine-grid-input")) return;
+    routineConsoleMarkActiveCellSafe(target);
+    target.focus({preventScroll:true});
+    if (target.tagName === "INPUT" && target.type !== "number") target.select();
+    if (target.tagName === "SELECT") {
+      target.classList.add("quick-edit-select-open");
+      target.click?.();
+    }
+  } catch (_) {}
+}
+function routineConsoleCommitQuickEditSafe(target, options = {}) {
+  try {
+    if (!target?.classList?.contains("routine-grid-input")) return false;
+    routineConsoleApplyInlineEditSafe(target.dataset.routineId, target.dataset.field, target.value, {silent:true});
+    target.dataset.originalValue = target.value ?? "";
+    if (!options.silent) showTransientNotice?.("Routine quick edit saved.", "success");
+    return true;
+  } catch (err) { try { logAppError(err, "routineConsoleCommitQuickEditSafe"); } catch (_) {}; return false; }
+}
+function routineConsoleFocusRelativeCellSafe(target, rowDelta = 0, colDelta = 0) {
+  try {
+    const row = target?.closest?.("tr");
+    const table = target?.closest?.("table");
+    if (!row || !table) return;
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    const rowIndex = rows.indexOf(row);
+    const editableCells = Array.from(row.querySelectorAll(".routine-grid-input"));
+    const colIndex = editableCells.indexOf(target);
+    const targetRow = rows[Math.max(0, Math.min(rows.length - 1, rowIndex + rowDelta))];
+    if (!targetRow) return;
+    const targetInputs = Array.from(targetRow.querySelectorAll(".routine-grid-input"));
+    const next = targetInputs[Math.max(0, Math.min(targetInputs.length - 1, colIndex + colDelta))];
+    if (next) routineConsoleOpenQuickEditSafe(next);
+  } catch (_) {}
+}
+function routineConsoleQuickFillDownSafe(target) {
+  try {
+    if (!target?.classList?.contains("routine-grid-input")) return;
+    const field = target.dataset.field || "";
+    const value = target.value ?? "";
+    const ids = routineStudioSelectedIdsSafe().filter(id => String(id) !== String(target.dataset.routineId));
+    if (!field) return;
+    if (!ids.length) return alert("Select one or more target routines before using fill-down.");
+    ids.forEach(id => routineConsoleApplyInlineEditSafe(id, field, value, {silent:true}));
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Filled ${field} into ${ids.length} selected routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "routineConsoleQuickFillDownSafe"); } catch (_) {}; alert("Quick fill-down failed. Review the error log."); }
+}
+/* ===== end v5.7.75E Quick Edit Mode ===== */
+
 function routineStudioClearSelection() {
   routineConsoleSelectedIdsSet.clear();
   document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = false; });
@@ -19490,17 +19561,58 @@ function bindRoutineConsoleGridEngineSafe() {
     }
     if (target.classList?.contains("routine-studio-check")) { routineConsoleSelectedIdsRefreshFromDomSafe(); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows); return; }
     if (target.classList?.contains("routine-grid-input")) {
-      routineConsoleApplyInlineEditSafe(target.dataset.routineId, target.dataset.field, target.value);
+      routineConsoleCommitQuickEditSafe(target, {silent:true});
       renderRoutineStudioLite();
+    }
+  });
+  document.addEventListener("focusin", event => {
+    const target = event.target;
+    if (target?.classList?.contains("routine-grid-input")) routineConsoleMarkActiveCellSafe(target);
+  });
+  document.addEventListener("dblclick", event => {
+    const target = event.target?.closest?.(".routine-grid-input,.routine-grid-cell");
+    if (!target) return;
+    const input = target.classList?.contains("routine-grid-input") ? target : target.querySelector?.(".routine-grid-input");
+    if (input) routineConsoleOpenQuickEditSafe(input);
+  });
+  document.addEventListener("keydown", event => {
+    const target = event.target;
+    if (!target?.classList?.contains("routine-grid-input")) return;
+    if ((event.ctrlKey || event.metaKey) && String(event.key || "").toLowerCase() === "d") {
+      event.preventDefault();
+      routineConsoleQuickFillDownSafe(target);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (target.dataset.originalValue !== undefined) target.value = target.dataset.originalValue;
+      target.blur();
+      target.closest?.(".routine-grid-cell")?.classList?.remove("active-cell");
+      target.classList.remove("quick-editing");
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      routineConsoleCommitQuickEditSafe(target, {silent:true});
+      routineConsoleFocusRelativeCellSafe(target, event.shiftKey ? -1 : 1, 0);
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      routineConsoleCommitQuickEditSafe(target, {silent:true});
+      routineConsoleFocusRelativeCellSafe(target, 0, event.shiftKey ? -1 : 1);
     }
   });
   document.addEventListener("paste", event => {
     const target = event.target;
     if (!target?.classList?.contains("routine-grid-input")) return;
     const text = event.clipboardData?.getData("text") || "";
-    if (!text.includes("\t") && !text.includes("\n")) return;
+    if (!text.includes("	") && !text.includes("
+")) return;
     event.preventDefault();
-    const rows = text.trim().split(/\r?\n/).map(line => line.split("\t"));
+    const rows = text.trim().split(/
+?
+/).map(line => line.split("	"));
     const visible = routineConsoleSortRowsSafe(routineConsoleLastRows || []);
     const startIndex = visible.findIndex(r => String(r.id) === String(target.dataset.routineId));
     const columns = routineConsoleVisibleGridColumnsSafe();
@@ -19523,10 +19635,12 @@ function renderRoutineConsoleEditor(id) {
     if (!r) { host.innerHTML = `<strong>Routine editor</strong><p class="muted">Select a routine from the table to edit its metadata profile.</p>`; return; }
     routineConsoleSelectedRoutineId = String(r.id || "");
     const m = routineConsoleRoutineMetaSafe(r);
+    const selectedRow = routineConsoleRowsSafe().find(row => String(row.id) === String(m.id)) || { ...m, routine:r, issues:[] };
     const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })();
+    const validationDockHtml = routineConsoleRenderContextualValidationDockSafe(selectedRow);
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
-      ${derivedHtml}
+      <div class="routine-console-editor-context">${derivedHtml}${validationDockHtml}</div>
       <div class="routine-editor-sections">
         <section class="routine-editor-section routine-editor-core" data-editor-section="core">
           <h4>Core metadata</h4>
@@ -19603,7 +19717,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75D:</strong> this release adds the Spreadsheet UX Density Pass on top of Interactive Governance Metrics.</p><p class="muted">The grid is denser and more spreadsheet-like, with tighter rows, stronger sticky headers, clearer separators, alternating rows, hover states and active-cell highlighting while keeping KPI-driven filters intact.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75F:</strong> this release adds a Contextual Validation Dock to the selected routine workflow.</p><p class="muted">Select a routine to see its validation issues directly beside the derived metadata summary, with section shortcuts for ETU/load, transfer, dependency, benchmark and core metadata fixes. Quick Edit Mode remains available in the grid.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19701,7 +19815,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75D", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75F", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19725,6 +19839,40 @@ function routineConsoleIssueRowsSafe(rows) {
     }))).sort((a,b)=>routineConsoleSeverityRankSafe(b.severity)-routineConsoleSeverityRankSafe(a.severity) || String(a.routineName).localeCompare(String(b.routineName)));
   } catch (err) { try { logAppError(err, "routineConsoleIssueRowsSafe"); } catch (_) {}; return []; }
 }
+
+/* ===== v5.7.75F Contextual Validation Dock ===== */
+function routineConsoleIssueEditorTargetSafe(issue) {
+  const text = `${issue?.code || ""} ${issue?.label || ""} ${issue?.detail || ""} ${issue?.fix || ""}`.toLowerCase();
+  if (/etu|load|volatility|recovery|pressure|confidence/.test(text)) return {section:"load", label:"Open ETU / load"};
+  if (/transfer|edge|graph|interference/.test(text)) return {section:"transfer", label:"Open transfer"};
+  if (/dependency|prerequisite|enables|blocked|chain/.test(text)) return {section:"dependency", label:"Open dependency"};
+  if (/benchmark|ladder|strictness|exposure/.test(text)) return {section:"load", label:"Open benchmark"};
+  return {section:"core", label:"Open core metadata"};
+}
+function routineConsoleRenderContextualValidationDockSafe(row) {
+  try {
+    const issues = routineConsoleIssueRowsSafe(row ? [row] : []).slice(0, 8);
+    const score = Number(row?.validity ?? 100);
+    const completeness = Number(row?.completeness ?? 0);
+    const statusClass = issues.some(x => x.severity === "critical") || score < 50 ? "critical" : issues.some(x => x.severity === "risk") || score < 80 ? "risk" : issues.length ? "watch" : "ok";
+    const issueHtml = issues.length ? issues.map(issue => {
+      const target = routineConsoleIssueEditorTargetSafe(issue);
+      return `<li class="routine-validation-dock-issue ${attrText(String(issue.severity || "info").toLowerCase())}"><div><strong>${escapeHtml(issue.label || issue.code || "Validation issue")}</strong><span>${escapeHtml(issue.detail || issue.fix || "Review this routine metadata.")}</span><small>${escapeHtml(issue.fix || "Review metadata in the Routine Console.")}</small></div><button type="button" class="secondary small" data-action="routine-console-focus-editor-section" data-section="${attrText(target.section)}">${escapeHtml(target.label)}</button></li>`;
+    }).join("") : `<li class="routine-validation-dock-issue ok"><div><strong>No active validation issues</strong><span>This routine currently passes the visible validation checks.</span><small>Continue with transfer, dependency or benchmark enrichment if needed.</small></div></li>`;
+    return `<aside class="routine-validation-dock routine-validation-dock-${attrText(statusClass)}" aria-label="Contextual validation dock"><div class="routine-validation-dock-head"><div><strong>Contextual validation</strong><span>${escapeHtml(row?.name || "Selected routine")}</span></div><div class="routine-validation-dock-score"><span>${numText(score)}%</span><small>validity</small></div></div><div class="routine-validation-dock-metrics"><span>Completeness ${numText(completeness)}%</span><span>${numText(issues.length)} issue${issues.length === 1 ? "" : "s"}</span></div><ul>${issueHtml}</ul></aside>`;
+  } catch (err) { try { logAppError(err, "routineConsoleRenderContextualValidationDockSafe"); } catch (_) {}; return ""; }
+}
+function routineConsoleFocusEditorSectionSafe(section) {
+  try {
+    const clean = String(section || "core").trim().toLowerCase();
+    const target = document.querySelector(`[data-editor-section="${CSS.escape(clean)}"]`) || document.querySelector('[data-editor-section="core"]');
+    if (!target) return;
+    target.scrollIntoView({behavior:"smooth", block:"start"});
+    target.classList.add("routine-editor-section-focus");
+    setTimeout(() => target.classList.remove("routine-editor-section-focus"), 1400);
+  } catch (err) { try { logAppError(err, "routineConsoleFocusEditorSectionSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.75F Contextual Validation Dock ===== */
 function renderRoutineConsoleValidationDashboardSafe(rows) {
   try {
     const host = $("routineConsoleValidationDashboard");
@@ -19994,6 +20142,7 @@ function handleDelegatedUIAction(event) {
     case "routine-derived-metadata-apply": return applyDerivedMetadataToSelectedSafe();
     case "routine-derived-metadata-preview": return renderRoutineDerivedMetadataPreviewSafe();
     case "routine-console-select": return renderRoutineConsoleEditor(id);
+    case "routine-console-focus-editor-section": return routineConsoleFocusEditorSectionSafe(actionEl.dataset.section || "core");
     case "routine-console-save": return routineConsoleSaveSelected();
     case "routine-console-export-visible": return routineConsoleExportVisibleJson();
     case "routine-pack-refresh": return renderRoutineStudioLite();
