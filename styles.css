@@ -6728,3 +6728,12 @@ body.routine-console-desktop-active .dependency-chain-add-row{grid-template-colu
   .dependency-chain-node.blockers{grid-column:auto;}
   .dependency-chain-add-row{grid-template-columns:1fr!important;}
 }
+
+/* v5.7.75C Semantic Completeness Scoring v2 */
+.routine-semantic-completeness-card { margin-top: 1rem; }
+.semantic-completeness-kpis { margin-bottom: .75rem; }
+.semantic-completeness-bars { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:.55rem .9rem; margin:.75rem 0; }
+.semantic-completeness-bars > div { display:grid; grid-template-columns: 120px minmax(120px, 1fr) 48px; align-items:center; gap:.55rem; font-size:.85rem; }
+.semantic-completeness-bars meter { width:100%; height:.65rem; }
+.semantic-completeness-inline { border-color: rgba(95, 202, 154, .35); }
+@media (max-width: 800px) { .semantic-completeness-bars { grid-template-columns:1fr; } .semantic-completeness-bars > div { grid-template-columns: 110px minmax(100px, 1fr) 44px; } }

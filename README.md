@@ -1,5 +1,25 @@
 # Snooker Practice PWA
 
+Version: 5.7.75C-semantic-completeness-scoring-v2
+Build: 2026-05-28 16:10 CEST
+
+## v5.7.75C
+
+Adds Semantic Completeness Scoring v2 to the Routine Console. This release separates classic schema completeness from semantic readiness, with distinct governance scores for taxonomy, ETU quality, benchmark quality, transfer/dependency quality, metadata confidence and provenance.
+
+### Included
+
+- Portfolio-level Semantic Completeness dashboard in Routine Studio / Desktop Console.
+- Per-routine semantic completeness score in the spreadsheet grid.
+- Component scores for taxonomy, ETU, benchmark, transfer/dependency, confidence and provenance.
+- Selected-routine editor now shows a semantic completeness diagnostic box.
+- Validation view extended with semantic readiness columns.
+- README, cache, version module and visible build panel updated to v5.7.75C.
+
+---
+
+# Snooker Practice PWA
+
 Version: 5.7.75B-dependency-chain-engine
 
 ## v5.7.75B

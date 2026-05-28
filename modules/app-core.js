@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75B";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75C";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18539,7 +18539,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75B";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75C";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18813,6 +18813,69 @@ function applyRoutineSemanticPresetToSelectedSafe() {
   } catch (err) { try { logAppError(err, "applyRoutineSemanticPresetToSelectedSafe"); } catch (_) {}; alert("Semantic preset application failed. Review the error log."); }
 }
 
+
+/* ===== v5.7.75C Semantic Completeness Scoring v2 ===== */
+const ROUTINE_SEMANTIC_COMPLETENESS_VERSION = "5.7.75C";
+function routineSemanticCompletenessScoreV2Safe(routine, meta={}) {
+  try {
+    const r = routine || meta.routine || {};
+    const m = {...routineConsoleRoutineMetaSafe(r), ...(meta || {})};
+    const etuTotal = Number(m.technicalEtu||0)+Number(m.cognitiveEtu||0)+Number(m.confidenceEtu||0)+Number(m.pressureEtu||0);
+    const transferGraph = routineTransferGraphProfileSafe(r);
+    const transferCount = [transferGraph.direct, transferGraph.supporting, transferGraph.weak, transferGraph.interference].flat().filter(Boolean).length;
+    const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
+    const depCount = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean).length;
+    const derived = r.derivedMetadata || routineDerivedMetadataSafe(r);
+    const confidenceObj = r.metadataConfidence && typeof r.metadataConfidence === "object" ? r.metadataConfidence : {};
+    const provenance = r.metadataProvenance && typeof r.metadataProvenance === "object" ? r.metadataProvenance : {};
+    const taxonomyChecks = [m.folder && m.folder !== "Unfiled", m.subfolder && m.subfolder !== "General", m.category && m.category !== "uncategorized", m.primarySkill, m.secondarySkills, m.routineArchetype, m.semanticPreset];
+    const etuChecks = [etuTotal > 0, Number(m.technicalEtu||0) > 0, Number(m.cognitiveEtu||0) > 0, String(m.etuSource||"") !== "fallback", derived && derived.source];
+    const benchmarkChecks = [m.benchmarkMode, m.benchmarkStrictness, Number.isFinite(Number(m.benchmarkExposureWeight)), m.benchmarkMode !== "none" && m.benchmarkMode !== "", r.target || r.targetScore || r.benchmarkTargets || r.benchmarkLadder];
+    const transferChecks = [transferCount > 0 || String(m.transferTags||"").trim(), transferGraph.direct.length || transferGraph.supporting.length, transferGraph.weak.length || transferGraph.interference.length || transferGraph.edgeWeights && Object.keys(transferGraph.edgeWeights).length, depCount > 0, m.dependencyChain && m.dependencyChain !== "none"];
+    const confidenceChecks = [Object.keys(confidenceObj).length > 0, String(m.derivedMetadataSource||"") !== "preview", String(m.archetypeSource||"") !== "unassigned", Number(meta.validity ?? 100) >= 80, Number(meta.completeness ?? 0) >= 75];
+    const provenanceChecks = [Object.keys(provenance).length > 0, r.updatedAt, r.metadataVersion, r.packSource || r.routinePackSource, r.semanticPresetAppliedAt || r.archetypeAppliedAt || r.derivedMetadataVersion];
+    const pct = arr => Math.round(100 * arr.filter(Boolean).length / Math.max(1, arr.length));
+    const scores = {
+      taxonomy: pct(taxonomyChecks),
+      etu: pct(etuChecks),
+      benchmark: pct(benchmarkChecks),
+      transfer: pct(transferChecks),
+      confidence: pct(confidenceChecks),
+      provenance: pct(provenanceChecks)
+    };
+    const total = Math.round((scores.taxonomy*0.22)+(scores.etu*0.20)+(scores.benchmark*0.15)+(scores.transfer*0.18)+(scores.confidence*0.15)+(scores.provenance*0.10));
+    const gaps = [];
+    if (scores.taxonomy < 80) gaps.push("taxonomy");
+    if (scores.etu < 80) gaps.push("ETU");
+    if (scores.benchmark < 70) gaps.push("benchmark");
+    if (scores.transfer < 70) gaps.push("transfer/dependency");
+    if (scores.confidence < 70) gaps.push("confidence");
+    if (scores.provenance < 70) gaps.push("provenance");
+    const status = total >= 85 ? "strong" : total >= 70 ? "usable" : total >= 50 ? "weak" : "poor";
+    return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION, total, status, scores, gaps};
+  } catch (err) { try { logAppError(err, "routineSemanticCompletenessScoreV2Safe"); } catch (_) {}; return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION,total:0,status:"unavailable",scores:{taxonomy:0,etu:0,benchmark:0,transfer:0,confidence:0,provenance:0},gaps:["scoring unavailable"]}; }
+}
+function routineSemanticCompletenessPortfolioV2Safe(rows=[]) {
+  try {
+    const all = rows.length ? rows : routineConsoleRowsSafe();
+    const scores = all.map(r => r.semanticCompletenessV2 || routineSemanticCompletenessScoreV2Safe(r.routine || routineById(r.id), r));
+    const avgKey = key => scores.length ? Math.round(scores.reduce((sum,x)=>sum+Number(key==="total"?x.total:x.scores?.[key]||0),0)/scores.length) : 0;
+    const gaps = new Map();
+    scores.forEach(s => (s.gaps || []).forEach(g => gaps.set(g, (gaps.get(g)||0)+1)));
+    return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION, totalRoutines:all.length, overall:avgKey("total"), taxonomy:avgKey("taxonomy"), etu:avgKey("etu"), benchmark:avgKey("benchmark"), transfer:avgKey("transfer"), confidence:avgKey("confidence"), provenance:avgKey("provenance"), weak:scores.filter(s=>Number(s.total||0)<70).length, strong:scores.filter(s=>Number(s.total||0)>=85).length, gaps:Array.from(gaps.entries()).sort((a,b)=>b[1]-a[1]).slice(0,6)};
+  } catch (err) { try { logAppError(err, "routineSemanticCompletenessPortfolioV2Safe"); } catch (_) {}; return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION,totalRoutines:0,overall:0,taxonomy:0,etu:0,benchmark:0,transfer:0,confidence:0,provenance:0,weak:0,strong:0,gaps:[]}; }
+}
+function renderRoutineSemanticCompletenessDashboardV2Safe(rows) {
+  try {
+    const host = $("routineSemanticCompletenessDashboard");
+    if (!host) return;
+    const p = routineSemanticCompletenessPortfolioV2Safe(rows || routineConsoleRowsSafe());
+    const chips = (p.gaps || []).map(([g,c]) => `<span class="adaptive-pill compact">${escapeHtml(g)} gap: ${numText(c)}</span>`).join("") || `<span class="adaptive-pill compact">No major gap cluster</span>`;
+    host.innerHTML = `<div class="routine-console-kpis compact semantic-completeness-kpis"><div class="kpi-card"><strong>${numText(p.overall)}%</strong><span>overall</span></div><div class="kpi-card"><strong>${numText(p.strong)}</strong><span>strong routines</span></div><div class="kpi-card"><strong>${numText(p.weak)}</strong><span>weak routines</span></div><div class="kpi-card"><strong>${numText(p.totalRoutines)}</strong><span>routines scored</span></div></div><div class="semantic-completeness-bars"><div><span>Taxonomy</span><meter min="0" max="100" value="${numAttr(p.taxonomy)}"></meter><strong>${numText(p.taxonomy)}%</strong></div><div><span>ETU</span><meter min="0" max="100" value="${numAttr(p.etu)}"></meter><strong>${numText(p.etu)}%</strong></div><div><span>Benchmark</span><meter min="0" max="100" value="${numAttr(p.benchmark)}"></meter><strong>${numText(p.benchmark)}%</strong></div><div><span>Transfer</span><meter min="0" max="100" value="${numAttr(p.transfer)}"></meter><strong>${numText(p.transfer)}%</strong></div><div><span>Confidence</span><meter min="0" max="100" value="${numAttr(p.confidence)}"></meter><strong>${numText(p.confidence)}%</strong></div><div><span>Provenance</span><meter min="0" max="100" value="${numAttr(p.provenance)}"></meter><strong>${numText(p.provenance)}%</strong></div></div><div class="smart-builder-constraint-summary">${chips}</div>`;
+  } catch (err) { try { logAppError(err, "renderRoutineSemanticCompletenessDashboardV2Safe"); } catch (_) {} }
+}
+/* ===== end v5.7.75C Semantic Completeness Scoring v2 ===== */
+
 const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"name", label:"Routine", type:"text", editable:true, preset:["core","minimal"]},
   {key:"folder", label:"Folder", type:"text", editable:true, preset:["core","minimal","validation"]},
@@ -18843,6 +18906,13 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"derivedBenchmarkDensity", label:"Derived benchmark", type:"readonly", preset:["derived","benchmark"]},
   {key:"derivedTransferIntensity", label:"Derived transfer", type:"readonly", preset:["derived","transfer"]},
   {key:"derivedMetadataSource", label:"Derived source", type:"readonly", preset:["derived","validation"]},
+  {key:"semanticCompleteness", label:"Semantic complete", type:"readonly", preset:["validation","minimal"]},
+  {key:"taxonomyCompleteness", label:"Taxonomy", type:"readonly", preset:["validation"]},
+  {key:"etuCompleteness", label:"ETU quality", type:"readonly", preset:["validation","etu"]},
+  {key:"benchmarkCompleteness", label:"Benchmark quality", type:"readonly", preset:["validation","benchmark"]},
+  {key:"transferCompleteness", label:"Transfer quality", type:"readonly", preset:["validation","transfer"]},
+  {key:"confidenceCompleteness", label:"Confidence quality", type:"readonly", preset:["validation"]},
+  {key:"provenanceCompleteness", label:"Provenance", type:"readonly", preset:["validation"]},
   {key:"recommendationMode", label:"Reco", type:"select", editable:true, options:["active","occasional","excluded"], preset:["validation","minimal"]},
   {key:"packSource", label:"Pack", type:"readonly", preset:["validation"]},
   {key:"completeness", label:"Completeness", type:"readonly", preset:["validation","minimal"]},
@@ -18938,7 +19008,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75B",
+    version: "5.7.75C",
     updatedAt: new Date().toISOString()
   };
 }
@@ -18955,7 +19025,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18975,7 +19045,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18996,9 +19066,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75B"
+      version: profile.version || "5.7.75C"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75B"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75C"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19054,7 +19124,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19070,7 +19140,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19116,6 +19186,13 @@ function routineConsoleRoutineMetaSafe(r) {
     derivedBenchmarkDensity: r?.derivedMetadata?.benchmarkDensity || "preview",
     derivedTransferIntensity: r?.derivedMetadata?.transferIntensity || "preview",
     derivedMetadataSource: r?.derivedMetadata?.source || "preview",
+    semanticCompleteness: 0,
+    taxonomyCompleteness: 0,
+    etuCompleteness: 0,
+    benchmarkCompleteness: 0,
+    transferCompleteness: 0,
+    confidenceCompleteness: 0,
+    provenanceCompleteness: 0,
     metadataVersion: r?.metadataVersion || 1,
     packSource: r?.packSource || r?.routinePackSource || "app"
   };
@@ -19140,12 +19217,20 @@ function routineConsoleRowsSafe() {
       const issues = [...(validationRow.findings || []), ...(auditRow.issues || []), ...(auditRow.warnings || []), ...(auditRow.findings || [])];
       const completeness = Number(auditRow.completeness || auditRow.completenessScore || auditRow.metadataCompleteness || 0);
       const validity = Number(validationRow.validityScore ?? 100);
-      return {...meta, routine:r, auditRow, validationRow, issues, completeness, validity, status:validationRow.status || auditRow.status || "ok"};
+      const semanticCompletenessV2 = routineSemanticCompletenessScoreV2Safe(r, {...meta, completeness, validity});
+      meta.semanticCompleteness = semanticCompletenessV2.total;
+      meta.taxonomyCompleteness = semanticCompletenessV2.scores.taxonomy;
+      meta.etuCompleteness = semanticCompletenessV2.scores.etu;
+      meta.benchmarkCompleteness = semanticCompletenessV2.scores.benchmark;
+      meta.transferCompleteness = semanticCompletenessV2.scores.transfer;
+      meta.confidenceCompleteness = semanticCompletenessV2.scores.confidence;
+      meta.provenanceCompleteness = semanticCompletenessV2.scores.provenance;
+      return {...meta, routine:r, auditRow, validationRow, issues, completeness, validity, semanticCompletenessV2, status:validationRow.status || auditRow.status || "ok"};
     });
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
-  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
+  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${row.semanticCompletenessV2?.status||""} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
   if (q && !text.includes(q)) return false;
   const issueText = (row.issues || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ").toLowerCase();
@@ -19303,7 +19388,7 @@ function routineConsoleVisibleGridColumnsSafe() {
 }
 function routineConsoleCellValueSafe(row, key) {
   if (key === "issues") return (row.issues || []).slice(0,3).map(x => x.label || x.detail || x.code || String(x)).join(" · ") || "OK";
-  if (key === "completeness" || key === "validity") return `${numText(row[key])}%`;
+  if (["completeness","validity","semanticCompleteness","taxonomyCompleteness","etuCompleteness","benchmarkCompleteness","transferCompleteness","confidenceCompleteness","provenanceCompleteness"].includes(key)) return `${numText(row[key])}%`;
   return row[key] ?? "";
 }
 function routineConsoleSortRowsSafe(rows) {
@@ -19414,7 +19499,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
     if (["transferGraph","dependencyChain"].includes(col.key)) return 180;
     if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset","routineArchetype","archetypeSource","derivedRecoverySuitability","derivedConfidenceRisk","derivedCognitiveLoad","derivedBenchmarkDensity","derivedTransferIntensity","derivedMetadataSource"].includes(col.key)) return 150;
-    if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
+    if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity","semanticCompleteness","taxonomyCompleteness","etuCompleteness","benchmarkCompleteness","transferCompleteness","confidenceCompleteness","provenanceCompleteness"].includes(col.key)) return 118;
     return 170;
   };
   const colgroup = `<col class="routine-grid-select-col" />${columns.map(col => `<col style="width:${numAttr(widthFor(col))}px;min-width:${numAttr(widthFor(col))}px;" />`).join("")}`;
@@ -19478,6 +19563,7 @@ function renderRoutineConsoleEditor(id) {
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
       ${(() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })()}
+      ${(() => { const sc = routineSemanticCompletenessScoreV2Safe(r, m); const s2 = sc.scores || {}; return `<div class="routine-derived-inline semantic-completeness-inline"><strong>Semantic completeness ${numText(sc.total)}% · ${escapeHtml(sc.status)}</strong><span>Taxonomy ${numText(s2.taxonomy)}% · ETU ${numText(s2.etu)}% · Benchmark ${numText(s2.benchmark)}% · Transfer ${numText(s2.transfer)}% · Confidence ${numText(s2.confidence)}% · Provenance ${numText(s2.provenance)}%</span><small>${escapeHtml((sc.gaps || []).length ? `Gaps: ${(sc.gaps||[]).join(", ")}` : "No major semantic gap")}</small></div>`; })()}
       <div class="grid two routine-console-editor-grid">
         <div><label>Name</label><input id="routineConsoleName" value="${attrText(m.name)}" /></div>
         <div><label>Recommendation</label><select id="routineConsoleRecommendation"><option value="active">Active</option><option value="occasional">Occasional</option><option value="excluded">Excluded</option></select></div>
@@ -19524,6 +19610,7 @@ function renderRoutineStudioLite() {
     renderRoutineConsoleOverviewSafe(allRows);
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
+    renderRoutineSemanticCompletenessDashboardV2Safe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
     const filter = $("routineStudioAuditFilter")?.value || "all";
     const query = $("routineStudioSearch")?.value || "";
@@ -19532,7 +19619,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75B:</strong> this release adds the Dependency Chain Engine and moves the selected routine editor below the routine grid in both mobile and desktop mode.</p><p class="muted">Dependency chains model prerequisites, enables/downstream skills, blocked-by constraints and progression lanes. The editor now uses the full page width below the routine list instead of a narrow right-side inspector, so transfer and dependency controls can render properly on desktop and remain readable on mobile.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75C:</strong> this release adds Semantic Completeness Scoring v2 across taxonomy, ETU, benchmark, transfer/dependency, metadata confidence and provenance.</p><p class="muted">The console now separates classic schema completeness from semantic readiness. This makes it easier to see whether a routine is merely valid, or actually rich enough for reliable recommendation, prediction and future coaching knowledge-graph logic.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19629,7 +19716,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75B", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75C", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
