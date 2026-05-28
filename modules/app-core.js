@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75C";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75F";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18539,7 +18539,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75C";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75F";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18814,8 +18814,156 @@ function applyRoutineSemanticPresetToSelectedSafe() {
 }
 
 
+
+
+/* ===== v5.7.75F Knowledge Graph Integrity Engine ===== */
+const ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION = "5.7.75F";
+function routineKgSkillKeySafe(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, "-");
+}
+function routineKgRoutineSkillsSafe(routine) {
+  try {
+    const m = routineConsoleRoutineMetaSafe(routine);
+    const out = [];
+    [m.primarySkill, ...(routineConsoleParseListSafe(m.secondarySkills || "")), m.category, m.subfolder].forEach(x => {
+      const v = String(x || "").trim();
+      if (v && !out.some(y => y.toLowerCase() === v.toLowerCase())) out.push(v);
+    });
+    return out;
+  } catch (_) { return []; }
+}
+function routineKgBuildGraphSafe(rows = routineConsoleRowsSafe()) {
+  try {
+    const nodes = new Map();
+    const edges = [];
+    const addNode = (label, type="skill") => {
+      const clean = String(label || "").trim();
+      if (!clean) return "";
+      const id = routineKgSkillKeySafe(clean);
+      if (!nodes.has(id)) nodes.set(id, {id, label:clean, type, routineIds:new Set(), in:0, out:0});
+      return id;
+    };
+    (rows || []).forEach(row => {
+      const r = row.routine || routineById(row.id) || {};
+      const skills = routineKgRoutineSkillsSafe(r);
+      skills.forEach(skill => { const id = addNode(skill, "skill"); if (id) nodes.get(id).routineIds.add(String(row.id)); });
+      const sourceSkill = skills[0] || row.primarySkill || row.category || row.name;
+      const sourceId = addNode(sourceSkill, "skill");
+      const transfer = routineTransferGraphProfileSafe(r);
+      [["direct", transfer.direct || []], ["supporting", transfer.supporting || []], ["weak", transfer.weak || []], ["interference", transfer.interference || []]].forEach(([kind, arr]) => {
+        (arr || []).forEach(target => {
+          const targetId = addNode(target, "skill");
+          if (sourceId && targetId && sourceId !== targetId) edges.push({source:sourceId, target:targetId, type:kind, routineId:String(row.id), routineName:row.name});
+        });
+      });
+      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
+      (dep.prerequisites || []).forEach(pre => {
+        const preId = addNode(pre, "skill");
+        if (preId && sourceId && preId !== sourceId) edges.push({source:preId, target:sourceId, type:"prerequisite", routineId:String(row.id), routineName:row.name});
+      });
+      (dep.enables || []).forEach(en => {
+        const enId = addNode(en, "skill");
+        if (sourceId && enId && sourceId !== enId) edges.push({source:sourceId, target:enId, type:"enables", routineId:String(row.id), routineName:row.name});
+      });
+      (dep.blockedBy || []).forEach(block => {
+        const blockId = addNode(block, "skill");
+        if (blockId && sourceId && blockId !== sourceId) edges.push({source:blockId, target:sourceId, type:"blocked-by", routineId:String(row.id), routineName:row.name});
+      });
+    });
+    edges.forEach(e => { if (nodes.has(e.source)) nodes.get(e.source).out += 1; if (nodes.has(e.target)) nodes.get(e.target).in += 1; });
+    return {nodes:Array.from(nodes.values()).map(n=>({...n, routineIds:Array.from(n.routineIds || [])})), edges};
+  } catch (err) { try { logAppError(err, "routineKgBuildGraphSafe"); } catch (_) {}; return {nodes:[], edges:[]}; }
+}
+function routineKgDetectCyclesSafe(edges=[]) {
+  try {
+    const adjacency = new Map();
+    (edges || []).filter(e => !["weak","interference"].includes(e.type)).forEach(e => {
+      if (!adjacency.has(e.source)) adjacency.set(e.source, []);
+      adjacency.get(e.source).push(e.target);
+    });
+    const visited = new Set(), stack = new Set(), cycles = [];
+    const dfs = (node, path=[]) => {
+      if (stack.has(node)) { cycles.push([...path.slice(path.indexOf(node)), node]); return; }
+      if (visited.has(node)) return;
+      visited.add(node); stack.add(node);
+      (adjacency.get(node) || []).forEach(next => dfs(next, [...path, node]));
+      stack.delete(node);
+    };
+    Array.from(adjacency.keys()).forEach(n => dfs(n, []));
+    return cycles.slice(0, 10);
+  } catch (_) { return []; }
+}
+function routineKnowledgeGraphIntegrityEngineSafe(rows = routineConsoleRowsSafe()) {
+  try {
+    const all = rows || [];
+    const graph = routineKgBuildGraphSafe(all);
+    const nodesById = new Map(graph.nodes.map(n => [n.id, n]));
+    const findings = [];
+    const add = (severity, code, label, detail, fix, routineId="") => findings.push({severity, code, label, detail, fix, routineId});
+    const duplicateEdges = new Map();
+    graph.edges.forEach(e => {
+      const key = `${e.source}->${e.target}:${e.type}`;
+      duplicateEdges.set(key, (duplicateEdges.get(key) || 0) + 1);
+      if (e.source === e.target) add("error", "kg_self_loop", "Self-loop edge", `${e.routineName || "Routine"} links a skill to itself.`, "Remove the self-referential transfer/dependency edge.", e.routineId);
+    });
+    duplicateEdges.forEach((count, key) => { if (count > 2) add("warning", "kg_duplicate_edges", "Duplicate graph edges", `${key} appears ${count} times.`, "Consolidate repeated transfer/dependency links or lower duplicate intensity."); });
+    routineKgDetectCyclesSafe(graph.edges).forEach(cycle => {
+      const labels = cycle.map(id => nodesById.get(id)?.label || id).join(" → ");
+      add("error", "kg_cycle", "Dependency / transfer cycle", labels, "Review prerequisite/enables links and break circular progression dependencies.");
+    });
+    const orphanRows = all.filter(row => {
+      const r = row.routine || routineById(row.id) || {};
+      const transfer = routineTransferGraphProfileSafe(r);
+      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
+      const transferCount = [transfer.direct, transfer.supporting, transfer.weak, transfer.interference].flat().filter(Boolean).length;
+      const depCount = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean).length;
+      return transferCount === 0 && depCount === 0 && Number(row.semanticCompleteness || 0) < 75;
+    });
+    orphanRows.slice(0, 20).forEach(row => add("warning", "kg_orphan_routine", "Orphan routine", `${row.name} has no transfer or dependency links.`, "Add at least one transfer target or dependency-chain relation if this routine belongs to a progression system.", row.id));
+    const brokenDependencyRows = all.filter(row => {
+      const r = row.routine || routineById(row.id) || {};
+      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
+      const deps = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean);
+      return deps.some(skill => !nodesById.has(routineKgSkillKeySafe(skill)) || (nodesById.get(routineKgSkillKeySafe(skill))?.routineIds || []).length === 0);
+    });
+    brokenDependencyRows.slice(0,20).forEach(row => add("warning", "kg_weak_dependency_support", "Weak dependency support", `${row.name} references a skill with no clearly linked routine coverage.`, "Add routines covering the referenced skill or rename the dependency to match the taxonomy.", row.id));
+    all.forEach(row => {
+      const r = row.routine || routineById(row.id) || {};
+      const transfer = routineTransferGraphProfileSafe(r);
+      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
+      const inter = new Set((transfer.interference || []).map(routineKgSkillKeySafe));
+      [dep.prerequisites || [], dep.enables || []].flat().forEach(skill => {
+        if (inter.has(routineKgSkillKeySafe(skill))) add("error", "kg_interference_contradiction", "Interference contradiction", `${row.name} marks ${skill} as both interference and prerequisite/enabled dependency.`, "Decide whether the relation is supportive/progression-based or interference-based, not both.", row.id);
+      });
+      if (["benchmark","pressure"].includes(String(row.routineArchetype || "")) && String(row.benchmarkMode || "support") === "support") {
+        add("warning", "kg_archetype_benchmark_mismatch", "Archetype / benchmark mismatch", `${row.name} is ${row.routineArchetype} but benchmark mode is only support.`, "Set benchmark mode to calibration/test/pressure-test or change archetype.", row.id);
+      }
+      if (String(row.routineArchetype || "") === "recovery" && Number(row.pressureEtu || 0) > 1.2) {
+        add("warning", "kg_recovery_pressure_conflict", "Recovery / pressure conflict", `${row.name} is recovery archetype but pressure ETU is high.`, "Lower pressure ETU or reclassify the routine.", row.id);
+      }
+    });
+    const brokenLadders = all.filter(row => (row.routine?.benchmarkLadder || row.routine?.benchmarkTargets) && (!row.benchmarkMode || row.benchmarkMode === "support"));
+    brokenLadders.slice(0,20).forEach(row => add("warning", "kg_broken_benchmark_ladder", "Broken benchmark ladder", `${row.name} has benchmark ladder/targets but weak benchmark semantics.`, "Map the routine to calibration, test or pressure-test and set exposure weight.", row.id));
+    const critical = findings.filter(f => f.severity === "error" || f.severity === "critical").length;
+    const warnings = findings.filter(f => f.severity === "warning" || f.severity === "risk").length;
+    const score = Math.max(0, Math.min(100, Math.round(100 - critical*12 - warnings*4 - Math.max(0, orphanRows.length-3)*2)));
+    const status = score >= 85 ? "strong" : score >= 70 ? "usable" : score >= 50 ? "fragile" : "broken";
+    return {version:ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION, score, status, graph, findings, metrics:{nodes:graph.nodes.length, edges:graph.edges.length, cycles:routineKgDetectCyclesSafe(graph.edges).length, orphanRoutines:orphanRows.length, brokenDependencies:brokenDependencyRows.length, critical, warnings}};
+  } catch (err) { try { logAppError(err, "routineKnowledgeGraphIntegrityEngineSafe"); } catch (_) {}; return {version:ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION, score:0, status:"unavailable", graph:{nodes:[],edges:[]}, findings:[], metrics:{nodes:0,edges:0,cycles:0,orphanRoutines:0,brokenDependencies:0,critical:0,warnings:0}}; }
+}
+function renderRoutineKnowledgeGraphIntegrityDashboardSafe(rows) {
+  try {
+    const host = $("routineKnowledgeGraphIntegrityDashboard");
+    if (!host) return;
+    const kg = routineKnowledgeGraphIntegrityEngineSafe(rows || routineConsoleRowsSafe());
+    const top = (kg.findings || []).slice(0, 12).map(f => `<tr><td>${escapeHtml(f.severity)}</td><td>${escapeHtml(f.code)}</td><td>${escapeHtml(f.label)}<div class="muted small">${escapeHtml(f.detail)}</div></td><td>${escapeHtml(f.fix)}</td></tr>`).join("");
+    host.innerHTML = `<div class="routine-console-kpis compact kg-integrity-kpis"><div class="kpi-card"><strong>${numText(kg.score)}%</strong><span>integrity</span></div><div class="kpi-card"><strong>${escapeHtml(kg.status)}</strong><span>status</span></div><div class="kpi-card"><strong>${numText(kg.metrics.nodes)}</strong><span>nodes</span></div><div class="kpi-card"><strong>${numText(kg.metrics.edges)}</strong><span>edges</span></div><div class="kpi-card"><strong>${numText(kg.metrics.cycles)}</strong><span>cycles</span></div><div class="kpi-card"><strong>${numText(kg.metrics.orphanRoutines)}</strong><span>orphans</span></div></div><div class="smart-builder-constraint-summary"><span class="adaptive-pill compact">Critical ${numText(kg.metrics.critical)}</span><span class="adaptive-pill compact">Warnings ${numText(kg.metrics.warnings)}</span><span class="adaptive-pill compact">Broken dependencies ${numText(kg.metrics.brokenDependencies)}</span></div>${top ? `<div class="routine-console-scroll compact"><table class="routine-console-table routine-kg-table"><thead><tr><th>Severity</th><th>Code</th><th>Finding</th><th>Suggested fix</th></tr></thead><tbody>${top}</tbody></table></div>` : `<p class="muted">No knowledge-graph integrity issues detected.</p>`}`;
+  } catch (err) { try { logAppError(err, "renderRoutineKnowledgeGraphIntegrityDashboardSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.75F Knowledge Graph Integrity Engine ===== */
+
 /* ===== v5.7.75C Semantic Completeness Scoring v2 ===== */
-const ROUTINE_SEMANTIC_COMPLETENESS_VERSION = "5.7.75C";
+const ROUTINE_SEMANTIC_COMPLETENESS_VERSION = "5.7.75F";
 function routineSemanticCompletenessScoreV2Safe(routine, meta={}) {
   try {
     const r = routine || meta.routine || {};
@@ -19008,7 +19156,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75C",
+    version: "5.7.75F",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19025,7 +19173,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19045,7 +19193,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19066,9 +19214,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75C"
+      version: profile.version || "5.7.75F"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75C"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75F"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19124,7 +19272,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19140,7 +19288,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75C", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19611,6 +19759,7 @@ function renderRoutineStudioLite() {
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
     renderRoutineSemanticCompletenessDashboardV2Safe(allRows);
+    renderRoutineKnowledgeGraphIntegrityDashboardSafe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
     const filter = $("routineStudioAuditFilter")?.value || "all";
     const query = $("routineStudioSearch")?.value || "";
@@ -19619,7 +19768,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75C:</strong> this release adds Semantic Completeness Scoring v2 across taxonomy, ETU, benchmark, transfer/dependency, metadata confidence and provenance.</p><p class="muted">The console now separates classic schema completeness from semantic readiness. This makes it easier to see whether a routine is merely valid, or actually rich enough for reliable recommendation, prediction and future coaching knowledge-graph logic.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75F:</strong> this release adds the Knowledge Graph Integrity Engine on top of semantic completeness scoring.</p><p class="muted">The console now checks whether routine relationships form a coherent training graph: transfer loops, broken dependencies, benchmark ladder gaps, semantic contradictions and orphan routines are surfaced before prediction or coaching logic relies on them.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19716,7 +19865,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75C", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75F", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
