@@ -1,20 +1,20 @@
 # Snooker Practice Log
 
-Version: 5.7.75H-semantic-readiness-dashboard
+Version: 5.7.75J-visual-dependency-chain-viewer
 
-## v5.7.75H — Semantic Readiness Dashboard
+## v5.7.75J — Visual Dependency Chain Viewer
 
-This release adds a Semantic Readiness Dashboard to the Routine Management Console and hardens the semantic chip colors for dark mode.
+This release adds a visual dependency-chain viewer to the Routine Console. The selected routine now shows a prerequisite → selected routine → enables flow, with blocked-by constraints, progression lane, link count, mapping status and chain strength.
 
-### Included
+Included:
+- visual dependency-chain viewer inside the routine editor;
+- prerequisite, enables and blocked-by lanes;
+- chain strength and mapping-status KPIs;
+- integration with the existing Dependency Chain Engine;
+- mobile and desktop Routine Console support;
+- v5.7.75I workspace modes preserved;
+- build identity, version module, cache keys and visible app panel updated to v5.7.75J.
 
-- semantic readiness dashboard above the grid;
-- readiness bars for ETU, transfer, dependency, benchmark, validation, confidence/provenance and overall score;
-- actionable weak-area chips based on the current visible routine database;
-- dark-mode chip palette with stronger contrast and readable text;
-- build identity, version module, cache keys and visible app panel updated to v5.7.75H.
-
-### Validation
-
-- `node --check` passed for `modules/app-core.js` and `app.js`;
-- zip integrity test passed.
+Validation:
+- ES module syntax checked with Node.
+- Zip integrity tested.

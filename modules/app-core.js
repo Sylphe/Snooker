@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75H";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75H";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75J";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75J";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.75H";
+} from "./utils.js?v=5.7.75J";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.75H";
+} from "./settings.js?v=5.7.75J";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.75H";
+} from "./analytics.js?v=5.7.75J";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.75H";
+} from "./bayesian.js?v=5.7.75J";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.75H";
+} from "./session.js?v=5.7.75J";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.75H";
+} from "./pressure.js?v=5.7.75J";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.75H";
+} from "./recommendations.js?v=5.7.75J";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.75H";
+} from "./store.js?v=5.7.75J";
 
 
 
@@ -18468,6 +18468,7 @@ let routineConsoleLastRows = [];
 let routineConsoleSelectedIdsSet = new Set();
 let routineConsoleGridView = "core";
 let routineConsoleActiveMetric = "all";
+let routineConsoleActiveWorkspace = "grid";
 let routineConsoleSortState = {field:"name", direction:"asc"};
 
 
@@ -18540,7 +18541,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75H";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75J";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -19014,7 +19015,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75H",
+    version: "5.7.75J",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19031,7 +19032,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19051,7 +19052,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19072,9 +19073,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75H"
+      version: profile.version || "5.7.75J"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75H"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75J"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19130,7 +19131,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19146,7 +19147,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19154,6 +19155,71 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
     showTransientNotice?.("Dependency chain link removed.", "success");
   } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
 }
+
+/* ===== v5.7.75J Visual Dependency Chain Viewer ===== */
+function routineDependencyLaneLabelSafe(value) {
+  const v = String(value || "general").trim() || "general";
+  return v.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+}
+function routineDependencyViewerChipSafe(skill, type="neutral") {
+  const clean = normalizeSkillId(skill || "");
+  if (!clean) return "";
+  return `<span class="dependency-viewer-chip dependency-viewer-${attrText(type)}">${escapeHtml(skillLabel(clean) || clean)}</span>`;
+}
+function routineDependencyViewerLaneSafe(title, list, type, emptyText) {
+  const arr = normalizeSkillList(list || []);
+  const body = arr.length ? arr.map(skill => routineDependencyViewerChipSafe(skill, type)).join("") : `<span class="dependency-viewer-empty">${escapeHtml(emptyText)}</span>`;
+  return `<div class="dependency-viewer-lane dependency-viewer-${attrText(type)}"><div class="dependency-viewer-lane-title">${escapeHtml(title)}</div><div class="dependency-viewer-chip-row">${body}</div></div>`;
+}
+function routineDependencyVisualSummarySafe(routine) {
+  try {
+    const d = routineDependencyProfileSafe(routine);
+    const linked = d.prerequisites.length + d.enables.length + d.blockedBy.length;
+    const strength = clampNumber(Number(d.chainStrength || 0.5), 0, 1);
+    const readiness = linked >= 4 ? "Mapped" : linked >= 2 ? "Partial" : linked >= 1 ? "Light" : "Unmapped";
+    return {linked, strength, readiness, lane:routineDependencyLaneLabelSafe(d.lane)};
+  } catch (_) { return {linked:0, strength:0.5, readiness:"Unmapped", lane:"General"}; }
+}
+function routineDependencyChainViewerSafe(routine, scope="desktop") {
+  try {
+    const d = routineDependencyProfileSafe(routine);
+    const sum = routineDependencyVisualSummarySafe(routine);
+    const strengthPct = Math.round((sum.strength || 0) * 100);
+    const hasAny = sum.linked > 0;
+    return `<div class="routine-dependency-viewer ${scope === "desktop" ? "desktop" : "mobile"}">
+      <div class="dependency-viewer-head">
+        <div><strong>Visual Dependency Chain Viewer</strong><span class="muted small">Shows the selected routine as a progression node: upstream prerequisites, downstream enables, and blocked-by constraints.</span></div>
+        <div class="dependency-viewer-kpis">
+          <span><strong>${numText(sum.linked)}</strong><small>links</small></span>
+          <span><strong>${numText(strengthPct)}%</strong><small>strength</small></span>
+          <span><strong>${escapeHtml(sum.readiness)}</strong><small>mapping</small></span>
+        </div>
+      </div>
+      <div class="dependency-viewer-stage" aria-label="Visual dependency chain for selected routine">
+        <div class="dependency-viewer-column upstream">
+          ${routineDependencyViewerLaneSafe("Prerequisites", d.prerequisites, "prerequisites", "No upstream prerequisites mapped")}
+          <div class="dependency-viewer-arrow">→</div>
+        </div>
+        <div class="dependency-viewer-current">
+          <span class="dependency-viewer-current-label">Selected routine</span>
+          <strong>${escapeHtml(routine?.name || "Selected routine")}</strong>
+          <small>${escapeHtml(routine?.primarySkill ? skillLabel(routine.primarySkill) : "primary skill not set")}</small>
+          <div class="dependency-viewer-lane-badge">${escapeHtml(sum.lane)}</div>
+        </div>
+        <div class="dependency-viewer-column downstream">
+          <div class="dependency-viewer-arrow">→</div>
+          ${routineDependencyViewerLaneSafe("Enables", d.enables, "enables", "No downstream enables mapped")}
+        </div>
+      </div>
+      <div class="dependency-viewer-bottom">
+        ${routineDependencyViewerLaneSafe("Blocked by", d.blockedBy, "blockedBy", "No blocking constraints mapped")}
+        <p class="muted small">${hasAny ? "Use this viewer to check whether the routine sits logically inside a training progression chain." : "This routine has no dependency graph yet. Add prerequisites, enables, or blocked-by links below to make future sequencing and plateau diagnosis more coherent."}</p>
+      </div>
+    </div>`;
+  } catch (err) { try { logAppError(err, "routineDependencyChainViewerSafe"); } catch (_) {}; return ""; }
+}
+/* ===== end v5.7.75J Visual Dependency Chain Viewer ===== */
+
 /* ===== end v5.7.75E Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
@@ -19237,7 +19303,7 @@ function routineConsoleRowMatchesFilterSafe(row, filter, query) {
 }
 
 
-/* ===== v5.7.75H Semantic Readiness Dashboard ===== */
+/* ===== v5.7.75J Semantic Readiness Dashboard ===== */
 function routineSemanticReadinessClampSafe(value) {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
@@ -19314,7 +19380,7 @@ function renderRoutineSemanticReadinessDashboardSafe(rows) {
     host.innerHTML = `<section class="routine-readiness-card analytics-note"><div class="section-head"><div><h3>Semantic Readiness Dashboard</h3><p class="muted">Shows whether the visible routine database is ready for reliable recommendation, prediction and coaching logic.</p></div><div class="semantic-readiness-score"><strong>${numText(s.overall || 0)}%</strong><span>${escapeHtml(routineSemanticReadinessLabelSafe(s.overall || 0))}</span></div></div><div class="semantic-readiness-grid">${routineSemanticReadinessBarSafe("Taxonomy", s.taxonomy, "taxonomy")}${routineSemanticReadinessBarSafe("ETU", s.etu, "etu")}${routineSemanticReadinessBarSafe("Transfer", s.transfer, "transfer")}${routineSemanticReadinessBarSafe("Dependency", s.dependency, "dependency")}${routineSemanticReadinessBarSafe("Benchmark", s.benchmark, "benchmark")}${routineSemanticReadinessBarSafe("Validation", s.validation, "validation")}${routineSemanticReadinessBarSafe("Confidence", s.confidence, "confidence")}</div><div class="routine-readiness-weak-row"><strong>Weak-area queue</strong><div class="routine-derived-chip-row">${weak}</div></div></section>`;
   } catch (err) { try { logAppError(err, "renderRoutineSemanticReadinessDashboardSafe"); } catch (_) {} }
 }
-/* ===== end v5.7.75H Semantic Readiness Dashboard ===== */
+/* ===== end v5.7.75J Semantic Readiness Dashboard ===== */
 
 function routineConsoleMetricCardSafe(metric, value, label, hint) {
   const active = routineConsoleActiveMetric === metric ? " active" : "";
@@ -19342,14 +19408,15 @@ function routineConsoleApplyMetricFilterSafe(metric) {
   try {
     const clean = String(metric || "all").trim().toLowerCase();
     const map = {
-      all: {filter:"all", view:"core", hint:"Showing all routines."},
-      validation: {filter:"validation", view:"validation", hint:"Validation queue: routines with risk, low validity or schema issues."},
-      etu: {filter:"etu", view:"etu", hint:"ETU triage: routines missing explicit subtype load or load semantics."},
-      benchmark: {filter:"benchmark", view:"benchmark", hint:"Benchmark view: routines mapped to benchmark support, calibration, test or pressure-test semantics."},
-      transfer: {filter:"transfer", view:"transfer", hint:"Transfer view: routines with transfer metadata or transfer-related issues."}
+      all: {filter:"all", view:"core", workspace:"grid", hint:"Showing all routines."},
+      validation: {filter:"validation", view:"validation", workspace:"validation", hint:"Validation queue: routines with risk, low validity or schema issues."},
+      etu: {filter:"etu", view:"etu", workspace:"routine", hint:"ETU triage: routines missing explicit subtype load or load semantics."},
+      benchmark: {filter:"benchmark", view:"benchmark", workspace:"benchmark", hint:"Benchmark view: routines mapped to benchmark support, calibration, test or pressure-test semantics."},
+      transfer: {filter:"transfer", view:"transfer", workspace:"graph", hint:"Transfer view: routines with transfer metadata or transfer-related issues."}
     };
     const cfg = map[clean] || map.all;
     routineConsoleActiveMetric = map[clean] ? clean : "all";
+    routineConsoleActiveWorkspace = cfg.workspace || routineConsoleActiveWorkspace || "grid";
     const filterEl = $("routineStudioAuditFilter");
     const viewEl = $("routineConsoleGridView");
     const searchEl = $("routineStudioSearch");
@@ -19361,11 +19428,76 @@ function routineConsoleApplyMetricFilterSafe(metric) {
       if (["etu","benchmark","transfer"].includes(clean) && details.classList.contains("routine-validation-editor-accordion")) details.open = true;
     });
     renderRoutineStudioLite();
+    routineConsoleApplyWorkspaceModeSafe(routineConsoleActiveWorkspace, {silent:true});
     const hint = $("routineConsoleMetricHint");
     if (hint) hint.textContent = cfg.hint;
     showTransientNotice?.(cfg.hint, "info");
   } catch (err) { try { logAppError(err, "routineConsoleApplyMetricFilterSafe"); } catch (_) {} }
 }
+
+/* ===== v5.7.75J Visual Dependency Chain Viewer ===== */
+function routineConsoleWorkspaceConfigSafe(workspace) {
+  const clean = String(workspace || "grid").trim().toLowerCase();
+  const map = {
+    grid: {view:"core", filter:"all", hint:"Grid workspace: spreadsheet governance, quick edit, filtering and selected routine editing."},
+    graph: {view:"transfer", filter:"transfer", hint:"Graph workspace: transfer graph and dependency-chain editing for the selected routine."},
+    validation: {view:"validation", filter:"validation", hint:"Validation workspace: issue queue, contextual dock and selected-row repair operations."},
+    benchmark: {view:"benchmark", filter:"benchmark", hint:"Benchmark workspace: benchmark mode, strictness, exposure weight and benchmark readiness triage."},
+    analytics: {view:"derived", filter:"all", hint:"Analytics workspace: readiness dashboard, packs, coverage and semantic-assistant diagnostics."},
+    routine: {view:"archetype", filter:"all", hint:"Routine workspace: detailed metadata editing, semantic presets, archetypes and ETU fields."}
+  };
+  return {key:map[clean] ? clean : "grid", ...(map[clean] || map.grid)};
+}
+function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
+  try {
+    const cfg = routineConsoleWorkspaceConfigSafe(workspace);
+    routineConsoleActiveWorkspace = cfg.key;
+    const root = document.querySelector(".routine-studio-lite-card");
+    if (root) {
+      root.dataset.workspace = cfg.key;
+      root.classList.remove("workspace-grid","workspace-graph","workspace-validation","workspace-benchmark","workspace-analytics","workspace-routine");
+      root.classList.add(`workspace-${cfg.key}`);
+    }
+    document.querySelectorAll(".routine-console-workspace-btn").forEach(btn => {
+      const active = String(btn.dataset.id || "") === cfg.key;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    document.querySelectorAll("[data-console-workspace]").forEach(el => {
+      const allowed = String(el.getAttribute("data-console-workspace") || "").split(/\s+/).filter(Boolean);
+      const show = allowed.includes(cfg.key);
+      el.classList.toggle("routine-console-workspace-hidden", !show);
+    });
+    const hint = $("routineConsoleWorkspaceHint");
+    if (hint) hint.textContent = cfg.hint;
+    if (!options.skipControlSync) {
+      const viewEl = $("routineConsoleGridView");
+      const filterEl = $("routineStudioAuditFilter");
+      if (viewEl && cfg.view) viewEl.value = cfg.view;
+      if (filterEl && cfg.filter) filterEl.value = cfg.filter;
+    }
+    if (cfg.key === "validation") document.querySelector(".routine-validation-editor-accordion")?.setAttribute("open", "");
+    if (cfg.key === "analytics") {
+      document.querySelector(".routine-pack-manager")?.setAttribute("open", "");
+      document.querySelector(".routine-semantic-assistant-card")?.setAttribute("open", "");
+    }
+    if (cfg.key === "routine") document.querySelector(".routine-semantic-assistant-card")?.setAttribute("open", "");
+    if (!options.silent) showTransientNotice?.(cfg.hint, "info");
+  } catch (err) { try { logAppError(err, "routineConsoleApplyWorkspaceModeSafe"); } catch (_) {} }
+}
+function routineConsoleSetWorkspaceSafe(workspace) {
+  try {
+    const cfg = routineConsoleWorkspaceConfigSafe(workspace);
+    routineConsoleActiveWorkspace = cfg.key;
+    const viewEl = $("routineConsoleGridView");
+    const filterEl = $("routineStudioAuditFilter");
+    if (viewEl && cfg.view) viewEl.value = cfg.view;
+    if (filterEl && cfg.filter) filterEl.value = cfg.filter;
+    renderRoutineStudioLite();
+    routineConsoleApplyWorkspaceModeSafe(cfg.key, {skipControlSync:true});
+  } catch (err) { try { logAppError(err, "routineConsoleSetWorkspaceSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.75J Visual Dependency Chain Viewer ===== */
 
 /* ===== v5.7.74B Routine Pack Manager ===== */
 function routinePackManagerRowsSafe(rows = routineConsoleRowsSafe()) {
@@ -19822,6 +19954,7 @@ function renderRoutineConsoleEditor(id) {
         </section>
         <section class="routine-editor-section routine-editor-dependency" data-editor-section="dependency">
           <h4>Dependency chain</h4>
+          ${routineDependencyChainViewerSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}
           ${routineDependencyChainRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}
         </section>
         <section class="routine-editor-section routine-editor-load" data-editor-section="load">
@@ -19871,13 +20004,14 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75H:</strong> this release adds the Semantic Readiness Dashboard and dark-mode semantic chip hardening.</p><p class="muted">The console now shows readiness scores for ETU, transfer, dependency, benchmark, validation, confidence and taxonomy, while semantic chips stay readable in dark mode.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75J:</strong> this release adds Visual Dependency Chain Viewer.</p><p class="muted">The desktop console is now split into Grid, Graph, Validation, Benchmark, Analytics and Routine workspaces so the routine database can be edited in focused operating modes instead of one long vertical admin page.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
     host.innerHTML = routineConsoleRenderSpreadsheetGridSafe(rows);
     routineConsoleUpdateSelectionBarSafe(rows);
     renderRoutineConsoleEditor(routineConsoleSelectedRoutineId);
+    routineConsoleApplyWorkspaceModeSafe(routineConsoleActiveWorkspace || "grid", {silent:true, skipControlSync:true});
   } catch (err) { try { logAppError(err, "renderRoutineStudioLite"); } catch (_) {} }
 }
 function routineStudioSelectedIdsSafe() {
@@ -19969,7 +20103,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75H", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75J", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -20290,6 +20424,7 @@ function handleDelegatedUIAction(event) {
     case "routine-studio-clear-selection": return routineStudioClearSelection();
     case "routine-console-copy-down": return routineConsoleCopyDownSelectedSafe();
     case "routine-console-metric-filter": return routineConsoleApplyMetricFilterSafe(id);
+    case "routine-console-workspace": return routineConsoleSetWorkspaceSafe(id);
     case "routine-semantic-preset-apply": return applyRoutineSemanticPresetToSelectedSafe();
     case "routine-archetype-apply": return applyRoutineArchetypeToSelectedSafe();
     case "routine-archetype-infer": return inferRoutineArchetypesForSelectedSafe();

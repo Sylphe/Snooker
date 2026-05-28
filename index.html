@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.7.75H</title>
+  <title>Snooker Practice Log v5.7.75J</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.75H"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.75H" />
-  <link rel="stylesheet" href="styles.css?v=5.7.75H" />
-  <link rel="icon" href="icon.svg?v=5.7.75H" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.75J"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.75J" />
+  <link rel="stylesheet" href="styles.css?v=5.7.75J" />
+  <link rel="icon" href="icon.svg?v=5.7.75J" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.7.75H · Build 2026-05-28 17:35 CEST — Semantic Readiness Dashboard</p>
+      <p>5.7.75J · Build 2026-05-28 18:10 CEST — Visual Dependency Chain Viewer</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -849,7 +849,19 @@
           <div id="routineStudioSummary" class="analytics-note">Routine Console will load the routine schema audit here.</div>
           <div id="routineConsoleOverview" class="routine-console-overview"></div>
           <div id="routineSemanticReadinessDashboard" class="routine-semantic-readiness-dashboard"></div>
-          <details class="routine-console-accordion routine-pack-manager" open>
+          <div class="routine-console-workspace-nav analytics-note compact" aria-label="Routine Console workspace modes">
+            <div class="routine-console-workspace-nav-head"><strong>Workspace mode</strong><span class="muted small">Switch between focused console workflows without losing the selected routine.</span></div>
+            <div class="routine-console-workspace-buttons">
+              <button type="button" class="secondary routine-console-workspace-btn active" data-action="routine-console-workspace" data-id="grid">Grid</button>
+              <button type="button" class="secondary routine-console-workspace-btn" data-action="routine-console-workspace" data-id="graph">Graph</button>
+              <button type="button" class="secondary routine-console-workspace-btn" data-action="routine-console-workspace" data-id="validation">Validation</button>
+              <button type="button" class="secondary routine-console-workspace-btn" data-action="routine-console-workspace" data-id="benchmark">Benchmark</button>
+              <button type="button" class="secondary routine-console-workspace-btn" data-action="routine-console-workspace" data-id="analytics">Analytics</button>
+              <button type="button" class="secondary routine-console-workspace-btn" data-action="routine-console-workspace" data-id="routine">Routine</button>
+            </div>
+            <p id="routineConsoleWorkspaceHint" class="muted small">Grid workspace: spreadsheet governance, quick edit, filtering and selected routine editing.</p>
+          </div>
+          <details class="routine-console-accordion routine-pack-manager" data-console-workspace="analytics" open>
             <summary><span>Routine Pack Manager</span><small>Pack coverage, assignment, import/export</small></summary>
             <div class="routine-console-accordion-body">
             <p class="muted">Manage routine packs from the same desktop console: review current pack coverage, assign selected routines to a pack, export one pack, import JSON packs, or reinstall bundled packs. This is still browser-only and requires no compilation.</p>
@@ -871,7 +883,7 @@
             </div>
           </details>
 
-          <details class="routine-console-accordion routine-semantic-assistant-card" open>
+          <details class="routine-console-accordion routine-semantic-assistant-card" data-console-workspace="routine analytics" open>
             <summary><span>Semantic Assistant</span><small>Archetype → preset → derived metadata</small></summary>
             <div class="routine-console-accordion-body">
           <div class="analytics-note routine-semantic-preset-card">
@@ -966,7 +978,7 @@
             </div>
           </details>
 
-          <details class="routine-console-accordion routine-validation-editor-accordion">
+          <details class="routine-console-accordion routine-validation-editor-accordion" data-console-workspace="validation">
             <summary><span>Validation & Bulk Editors</span><small>Issue triage and selected-row operations</small></summary>
             <div class="routine-console-accordion-body">
           <div class="routine-console-74c-grid">
@@ -1014,9 +1026,9 @@
             </div>
           </details>
 
-          <div id="routineConsoleSelectionBar" class="routine-console-selection-bar analytics-note compact">No routines selected.</div>
+          <div id="routineConsoleSelectionBar" class="routine-console-selection-bar analytics-note compact" data-console-workspace="grid validation benchmark routine graph">No routines selected.</div>
 
-          <div class="grid four routine-console-grid-controls">
+          <div class="grid four routine-console-grid-controls" data-console-workspace="grid validation benchmark routine graph">
             <div>
               <label>Grid view</label>
               <select id="routineConsoleGridView">
@@ -1067,7 +1079,7 @@
               </select>
             </div>
           </div>
-          <div class="grid three">
+          <div class="grid three routine-console-bulk-controls" data-console-workspace="grid validation benchmark routine">
             <div>
               <label>Bulk value</label>
               <input id="routineStudioBulkValue" placeholder="e.g. support, normal, 2.5, active" />
@@ -1108,7 +1120,7 @@
               <button type="button" class="secondary" data-action="routine-console-export-visible">Export visible JSON</button>
             </div>
           </div>
-          <div class="routine-console-layout">
+          <div class="routine-console-layout" data-console-workspace="grid validation benchmark routine graph">
             <div id="routineStudioList" class="routine-studio-list routine-console-table-host"></div>
             <aside id="routineConsoleEditor" class="routine-console-editor analytics-note">Select a routine to edit its full metadata profile.</aside>
           </div>
@@ -1800,7 +1812,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.75H"></script>
+  <script type="module" src="app.js?v=5.7.75J"></script>
 </body>
 
 
