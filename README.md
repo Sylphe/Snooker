@@ -1,20 +1,20 @@
-# Snooker Practice Log
+# Snooker Practice PWA
 
-Version: 5.7.75J-visual-dependency-chain-viewer
+Version: 5.7.75K-derived-metadata-explainability
 
-## v5.7.75J — Visual Dependency Chain Viewer
+## v5.7.75K — Derived Metadata Explainability
 
-This release adds a visual dependency-chain viewer to the Routine Console. The selected routine now shows a prerequisite → selected routine → enables flow, with blocked-by constraints, progression lane, link count, mapping status and chain strength.
+This release adds explainability to the derived metadata layer in the Routine Management Console. Derived recovery suitability, confidence risk, cognitive load, benchmark density and transfer intensity now show the main drivers behind each inference.
 
 Included:
-- visual dependency-chain viewer inside the routine editor;
-- prerequisite, enables and blocked-by lanes;
-- chain strength and mapping-status KPIs;
-- integration with the existing Dependency Chain Engine;
+- derived metadata explainability card in the selected-routine editor;
+- preview table in the Derived Metadata Engine panel;
+- confidence/source labels for derived metadata;
+- explanations based on ETU, volatility, pressure, benchmark exposure and transfer/dependency metadata;
 - mobile and desktop Routine Console support;
-- v5.7.75I workspace modes preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.75J.
+- v5.7.75J Visual Dependency Chain Viewer preserved;
+- build identity, version module, cache keys and visible app panel updated to v5.7.75K.
 
 Validation:
-- ES module syntax checked with Node.
-- Zip integrity tested.
+- ES module syntax check passed;
+- zip integrity test passed.

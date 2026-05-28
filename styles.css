@@ -7196,7 +7196,7 @@ body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="ro
 }
 /* ===== end v5.7.75I ===== */
 
-/* ===== v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== v5.7.75K Derived Metadata Explainability ===== */
 .routine-dependency-viewer{border:1px solid var(--border,rgba(148,163,184,.28));border-radius:16px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));margin:0 0 14px;box-shadow:0 10px 30px rgba(15,23,42,.08)}
 .routine-dependency-viewer .dependency-viewer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
 .dependency-viewer-head strong{display:block;font-size:1rem;margin-bottom:3px}.dependency-viewer-kpis{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.dependency-viewer-kpis span{min-width:76px;border:1px solid rgba(148,163,184,.28);border-radius:12px;padding:8px 10px;text-align:center;background:rgba(148,163,184,.08)}.dependency-viewer-kpis strong{font-size:.95rem}.dependency-viewer-kpis small{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b)}
@@ -7206,4 +7206,24 @@ html[data-theme="dark"] .routine-dependency-viewer,body[data-theme="dark"] .rout
 html[data-theme="dark"] .dependency-viewer-lane,body[data-theme="dark"] .dependency-viewer-lane{background:rgba(30,41,59,.46);border-color:rgba(148,163,184,.22)}
 html[data-theme="dark"] .dependency-viewer-current,body[data-theme="dark"] .dependency-viewer-current{background:rgba(37,99,235,.18);border-color:rgba(96,165,250,.42)}
 @media (max-width: 860px){.dependency-viewer-stage{grid-template-columns:1fr}.dependency-viewer-column{flex-direction:column}.dependency-viewer-arrow{transform:rotate(90deg)}.routine-dependency-viewer .dependency-viewer-head{flex-direction:column}.dependency-viewer-kpis{justify-content:flex-start}}
-/* ===== end v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== end v5.7.75K Derived Metadata Explainability ===== */
+
+/* ===== v5.7.75K Derived Metadata Explainability ===== */
+.routine-derived-explainability-card{margin-top:.75rem;border:1px solid var(--border-subtle, rgba(148,163,184,.24));border-radius:16px;padding:.85rem;background:var(--surface-soft, rgba(15,23,42,.035));}
+.routine-derived-explainability-card .section-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:.6rem;}
+.routine-derived-explainability-card h4{margin:0 0 .2rem;font-size:.95rem;}
+.routine-derived-confidence{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:flex-end;}
+.routine-derived-explain-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.55rem;}
+.routine-derived-explain-row{border:1px solid rgba(148,163,184,.22);border-radius:12px;padding:.45rem .55rem;background:rgba(255,255,255,.45);}
+.routine-derived-explain-row summary{display:flex;justify-content:space-between;gap:.6rem;align-items:center;cursor:pointer;list-style:none;}
+.routine-derived-explain-row summary::-webkit-details-marker{display:none;}
+.routine-derived-explain-row ul{margin:.45rem 0 0;padding-left:1.05rem;color:var(--text-muted, #64748b);font-size:.78rem;line-height:1.35;}
+.routine-derived-explain-preview{overflow:auto;margin-top:.5rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;}
+.routine-derived-explain-preview table{width:100%;border-collapse:collapse;font-size:.78rem;}
+.routine-derived-explain-preview th,.routine-derived-explain-preview td{padding:.45rem .55rem;border-bottom:1px solid rgba(148,163,184,.18);text-align:left;vertical-align:top;}
+body[data-theme="dark"] .routine-derived-explainability-card{background:rgba(15,23,42,.58);border-color:rgba(148,163,184,.32);}
+body[data-theme="dark"] .routine-derived-explain-row{background:rgba(15,23,42,.48);border-color:rgba(148,163,184,.28);}
+body[data-theme="dark"] .routine-derived-explain-row ul{color:#cbd5e1;}
+body[data-theme="dark"] .routine-derived-explain-preview{border-color:rgba(148,163,184,.32);}
+@media (max-width:720px){.routine-derived-explainability-card .section-head{display:block}.routine-derived-confidence{justify-content:flex-start;margin-top:.4rem}.routine-derived-explain-list{grid-template-columns:1fr}}
+/* ===== end v5.7.75K Derived Metadata Explainability ===== */

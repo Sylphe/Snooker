@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75J";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75J";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75K";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75K";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.75J";
+} from "./utils.js?v=5.7.75K";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.75J";
+} from "./settings.js?v=5.7.75K";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.75J";
+} from "./analytics.js?v=5.7.75K";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.75J";
+} from "./bayesian.js?v=5.7.75K";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.75J";
+} from "./session.js?v=5.7.75K";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.75J";
+} from "./pressure.js?v=5.7.75K";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.75J";
+} from "./recommendations.js?v=5.7.75K";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.75J";
+} from "./store.js?v=5.7.75K";
 
 
 
@@ -18541,7 +18541,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75J";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75K";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18659,7 +18659,7 @@ function inferRoutineArchetypesForSelectedSafe() {
 
 
 /* ===== v5.7.74F Derived Metadata Engine ===== */
-const ROUTINE_DERIVED_METADATA_VERSION = "5.7.74F";
+const ROUTINE_DERIVED_METADATA_VERSION = "5.7.75K";
 function routineDerivedLevelSafe(score) {
   const n = Number(score || 0);
   if (n >= 0.72) return "high";
@@ -18730,6 +18730,84 @@ function routineDerivedMetadataSafe(routine) {
     };
   } catch (err) { try { logAppError(err, "routineDerivedMetadataSafe"); } catch (_) {}; return {version:ROUTINE_DERIVED_METADATA_VERSION, source:"fallback", recoverySuitability:"medium", confidenceRisk:"medium", cognitiveLoad:"medium", benchmarkDensity:"low", transferIntensity:"low", scores:{}, drivers:["fallback derived metadata"]}; }
 }
+
+function routineDerivedExplainabilitySafe(routine, derived=null) {
+  try {
+    const r = routine || {};
+    const m = routineConsoleRoutineMetaSafe(r);
+    const d = derived || routineDerivedMetadataSafe(r);
+    const scores = d.scores || {};
+    const tech = Math.max(0, Number(m.technicalEtu || 0));
+    const cog = Math.max(0, Number(m.cognitiveEtu || 0));
+    const conf = Math.max(0, Number(m.confidenceEtu || 0));
+    const pres = Math.max(0, Number(m.pressureEtu || 0));
+    const etuTotal = tech + cog + conf + pres;
+    const transferProfile = r.transferProfile || {};
+    const transferCount = routineConsoleParseListSafe(m.transferTags).length
+      + routineConsoleParseListSafe(transferProfile.direct || []).length
+      + routineConsoleParseListSafe(transferProfile.supporting || []).length
+      + routineConsoleParseListSafe(transferProfile.weak || []).length
+      + routineConsoleParseListSafe(transferProfile.interference || []).length;
+    const volatilityScore = routineDerivedVolatilityScoreSafe(r, m);
+    const explicitVolatility = String(m.volatilityProfile || "auto").toLowerCase();
+    const benchmarkMode = normalizeBenchmarkMode(m.benchmarkMode || "support");
+    const benchmarkWeight = clampNumber(Number(m.benchmarkExposureWeight || 0), 0, 1);
+    const pressureSignals = [];
+    if (pres > 0) pressureSignals.push(`pressure ETU ${numText(pres)}`);
+    if (benchmarkMode === "pressure-test") pressureSignals.push("pressure-test benchmark mode");
+    if (String(m.pressureSuitability || "") === "high") pressureSignals.push("high pressure suitability");
+    const recoveryWhy = [
+      etuTotal <= 0 ? "ETU is missing, so recovery fit uses fallback heuristics" : `total ETU ${numText(etuTotal)}`,
+      explicitVolatility !== "auto" ? `volatility manually set to ${explicitVolatility}` : `volatility inferred as ${volatilityScore >= .6 ? "high" : volatilityScore >= .35 ? "medium" : "low"}`,
+      pressureSignals.length ? `pressure signal: ${pressureSignals.join(", ")}` : "low explicit pressure signal"
+    ];
+    const confidenceWhy = [
+      `volatility contribution ${numText(Math.round(volatilityScore * 100))}%`,
+      pressureSignals.length ? `pressure contribution from ${pressureSignals.join(", ")}` : "limited pressure contribution",
+      conf > 0 ? `confidence/emotional ETU ${numText(conf)}` : "no explicit confidence/emotional ETU"
+    ];
+    const cognitiveWhy = [
+      cog > 0 ? `cognitive ETU ${numText(cog)}` : "no explicit cognitive ETU",
+      transferCount ? `${numText(transferCount)} transfer/dependency-style metadata signal(s)` : "limited transfer metadata",
+      benchmarkWeight > 0 ? `benchmark exposure weight ${numText(benchmarkWeight)}` : "low benchmark exposure weight"
+    ];
+    const benchmarkWhy = [
+      `benchmark mode ${benchmarkMode}`,
+      `exposure weight ${numText(benchmarkWeight)}`,
+      ["test","pressure-test","calibration"].includes(benchmarkMode) ? "routine participates in benchmark governance" : "routine currently acts mainly as benchmark support"
+    ];
+    const transferWhy = [
+      transferCount ? `${numText(transferCount)} transfer edge/tag signal(s)` : "no transfer edges or transfer tags defined",
+      transferProfile.interference?.length ? "interference edges present" : "no interference edges",
+      transferProfile.direct?.length ? "direct transfer edges present" : "no direct transfer edges"
+    ];
+    const confidence = d.source === "manual-locked" ? "high" : etuTotal > 0 && transferCount > 0 ? "medium-high" : etuTotal > 0 ? "medium" : "low";
+    return {
+      source: d.source || "derived",
+      confidence,
+      sections: [
+        {key:"recovery", label:`Recovery suitability: ${d.recoverySuitability}`, score:scores.recoverySuitability ?? null, reasons:recoveryWhy},
+        {key:"risk", label:`Confidence risk: ${d.confidenceRisk}`, score:scores.confidenceRisk ?? null, reasons:confidenceWhy},
+        {key:"cognitive", label:`Cognitive load: ${d.cognitiveLoad}`, score:scores.cognitiveLoad ?? null, reasons:cognitiveWhy},
+        {key:"benchmark", label:`Benchmark density: ${d.benchmarkDensity}`, score:scores.benchmarkDensity ?? null, reasons:benchmarkWhy},
+        {key:"transfer", label:`Transfer intensity: ${d.transferIntensity}`, score:scores.transferIntensity ?? null, reasons:transferWhy}
+      ]
+    };
+  } catch (err) { try { logAppError(err, "routineDerivedExplainabilitySafe"); } catch (_) {}; return {source:"fallback", confidence:"low", sections:[]}; }
+}
+function routineDerivedExplainabilityHtmlSafe(routine, derived=null, opts={}) {
+  try {
+    const d = derived || routineDerivedMetadataSafe(routine);
+    const model = routineDerivedExplainabilitySafe(routine, d);
+    const compact = !!opts.compact;
+    const rows = (model.sections || []).map(section => {
+      const tone = /high/.test(String(section.label).toLowerCase()) && /risk|cognitive|benchmark|transfer/.test(section.key) ? "watch" : section.key === "recovery" ? d.recoverySuitability : "derived";
+      const reasons = (section.reasons || []).slice(0, compact ? 2 : 4).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+      return `<details class="routine-derived-explain-row" ${compact ? "" : "open"}><summary>${routineConsoleChipSafe(section.label, section.key === "recovery" ? "recovery" : section.key === "benchmark" ? "benchmark" : section.key === "transfer" ? "transfer" : section.key === "risk" ? "validation" : "derived", tone)}<span>${section.score === null || section.score === undefined ? "" : `${numText(section.score)}%`}</span></summary><ul>${reasons}</ul></details>`;
+    }).join("");
+    return `<section class="routine-derived-explainability-card analytics-note"><div class="section-head"><div><h4>Derived metadata explainability</h4><p class="muted small">Explains why recovery, confidence risk, cognitive load, benchmark density and transfer intensity were inferred.</p></div><div class="routine-derived-confidence">${routineConsoleChipSafe(`Confidence ${model.confidence}`, "validation", model.confidence.includes("low") ? "watch" : "ok")}${routineConsoleChipSafe(`Source ${model.source}`, "derived", model.source)}</div></div><div class="routine-derived-explain-list">${rows}</div></section>`;
+  } catch (err) { try { logAppError(err, "routineDerivedExplainabilityHtmlSafe"); } catch (_) {}; return ""; }
+}
 function routineDerivedApplyToRoutineSafe(routine, mode="fill") {
   if (!routine) return routine;
   const derived = routineDerivedMetadataSafe(routine);
@@ -18778,7 +18856,14 @@ function renderRoutineDerivedMetadataPreviewSafe() {
       counts.transfer[d.transferIntensity] = (counts.transfer[d.transferIntensity] || 0) + 1;
     });
     const fmt = obj => ["low","medium","high"].map(k => `${k}: ${numText(obj[k] || 0)}`).join(" · ");
-    host.innerHTML = `<p class="muted small"><strong>Preview sample:</strong> ${numText(sample.length)} routine(s). Recovery ${escapeHtml(fmt(counts.recovery))}. Confidence risk ${escapeHtml(fmt(counts.risk))}. Cognitive load ${escapeHtml(fmt(counts.cognitive))}. Benchmark density ${escapeHtml(fmt(counts.benchmark))}. Transfer intensity ${escapeHtml(fmt(counts.transfer))}.</p>`;
+    const explainRows = sample.slice(0, 4).map(row => {
+      const routine = row.routine || routineById(row.id);
+      const d = routineDerivedMetadataSafe(routine);
+      const exp = routineDerivedExplainabilitySafe(routine, d);
+      const top = (exp.sections || []).slice(0, 3).map(sec => `${sec.label}${sec.score === null || sec.score === undefined ? "" : ` (${numText(sec.score)}%)`}`).join(" · ");
+      return `<tr><td>${escapeHtml(row.name || routine?.name || "Routine")}</td><td>${escapeHtml(d.source || "derived")}</td><td>${escapeHtml(exp.confidence || "medium")}</td><td>${escapeHtml(top)}</td></tr>`;
+    }).join("");
+    host.innerHTML = `<p class="muted small"><strong>Preview sample:</strong> ${numText(sample.length)} routine(s). Recovery ${escapeHtml(fmt(counts.recovery))}. Confidence risk ${escapeHtml(fmt(counts.risk))}. Cognitive load ${escapeHtml(fmt(counts.cognitive))}. Benchmark density ${escapeHtml(fmt(counts.benchmark))}. Transfer intensity ${escapeHtml(fmt(counts.transfer))}.</p><div class="routine-derived-explain-preview"><table><thead><tr><th>Routine</th><th>Source</th><th>Confidence</th><th>Main explanation</th></tr></thead><tbody>${explainRows}</tbody></table></div>`;
   } catch (err) { try { logAppError(err, "renderRoutineDerivedMetadataPreviewSafe"); } catch (_) {} }
 }
 /* ===== end v5.7.74F Derived Metadata Engine ===== */
@@ -19015,7 +19100,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75J",
+    version: "5.7.75K",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19032,7 +19117,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75K", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19052,7 +19137,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75K", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19073,9 +19158,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75J"
+      version: profile.version || "5.7.75K"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75J"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75K"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19131,7 +19216,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75K", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19147,7 +19232,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75J", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75K", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19156,7 +19241,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
   } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
 }
 
-/* ===== v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== v5.7.75K Derived Metadata Explainability ===== */
 function routineDependencyLaneLabelSafe(value) {
   const v = String(value || "general").trim() || "general";
   return v.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
@@ -19188,7 +19273,7 @@ function routineDependencyChainViewerSafe(routine, scope="desktop") {
     const hasAny = sum.linked > 0;
     return `<div class="routine-dependency-viewer ${scope === "desktop" ? "desktop" : "mobile"}">
       <div class="dependency-viewer-head">
-        <div><strong>Visual Dependency Chain Viewer</strong><span class="muted small">Shows the selected routine as a progression node: upstream prerequisites, downstream enables, and blocked-by constraints.</span></div>
+        <div><strong>Derived Metadata Explainability</strong><span class="muted small">Shows the selected routine as a progression node: upstream prerequisites, downstream enables, and blocked-by constraints.</span></div>
         <div class="dependency-viewer-kpis">
           <span><strong>${numText(sum.linked)}</strong><small>links</small></span>
           <span><strong>${numText(strengthPct)}%</strong><small>strength</small></span>
@@ -19218,7 +19303,7 @@ function routineDependencyChainViewerSafe(routine, scope="desktop") {
     </div>`;
   } catch (err) { try { logAppError(err, "routineDependencyChainViewerSafe"); } catch (_) {}; return ""; }
 }
-/* ===== end v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== end v5.7.75K Derived Metadata Explainability ===== */
 
 /* ===== end v5.7.75E Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
@@ -19303,7 +19388,7 @@ function routineConsoleRowMatchesFilterSafe(row, filter, query) {
 }
 
 
-/* ===== v5.7.75J Semantic Readiness Dashboard ===== */
+/* ===== v5.7.75K Semantic Readiness Dashboard ===== */
 function routineSemanticReadinessClampSafe(value) {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
@@ -19380,7 +19465,7 @@ function renderRoutineSemanticReadinessDashboardSafe(rows) {
     host.innerHTML = `<section class="routine-readiness-card analytics-note"><div class="section-head"><div><h3>Semantic Readiness Dashboard</h3><p class="muted">Shows whether the visible routine database is ready for reliable recommendation, prediction and coaching logic.</p></div><div class="semantic-readiness-score"><strong>${numText(s.overall || 0)}%</strong><span>${escapeHtml(routineSemanticReadinessLabelSafe(s.overall || 0))}</span></div></div><div class="semantic-readiness-grid">${routineSemanticReadinessBarSafe("Taxonomy", s.taxonomy, "taxonomy")}${routineSemanticReadinessBarSafe("ETU", s.etu, "etu")}${routineSemanticReadinessBarSafe("Transfer", s.transfer, "transfer")}${routineSemanticReadinessBarSafe("Dependency", s.dependency, "dependency")}${routineSemanticReadinessBarSafe("Benchmark", s.benchmark, "benchmark")}${routineSemanticReadinessBarSafe("Validation", s.validation, "validation")}${routineSemanticReadinessBarSafe("Confidence", s.confidence, "confidence")}</div><div class="routine-readiness-weak-row"><strong>Weak-area queue</strong><div class="routine-derived-chip-row">${weak}</div></div></section>`;
   } catch (err) { try { logAppError(err, "renderRoutineSemanticReadinessDashboardSafe"); } catch (_) {} }
 }
-/* ===== end v5.7.75J Semantic Readiness Dashboard ===== */
+/* ===== end v5.7.75K Semantic Readiness Dashboard ===== */
 
 function routineConsoleMetricCardSafe(metric, value, label, hint) {
   const active = routineConsoleActiveMetric === metric ? " active" : "";
@@ -19435,7 +19520,7 @@ function routineConsoleApplyMetricFilterSafe(metric) {
   } catch (err) { try { logAppError(err, "routineConsoleApplyMetricFilterSafe"); } catch (_) {} }
 }
 
-/* ===== v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== v5.7.75K Derived Metadata Explainability ===== */
 function routineConsoleWorkspaceConfigSafe(workspace) {
   const clean = String(workspace || "grid").trim().toLowerCase();
   const map = {
@@ -19497,7 +19582,7 @@ function routineConsoleSetWorkspaceSafe(workspace) {
     routineConsoleApplyWorkspaceModeSafe(cfg.key, {skipControlSync:true});
   } catch (err) { try { logAppError(err, "routineConsoleSetWorkspaceSafe"); } catch (_) {} }
 }
-/* ===== end v5.7.75J Visual Dependency Chain Viewer ===== */
+/* ===== end v5.7.75K Derived Metadata Explainability ===== */
 
 /* ===== v5.7.74B Routine Pack Manager ===== */
 function routinePackManagerRowsSafe(rows = routineConsoleRowsSafe()) {
@@ -19921,7 +20006,7 @@ function renderRoutineConsoleEditor(id) {
     routineConsoleSelectedRoutineId = String(r.id || "");
     const m = routineConsoleRoutineMetaSafe(r);
     const selectedRow = routineConsoleRowsSafe().find(row => String(row.id) === String(m.id)) || { ...m, routine:r, issues:[] };
-    const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><div class="routine-derived-chip-row">${routineConsoleChipSafe(`Recovery ${d.recoverySuitability}`, "recovery", d.recoverySuitability)}${routineConsoleChipSafe(`Confidence risk ${d.confidenceRisk}`, "validation", d.confidenceRisk === "high" ? "risk" : d.confidenceRisk === "medium" ? "watch" : "ok")}${routineConsoleChipSafe(`Cognitive ${d.cognitiveLoad}`, "derived", d.cognitiveLoad)}${routineConsoleChipSafe(`Benchmark ${d.benchmarkDensity}`, "benchmark", d.benchmarkDensity)}${routineConsoleChipSafe(`Transfer ${d.transferIntensity}`, "transfer", d.transferIntensity)}</div><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })();
+    const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><div class="routine-derived-chip-row">${routineConsoleChipSafe(`Recovery ${d.recoverySuitability}`, "recovery", d.recoverySuitability)}${routineConsoleChipSafe(`Confidence risk ${d.confidenceRisk}`, "validation", d.confidenceRisk === "high" ? "risk" : d.confidenceRisk === "medium" ? "watch" : "ok")}${routineConsoleChipSafe(`Cognitive ${d.cognitiveLoad}`, "derived", d.cognitiveLoad)}${routineConsoleChipSafe(`Benchmark ${d.benchmarkDensity}`, "benchmark", d.benchmarkDensity)}${routineConsoleChipSafe(`Transfer ${d.transferIntensity}`, "transfer", d.transferIntensity)}</div><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>${routineDerivedExplainabilityHtmlSafe(r, d, {compact:true})}`; })();
     const validationDockHtml = routineConsoleRenderContextualValidationDockSafe(selectedRow);
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
@@ -20004,7 +20089,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75J:</strong> this release adds Visual Dependency Chain Viewer.</p><p class="muted">The desktop console is now split into Grid, Graph, Validation, Benchmark, Analytics and Routine workspaces so the routine database can be edited in focused operating modes instead of one long vertical admin page.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75K:</strong> this release adds Derived Metadata Explainability.</p><p class="muted">Derived metadata now shows why each inference was made, including ETU, volatility, pressure, benchmark and transfer drivers, so automatic metadata can be trusted and debugged before prediction logic uses it.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -20103,7 +20188,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75J", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75K", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
