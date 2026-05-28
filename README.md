@@ -1,18 +1,19 @@
 # Snooker Practice PWA
 
-Version: 5.7.77A-focus-mode-v2-state-architecture
+Version: 5.7.77B-focus-mode-v2-thumb-zone-mobile-layout
 
-## v5.7.77A — Focus Mode v2 State Architecture
+## v5.7.77B — Focus Mode v2 Thumb-Zone Mobile Layout
 
-This release introduces Focus Mode v2 in parallel with the existing Focus Mode. The current logging flow is preserved. A new Practice-tab button opens a test cockpit with three isolated states: Pre-shot, Logging and Review.
+This release keeps the existing Focus Mode untouched and extends the parallel Focus Mode v2 test cockpit. The v2 flow now starts with a richer pre-shot setup screen and moves into a mobile-first thumb-zone logging layout.
 
 ### Included
 
 - Practice tab button: Focus Mode v2 Test.
-- Focus Mode v2 modal shell.
-- State architecture: Pre-shot, Logging, Review.
-- Large score-entry cockpit for the v2 test flow.
-- Isolated v2 draft state; it does not overwrite the current Focus Mode or main logging flow.
+- Focus Mode v2 remains isolated from the current Focus Mode and does not write to main logs yet.
+- Pre-shot screen includes table selection, last score, best score, target and reach-to-target context.
+- Logging screen includes a large numeric score field, numpad, score variation buttons, attempts and time fields.
+- Side-split routines show left/right scoring boxes in Focus Mode v2.
+- Dark-mode layout and contrast improvements for the Focus Mode v2 modal, buttons, numpad and bottom dock.
 - Existing v5.7.76H.3 Routine Console containment fixes preserved.
 
 ### Validation
