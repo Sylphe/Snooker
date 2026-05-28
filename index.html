@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.7.69</title>
+  <title>Snooker Practice Log v5.7.74G</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.69"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.69" />
-  <link rel="stylesheet" href="styles.css?v=5.7.69" />
-  <link rel="icon" href="icon.svg?v=5.7.69" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.74G"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.74G" />
+  <link rel="stylesheet" href="styles.css?v=5.7.74G" />
+  <link rel="icon" href="icon.svg?v=5.7.74G" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>v5.7.69 · Build 2026-05-26 21:20 CEST — Skill-domain detail pages</p>
+      <p>v5.7.74G · Build 2026-05-28 13:05 CEST — Routine Archetype Framework</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -900,6 +900,64 @@
             <p id="routineSemanticPresetPreview" class="muted small">Choose a preset to preview the metadata package.</p>
           </div>
 
+          <div class="analytics-note routine-archetype-card">
+            <h3>Routine Archetype Framework</h3>
+            <p class="muted">Classify selected routines into high-level training archetypes. Archetypes act as semantic inheritance defaults above presets: they set the routine's primary training role and can fill ETU subtype weights, benchmark semantics, volatility, recovery fit and pressure fit without forcing manual field-by-field editing.</p>
+            <div class="grid three">
+              <div>
+                <label>Archetype</label>
+                <select id="routineArchetypeSelect">
+                  <option value="">Choose archetype</option>
+                  <option value="acquisition">Acquisition</option>
+                  <option value="stabilization">Stabilization</option>
+                  <option value="pressure">Pressure</option>
+                  <option value="benchmark">Benchmark</option>
+                  <option value="recovery">Recovery</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="diagnostic">Diagnostic</option>
+                </select>
+              </div>
+              <div>
+                <label>Application mode</label>
+                <select id="routineArchetypeMode">
+                  <option value="fill" selected>Fill missing / auto fields only</option>
+                  <option value="overwrite">Overwrite selected metadata</option>
+                </select>
+              </div>
+              <div>
+                <label>Apply archetype</label>
+                <div class="row compact-row">
+                  <button type="button" class="primary-start-btn" data-action="routine-archetype-apply">Apply</button>
+                  <button type="button" class="secondary" data-action="routine-archetype-infer">Infer</button>
+                </div>
+              </div>
+            </div>
+            <p id="routineArchetypePreview" class="muted small">Choose an archetype to preview inherited defaults.</p>
+          </div>
+
+          <div class="analytics-note routine-derived-metadata-card">
+            <h3>Derived Metadata Engine</h3>
+            <p class="muted">Infer routine semantics from existing ETU, volatility, benchmark and transfer metadata. Use this when routine fields are incomplete or still set to auto. Fill mode preserves curated fields; overwrite mode deliberately replaces derived suitability fields.</p>
+            <div class="grid three">
+              <div>
+                <label>Derivation mode</label>
+                <select id="routineDerivedMetadataMode">
+                  <option value="fill" selected>Fill missing / auto fields only</option>
+                  <option value="overwrite">Overwrite derived fields</option>
+                </select>
+              </div>
+              <div>
+                <label>Preview</label>
+                <button type="button" class="secondary" data-action="routine-derived-metadata-preview">Preview selected</button>
+              </div>
+              <div>
+                <label>Apply derived metadata</label>
+                <button type="button" class="primary-start-btn" data-action="routine-derived-metadata-apply">Apply to selected routines</button>
+              </div>
+            </div>
+            <div id="routineDerivedMetadataPreview" class="routine-derived-preview"><p class="muted small">Select routines to preview derived recovery, confidence risk, cognitive load, benchmark density and transfer intensity.</p></div>
+          </div>
+
           <div class="routine-console-74c-grid">
             <div class="analytics-note routine-console-validation-card">
               <h3>Validation Dashboard</h3>
@@ -952,6 +1010,8 @@
                 <option value="benchmark">Benchmark view</option>
                 <option value="transfer">Transfer view</option>
                 <option value="validation">Validation view</option>
+                <option value="derived">Derived metadata view</option>
+                <option value="archetype">Archetype view</option>
                 <option value="minimal">Minimal governance view</option>
                 <option value="all">All columns</option>
               </select>
@@ -978,6 +1038,8 @@
               <select id="routineStudioBulkField">
                 <option value="">Choose metadata field</option>
                 <option value="recommendationMode">Recommendation eligibility</option>
+                <option value="routineArchetype">Routine archetype</option>
+                <option value="routineArchetype">Routine archetype</option>
                 <option value="benchmarkMode">Benchmark mode</option>
                 <option value="benchmarkStrictness">Benchmark strictness</option>
                 <option value="benchmarkExposureWeight">Benchmark exposure weight</option>
@@ -1004,6 +1066,7 @@
               <label>Copy down field</label>
               <select id="routineConsoleCopyDownField">
                 <option value="">Choose field</option>
+                <option value="routineArchetype">Routine archetype</option>
                 <option value="benchmarkMode">Benchmark mode</option>
                 <option value="benchmarkStrictness">Benchmark strictness</option>
                 <option value="benchmarkExposureWeight">Benchmark exposure weight</option>
@@ -1723,7 +1786,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.69"></script>
+  <script type="module" src="app.js?v=5.7.74G"></script>
 </body>
 
 

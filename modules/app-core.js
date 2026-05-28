@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74E";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74G";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18536,6 +18536,251 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
   next.metadataProvenance = {...(next.metadataProvenance || {}), semanticPreset:{source:"preset", key:String(presetKey), mode, appliedAt:next.semanticPresetAppliedAt}};
   return next;
 }
+
+
+/* ===== v5.7.74G Routine Archetype Framework ===== */
+const ROUTINE_ARCHETYPE_VERSION = "5.7.74G";
+const ROUTINE_ARCHETYPES = {
+  acquisition: {
+    label: "Acquisition",
+    description: "Learning-oriented work used to acquire or rewire a skill. Higher cognitive load, moderate volatility, and usually not a formal benchmark.",
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.2, technicalEtu:1.0, cognitiveEtu:1.8, confidenceEtu:0.5, pressureEtu:0.3}
+  },
+  stabilization: {
+    label: "Stabilization",
+    description: "Consistency work used to turn a skill into a repeatable baseline. Balanced technical load with low-to-medium volatility.",
+    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.15, technicalEtu:1.6, cognitiveEtu:0.7, confidenceEtu:0.5, pressureEtu:0.2}
+  },
+  pressure: {
+    label: "Pressure",
+    description: "Stress-adaptation work where evaluation, score pressure or consequence management is central.",
+    defaults: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:0.75, technicalEtu:1.1, cognitiveEtu:1.0, confidenceEtu:1.2, pressureEtu:2.0}
+  },
+  benchmark: {
+    label: "Benchmark",
+    description: "Measurement work used to calibrate level, detect breakthroughs, or validate capability under consistent rules.",
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:0.8, technicalEtu:1.0, cognitiveEtu:0.8, confidenceEtu:0.8, pressureEtu:0.9}
+  },
+  recovery: {
+    label: "Recovery",
+    description: "Low-load consolidation work used when readiness is low or confidence needs rebuilding.",
+    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"low", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.0, technicalEtu:0.8, cognitiveEtu:0.3, confidenceEtu:0.7, pressureEtu:0.0}
+  },
+  transfer: {
+    label: "Transfer",
+    description: "Multi-domain work intended to connect one skill domain to another, such as cue-ball control into break-building.",
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.35, technicalEtu:1.3, cognitiveEtu:1.4, confidenceEtu:0.6, pressureEtu:0.5}
+  },
+  diagnostic: {
+    label: "Diagnostic",
+    description: "Weakness-discovery work used to identify constraints, instability or readiness before prescribing a training block.",
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.65, technicalEtu:0.9, cognitiveEtu:1.0, confidenceEtu:0.7, pressureEtu:0.6}
+  }
+};
+function routineArchetypeOptionsHtmlSafe(selected="") {
+  return `<option value="">Choose archetype</option>` + Object.entries(ROUTINE_ARCHETYPES).map(([key,a]) => `<option value="${attrText(key)}"${String(selected)===key?" selected":""}>${escapeHtml(a.label)}</option>`).join("");
+}
+function routineArchetypePatchSafe(key) {
+  const a = ROUTINE_ARCHETYPES[String(key || "")];
+  return a ? {...a.defaults} : null;
+}
+function routineArchetypeInferSafe(routine) {
+  try {
+    const m = routineConsoleRoutineMetaSafe(routine || {});
+    const text = `${m.name} ${m.folder} ${m.subfolder} ${m.category} ${m.primarySkill} ${m.secondarySkills} ${m.transferTags}`.toLowerCase();
+    if (/recovery|confidence|warm.?up|alignment|easy|control/.test(text)) return "recovery";
+    if (/pressure|match|clearance|consequence/.test(text)) return "pressure";
+    if (/benchmark|test|assessment|target/.test(text) || ["test","pressure-test"].includes(String(m.benchmarkMode))) return "benchmark";
+    if (/diagnostic|weakness|probe|audit/.test(text)) return "diagnostic";
+    if (/transfer|route|pattern|break.?building|line.?up|positional/.test(text)) return "transfer";
+    if (/learn|acquisition|tactical|safety|shot.?selection/.test(text)) return "acquisition";
+    return "stabilization";
+  } catch (_) { return "stabilization"; }
+}
+function routineArchetypePreviewSafe(key) {
+  const a = ROUTINE_ARCHETYPES[String(key || "")];
+  if (!a) return "Choose an archetype to preview inherited defaults.";
+  const d = a.defaults || {};
+  return `${a.label}: ${a.description} Defaults: benchmark ${d.benchmarkMode}/${d.benchmarkStrictness}, volatility ${d.volatilityProfile}, recovery ${d.recoverySuitability}, pressure ${d.pressureSuitability}, ETU T ${d.technicalEtu} · C ${d.cognitiveEtu} · E ${d.confidenceEtu} · P ${d.pressureEtu}.`;
+}
+function routineArchetypeApplyToRoutineSafe(routine, archetypeKey, mode="fill") {
+  const patch = routineArchetypePatchSafe(archetypeKey);
+  if (!routine || !patch) return routine;
+  const now = new Date().toISOString();
+  const next = {...routine, routineArchetype:String(archetypeKey), archetypeSource:mode === "infer" ? "inferred" : "manual", archetypeAppliedAt:now, archetypeVersion:ROUTINE_ARCHETYPE_VERSION, metadataVersion:Number(routine.metadataVersion || 1) + 1, updatedAt:now};
+  const shouldWrite = (field) => mode === "overwrite" || next[field] === undefined || next[field] === null || next[field] === "" || next[field] === "auto" || Number(next[field]) === 0;
+  ["volatilityProfile","recoverySuitability","pressureSuitability","acquisitionSuitability","benchmarkMode","benchmarkStrictness"].forEach(field => { if (shouldWrite(field)) next[field] = patch[field]; });
+  if (shouldWrite("benchmarkExposureWeight")) next.benchmarkExposureWeight = patch.benchmarkExposureWeight;
+  const currentEtu = next.etuProfile || {};
+  const writeEtu = (name) => mode === "overwrite" || currentEtu[name] === undefined || currentEtu[name] === null || Number(currentEtu[name] || 0) === 0;
+  const etu = {...currentEtu};
+  if (writeEtu("technical")) etu.technical = patch.technicalEtu;
+  if (writeEtu("cognitive")) etu.cognitive = patch.cognitiveEtu;
+  if (writeEtu("confidence")) etu.confidence = patch.confidenceEtu;
+  if (writeEtu("pressure")) etu.pressure = patch.pressureEtu;
+  etu.source = mode === "overwrite" ? "archetype-overwrite" : mode === "infer" ? "archetype-inferred" : "archetype-fill";
+  next.etuProfile = etu;
+  next.etuSource = etu.source;
+  next.metadataProvenance = {...(next.metadataProvenance || {}), archetype:{source:next.archetypeSource, key:String(archetypeKey), mode, engine:ROUTINE_ARCHETYPE_VERSION, appliedAt:now}};
+  next.metadataConfidence = {...(next.metadataConfidence || {}), archetype: mode === "infer" ? "medium" : "high"};
+  return next;
+}
+function renderRoutineArchetypePreviewSafe() {
+  try { const host = $("routineArchetypePreview"); if (host) host.textContent = routineArchetypePreviewSafe($("routineArchetypeSelect")?.value || ""); } catch (_) {}
+}
+function applyRoutineArchetypeToSelectedSafe() {
+  try {
+    const key = $("routineArchetypeSelect")?.value || "";
+    if (!key || !ROUTINE_ARCHETYPES[key]) return alert("Choose a routine archetype first.");
+    const ids = routineStudioSelectedIdsSafe();
+    if (!ids.length) return alert("Select at least one routine before applying an archetype.");
+    const mode = $("routineArchetypeMode")?.value || "fill";
+    let count = 0;
+    data.routines = (data.routines || []).map(r => ids.includes(String(r.id)) ? (count += 1, routineArchetypeApplyToRoutineSafe(r, key, mode)) : r);
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Applied ${ROUTINE_ARCHETYPES[key].label} archetype to ${count} routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "applyRoutineArchetypeToSelectedSafe"); } catch (_) {}; alert("Routine archetype application failed. Review the error log."); }
+}
+function inferRoutineArchetypesForSelectedSafe() {
+  try {
+    const ids = routineStudioSelectedIdsSafe();
+    if (!ids.length) return alert("Select at least one routine before inferring archetypes.");
+    let count = 0;
+    data.routines = (data.routines || []).map(r => ids.includes(String(r.id)) ? (count += 1, routineArchetypeApplyToRoutineSafe(r, routineArchetypeInferSafe(r), "infer")) : r);
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Inferred archetypes for ${count} routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "inferRoutineArchetypesForSelectedSafe"); } catch (_) {}; alert("Routine archetype inference failed. Review the error log."); }
+}
+/* ===== end v5.7.74G Routine Archetype Framework ===== */
+
+
+/* ===== v5.7.74F Derived Metadata Engine ===== */
+const ROUTINE_DERIVED_METADATA_VERSION = "5.7.74F";
+function routineDerivedLevelSafe(score) {
+  const n = Number(score || 0);
+  if (n >= 0.72) return "high";
+  if (n >= 0.38) return "medium";
+  return "low";
+}
+function routineDerivedVolatilityScoreSafe(routine, meta=null) {
+  const m = meta || routineConsoleRoutineMetaSafe(routine);
+  const explicit = String(m.volatilityProfile || routine?.volatilityProfile || "auto").toLowerCase();
+  if (explicit === "high") return 0.85;
+  if (explicit === "medium") return 0.55;
+  if (explicit === "low") return 0.18;
+  const nameText = `${m.name} ${m.category} ${m.folder} ${m.subfolder}`.toLowerCase();
+  let score = 0.35;
+  if (/pressure|test|benchmark|match|clear|break|black|long/.test(nameText)) score += 0.18;
+  if (/safety|tactical|position|cue.?ball|control/.test(nameText)) score += 0.08;
+  if (/line.?up|repetition|routine|spot|stun|screw|straight/.test(nameText)) score -= 0.08;
+  score += clampNumber(Number(m.pressureEtu || 0) / 8, 0, 0.25);
+  score += clampNumber(Number(m.confidenceEtu || 0) / 10, 0, 0.18);
+  return clampNumber(score, 0, 1);
+}
+function routineDerivedMetadataSafe(routine) {
+  try {
+    const r = routine || {};
+    const m = routineConsoleRoutineMetaSafe(r);
+    const tech = Math.max(0, Number(m.technicalEtu || 0));
+    const cog = Math.max(0, Number(m.cognitiveEtu || 0));
+    const conf = Math.max(0, Number(m.confidenceEtu || 0));
+    const pres = Math.max(0, Number(m.pressureEtu || 0));
+    const etuTotal = tech + cog + conf + pres;
+    const benchmarkDensityScore = clampNumber(Number(m.benchmarkExposureWeight || 0) + (m.benchmarkMode === "calibration" ? 0.15 : ["test","pressure-test"].includes(m.benchmarkMode) ? 0.32 : 0), 0, 1);
+    const transferProfile = r.transferProfile || {};
+    const transferCount = routineConsoleParseListSafe(m.transferTags).length
+      + routineConsoleParseListSafe(transferProfile.direct || []).length
+      + routineConsoleParseListSafe(transferProfile.supporting || []).length
+      + routineConsoleParseListSafe(transferProfile.weak || []).length
+      + routineConsoleParseListSafe(transferProfile.interference || []).length;
+    const transferIntensityScore = clampNumber(transferCount / 6, 0, 1);
+    const volatilityScore = routineDerivedVolatilityScoreSafe(r, m);
+    const pressureScore = clampNumber((pres / 4) + (m.benchmarkMode === "pressure-test" ? 0.28 : 0) + (String(m.pressureSuitability || "") === "high" ? 0.12 : 0), 0, 1);
+    const cognitiveLoadScore = clampNumber((cog / Math.max(2.5, etuTotal || 2.5)) * 0.62 + transferIntensityScore * 0.18 + benchmarkDensityScore * 0.12 + volatilityScore * 0.08, 0, 1);
+    const confidenceRiskScore = clampNumber(volatilityScore * 0.38 + pressureScore * 0.32 + (conf / Math.max(3.5, etuTotal || 3.5)) * 0.20 + benchmarkDensityScore * 0.10, 0, 1);
+    const recoveryPenalty = volatilityScore * 0.34 + pressureScore * 0.28 + cognitiveLoadScore * 0.20 + clampNumber(etuTotal / 6, 0, 1) * 0.18;
+    const recoveryScore = clampNumber(1 - recoveryPenalty, 0, 1);
+    const source = r.derivedMetadata?.locked ? "manual-locked" : "derived";
+    return {
+      version: ROUTINE_DERIVED_METADATA_VERSION,
+      source,
+      generatedAt: new Date().toISOString(),
+      recoverySuitability: routineDerivedLevelSafe(recoveryScore),
+      confidenceRisk: routineDerivedLevelSafe(confidenceRiskScore),
+      cognitiveLoad: routineDerivedLevelSafe(cognitiveLoadScore),
+      benchmarkDensity: routineDerivedLevelSafe(benchmarkDensityScore),
+      transferIntensity: routineDerivedLevelSafe(transferIntensityScore),
+      scores: {
+        recoverySuitability: Math.round(recoveryScore * 100),
+        confidenceRisk: Math.round(confidenceRiskScore * 100),
+        cognitiveLoad: Math.round(cognitiveLoadScore * 100),
+        benchmarkDensity: Math.round(benchmarkDensityScore * 100),
+        transferIntensity: Math.round(transferIntensityScore * 100)
+      },
+      drivers: [
+        etuTotal <= 0 ? "ETU fallback/missing" : `ETU ${numText(etuTotal)}`,
+        benchmarkDensityScore >= 0.4 ? `benchmark ${m.benchmarkMode}` : "low benchmark density",
+        transferIntensityScore >= 0.4 ? "transfer metadata present" : "limited transfer metadata",
+        volatilityScore >= 0.6 ? "high volatility" : volatilityScore >= 0.35 ? "medium volatility" : "low volatility"
+      ]
+    };
+  } catch (err) { try { logAppError(err, "routineDerivedMetadataSafe"); } catch (_) {}; return {version:ROUTINE_DERIVED_METADATA_VERSION, source:"fallback", recoverySuitability:"medium", confidenceRisk:"medium", cognitiveLoad:"medium", benchmarkDensity:"low", transferIntensity:"low", scores:{}, drivers:["fallback derived metadata"]}; }
+}
+function routineDerivedApplyToRoutineSafe(routine, mode="fill") {
+  if (!routine) return routine;
+  const derived = routineDerivedMetadataSafe(routine);
+  const next = {...routine, derivedMetadata: derived, derivedMetadataVersion: ROUTINE_DERIVED_METADATA_VERSION, metadataVersion:Number(routine.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+  const shouldWrite = (field) => mode === "overwrite" || next[field] === undefined || next[field] === null || next[field] === "" || next[field] === "auto";
+  if (shouldWrite("recoverySuitability")) next.recoverySuitability = derived.recoverySuitability;
+  if (shouldWrite("confidenceRisk")) next.confidenceRisk = derived.confidenceRisk;
+  if (shouldWrite("cognitiveLoad")) next.cognitiveLoad = derived.cognitiveLoad;
+  if (shouldWrite("benchmarkDensity")) next.benchmarkDensity = derived.benchmarkDensity;
+  if (shouldWrite("transferIntensity")) next.transferIntensity = derived.transferIntensity;
+  next.metadataProvenance = {...(next.metadataProvenance || {}), derivedMetadata:{source:"derived", engine:ROUTINE_DERIVED_METADATA_VERSION, mode, appliedAt:next.updatedAt}};
+  next.metadataConfidence = {...(next.metadataConfidence || {}), derivedMetadata: "medium"};
+  return next;
+}
+function applyDerivedMetadataToSelectedSafe() {
+  try {
+    const ids = routineStudioSelectedIdsSafe();
+    if (!ids.length) return alert("Select at least one routine before deriving metadata.");
+    const mode = $("routineDerivedMetadataMode")?.value || "fill";
+    let count = 0;
+    data.routines = (data.routines || []).map(r => {
+      if (!ids.includes(String(r.id))) return r;
+      count += 1;
+      return routineDerivedApplyToRoutineSafe(r, mode);
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Derived metadata applied to ${count} routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "applyDerivedMetadataToSelectedSafe"); } catch (_) {}; alert("Derived metadata application failed. Review the error log."); }
+}
+function renderRoutineDerivedMetadataPreviewSafe() {
+  try {
+    const host = $("routineDerivedMetadataPreview");
+    if (!host) return;
+    const ids = routineStudioSelectedIdsSafe();
+    const rows = (routineConsoleLastRows || routineConsoleRowsSafe()).filter(r => !ids.length || ids.includes(String(r.id)));
+    const sample = rows.slice(0, Math.max(1, Math.min(8, rows.length)));
+    if (!sample.length) { host.innerHTML = `<p class="muted small">Select routines to preview derived metadata.</p>`; return; }
+    const counts = {recovery:{}, risk:{}, cognitive:{}, benchmark:{}, transfer:{}};
+    sample.forEach(row => {
+      const d = routineDerivedMetadataSafe(row.routine || routineById(row.id));
+      counts.recovery[d.recoverySuitability] = (counts.recovery[d.recoverySuitability] || 0) + 1;
+      counts.risk[d.confidenceRisk] = (counts.risk[d.confidenceRisk] || 0) + 1;
+      counts.cognitive[d.cognitiveLoad] = (counts.cognitive[d.cognitiveLoad] || 0) + 1;
+      counts.benchmark[d.benchmarkDensity] = (counts.benchmark[d.benchmarkDensity] || 0) + 1;
+      counts.transfer[d.transferIntensity] = (counts.transfer[d.transferIntensity] || 0) + 1;
+    });
+    const fmt = obj => ["low","medium","high"].map(k => `${k}: ${numText(obj[k] || 0)}`).join(" · ");
+    host.innerHTML = `<p class="muted small"><strong>Preview sample:</strong> ${numText(sample.length)} routine(s). Recovery ${escapeHtml(fmt(counts.recovery))}. Confidence risk ${escapeHtml(fmt(counts.risk))}. Cognitive load ${escapeHtml(fmt(counts.cognitive))}. Benchmark density ${escapeHtml(fmt(counts.benchmark))}. Transfer intensity ${escapeHtml(fmt(counts.transfer))}.</p>`;
+  } catch (err) { try { logAppError(err, "renderRoutineDerivedMetadataPreviewSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.74F Derived Metadata Engine ===== */
+
 function routineSemanticPresetPreviewSafe(key) {
   const preset = ROUTINE_SEMANTIC_PRESETS[String(key || "")];
   if (!preset) return "Choose a preset to preview the metadata package.";
@@ -18584,10 +18829,18 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"confidenceEtu", label:"Conf ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
   {key:"pressureEtu", label:"Press ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
   {key:"etuSource", label:"ETU source", type:"readonly", preset:["etu","validation"]},
-  {key:"volatilityProfile", label:"Volatility", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","validation"]},
-  {key:"recoverySuitability", label:"Recovery", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
-  {key:"pressureSuitability", label:"Pressure fit", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
+  {key:"volatilityProfile", label:"Volatility", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","validation","archetype"]},
+  {key:"recoverySuitability", label:"Recovery", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","archetype"]},
+  {key:"pressureSuitability", label:"Pressure fit", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","archetype"]},
   {key:"semanticPreset", label:"Preset", type:"select", editable:true, options:Object.keys(ROUTINE_SEMANTIC_PRESETS), preset:["core","validation","minimal"]},
+  {key:"routineArchetype", label:"Archetype", type:"select", editable:true, options:Object.keys(ROUTINE_ARCHETYPES), preset:["core","validation","minimal","archetype"]},
+  {key:"archetypeSource", label:"Archetype source", type:"readonly", preset:["validation","minimal","archetype"]},
+  {key:"derivedRecoverySuitability", label:"Derived recovery", type:"readonly", preset:["derived","etu","validation"]},
+  {key:"derivedConfidenceRisk", label:"Derived risk", type:"readonly", preset:["derived","validation"]},
+  {key:"derivedCognitiveLoad", label:"Derived cognitive", type:"readonly", preset:["derived","etu"]},
+  {key:"derivedBenchmarkDensity", label:"Derived benchmark", type:"readonly", preset:["derived","benchmark"]},
+  {key:"derivedTransferIntensity", label:"Derived transfer", type:"readonly", preset:["derived","transfer"]},
+  {key:"derivedMetadataSource", label:"Derived source", type:"readonly", preset:["derived","validation"]},
   {key:"recommendationMode", label:"Reco", type:"select", editable:true, options:["active","occasional","excluded"], preset:["validation","minimal"]},
   {key:"packSource", label:"Pack", type:"readonly", preset:["validation"]},
   {key:"completeness", label:"Completeness", type:"readonly", preset:["validation","minimal"]},
@@ -18632,6 +18885,14 @@ function routineConsoleRoutineMetaSafe(r) {
     pressureEtu: Number(etu.pressure ?? r?.pressureEtu ?? 0),
     etuSource: r?.etuSource || etu.source || "fallback",
     semanticPreset: r?.semanticPreset || "",
+    routineArchetype: r?.routineArchetype || "",
+    archetypeSource: r?.archetypeSource || (r?.routineArchetype ? "manual" : "unassigned"),
+    derivedRecoverySuitability: r?.derivedMetadata?.recoverySuitability || "preview",
+    derivedConfidenceRisk: r?.derivedMetadata?.confidenceRisk || "preview",
+    derivedCognitiveLoad: r?.derivedMetadata?.cognitiveLoad || "preview",
+    derivedBenchmarkDensity: r?.derivedMetadata?.benchmarkDensity || "preview",
+    derivedTransferIntensity: r?.derivedMetadata?.transferIntensity || "preview",
+    derivedMetadataSource: r?.derivedMetadata?.source || "preview",
     metadataVersion: r?.metadataVersion || 1,
     packSource: r?.packSource || r?.routinePackSource || "app"
   };
@@ -18644,6 +18905,13 @@ function routineConsoleRowsSafe() {
     const validationById = new Map((validation.rows || []).map(row => [String(row.routineId || row.id || ""), row]));
     return (data.routines || []).map(r => {
       const meta = routineConsoleRoutineMetaSafe(r);
+      const derived = r.derivedMetadata || routineDerivedMetadataSafe(r);
+      meta.derivedRecoverySuitability = derived.recoverySuitability || meta.derivedRecoverySuitability;
+      meta.derivedConfidenceRisk = derived.confidenceRisk || meta.derivedConfidenceRisk;
+      meta.derivedCognitiveLoad = derived.cognitiveLoad || meta.derivedCognitiveLoad;
+      meta.derivedBenchmarkDensity = derived.benchmarkDensity || meta.derivedBenchmarkDensity;
+      meta.derivedTransferIntensity = derived.transferIntensity || meta.derivedTransferIntensity;
+      meta.derivedMetadataSource = derived.source || meta.derivedMetadataSource;
       const auditRow = auditById.get(meta.id) || {};
       const validationRow = validationById.get(meta.id) || {};
       const issues = [...(validationRow.findings || []), ...(auditRow.issues || []), ...(auditRow.warnings || []), ...(auditRow.findings || [])];
@@ -18654,7 +18922,7 @@ function routineConsoleRowsSafe() {
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
-  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
+  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
   if (q && !text.includes(q)) return false;
   const issueText = (row.issues || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ").toLowerCase();
@@ -18869,6 +19137,8 @@ function routineConsoleApplyInlineEditSafe(routineId, field, rawValue, options =
         next[field] = normalizeBenchmarkStrictness(value);
       } else if (field === "semanticPreset") {
         return routineSemanticPresetApplyToRoutineSafe(next, value, "fill");
+      } else if (field === "routineArchetype") {
+        return routineArchetypeApplyToRoutineSafe(next, value, "fill");
       } else { next[field] = value; }
       return next;
     });
@@ -18919,7 +19189,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["name"].includes(col.key)) return 240;
     if (["issues"].includes(col.key)) return 340;
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
-    if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset"].includes(col.key)) return 150;
+    if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset","routineArchetype","archetypeSource","derivedRecoverySuitability","derivedConfidenceRisk","derivedCognitiveLoad","derivedBenchmarkDensity","derivedTransferIntensity","derivedMetadataSource"].includes(col.key)) return 150;
     if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
     return 170;
   };
@@ -18983,10 +19253,12 @@ function renderRoutineConsoleEditor(id) {
     const m = routineConsoleRoutineMetaSafe(r);
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
+      ${(() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })()}
       <div class="grid two routine-console-editor-grid">
         <div><label>Name</label><input id="routineConsoleName" value="${attrText(m.name)}" /></div>
         <div><label>Recommendation</label><select id="routineConsoleRecommendation"><option value="active">Active</option><option value="occasional">Occasional</option><option value="excluded">Excluded</option></select></div>
         <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
+        <div><label>Routine archetype</label><select id="routineConsoleArchetype">${routineArchetypeOptionsHtmlSafe(m.routineArchetype)}</select></div>
         <div><label>Folder</label><input id="routineConsoleFolder" value="${attrText(m.folder)}" /></div>
         <div><label>Subfolder</label><input id="routineConsoleSubfolder" value="${attrText(m.subfolder)}" /></div>
         <div><label>Category</label><input id="routineConsoleCategory" value="${attrText(m.category)}" /></div>
@@ -19009,6 +19281,7 @@ function renderRoutineConsoleEditor(id) {
     const setVal = (id, value) => { const el = $(id); if (el) el.value = value; };
     setVal("routineConsoleRecommendation", m.recommendationMode);
     setVal("routineConsoleSemanticPreset", m.semanticPreset || "");
+    setVal("routineConsoleArchetype", m.routineArchetype || "");
     setVal("routineConsoleBenchmarkMode", normalizeBenchmarkMode(m.benchmarkMode || "support"));
     setVal("routineConsoleBenchmarkStrictness", normalizeBenchmarkStrictness(m.benchmarkStrictness || "normal"));
     setVal("routineConsoleVolatility", m.volatilityProfile);
@@ -19033,7 +19306,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74E:</strong> this release adds a shared semantic preset system on top of the desktop spreadsheet grid engine. Presets apply coherent ETU, benchmark, volatility, recovery and pressure metadata packages from both the mobile-safe studio and the desktop console.</p><p class="muted">Use presets for fast semantic classification, then refine individual fields in the grid or side editor. Fill mode only writes missing/auto fields; overwrite mode deliberately replaces the selected metadata package.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74G:</strong> this release adds the Routine Archetype Framework on top of presets, derived metadata and the desktop spreadsheet grid. Archetypes classify routines as acquisition, stabilization, pressure, benchmark, recovery, transfer or diagnostic work, then inherit coherent defaults for ETU, benchmark semantics, volatility and suitability.</p><p class="muted">Use archetypes as the higher-level classification layer, presets for more specific metadata packages, and derived metadata to fill remaining missing or auto fields. Curated manual fields remain protected in fill mode.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19052,6 +19325,7 @@ function routineStudioNormalizeBulkValueSafe(field, raw) {
   const value = String(raw || "").trim();
   if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 1 : 8);
   if (field === "recommendationMode") return ["active","occasional","excluded"].includes(value) ? value : "active";
+  if (field === "routineArchetype") return ROUTINE_ARCHETYPES[value] ? value : "";
   if (field === "benchmarkMode") return normalizeBenchmarkMode(value || "support");
   if (field === "benchmarkStrictness") return normalizeBenchmarkStrictness(value || "normal");
   if (field === "volatilityProfile") return ["low","medium","high","auto"].includes(value.toLowerCase()) ? value.toLowerCase() : "auto";
@@ -19068,6 +19342,9 @@ function applyRoutineStudioBulkMetadata() {
     data.routines = (data.routines || []).map(r => {
       if (!ids.includes(String(r.id))) return r;
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      if (field === "routineArchetype") {
+        return routineArchetypeApplyToRoutineSafe(next, value, "fill");
+      }
       if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu"].includes(field)) {
         const key = field === "emotionalEtu" ? "confidence" : field.replace("Etu","");
         next.etuProfile = {...(next.etuProfile || {}), [key]:value, source:"routine-defined"};
@@ -19103,6 +19380,8 @@ function routineConsoleSaveSelected() {
       next.recoverySuitability = val("routineConsoleRecovery") || "auto";
       next.pressureSuitability = val("routineConsolePressure") || "auto";
       next.semanticPreset = val("routineConsoleSemanticPreset") || next.semanticPreset || "";
+      next.routineArchetype = val("routineConsoleArchetype") || next.routineArchetype || "";
+      next.archetypeSource = next.routineArchetype ? "manual" : (next.archetypeSource || "unassigned");
       next.etuProfile = {
         ...(next.etuProfile || {}),
         technical: clampNumber(Number(val("routineConsoleTechnicalEtu") || 0), 0, 8),
@@ -19123,7 +19402,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.74E", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.74G", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19247,8 +19526,8 @@ function applyRoutineConsoleTransferEditorSafe() {
 }
 /* ===== end v5.7.74C Routine Console semantic editors ===== */
 
-["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue","routineSemanticPresetSelect","routineSemanticPresetMode"].forEach(id => {
-  if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", id === "routineSemanticPresetSelect" ? renderRoutineSemanticPresetPreviewSafe : renderRoutineStudioLite);
+["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue","routineSemanticPresetSelect","routineSemanticPresetMode","routineDerivedMetadataMode","routineArchetypeSelect","routineArchetypeMode"].forEach(id => {
+  if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", id === "routineSemanticPresetSelect" ? renderRoutineSemanticPresetPreviewSafe : (id === "routineArchetypeSelect" ? renderRoutineArchetypePreviewSafe : (id === "routineDerivedMetadataMode" ? renderRoutineDerivedMetadataPreviewSafe : renderRoutineStudioLite)));
 });
 safeOn("routinePackManagerSelect", "change", () => selectRoutinePackManagerPack($("routinePackManagerSelect")?.value || ""));
 safeOn("routineConsolePackImportInput", "change", routineConsoleImportPackFileSafe);
@@ -19410,6 +19689,10 @@ function handleDelegatedUIAction(event) {
     case "routine-studio-clear-selection": return routineStudioClearSelection();
     case "routine-console-copy-down": return routineConsoleCopyDownSelectedSafe();
     case "routine-semantic-preset-apply": return applyRoutineSemanticPresetToSelectedSafe();
+    case "routine-archetype-apply": return applyRoutineArchetypeToSelectedSafe();
+    case "routine-archetype-infer": return inferRoutineArchetypesForSelectedSafe();
+    case "routine-derived-metadata-apply": return applyDerivedMetadataToSelectedSafe();
+    case "routine-derived-metadata-preview": return renderRoutineDerivedMetadataPreviewSafe();
     case "routine-console-select": return renderRoutineConsoleEditor(id);
     case "routine-console-save": return routineConsoleSaveSelected();
     case "routine-console-export-visible": return routineConsoleExportVisibleJson();

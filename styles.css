@@ -6494,3 +6494,37 @@ body.routine-console-desktop-active .routine-grid-table{font-size:.78rem!importa
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v5.7.74F Derived Metadata Engine */
+.routine-derived-metadata-card {
+  border-left: 4px solid var(--accent, #6b7cff);
+}
+.routine-derived-preview {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.08);
+}
+.routine-derived-inline {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.035);
+}
+.routine-derived-inline span,
+.routine-derived-inline small {
+  color: var(--muted-text, #64748b);
+}
+.routine-console-desktop-active .routine-derived-metadata-card {
+  max-width: none;
+}
+
+
+/* v5.7.74G Routine Archetype Framework */
+.routine-archetype-card { border-left: 4px solid var(--accent, #64748b); }
+.routine-console-desktop-active .routine-archetype-card { max-width: none; }

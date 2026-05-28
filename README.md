@@ -1,22 +1,24 @@
 # Snooker Practice PWA
 
-Version: 5.7.74E-semantic-preset-system
+Version: 5.7.74G-routine-archetype-framework
 
-## v5.7.74E
+## v5.7.74G
 
-Adds the Semantic Preset System to the Routine Console. Presets apply coherent metadata packages to selected routines across both the mobile-safe Routine Studio and the full-screen desktop Routine Console.
+Adds the Routine Archetype Framework to the Routine Management Console. Archetypes classify routines as acquisition, stabilization, pressure, benchmark, recovery, transfer or diagnostic work, then inherit coherent defaults for ETU subtype weights, benchmark semantics, volatility, recovery suitability and pressure suitability. The framework is exposed in both the mobile-safe Routine Studio and the full-screen desktop Routine Console.
 
 ### Included
 
-- Shared semantic preset engine
-- Presets for technical repetition, pressure benchmark, tactical acquisition, confidence rebuild, long-form break-building, diagnostic and recovery control routines
-- Fill mode to complete missing/auto metadata without overwriting curated values
-- Overwrite mode for deliberate bulk reclassification
-- Preset application to ETU subtype weights, benchmark mode/strictness/exposure, volatility, recovery suitability, pressure suitability and acquisition suitability
-- Preset column in the spreadsheet grid
-- Preset selector in the side-panel routine editor
-- Version/cache updated to v5.7.74E
+- Shared routine archetype engine
+- Archetype controls in mobile Routine Studio and desktop console
+- Apply and infer archetype workflows for selected routines
+- Archetype columns in the spreadsheet grid
+- Archetype support in the side-panel routine editor
+- Fill mode to complete missing/auto semantic fields without overwriting curated values
+- Overwrite mode for deliberate semantic refresh
+- Metadata provenance and confidence tracking for archetype inheritance
+- Existing semantic presets and derived metadata preserved
+- Build identity panel, version module, cache keys and README updated to v5.7.74G
 
 ### Base
 
-Built from v5.7.74D.2 desktop spreadsheet grid engine.
+Built from v5.7.74F derived metadata engine.
