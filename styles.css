@@ -6660,3 +6660,71 @@ body.routine-console-desktop-active .routine-grid-input{
     max-height:none!important;
   }
 }
+
+/* v5.7.75B Dependency Chain Engine + below-grid editor layout */
+.routine-console-layout{
+  display:block!important;
+}
+.routine-console-table-host{
+  width:100%!important;
+  margin-bottom:1rem!important;
+}
+.routine-console-editor{
+  position:relative!important;
+  top:auto!important;
+  width:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  overflow:visible!important;
+  margin-top:1rem!important;
+  border:1px solid rgba(148,163,184,.28)!important;
+}
+.routine-console-editor-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:start;
+}
+.routine-transfer-graph-editor-cell,
+.routine-dependency-chain-editor-cell{
+  grid-column:1 / -1;
+}
+.routine-dependency-chain-editor{
+  grid-column:1 / -1;
+  margin:.35rem 0 .65rem;
+  padding:.8rem;
+  border:1px solid rgba(148,163,184,.32);
+  border-radius:14px;
+  background:rgba(15,23,42,.035);
+}
+.routine-dependency-chain-head{display:grid;gap:.25rem;margin-bottom:.65rem;}
+.dependency-chain-stage{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,.9fr) minmax(180px,1fr);gap:.75rem;align-items:stretch;}
+.dependency-chain-source{display:grid;align-content:center;gap:.25rem;padding:.75rem;border:1px solid rgba(148,163,184,.32);border-radius:12px;background:rgba(255,255,255,.55);}
+.dependency-chain-source span,.dependency-chain-source small{color:var(--muted-text,#64748b);}
+.dependency-chain-node{padding:.6rem;border:1px solid rgba(148,163,184,.26);border-radius:12px;background:rgba(255,255,255,.45);}
+.dependency-chain-node strong{display:block;margin-bottom:.35rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-text,#64748b);}
+.dependency-chip-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;}
+.dependency-chain-chip{display:inline-grid;gap:.1rem;text-align:left;border:1px solid rgba(100,116,139,.32);border-radius:999px;padding:.35rem .55rem;background:rgba(255,255,255,.82);cursor:pointer;line-height:1.1;color:inherit;}
+.dependency-chain-chip span{font-weight:650;font-size:.78rem;}
+.dependency-chain-chip small{font-size:.68rem;color:var(--muted-text,#64748b);}
+.dependency-prerequisites{border-color:rgba(59,130,246,.42);background:rgba(59,130,246,.09);}
+.dependency-enables{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.10);}
+.dependency-blockedBy{border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.09);}
+.dependency-chain-node.blockers{grid-column:1 / -1;}
+.dependency-chain-add-row{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(220px,1.2fr) minmax(170px,.9fr) minmax(90px,.45fr) auto;gap:.5rem;margin-top:.75rem;align-items:end;}
+.dependency-chain-add-row select,.dependency-chain-add-row input{min-width:0;width:100%;}
+body.routine-console-desktop-active .routine-console-layout{display:block!important;}
+body.routine-console-desktop-active .routine-console-spreadsheet{max-height:calc(100vh - 390px)!important;min-height:420px!important;}
+body.routine-console-desktop-active .routine-console-editor{position:relative!important;top:auto!important;max-height:none!important;overflow:visible!important;padding:1rem!important;margin-top:1rem!important;}
+body.routine-console-desktop-active .routine-console-editor-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:.7rem!important;}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-stage{grid-template-columns:minmax(220px,.75fr) minmax(0,2.3fr)!important;}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-lanes{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-add-row{grid-template-columns:minmax(130px,.8fr) minmax(240px,1.3fr) minmax(100px,.45fr) auto!important;}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-add-row button{grid-column:auto!important;width:auto!important;}
+body.routine-console-desktop-active .dependency-chain-stage{grid-template-columns:minmax(260px,1fr) minmax(260px,.9fr) minmax(260px,1fr)!important;}
+body.routine-console-desktop-active .dependency-chain-node.blockers{grid-column:1 / -1;}
+body.routine-console-desktop-active .dependency-chain-add-row{grid-template-columns:minmax(160px,.8fr) minmax(260px,1.2fr) minmax(200px,.9fr) minmax(100px,.45fr) auto!important;}
+@media(max-width:980px){
+  .routine-console-editor-grid{grid-template-columns:1fr!important;}
+  .dependency-chain-stage{grid-template-columns:1fr!important;}
+  .dependency-chain-node.blockers{grid-column:auto;}
+  .dependency-chain-add-row{grid-template-columns:1fr!important;}
+}

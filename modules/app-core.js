@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75A.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75B";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18539,7 +18539,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75A";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75B";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18822,6 +18822,7 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"secondarySkills", label:"Secondary skills", type:"list", editable:true, preset:["core","transfer"]},
   {key:"transferTags", label:"Transfer tags", type:"list", editable:true, preset:["transfer"]},
   {key:"transferGraph", label:"Transfer graph", type:"readonly", preset:["transfer"]},
+  {key:"dependencyChain", label:"Dependency chain", type:"readonly", preset:["transfer","validation","archetype"]},
   {key:"benchmarkMode", label:"Benchmark mode", type:"select", editable:true, options:["support","calibration","test","pressure-test"], preset:["benchmark"]},
   {key:"benchmarkStrictness", label:"Strictness", type:"select", editable:true, options:["loose","normal","strict"], preset:["benchmark"]},
   {key:"benchmarkExposureWeight", label:"Benchmark w", type:"number", editable:true, min:0, max:1, step:"0.05", preset:["benchmark"]},
@@ -18937,7 +18938,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75A",
+    version: "5.7.75B",
     updatedAt: new Date().toISOString()
   };
 }
@@ -18954,7 +18955,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75A", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18974,7 +18975,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75A", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18983,6 +18984,101 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
     showTransientNotice?.("Transfer graph edge removed.", "success");
   } catch (err) { try { logAppError(err, "routineTransferGraphRemoveEdgeSafe"); } catch (_) {}; alert("Could not remove transfer graph edge."); }
 }
+
+/* ===== v5.7.75B Dependency Chain Engine ===== */
+function routineDependencyProfileSafe(routine) {
+  try {
+    const profile = routine?.dependencyProfile && typeof routine.dependencyProfile === "object" ? routine.dependencyProfile : {};
+    return {
+      prerequisites: normalizeSkillList(profile.prerequisites || []),
+      enables: normalizeSkillList(profile.enables || profile.downstream || []),
+      blockedBy: normalizeSkillList(profile.blockedBy || []),
+      lane: String(profile.lane || profile.progressionLane || "general"),
+      chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
+      source: profile.source || "manual",
+      version: profile.version || "5.7.75B"
+    };
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75B"}; }
+}
+function routineDependencyChainSummaryTextSafe(routine) {
+  const d = routineDependencyProfileSafe(routine);
+  const parts = [];
+  if (d.prerequisites.length) parts.push(`P ${d.prerequisites.length}`);
+  if (d.enables.length) parts.push(`E ${d.enables.length}`);
+  if (d.blockedBy.length) parts.push(`B ${d.blockedBy.length}`);
+  if (d.lane && d.lane !== "general") parts.push(d.lane);
+  return parts.join(" · ") || "none";
+}
+function routineDependencySkillChipsSafe(list, type, routineId) {
+  const labelMap = {prerequisites:"Prerequisite", enables:"Enables", blockedBy:"Blocked by"};
+  const arr = normalizeSkillList(list || []);
+  if (!arr.length) return `<span class="muted small">No ${escapeHtml((labelMap[type] || type).toLowerCase())} links.</span>`;
+  return arr.map(skill => `<button type="button" class="dependency-chain-chip dependency-${attrText(type)}" data-action="routine-dependency-remove" data-id="${attrText(routineId)}" data-dependency-type="${attrText(type)}" data-skill="${attrText(skill)}" title="Remove ${attrText(skillLabel(skill))}"><span>${escapeHtml(skillLabel(skill))}</span><small>${escapeHtml(labelMap[type] || type)}</small></button>`).join("");
+}
+function routineDependencyChainRenderEditorSafe(routine, scope="side") {
+  try {
+    const id = String(routine?.id || "");
+    const d = routineDependencyProfileSafe(routine);
+    const laneOptions = ["general","technical-foundation","cue-ball-control","potting","break-building","safety-tactical","pressure-readiness","benchmark-ladder","recovery"].map(v => `<option value="${attrText(v)}"${String(d.lane)===v?" selected":""}>${escapeHtml(v.replace(/-/g," "))}</option>`).join("");
+    return `<div class="routine-dependency-chain-editor ${scope === "desktop" ? "desktop" : "mobile"}">
+      <div class="routine-dependency-chain-head"><strong>Dependency Chain Engine</strong><span class="muted small">Model what this routine requires, what it unlocks, and which weaknesses can block it. This supports future progression sequencing and plateau diagnosis.</span></div>
+      <div class="dependency-chain-stage">
+        <div class="dependency-chain-node blocked"><strong>Prerequisites</strong><div class="dependency-chip-row">${routineDependencySkillChipsSafe(d.prerequisites, "prerequisites", id)}</div></div>
+        <div class="dependency-chain-source"><span>Selected routine</span><strong>${escapeHtml(routine?.name || "Selected routine")}</strong><small>${escapeHtml(routine?.primarySkill ? skillLabel(routine.primarySkill) : "primary skill not set")}</small></div>
+        <div class="dependency-chain-node enables"><strong>Enables</strong><div class="dependency-chip-row">${routineDependencySkillChipsSafe(d.enables, "enables", id)}</div></div>
+        <div class="dependency-chain-node blockers"><strong>Blocked by</strong><div class="dependency-chip-row">${routineDependencySkillChipsSafe(d.blockedBy, "blockedBy", id)}</div></div>
+      </div>
+      <div class="dependency-chain-add-row">
+        <select id="routineDependencyType"><option value="prerequisites">Prerequisite</option><option value="enables">Enables / downstream</option><option value="blockedBy">Blocked by</option></select>
+        <select id="routineDependencySkill">${routineTransferGraphSkillOptionsSafe()}</select>
+        <select id="routineDependencyLane">${laneOptions}</select>
+        <input id="routineDependencyStrength" type="number" min="0" max="1" step="0.05" value="${numAttr(d.chainStrength || 0.5)}" />
+        <button type="button" class="secondary" data-action="routine-dependency-add" data-id="${attrText(id)}">Add link</button>
+      </div>
+      <p class="muted small">Prerequisites are upstream skills the player should stabilize first. Enables are downstream skills this routine supports. Blocked-by links flag constraints that may explain stalled progression.</p>
+    </div>`;
+  } catch (err) { try { logAppError(err, "routineDependencyChainRenderEditorSafe"); } catch (_) {}; return ""; }
+}
+function routineDependencyAddLinkSafe(routineId) {
+  try {
+    const type = String($("routineDependencyType")?.value || "prerequisites");
+    const skill = normalizeSkillId($("routineDependencySkill")?.value || "");
+    const lane = String($("routineDependencyLane")?.value || "general");
+    const strength = clampNumber(Number($("routineDependencyStrength")?.value || 0.5), 0, 1);
+    if (!routineId || !skill) return alert("Choose a dependency target skill first.");
+    if (!["prerequisites","enables","blockedBy"].includes(type)) return alert("Choose a valid dependency type.");
+    data.routines = (data.routines || []).map(r => {
+      if (String(r.id) !== String(routineId)) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      const profile = routineDependencyProfileSafe(next);
+      profile[type] = [...new Set([...(profile[type] || []), skill])];
+      profile.lane = lane || profile.lane || "general";
+      profile.chainStrength = strength;
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.("Dependency chain link added.", "success");
+  } catch (err) { try { logAppError(err, "routineDependencyAddLinkSafe"); } catch (_) {}; alert("Could not add dependency chain link."); }
+}
+function routineDependencyRemoveLinkSafe(routineId, type, skill) {
+  try {
+    if (!routineId || !type || !skill) return;
+    data.routines = (data.routines || []).map(r => {
+      if (String(r.id) !== String(routineId)) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      const profile = routineDependencyProfileSafe(next);
+      profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B", updatedAt:new Date().toISOString()};
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.("Dependency chain link removed.", "success");
+  } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
+}
+/* ===== end v5.7.75B Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
   const skillMap = r?.skillMap || {};
@@ -18997,6 +19093,7 @@ function routineConsoleRoutineMetaSafe(r) {
     secondarySkills: routineConsoleArrayTextSafe(r?.secondarySkills || skillMap.secondarySkills),
     transferTags: routineConsoleArrayTextSafe(r?.transferTags || skillMap.transferTags || r?.transferProfile?.supporting || []),
     transferGraph: routineTransferGraphSummaryTextSafe(r),
+    dependencyChain: routineDependencyChainSummaryTextSafe(r),
     recommendationMode: r?.recommendationMode || "active",
     benchmarkMode: r?.benchmarkMode || "support",
     benchmarkExposureWeight: Number(r?.benchmarkExposureWeight || 0),
@@ -19048,7 +19145,7 @@ function routineConsoleRowsSafe() {
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
-  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
+  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
   if (q && !text.includes(q)) return false;
   const issueText = (row.issues || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ").toLowerCase();
@@ -19315,7 +19412,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["name"].includes(col.key)) return 240;
     if (["issues"].includes(col.key)) return 340;
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
-    if (["transferGraph"].includes(col.key)) return 180;
+    if (["transferGraph","dependencyChain"].includes(col.key)) return 180;
     if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset","routineArchetype","archetypeSource","derivedRecoverySuitability","derivedConfidenceRisk","derivedCognitiveLoad","derivedBenchmarkDensity","derivedTransferIntensity","derivedMetadataSource"].includes(col.key)) return 150;
     if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
     return 170;
@@ -19393,6 +19490,7 @@ function renderRoutineConsoleEditor(id) {
         <div><label>Secondary skills</label><textarea id="routineConsoleSecondarySkills" rows="2">${escapeHtml(m.secondarySkills)}</textarea></div>
         <div><label>Transfer tags</label><textarea id="routineConsoleTransferTags" rows="2">${escapeHtml(m.transferTags)}</textarea></div>
         <div class="routine-transfer-graph-editor-cell">${routineTransferGraphRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}</div>
+        <div class="routine-dependency-chain-editor-cell">${routineDependencyChainRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}</div>
         <div><label>Benchmark mode</label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
         <div><label>Benchmark strictness</label><select id="routineConsoleBenchmarkStrictness"><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
         <div><label>Benchmark exposure weight</label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="1" step="0.05" value="${numAttr(m.benchmarkExposureWeight)}" /></div>
@@ -19434,7 +19532,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75A:</strong> this patch optimizes the full-screen desktop Routine Console layout so the spreadsheet grid and inspector use the browser viewport more effectively. The visual transfer graph remains available in both mobile Routine Studio and the desktop console.</p><p class="muted">Desktop mode now uses a wider inspector, a taller spreadsheet workspace, tighter KPI/control sections and a side-panel transfer editor that no longer bunches graph controls into the right edge. Existing transfer tags remain compatible with transferProfile edges.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75B:</strong> this release adds the Dependency Chain Engine and moves the selected routine editor below the routine grid in both mobile and desktop mode.</p><p class="muted">Dependency chains model prerequisites, enables/downstream skills, blocked-by constraints and progression lanes. The editor now uses the full page width below the routine list instead of a narrow right-side inspector, so transfer and dependency controls can render properly on desktop and remain readable on mobile.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19531,7 +19629,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75A", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75B", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19837,6 +19935,8 @@ function handleDelegatedUIAction(event) {
     case "routine-console-apply-transfer-editor": return applyRoutineConsoleTransferEditorSafe();
     case "routine-transfer-edge-add": return routineTransferGraphAddEdgeSafe(id);
     case "routine-transfer-edge-remove": return routineTransferGraphRemoveEdgeSafe(id, actionEl.dataset.edgeType || "supporting", actionEl.dataset.skill || "");
+    case "routine-dependency-add": return routineDependencyAddLinkSafe(id);
+    case "routine-dependency-remove": return routineDependencyRemoveLinkSafe(id, actionEl.dataset.dependencyType || "prerequisites", actionEl.dataset.skill || "");
     case "edit-skill-tag": return editSkillTag(id);
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);

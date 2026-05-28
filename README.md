@@ -1,5 +1,25 @@
 # Snooker Practice PWA
 
+Version: 5.7.75B-dependency-chain-engine
+
+## v5.7.75B
+
+Adds the Dependency Chain Engine and changes the Routine Console layout so the selected routine editor renders below the routine grid in both mobile and desktop contexts, rather than in a narrow right-side inspector. Dependency metadata models prerequisites, downstream/enabled skills, blocked-by constraints, progression lane and chain strength. The feature is available in the mobile Routine Studio and full-screen desktop Routine Console.
+
+### Included
+
+- Dependency Chain Engine for routine metadata.
+- Prerequisite / enables / blocked-by links.
+- Progression lane and chain strength fields.
+- Dependency summary column in the spreadsheet grid.
+- Full-width routine editor below the routine list/grid.
+- Mobile and desktop editor support.
+- Build identity panel, version module, cache keys and README updated to v5.7.75B.
+
+---
+
+# Snooker Practice PWA
+
 Version: 5.7.75A.1-desktop-layout-optimization
 Build: 2026-05-28 15:28 CEST
 
