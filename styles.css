@@ -7679,3 +7679,131 @@ body.routine-console-desktop-active .routine-grid-table{font-size:.675rem!import
 .dark .routine-grid-table tbody tr:hover td{
   background:linear-gradient(0deg, rgba(59,130,246,.13), rgba(59,130,246,.13)), var(--card,#0f172a)!important;
 }
+
+
+/* v5.7.76F Semantic Chip Hierarchy Pass */
+:root{
+  --routine-chip-radius:999px;
+  --routine-chip-font:.66rem;
+  --routine-chip-pad-y:.16rem;
+  --routine-chip-pad-x:.42rem;
+}
+.routine-semantic-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.28rem;
+  max-width:100%;
+  min-height:1.18rem;
+  padding:var(--routine-chip-pad-y) var(--routine-chip-pad-x);
+  border-radius:var(--routine-chip-radius);
+  border:1px solid var(--routine-chip-border, rgba(100,116,139,.30));
+  background:var(--routine-chip-bg, rgba(100,116,139,.10));
+  color:var(--routine-chip-text, var(--text,#0f172a));
+  font-size:var(--routine-chip-font);
+  font-weight:720;
+  line-height:1.05;
+  letter-spacing:.006em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  vertical-align:middle;
+}
+.routine-semantic-chip::before{
+  content:"M";
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  width:.92rem;
+  height:.92rem;
+  border-radius:999px;
+  background:var(--routine-chip-icon-bg, rgba(15,23,42,.08));
+  color:var(--routine-chip-icon-text, currentColor);
+  font-size:.49rem;
+  font-weight:900;
+  letter-spacing:0;
+  opacity:.95;
+}
+.routine-semantic-chip small{font-size:.58rem;opacity:.70;font-weight:650;margin-left:.06rem;}
+.routine-grid-cell .routine-semantic-chip{max-width:8.8rem;}
+.routine-grid-row-compact .routine-semantic-chip,.routine-console-grid-dense .routine-semantic-chip{--routine-chip-font:.62rem;--routine-chip-pad-y:.12rem;--routine-chip-pad-x:.34rem;}
+.routine-derived-chip-row,.routine-editor-chip-rail{gap:.24rem .32rem;}
+.routine-editor-chip-rail{padding:.42rem .55rem;border-radius:12px;}
+.chip-preset::before{content:"P";}
+.chip-archetype-acquisition::before,.chip-archetype-stabilization::before,.chip-archetype-pressure::before,.chip-archetype-benchmark::before,.chip-archetype-recovery::before,.chip-archetype-transfer::before,.chip-archetype-diagnostic::before,.chip-archetype-unassigned::before{content:"A";}
+.chip-benchmark-support::before,.chip-benchmark-calibration::before,.chip-benchmark-test::before,.chip-benchmark-pressure-test::before{content:"B";}
+.chip-recovery-auto::before,.chip-recovery-low::before,.chip-recovery-medium::before,.chip-recovery-high::before{content:"R";}
+.chip-pressure-auto::before,.chip-pressure-low::before,.chip-pressure-medium::before,.chip-pressure-high::before{content:"P";}
+.chip-transfer-direct::before,.chip-transfer-supporting::before,.chip-transfer-weak::before,.chip-transfer-interference::before{content:"T";}
+.chip-dependency::before{content:"D";}
+.chip-validation-ok::before,.chip-validation-watch::before,.chip-validation-risk::before,.chip-validation-critical::before{content:"V";}
+.chip-etu-defined::before,.chip-etu-estimated::before,.chip-etu-fallback::before{content:"E";}
+.chip-derived::before{content:"ƒ";}
+.chip-neutral::before{content:"·";}
+.chip-archetype-acquisition,.chip-archetype-stabilization,.chip-archetype-transfer,.chip-preset{--routine-chip-bg:rgba(37,99,235,.10);--routine-chip-border:rgba(37,99,235,.28);--routine-chip-text:#1d4ed8;--routine-chip-icon-bg:rgba(37,99,235,.16);}
+.chip-archetype-pressure,.chip-pressure-high,.chip-benchmark-pressure-test{--routine-chip-bg:rgba(220,38,38,.10);--routine-chip-border:rgba(220,38,38,.30);--routine-chip-text:#b91c1c;--routine-chip-icon-bg:rgba(220,38,38,.15);}
+.chip-archetype-benchmark,.chip-benchmark-test,.chip-benchmark-calibration{--routine-chip-bg:rgba(217,119,6,.11);--routine-chip-border:rgba(217,119,6,.30);--routine-chip-text:#92400e;--routine-chip-icon-bg:rgba(217,119,6,.16);}
+.chip-archetype-recovery,.chip-recovery-high,.chip-validation-ok,.chip-etu-defined{--routine-chip-bg:rgba(22,163,74,.10);--routine-chip-border:rgba(22,163,74,.28);--routine-chip-text:#166534;--routine-chip-icon-bg:rgba(22,163,74,.15);}
+.chip-transfer-direct,.chip-transfer-supporting,.chip-transfer-weak,.chip-dependency{--routine-chip-bg:rgba(124,58,237,.10);--routine-chip-border:rgba(124,58,237,.30);--routine-chip-text:#6d28d9;--routine-chip-icon-bg:rgba(124,58,237,.16);}
+.chip-transfer-interference,.chip-validation-risk,.chip-validation-critical,.chip-etu-fallback{--routine-chip-bg:rgba(220,38,38,.10);--routine-chip-border:rgba(220,38,38,.32);--routine-chip-text:#b91c1c;--routine-chip-icon-bg:rgba(220,38,38,.15);}
+.chip-validation-watch,.chip-etu-estimated,.chip-benchmark-support{--routine-chip-bg:rgba(202,138,4,.11);--routine-chip-border:rgba(202,138,4,.30);--routine-chip-text:#854d0e;--routine-chip-icon-bg:rgba(202,138,4,.16);}
+.chip-derived,.chip-neutral,.chip-archetype-unassigned{--routine-chip-bg:rgba(100,116,139,.09);--routine-chip-border:rgba(100,116,139,.24);--routine-chip-text:#475569;--routine-chip-icon-bg:rgba(100,116,139,.13);}
+body[data-theme="dark"] .routine-semantic-chip{
+  border-color:var(--routine-chip-border, rgba(203,213,225,.40));
+  background:var(--routine-chip-bg, rgba(148,163,184,.16));
+  color:var(--routine-chip-text, #e2e8f0);
+  box-shadow:0 0 0 1px rgba(255,255,255,.025) inset;
+}
+body[data-theme="dark"] .routine-semantic-chip::before{background:var(--routine-chip-icon-bg, rgba(255,255,255,.10));color:var(--routine-chip-icon-text, currentColor);}
+body[data-theme="dark"] .chip-archetype-acquisition,body[data-theme="dark"] .chip-archetype-stabilization,body[data-theme="dark"] .chip-archetype-transfer,body[data-theme="dark"] .chip-preset{--routine-chip-bg:rgba(96,165,250,.16);--routine-chip-border:rgba(147,197,253,.52);--routine-chip-text:#dbeafe;--routine-chip-icon-bg:rgba(147,197,253,.22);}
+body[data-theme="dark"] .chip-archetype-pressure,body[data-theme="dark"] .chip-pressure-high,body[data-theme="dark"] .chip-benchmark-pressure-test{--routine-chip-bg:rgba(248,113,113,.16);--routine-chip-border:rgba(252,165,165,.54);--routine-chip-text:#fee2e2;--routine-chip-icon-bg:rgba(252,165,165,.22);}
+body[data-theme="dark"] .chip-archetype-benchmark,body[data-theme="dark"] .chip-benchmark-test,body[data-theme="dark"] .chip-benchmark-calibration{--routine-chip-bg:rgba(251,191,36,.16);--routine-chip-border:rgba(253,230,138,.52);--routine-chip-text:#fef3c7;--routine-chip-icon-bg:rgba(253,230,138,.22);}
+body[data-theme="dark"] .chip-archetype-recovery,body[data-theme="dark"] .chip-recovery-high,body[data-theme="dark"] .chip-validation-ok,body[data-theme="dark"] .chip-etu-defined{--routine-chip-bg:rgba(74,222,128,.15);--routine-chip-border:rgba(134,239,172,.50);--routine-chip-text:#dcfce7;--routine-chip-icon-bg:rgba(134,239,172,.20);}
+body[data-theme="dark"] .chip-transfer-direct,body[data-theme="dark"] .chip-transfer-supporting,body[data-theme="dark"] .chip-transfer-weak,body[data-theme="dark"] .chip-dependency{--routine-chip-bg:rgba(192,132,252,.16);--routine-chip-border:rgba(216,180,254,.54);--routine-chip-text:#f3e8ff;--routine-chip-icon-bg:rgba(216,180,254,.22);}
+body[data-theme="dark"] .chip-transfer-interference,body[data-theme="dark"] .chip-validation-risk,body[data-theme="dark"] .chip-validation-critical,body[data-theme="dark"] .chip-etu-fallback{--routine-chip-bg:rgba(248,113,113,.16);--routine-chip-border:rgba(252,165,165,.56);--routine-chip-text:#fee2e2;--routine-chip-icon-bg:rgba(252,165,165,.22);}
+body[data-theme="dark"] .chip-validation-watch,body[data-theme="dark"] .chip-etu-estimated,body[data-theme="dark"] .chip-benchmark-support{--routine-chip-bg:rgba(250,204,21,.15);--routine-chip-border:rgba(254,240,138,.50);--routine-chip-text:#fef9c3;--routine-chip-icon-bg:rgba(254,240,138,.20);}
+body[data-theme="dark"] .chip-derived,body[data-theme="dark"] .chip-neutral,body[data-theme="dark"] .chip-archetype-unassigned{--routine-chip-bg:rgba(148,163,184,.15);--routine-chip-border:rgba(203,213,225,.34);--routine-chip-text:#e2e8f0;--routine-chip-icon-bg:rgba(203,213,225,.16);}
+.routine-chip-select{min-height:1.35rem!important;font-size:.68rem!important;border-radius:999px!important;}
+@media (max-width:720px){.routine-semantic-chip{--routine-chip-font:.64rem;--routine-chip-pad-y:.14rem;--routine-chip-pad-x:.36rem}.routine-semantic-chip::before{width:.84rem;height:.84rem;font-size:.46rem}.routine-grid-cell .routine-semantic-chip{max-width:100%;}}
+/* end v5.7.76F Semantic Chip Hierarchy Pass */
+
+/* v5.7.76G Left Navigation Rail */
+.routine-console-left-rail-mount{display:none;}
+.routine-console-left-rail{display:flex;gap:.45rem;align-items:center;margin:.6rem 0 .75rem;padding:.45rem;border:1px solid rgba(148,163,184,.24);border-radius:16px;background:rgba(148,163,184,.06);overflow:auto;}
+.routine-console-rail-brand{display:flex;align-items:center;gap:.35rem;padding:.35rem .55rem;border-radius:12px;background:rgba(59,130,246,.08);font-weight:800;white-space:nowrap;}
+.routine-console-rail-brand span{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:10px;background:rgba(59,130,246,.16);font-size:.75rem;letter-spacing:.05em;}
+.routine-console-rail-brand small{font-size:.72rem;color:var(--muted-text,#64748b);font-weight:700;}
+.routine-console-rail-links{display:flex;gap:.35rem;align-items:center;min-width:max-content;}
+.routine-console-rail-btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid transparent;border-radius:12px;background:transparent;padding:.42rem .6rem;color:inherit;cursor:pointer;font-weight:700;font-size:.78rem;white-space:nowrap;}
+.routine-console-rail-btn .workspace-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:9px;background:rgba(148,163,184,.12);font-size:.78rem;}
+.routine-console-rail-btn:hover{background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.28);}
+.routine-console-rail-btn.active,.routine-console-rail-btn[aria-pressed="true"]{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.34);color:var(--accent,#2563eb);}
+body[data-theme="dark"] .routine-console-left-rail{background:rgba(15,23,42,.56);border-color:rgba(148,163,184,.22);}
+body[data-theme="dark"] .routine-console-rail-brand{background:rgba(59,130,246,.14);}
+body[data-theme="dark"] .routine-console-rail-brand span{background:rgba(59,130,246,.20);color:#bfdbfe;}
+body[data-theme="dark"] .routine-console-rail-btn.active,body[data-theme="dark"] .routine-console-rail-btn[aria-pressed="true"]{background:rgba(59,130,246,.20);border-color:rgba(96,165,250,.42);color:#bfdbfe;}
+body.routine-console-desktop-active .routine-console-left-rail-mount{display:block;position:sticky;top:76px;z-index:28;}
+body.routine-console-desktop-active .routine-console-left-rail{position:absolute;left:0;top:.35rem;width:86px;min-height:calc(100vh - 118px);display:flex;flex-direction:column;align-items:stretch;gap:.65rem;padding:.65rem .5rem;margin:0;border-radius:18px;overflow:visible;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);box-shadow:0 16px 40px rgba(15,23,42,.08);}
+body.routine-console-desktop-active .routine-console-rail-brand{flex-direction:column;justify-content:center;padding:.5rem .25rem;text-align:center;gap:.22rem;}
+body.routine-console-desktop-active .routine-console-rail-brand small{font-size:.62rem;}
+body.routine-console-desktop-active .routine-console-rail-links{display:flex;flex-direction:column;gap:.38rem;min-width:0;}
+body.routine-console-desktop-active .routine-console-rail-btn{width:100%;display:flex;flex-direction:column;justify-content:center;gap:.22rem;padding:.48rem .2rem;font-size:.64rem;line-height:1.05;text-align:center;}
+body.routine-console-desktop-active .routine-console-rail-btn .workspace-icon{width:30px;height:30px;margin:auto;font-size:.8rem;}
+body.routine-console-desktop-active .routine-console-titlebar,
+body.routine-console-desktop-active .routine-console-compact-intro,
+body.routine-console-desktop-active #routineStudioSummary,
+body.routine-console-desktop-active #routineConsoleOverview,
+body.routine-console-desktop-active #routineSemanticReadinessDashboard,
+body.routine-console-desktop-active .routine-console-workspace-tabs,
+body.routine-console-desktop-active .routine-console-accordion,
+body.routine-console-desktop-active .routine-console-selection-bar,
+body.routine-console-desktop-active .routine-console-toolbar,
+body.routine-console-desktop-active #routineStudioList,
+body.routine-console-desktop-active #routineConsoleEditor{margin-left:104px!important;}
+body.routine-console-desktop-active .routine-console-workspace-tabs{display:none!important;}
+@media(max-width:980px){
+  .routine-console-left-rail-mount{display:block;}
+  .routine-console-left-rail{position:relative;display:flex;}
+  .routine-console-rail-brand{display:none;}
+  .routine-console-rail-links{overflow-x:auto;padding-bottom:.1rem;}
+  .routine-console-rail-btn{font-size:.72rem;padding:.38rem .5rem;}
+}

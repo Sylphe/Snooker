@@ -19569,6 +19569,26 @@ function routineConsoleWorkspaceConfigSafe(workspace) {
   };
   return {key:map[clean] ? clean : "grid", ...(map[clean] || map.grid)};
 }
+
+function routineConsoleWorkspaceRailHtmlSafe() {
+  const items = [
+    {key:"dashboard", label:"Dashboard", icon:"▣", hint:"KPI and readiness overview"},
+    {key:"grid", label:"Grid", icon:"▦", hint:"Spreadsheet governance"},
+    {key:"graph", label:"Graph", icon:"⟲", hint:"Transfer and dependency graph"},
+    {key:"validation", label:"Validation", icon:"!", hint:"Schema repair queue"},
+    {key:"benchmark", label:"Benchmark", icon:"◎", hint:"Benchmark semantics"},
+    {key:"analytics", label:"Analytics", icon:"▤", hint:"Coverage and readiness"},
+    {key:"routine", label:"Routine", icon:"✎", hint:"Selected routine editor"}
+  ];
+  return `<nav class="routine-console-left-rail" aria-label="Routine Console left navigation">
+    <div class="routine-console-rail-brand"><span>RC</span><small>Console</small></div>
+    <div class="routine-console-rail-links">${items.map(item => {
+      const target = item.key === "dashboard" ? "analytics" : item.key;
+      return `<button type="button" class="routine-console-workspace-btn routine-console-rail-btn" data-action="routine-console-workspace" data-id="${attrText(target)}" data-rail-id="${attrText(item.key)}" title="${attrText(item.hint)}" aria-label="${attrText(item.label)}"><span class="workspace-icon">${escapeHtml(item.icon)}</span><span>${escapeHtml(item.label)}</span></button>`;
+    }).join("")}</div>
+  </nav>`;
+}
+
 function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
   try {
     const cfg = routineConsoleWorkspaceConfigSafe(workspace);
@@ -19580,7 +19600,9 @@ function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
       root.classList.add(`workspace-${cfg.key}`);
     }
     document.querySelectorAll(".routine-console-workspace-btn").forEach(btn => {
-      const active = String(btn.dataset.id || "") === cfg.key;
+      const btnId = String(btn.dataset.id || "");
+      const railId = String(btn.dataset.railId || "");
+      const active = btnId === cfg.key || (cfg.key === "analytics" && railId === "dashboard");
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
       btn.setAttribute("aria-selected", active ? "true" : "false");
@@ -20132,6 +20154,8 @@ function renderRoutineStudioLite() {
     const allRows = routineConsoleRowsSafe();
     renderRoutineConsoleOverviewSafe(allRows);
     renderRoutineSemanticReadinessDashboardSafe(allRows);
+    const railHost = $("routineConsoleLeftRailMount");
+    if (railHost) railHost.innerHTML = routineConsoleWorkspaceRailHtmlSafe();
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
@@ -20142,7 +20166,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76E</strong><span>Grid Database Pass v2</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Grid Database Pass v2 tightens the spreadsheet/database experience with denser rows, row-based selection, sticky toolbar treatment, hover-only controls and stronger frozen-column behavior.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76G</strong><span>Left Navigation Rail</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Left Navigation Rail tightens chip density, improves chip category hierarchy, adds subtle letter-prefix markers and keeps chip contrast readable in dark mode.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
