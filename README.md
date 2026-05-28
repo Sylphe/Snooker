@@ -1,22 +1,21 @@
-# Snooker Practice Log
+# Snooker Practice PWA
 
-Version: 5.7.76H.2-routine-console-grid-panel-stabilization
+Version: 5.7.76H.3-routine-console-selected-panel-containment-fix
 
-## v5.7.76H.2 — Routine Console Grid & Panel Stabilization
+## v5.7.76H.3 — Routine Console Selected Panel Containment Fix
 
-This patch stabilizes the desktop Routine Console after the rail/focus-inspector changes. KPI-driven views now keep the routine table contained, validation and explainability panels stay in normal document flow, and the grid uses safer sticky/frozen-column behavior.
+This patch stabilizes the selected-routine area of the desktop Routine Console after row selection and KPI-driven filtering.
 
-Included:
+### Fixed
 
-- selected-routine focus inspector below the grid and above the full editor;
-- compact validity, ETU, transfer, dependency, benchmark and recovery status;
-- semantic chip summary for archetype, preset, ETU and validation state;
-- quick section navigation buttons for Core, Transfer, Dependency and ETU / benchmark;
-- desktop sticky behavior and mobile-safe stacking;
-- v5.7.76G left navigation rail preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.76H.2.
+- removed the residual selected-editor left offset inherited from older desktop console layouts;
+- constrained the selected routine editor to the main console width;
+- constrained the Focus Inspector, contextual validation dock, derived metadata explainability card, transfer graph and dependency panels;
+- prevented chip rails, validation buttons, long routine names and graph add-row controls from spilling off-screen;
+- added safer wrapping and min-width rules across selected-routine panels;
+- preserved v5.7.76H.2 grid/panel stabilization and all v5.7.76H focus inspector features.
 
-Validation:
+### Validation
 
-- node syntax checks passed;
-- zip integrity test passed.
+- ES module syntax check passed.
+- Zip integrity test passed.

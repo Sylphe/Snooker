@@ -8130,3 +8130,132 @@ body[data-theme="dark"].routine-console-desktop-active .routine-console-selectio
   body.routine-console-desktop-active .routine-grid-table{min-width:860px!important;}
 }
 /* end v5.7.76H.2 */
+
+
+/* v5.7.76H.3 Routine Console Selected Panel Containment Fix */
+body.routine-console-desktop-active #routineStudioList,
+body.routine-console-desktop-active #routineConsoleEditor{
+  margin-left:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+body.routine-console-desktop-active .routine-console-editor,
+body.routine-console-desktop-active .routine-console-editor *,
+body.routine-console-desktop-active .routine-console-focus-inspector,
+body.routine-console-desktop-active .routine-console-focus-inspector *,
+body.routine-console-desktop-active .routine-validation-dock,
+body.routine-console-desktop-active .routine-validation-dock *,
+body.routine-console-desktop-active .routine-derived-explainability-card,
+body.routine-console-desktop-active .routine-derived-explainability-card *,
+body.routine-console-desktop-active .routine-dependency-viewer,
+body.routine-console-desktop-active .routine-dependency-viewer *,
+body.routine-console-desktop-active .routine-transfer-graph-editor,
+body.routine-console-desktop-active .routine-transfer-graph-editor *{
+  box-sizing:border-box!important;
+  min-width:0!important;
+}
+body.routine-console-desktop-active .routine-console-editor,
+body.routine-console-desktop-active .routine-editor-sections,
+body.routine-console-desktop-active .routine-editor-section,
+body.routine-console-desktop-active .routine-console-editor-context,
+body.routine-console-desktop-active .routine-focus-inspector,
+body.routine-console-desktop-active .routine-validation-dock,
+body.routine-console-desktop-active .routine-derived-explainability-card,
+body.routine-console-desktop-active .routine-dependency-viewer,
+body.routine-console-desktop-active .routine-transfer-graph-editor{
+  width:100%!important;
+  max-width:100%!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  overflow-wrap:anywhere!important;
+}
+body.routine-console-desktop-active .routine-console-editor-context{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:.75rem!important;
+  align-items:start!important;
+}
+body.routine-console-desktop-active .routine-focus-inspector{
+  grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr)!important;
+}
+body.routine-console-desktop-active .routine-focus-inspector-head,
+body.routine-console-desktop-active .routine-focus-chipline,
+body.routine-console-desktop-active .routine-focus-metrics,
+body.routine-console-desktop-active .routine-editor-chip-rail,
+body.routine-console-desktop-active .routine-derived-chip-row,
+body.routine-console-desktop-active .smart-builder-constraint-summary{
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+body.routine-console-desktop-active .routine-focus-actions,
+body.routine-console-desktop-active .routine-validation-dock-metrics,
+body.routine-console-desktop-active .routine-editor-chip-rail,
+body.routine-console-desktop-active .routine-derived-chip-row,
+body.routine-console-desktop-active .smart-builder-constraint-summary{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+}
+body.routine-console-desktop-active .routine-semantic-chip,
+body.routine-console-desktop-active .routine-grid-cell .routine-semantic-chip{
+  max-width:100%!important;
+  min-width:0!important;
+}
+body.routine-console-desktop-active .routine-validation-dock-head,
+body.routine-console-desktop-active .routine-derived-explainability-card .section-head,
+body.routine-console-desktop-active .routine-dependency-viewer .dependency-viewer-head{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .routine-validation-dock-issue{
+  grid-template-columns:minmax(0,1fr) minmax(0,auto)!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+body.routine-console-desktop-active .routine-validation-dock-issue .secondary.small,
+body.routine-console-desktop-active .routine-focus-actions button,
+body.routine-console-desktop-active .routine-editor-actions button{
+  white-space:normal!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .transfer-graph-stage,
+body.routine-console-desktop-active .dependency-chain-stage,
+body.routine-console-desktop-active .dependency-viewer-stage{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+body.routine-console-desktop-active .transfer-graph-add-row,
+body.routine-console-desktop-active .dependency-chain-add-row{
+  grid-template-columns:minmax(0,.8fr) minmax(0,1.25fr) minmax(0,.8fr) minmax(0,.45fr) auto!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .transfer-graph-add-row select,
+body.routine-console-desktop-active .transfer-graph-add-row input,
+body.routine-console-desktop-active .dependency-chain-add-row select,
+body.routine-console-desktop-active .dependency-chain-add-row input,
+body.routine-console-desktop-active .routine-console-editor input,
+body.routine-console-desktop-active .routine-console-editor select,
+body.routine-console-desktop-active .routine-console-editor textarea{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+body.routine-console-desktop-active .routine-console-editor h3,
+body.routine-console-desktop-active .routine-console-editor h4,
+body.routine-console-desktop-active .routine-validation-dock strong,
+body.routine-console-desktop-active .routine-derived-explainability-card strong,
+body.routine-console-desktop-active .routine-dependency-viewer strong{
+  overflow-wrap:anywhere!important;
+}
+@media(max-width:1180px){
+  body.routine-console-desktop-active .routine-console-editor-context,
+  body.routine-console-desktop-active .routine-editor-sections{grid-template-columns:1fr!important;}
+  body.routine-console-desktop-active .routine-focus-inspector{grid-template-columns:1fr!important;}
+  body.routine-console-desktop-active .transfer-graph-add-row,
+  body.routine-console-desktop-active .dependency-chain-add-row{grid-template-columns:1fr!important;}
+}
+/* end v5.7.76H.3 */
