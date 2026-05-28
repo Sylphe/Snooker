@@ -1,3 +1,3 @@
-export const APP_VERSION = "5.7.76H.3-routine-console-selected-panel-containment-fix";
-export const APP_BUILD_LABEL = "v5.7.76H.3 — Routine Console Selected Panel Containment Fix";
-export const APP_BUILD_TIMESTAMP = "2026-05-28 21:55 CEST";
+export const APP_VERSION = "5.7.77A-focus-mode-v2-state-architecture";
+export const APP_BUILD_LABEL = "v5.7.77A — Focus Mode v2 State Architecture";
+export const APP_BUILD_TIMESTAMP = "2026-05-28 22:30 CEST";

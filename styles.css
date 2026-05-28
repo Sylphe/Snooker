@@ -8259,3 +8259,53 @@ body.routine-console-desktop-active .routine-dependency-viewer strong{
   body.routine-console-desktop-active .dependency-chain-add-row{grid-template-columns:1fr!important;}
 }
 /* end v5.7.76H.3 */
+
+/* v5.7.77A Focus Mode v2 State Architecture */
+.focus-v2-test-btn { border-style: dashed; }
+.focus-v2-backdrop { z-index: 1200; }
+.focus-v2-modal-card {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  border-radius: 28px;
+  background: var(--surface, #fff);
+  color: var(--text, #111827);
+  box-shadow: 0 30px 90px rgba(0,0,0,.35);
+  border: 1px solid var(--border, rgba(148,163,184,.28));
+}
+.focus-v2-body { padding: clamp(18px, 3vw, 28px); }
+.focus-v2-shell { display: grid; gap: 18px; }
+.focus-v2-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.focus-v2-header h1 { margin: 2px 0 4px; font-size: clamp(1.8rem, 5vw, 3rem); line-height: 1; }
+.focus-v2-header p { margin: 0; max-width: 58ch; }
+.focus-v2-kicker { text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 800; color: var(--muted, #64748b); }
+.focus-v2-close { position: static; flex: 0 0 auto; }
+.focus-v2-state-rail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.focus-v2-state-chip { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; border-radius: 999px; border: 1px solid var(--border, rgba(148,163,184,.28)); background: var(--surface-2, rgba(148,163,184,.10)); color: inherit; font-weight: 750; }
+.focus-v2-state-chip span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: rgba(148,163,184,.18); font-size: .8rem; }
+.focus-v2-state-chip.active { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent); }
+.focus-v2-current { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 16px; background: var(--surface-2, rgba(148,163,184,.10)); }
+.focus-v2-current span { font-size: .75rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--muted, #64748b); }
+.focus-v2-current em { font-style: normal; color: var(--muted, #64748b); }
+.focus-v2-pane { min-height: 300px; display: grid; align-content: center; gap: 22px; }
+.focus-v2-big-context { text-align: center; display: grid; gap: 10px; }
+.focus-v2-big-context span { color: var(--muted, #64748b); font-weight: 800; text-transform: uppercase; letter-spacing: .1em; font-size: .8rem; }
+.focus-v2-big-context h2 { margin: 0; font-size: clamp(2.2rem, 7vw, 4.6rem); line-height: .95; }
+.focus-v2-big-context p { margin: 0; color: var(--muted, #64748b); }
+.focus-v2-score-label { text-align: center; font-weight: 850; color: var(--muted, #64748b); }
+.focus-v2-score-input { width: min(100%, 420px); justify-self: center; text-align: center; font-size: clamp(3.5rem, 18vw, 7rem); line-height: 1; font-weight: 900; border-radius: 28px; padding: 18px; }
+.focus-v2-quick-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(100%, 520px); justify-self: center; }
+.focus-v2-primary-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.focus-v2-primary { min-height: 56px; border-radius: 999px; padding-inline: 28px; font-size: 1.05rem; font-weight: 850; }
+.focus-v2-review-card { text-align: center; display: grid; gap: 8px; padding: 24px; border-radius: 24px; background: var(--surface-2, rgba(148,163,184,.10)); border: 1px solid var(--border, rgba(148,163,184,.28)); }
+.focus-v2-review-card span { color: var(--muted, #64748b); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: .78rem; }
+.focus-v2-review-card h2 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.8rem); }
+.focus-v2-review-card p { margin: 0; color: var(--muted, #64748b); }
+@media (max-width: 640px) {
+  .focus-v2-modal-card { width: 100vw; max-height: 100vh; min-height: 100vh; border-radius: 0; }
+  .focus-v2-body { padding: 16px; }
+  .focus-v2-state-rail { gap: 6px; }
+  .focus-v2-state-chip { font-size: .82rem; padding-inline: 6px; }
+  .focus-v2-quick-row { grid-template-columns: repeat(3, 1fr); }
+}
+/* end v5.7.77A */

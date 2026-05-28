@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.7.76H.3</title>
+  <title>Snooker Practice Log v5.7.77A</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.76H.3"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.76H.3" />
-  <link rel="stylesheet" href="styles.css?v=5.7.76H.3" />
-  <link rel="icon" href="icon.svg?v=5.7.76H.3" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.77A"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.77A" />
+  <link rel="stylesheet" href="styles.css?v=5.7.77A" />
+  <link rel="icon" href="icon.svg?v=5.7.77A" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.7.76H.3 · Build 2026-05-28 21:55 CEST — Routine Console Selected Panel Containment Fix</p>
+      <p>5.7.77A · Build 2026-05-28 22:30 CEST — Focus Mode v2 State Architecture</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -82,6 +82,7 @@
           <div class="row">
             <button id="startFreeSessionBtn" class="success primary-start-btn">Start Free Training</button>
             <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
+            <button id="focusModeV2TestBtn" class="secondary focus-v2-test-btn" type="button" data-action="open-focus-v2-test">Focus Mode v2 Test</button>
             <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
           </div>
         </div>
@@ -1683,6 +1684,14 @@
   </main>
 
 
+
+
+  <div id="focusV2Modal" class="modal-backdrop hidden focus-v2-backdrop" data-action="modal-backdrop-close" data-modal="focusV2Modal">
+    <div class="focus-v2-modal-card" role="dialog" aria-modal="true" aria-labelledby="focusV2Title">
+      <div id="focusV2Body" class="focus-v2-body"></div>
+    </div>
+  </div>
+
   <div id="fieldHelpModal" class="modal-backdrop hidden" data-action="modal-backdrop-close" data-modal="fieldHelpModal">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fieldHelpTitle">
       <div class="modal-header">
@@ -1813,7 +1822,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.76H.3"></script>
+  <script type="module" src="app.js?v=5.7.77A"></script>
 </body>
 
 

@@ -1,21 +1,21 @@
 # Snooker Practice PWA
 
-Version: 5.7.76H.3-routine-console-selected-panel-containment-fix
+Version: 5.7.77A-focus-mode-v2-state-architecture
 
-## v5.7.76H.3 — Routine Console Selected Panel Containment Fix
+## v5.7.77A — Focus Mode v2 State Architecture
 
-This patch stabilizes the selected-routine area of the desktop Routine Console after row selection and KPI-driven filtering.
+This release introduces Focus Mode v2 in parallel with the existing Focus Mode. The current logging flow is preserved. A new Practice-tab button opens a test cockpit with three isolated states: Pre-shot, Logging and Review.
 
-### Fixed
+### Included
 
-- removed the residual selected-editor left offset inherited from older desktop console layouts;
-- constrained the selected routine editor to the main console width;
-- constrained the Focus Inspector, contextual validation dock, derived metadata explainability card, transfer graph and dependency panels;
-- prevented chip rails, validation buttons, long routine names and graph add-row controls from spilling off-screen;
-- added safer wrapping and min-width rules across selected-routine panels;
-- preserved v5.7.76H.2 grid/panel stabilization and all v5.7.76H focus inspector features.
+- Practice tab button: Focus Mode v2 Test.
+- Focus Mode v2 modal shell.
+- State architecture: Pre-shot, Logging, Review.
+- Large score-entry cockpit for the v2 test flow.
+- Isolated v2 draft state; it does not overwrite the current Focus Mode or main logging flow.
+- Existing v5.7.76H.3 Routine Console containment fixes preserved.
 
 ### Validation
 
 - ES module syntax check passed.
-- Zip integrity test passed.
+- ZIP integrity test passed.
