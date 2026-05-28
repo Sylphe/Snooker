@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75G";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75G.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75G.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.74A.1.1";
+} from "./utils.js?v=5.7.75G.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.74A.1.1";
+} from "./settings.js?v=5.7.75G.1";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.74A.1.1";
+} from "./analytics.js?v=5.7.75G.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.74A.1.1";
+} from "./bayesian.js?v=5.7.75G.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.74A.1.1";
+} from "./session.js?v=5.7.75G.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.74A.1.1";
+} from "./pressure.js?v=5.7.75G.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.74A.1.1";
+} from "./recommendations.js?v=5.7.75G.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.74A.1.1";
+} from "./store.js?v=5.7.75G.1";
 
 
 
@@ -18540,7 +18540,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75G";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75G.1";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18862,7 +18862,7 @@ function routineConsoleParseListSafe(value) {
   return String(value || "").split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 }
 
-/* ===== v5.7.75G Semantic Chip System ===== */
+/* ===== v5.7.75G.1 Semantic Chip System ===== */
 function routineConsoleChipKindSafe(type, value="") {
   const t = String(type || "neutral").toLowerCase();
   const v = String(value || "").toLowerCase();
@@ -18908,8 +18908,8 @@ function routineConsoleFieldChipHtmlSafe(row, key, value) {
   if (key === "primarySkill") return routineConsoleChipSafe(skillLabel(v) || v, "archetype", v);
   if (key === "secondarySkills") return routineConsoleChipListSafe(v, "archetype", "no secondary tags");
   if (key === "recommendationMode") return routineConsoleChipSafe(v, "validation", v === "excluded" ? "risk" : v === "occasional" ? "watch" : "ok");
-  if (key === "validity") return routineConsoleChipSafe(`${numText(Number(row?.validity ?? parseFloat(v) || 0))}%`, "validation", Number(row?.validity ?? parseFloat(v) || 0) < 50 ? "critical" : Number(row?.validity ?? parseFloat(v) || 0) < 80 ? "risk" : "ok");
-  if (key === "completeness") return routineConsoleChipSafe(`${numText(Number(row?.completeness ?? parseFloat(v) || 0))}%`, "validation", Number(row?.completeness ?? parseFloat(v) || 0) < 70 ? "risk" : Number(row?.completeness ?? parseFloat(v) || 0) < 90 ? "watch" : "ok");
+  if (key === "validity") return routineConsoleChipSafe(`${numText(Number(row?.validity ?? (parseFloat(v) || 0)))}%`, "validation", Number(row?.validity ?? (parseFloat(v) || 0)) < 50 ? "critical" : Number(row?.validity ?? (parseFloat(v) || 0)) < 80 ? "risk" : "ok");
+  if (key === "completeness") return routineConsoleChipSafe(`${numText(Number(row?.completeness ?? (parseFloat(v) || 0)))}%`, "validation", Number(row?.completeness ?? (parseFloat(v) || 0)) < 70 ? "risk" : Number(row?.completeness ?? (parseFloat(v) || 0)) < 90 ? "watch" : "ok");
   if (key === "issues") {
     const issues = row?.issues || [];
     if (!issues.length) return routineConsoleChipSafe("OK", "validation", "ok");
@@ -18934,7 +18934,7 @@ function routineConsoleEditorChipRailSafe(row) {
     </div>`;
   } catch (_) { return ""; }
 }
-/* ===== end v5.7.75G Semantic Chip System ===== */
+/* ===== end v5.7.75G.1 Semantic Chip System ===== */
 
 function routineTransferGraphProfileSafe(routine) {
   try {
@@ -19014,7 +19014,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75G",
+    version: "5.7.75G.1",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19031,7 +19031,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19051,7 +19051,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19072,9 +19072,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75G"
+      version: profile.version || "5.7.75G.1"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75G"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75G.1"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19130,7 +19130,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19146,7 +19146,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19682,12 +19682,9 @@ function bindRoutineConsoleGridEngineSafe() {
     const target = event.target;
     if (!target?.classList?.contains("routine-grid-input")) return;
     const text = event.clipboardData?.getData("text") || "";
-    if (!text.includes("	") && !text.includes("
-")) return;
+    if (!text.includes("\t") && !text.includes("\n")) return;
     event.preventDefault();
-    const rows = text.trim().split(/
-?
-/).map(line => line.split("	"));
+    const rows = text.trim().split(/\r?\n/).map(line => line.split("\t"));
     const visible = routineConsoleSortRowsSafe(routineConsoleLastRows || []);
     const startIndex = visible.findIndex(r => String(r.id) === String(target.dataset.routineId));
     const columns = routineConsoleVisibleGridColumnsSafe();
@@ -19792,7 +19789,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75G:</strong> this release adds the Semantic Chip System across the Routine Console grid, selected-routine editor and validation surfaces.</p><p class="muted">Semantic values now render as compact chips for archetype, preset, benchmark, recovery, pressure, transfer, validation and ETU source, improving scan speed without changing the routine data model.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75G.1:</strong> this release adds the Semantic Chip System across the Routine Console grid, selected-routine editor and validation surfaces.</p><p class="muted">Semantic values now render as compact chips for archetype, preset, benchmark, recovery, pressure, transfer, validation and ETU source, improving scan speed without changing the routine data model.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19890,7 +19887,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75G", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75G.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
