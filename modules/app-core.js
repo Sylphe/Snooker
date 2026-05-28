@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74D2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74E";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18469,6 +18469,105 @@ let routineConsoleSelectedIdsSet = new Set();
 let routineConsoleGridView = "core";
 let routineConsoleSortState = {field:"name", direction:"asc"};
 
+
+const ROUTINE_SEMANTIC_PRESETS = {
+  "technical-repetition": {
+    label: "Technical repetition",
+    description: "Low-volatility repetition work for mechanics, delivery, potting rhythm or cue-ball control consolidation.",
+    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.1, technicalEtu:1.8, cognitiveEtu:0.5, confidenceEtu:0.3, pressureEtu:0.1}
+  },
+  "pressure-benchmark": {
+    label: "Pressure benchmark",
+    description: "Formal testing or pressure-test work where score reliability and pressure tolerance matter more than volume.",
+    patch: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:0.85, technicalEtu:1.2, cognitiveEtu:1.1, confidenceEtu:1.2, pressureEtu:2.2}
+  },
+  "tactical-acquisition": {
+    label: "Tactical acquisition",
+    description: "Learning-oriented safety, shot selection or pattern-recognition work with heavier cognitive load.",
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.2, technicalEtu:0.8, cognitiveEtu:1.9, confidenceEtu:0.6, pressureEtu:0.4}
+  },
+  "confidence-rebuild": {
+    label: "Confidence rebuild",
+    description: "Low-risk repetition designed to restore touch, rhythm and positive feedback after poor form or fatigue.",
+    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.05, technicalEtu:1.0, cognitiveEtu:0.4, confidenceEtu:1.5, pressureEtu:0.05}
+  },
+  "long-form-break-building": {
+    label: "Long-form break-building",
+    description: "Integrated scoring-pattern work with mixed technical and cognitive demand, suitable for line-ups and route building.",
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.45, technicalEtu:1.6, cognitiveEtu:1.4, confidenceEtu:0.7, pressureEtu:0.7}
+  },
+  "diagnostic": {
+    label: "Diagnostic",
+    description: "Measurement-oriented routine used to identify weakness, trend direction or readiness rather than to maximize training volume.",
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:0.7, technicalEtu:0.9, cognitiveEtu:0.9, confidenceEtu:0.8, pressureEtu:0.9}
+  },
+  "recovery-control": {
+    label: "Recovery control",
+    description: "Low-load cueing, alignment or control work for recovery days and post-fatigue consolidation.",
+    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"low", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0, technicalEtu:0.8, cognitiveEtu:0.3, confidenceEtu:0.7, pressureEtu:0}
+  }
+};
+function routineSemanticPresetOptionsHtmlSafe(selected="") {
+  return `<option value="">Choose semantic preset</option>` + Object.entries(ROUTINE_SEMANTIC_PRESETS).map(([key,p]) => `<option value="${attrText(key)}"${String(selected)===key?" selected":""}>${escapeHtml(p.label)}</option>`).join("");
+}
+function routineSemanticPresetPatchSafe(key) {
+  const preset = ROUTINE_SEMANTIC_PRESETS[String(key || "")];
+  return preset ? {...preset.patch} : null;
+}
+function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill") {
+  const patch = routineSemanticPresetPatchSafe(presetKey);
+  if (!routine || !patch) return routine;
+  const next = {...routine, semanticPreset:String(presetKey), semanticPresetAppliedAt:new Date().toISOString(), metadataVersion:Number(routine.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+  const shouldWrite = (field) => mode === "overwrite" || next[field] === undefined || next[field] === null || next[field] === "" || next[field] === "auto" || Number(next[field]) === 0;
+  ["volatilityProfile","recoverySuitability","pressureSuitability","acquisitionSuitability","benchmarkMode","benchmarkStrictness"].forEach(field => { if (shouldWrite(field)) next[field] = patch[field]; });
+  if (shouldWrite("benchmarkExposureWeight")) next.benchmarkExposureWeight = patch.benchmarkExposureWeight;
+  const currentEtu = next.etuProfile || {};
+  const writeEtu = (name, value) => mode === "overwrite" || currentEtu[name] === undefined || currentEtu[name] === null || Number(currentEtu[name] || 0) === 0;
+  const etu = {...currentEtu};
+  if (writeEtu("technical", patch.technicalEtu)) etu.technical = patch.technicalEtu;
+  if (writeEtu("cognitive", patch.cognitiveEtu)) etu.cognitive = patch.cognitiveEtu;
+  if (writeEtu("confidence", patch.confidenceEtu)) etu.confidence = patch.confidenceEtu;
+  if (writeEtu("pressure", patch.pressureEtu)) etu.pressure = patch.pressureEtu;
+  etu.source = mode === "overwrite" ? "preset-overwrite" : "preset-fill";
+  next.etuProfile = etu;
+  next.etuSource = etu.source;
+  next.metadataConfidence = next.metadataConfidence || {};
+  next.metadataConfidence.semanticPreset = mode === "overwrite" ? "medium" : "medium";
+  next.metadataProvenance = {...(next.metadataProvenance || {}), semanticPreset:{source:"preset", key:String(presetKey), mode, appliedAt:next.semanticPresetAppliedAt}};
+  return next;
+}
+function routineSemanticPresetPreviewSafe(key) {
+  const preset = ROUTINE_SEMANTIC_PRESETS[String(key || "")];
+  if (!preset) return "Choose a preset to preview the metadata package.";
+  const p = preset.patch;
+  return `${preset.description} ETU T ${numText(p.technicalEtu)} · C ${numText(p.cognitiveEtu)} · E ${numText(p.confidenceEtu)} · P ${numText(p.pressureEtu)} · benchmark ${p.benchmarkMode} (${numText(p.benchmarkExposureWeight)}) · volatility ${p.volatilityProfile}.`;
+}
+function renderRoutineSemanticPresetPreviewSafe() {
+  try {
+    const key = $("routineSemanticPresetSelect")?.value || "";
+    const host = $("routineSemanticPresetPreview");
+    if (host) host.textContent = routineSemanticPresetPreviewSafe(key);
+  } catch (_) {}
+}
+function applyRoutineSemanticPresetToSelectedSafe() {
+  try {
+    const key = $("routineSemanticPresetSelect")?.value || "";
+    if (!key || !ROUTINE_SEMANTIC_PRESETS[key]) return alert("Choose a semantic preset first.");
+    const ids = routineStudioSelectedIdsSafe();
+    if (!ids.length) return alert("Select at least one routine before applying a semantic preset.");
+    const mode = $("routineSemanticPresetMode")?.value || "fill";
+    let count = 0;
+    data.routines = (data.routines || []).map(r => {
+      if (!ids.includes(String(r.id))) return r;
+      count += 1;
+      return routineSemanticPresetApplyToRoutineSafe(r, key, mode);
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Applied ${ROUTINE_SEMANTIC_PRESETS[key].label} preset to ${count} routine(s).`, "success");
+  } catch (err) { try { logAppError(err, "applyRoutineSemanticPresetToSelectedSafe"); } catch (_) {}; alert("Semantic preset application failed. Review the error log."); }
+}
+
 const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"name", label:"Routine", type:"text", editable:true, preset:["core","minimal"]},
   {key:"folder", label:"Folder", type:"text", editable:true, preset:["core","minimal","validation"]},
@@ -18488,6 +18587,7 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"volatilityProfile", label:"Volatility", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu","validation"]},
   {key:"recoverySuitability", label:"Recovery", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
   {key:"pressureSuitability", label:"Pressure fit", type:"select", editable:true, options:["auto","low","medium","high"], preset:["etu"]},
+  {key:"semanticPreset", label:"Preset", type:"select", editable:true, options:Object.keys(ROUTINE_SEMANTIC_PRESETS), preset:["core","validation","minimal"]},
   {key:"recommendationMode", label:"Reco", type:"select", editable:true, options:["active","occasional","excluded"], preset:["validation","minimal"]},
   {key:"packSource", label:"Pack", type:"readonly", preset:["validation"]},
   {key:"completeness", label:"Completeness", type:"readonly", preset:["validation","minimal"]},
@@ -18531,6 +18631,7 @@ function routineConsoleRoutineMetaSafe(r) {
     confidenceEtu: Number(etu.confidence ?? etu.emotional ?? r?.emotionalEtu ?? 0),
     pressureEtu: Number(etu.pressure ?? r?.pressureEtu ?? 0),
     etuSource: r?.etuSource || etu.source || "fallback",
+    semanticPreset: r?.semanticPreset || "",
     metadataVersion: r?.metadataVersion || 1,
     packSource: r?.packSource || r?.routinePackSource || "app"
   };
@@ -18766,6 +18867,8 @@ function routineConsoleApplyInlineEditSafe(routineId, field, rawValue, options =
         next[field] = normalizeBenchmarkMode(value);
       } else if (field === "benchmarkStrictness") {
         next[field] = normalizeBenchmarkStrictness(value);
+      } else if (field === "semanticPreset") {
+        return routineSemanticPresetApplyToRoutineSafe(next, value, "fill");
       } else { next[field] = value; }
       return next;
     });
@@ -18816,7 +18919,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["name"].includes(col.key)) return 240;
     if (["issues"].includes(col.key)) return 340;
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
-    if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource"].includes(col.key)) return 150;
+    if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset"].includes(col.key)) return 150;
     if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
     return 170;
   };
@@ -18883,6 +18986,7 @@ function renderRoutineConsoleEditor(id) {
       <div class="grid two routine-console-editor-grid">
         <div><label>Name</label><input id="routineConsoleName" value="${attrText(m.name)}" /></div>
         <div><label>Recommendation</label><select id="routineConsoleRecommendation"><option value="active">Active</option><option value="occasional">Occasional</option><option value="excluded">Excluded</option></select></div>
+        <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
         <div><label>Folder</label><input id="routineConsoleFolder" value="${attrText(m.folder)}" /></div>
         <div><label>Subfolder</label><input id="routineConsoleSubfolder" value="${attrText(m.subfolder)}" /></div>
         <div><label>Category</label><input id="routineConsoleCategory" value="${attrText(m.category)}" /></div>
@@ -18904,6 +19008,7 @@ function renderRoutineConsoleEditor(id) {
       <div class="row compact-row"><button type="button" class="primary-start-btn" data-action="routine-console-save">Save routine metadata</button><button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(m.id)}">Open classic form</button></div>`;
     const setVal = (id, value) => { const el = $(id); if (el) el.value = value; };
     setVal("routineConsoleRecommendation", m.recommendationMode);
+    setVal("routineConsoleSemanticPreset", m.semanticPreset || "");
     setVal("routineConsoleBenchmarkMode", normalizeBenchmarkMode(m.benchmarkMode || "support"));
     setVal("routineConsoleBenchmarkStrictness", normalizeBenchmarkStrictness(m.benchmarkStrictness || "normal"));
     setVal("routineConsoleVolatility", m.volatilityProfile);
@@ -18928,7 +19033,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74D.2:</strong> this release adds a dedicated desktop spreadsheet grid engine separate from the mobile-safe Routine Studio shell: inline metadata editing, sortable columns, column presets, persistent row selection, copy-down workflows, multi-cell paste support and validation overlays.</p><p class="muted">Use the grid like a light Airtable/Excel surface. Select a view, filter/search routines, edit cells directly, paste values from a spreadsheet, then use copy-down or bulk actions for repetitive metadata governance.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74E:</strong> this release adds a shared semantic preset system on top of the desktop spreadsheet grid engine. Presets apply coherent ETU, benchmark, volatility, recovery and pressure metadata packages from both the mobile-safe studio and the desktop console.</p><p class="muted">Use presets for fast semantic classification, then refine individual fields in the grid or side editor. Fill mode only writes missing/auto fields; overwrite mode deliberately replaces the selected metadata package.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -18997,6 +19102,7 @@ function routineConsoleSaveSelected() {
       next.volatilityProfile = val("routineConsoleVolatility") || "auto";
       next.recoverySuitability = val("routineConsoleRecovery") || "auto";
       next.pressureSuitability = val("routineConsolePressure") || "auto";
+      next.semanticPreset = val("routineConsoleSemanticPreset") || next.semanticPreset || "";
       next.etuProfile = {
         ...(next.etuProfile || {}),
         technical: clampNumber(Number(val("routineConsoleTechnicalEtu") || 0), 0, 8),
@@ -19017,7 +19123,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.74D", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.74E", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19141,8 +19247,8 @@ function applyRoutineConsoleTransferEditorSafe() {
 }
 /* ===== end v5.7.74C Routine Console semantic editors ===== */
 
-["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue"].forEach(id => {
-  if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", renderRoutineStudioLite);
+["routineStudioAuditFilter","routineStudioSearch","routineStudioBulkField","routineStudioBulkValue","routineSemanticPresetSelect","routineSemanticPresetMode"].forEach(id => {
+  if ($(id)) safeOn(id, id === "routineStudioSearch" ? "input" : "change", id === "routineSemanticPresetSelect" ? renderRoutineSemanticPresetPreviewSafe : renderRoutineStudioLite);
 });
 safeOn("routinePackManagerSelect", "change", () => selectRoutinePackManagerPack($("routinePackManagerSelect")?.value || ""));
 safeOn("routineConsolePackImportInput", "change", routineConsoleImportPackFileSafe);
@@ -19301,6 +19407,9 @@ function handleDelegatedUIAction(event) {
     case "routine-console-desktop-close": return routineConsoleSetDesktopModeSafe(false);
     case "routine-studio-select-visible": return routineStudioSelectVisible();
     case "routine-studio-apply-bulk": return applyRoutineStudioBulkMetadata();
+    case "routine-studio-clear-selection": return routineStudioClearSelection();
+    case "routine-console-copy-down": return routineConsoleCopyDownSelectedSafe();
+    case "routine-semantic-preset-apply": return applyRoutineSemanticPresetToSelectedSafe();
     case "routine-console-select": return renderRoutineConsoleEditor(id);
     case "routine-console-save": return routineConsoleSaveSelected();
     case "routine-console-export-visible": return routineConsoleExportVisibleJson();

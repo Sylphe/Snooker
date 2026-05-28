@@ -6471,3 +6471,26 @@ body.routine-console-desktop-active .routine-grid-table{font-size:.78rem!importa
   .routine-console-titlebar{flex-direction:column}
   .routine-console-title-actions{width:100%}.routine-console-title-actions button{flex:1}
 }
+
+/* v5.7.74E Semantic Preset System */
+.routine-semantic-preset-card {
+  border-left: 4px solid var(--accent, #5c7cfa);
+}
+.routine-semantic-preset-card .grid {
+  align-items: end;
+}
+.routine-semantic-preset-card select,
+.routine-semantic-preset-card button {
+  width: 100%;
+}
+.routine-console-desktop-active .routine-semantic-preset-card {
+  max-width: none;
+}
+.routine-console-desktop-active .routine-semantic-preset-card .grid.three {
+  grid-template-columns: minmax(260px, 1.2fr) minmax(240px, 1fr) minmax(220px, .8fr);
+}
+@media (max-width: 760px) {
+  .routine-semantic-preset-card .grid.three {
+    grid-template-columns: 1fr;
+  }
+}

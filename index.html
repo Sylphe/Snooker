@@ -868,6 +868,38 @@
             <div id="routinePackManager" class="routine-pack-manager-list"></div>
           </div>
 
+          <div class="analytics-note routine-semantic-preset-card">
+            <h3>Semantic Preset System</h3>
+            <p class="muted">Apply coherent metadata packages to selected routines. Presets update ETU subtype weights, benchmark semantics, volatility, recovery fit and pressure fit from one control. Fill mode protects existing curated metadata; overwrite mode deliberately replaces the selected fields.</p>
+            <div class="grid three">
+              <div>
+                <label>Preset</label>
+                <select id="routineSemanticPresetSelect">
+                  <option value="">Choose semantic preset</option>
+                  <option value="technical-repetition">Technical repetition</option>
+                  <option value="pressure-benchmark">Pressure benchmark</option>
+                  <option value="tactical-acquisition">Tactical acquisition</option>
+                  <option value="confidence-rebuild">Confidence rebuild</option>
+                  <option value="long-form-break-building">Long-form break-building</option>
+                  <option value="diagnostic">Diagnostic</option>
+                  <option value="recovery-control">Recovery control</option>
+                </select>
+              </div>
+              <div>
+                <label>Application mode</label>
+                <select id="routineSemanticPresetMode">
+                  <option value="fill" selected>Fill missing / auto fields only</option>
+                  <option value="overwrite">Overwrite selected metadata</option>
+                </select>
+              </div>
+              <div>
+                <label>Apply preset</label>
+                <button type="button" class="primary-start-btn" data-action="routine-semantic-preset-apply">Apply to selected routines</button>
+              </div>
+            </div>
+            <p id="routineSemanticPresetPreview" class="muted small">Choose a preset to preview the metadata package.</p>
+          </div>
+
           <div class="routine-console-74c-grid">
             <div class="analytics-note routine-console-validation-card">
               <h3>Validation Dashboard</h3>
