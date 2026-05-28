@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76H";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76H";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76H.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76H.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.76H";
+} from "./utils.js?v=5.7.76H.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.76H";
+} from "./settings.js?v=5.7.76H.1";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.76H";
+} from "./analytics.js?v=5.7.76H.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.76H";
+} from "./bayesian.js?v=5.7.76H.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.76H";
+} from "./session.js?v=5.7.76H.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.76H";
+} from "./pressure.js?v=5.7.76H.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.76H";
+} from "./recommendations.js?v=5.7.76H.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.76H";
+} from "./store.js?v=5.7.76H.1";
 
 
 
@@ -19284,7 +19284,7 @@ function routineDependencyChainViewerSafe(routine, scope="desktop") {
     const hasAny = sum.linked > 0;
     return `<div class="routine-dependency-viewer ${scope === "desktop" ? "desktop" : "mobile"}">
       <div class="dependency-viewer-head">
-        <div><strong>Derived Metadata Explainability</strong><span class="muted small">Shows the selected routine as a progression node: upstream prerequisites, downstream enables, and blocked-by constraints.</span></div>
+        <div><strong>Visual Dependency Chain Viewer</strong><span class="muted small">Shows the selected routine as a progression node: upstream prerequisites, downstream enables, and blocked-by constraints.</span></div>
         <div class="dependency-viewer-kpis">
           <span><strong>${numText(sum.linked)}</strong><small>links</small></span>
           <span><strong>${numText(strengthPct)}%</strong><small>strength</small></span>
@@ -19765,7 +19765,12 @@ function routineConsoleVisibleGridColumnsSafe() {
   const view = String($("routineConsoleGridView")?.value || routineConsoleGridView || "core");
   routineConsoleGridView = view;
   if (view === "all") return ROUTINE_CONSOLE_GRID_COLUMNS;
-  return ROUTINE_CONSOLE_GRID_COLUMNS.filter(col => (col.preset || []).includes(view));
+  const base = ROUTINE_CONSOLE_GRID_COLUMNS.filter(col => (col.preset || []).includes(view));
+  const anchorKeys = ["name", "folder", "category"];
+  const byKey = new Map(ROUTINE_CONSOLE_GRID_COLUMNS.map(col => [col.key, col]));
+  const anchors = anchorKeys.map(key => byKey.get(key)).filter(Boolean);
+  const seen = new Set(anchorKeys);
+  return [...anchors, ...base.filter(col => !seen.has(col.key))];
 }
 function routineConsoleCellValueSafe(row, key) {
   if (key === "issues") return (row.issues || []).slice(0,3).map(x => x.label || x.detail || x.code || String(x)).join(" · ") || "OK";
@@ -19969,11 +19974,11 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     return 170;
   };
   const colgroup = `<col class="routine-grid-select-col" />${columns.map(col => `<col style="width:${numAttr(widthFor(col))}px;min-width:${numAttr(widthFor(col))}px;" />`).join("")}`;
-  const header = `<tr><th class="grid-select-col"><input id="routineConsoleSelectAllVisible" type="checkbox" title="Select all visible rows" /></th>${columns.map((col, idx) => `<th class="routine-grid-th ${idx === 0 ? "grid-frozen-head" : ""}" data-action="routine-console-sort" data-id="${attrText(col.key)}"><span>${escapeHtml(col.label)}${sortGlyph(col)}</span></th>`).join("")}</tr>`;
+  const header = `<tr><th class="grid-select-col"><input id="routineConsoleSelectAllVisible" type="checkbox" title="Select all visible rows" /></th>${columns.map((col, idx) => `<th class="routine-grid-th ${idx === 0 ? "grid-frozen-head" : ""} ${["name","folder","category"].includes(col.key) ? "grid-anchor-head" : ""}" data-action="routine-console-sort" data-id="${attrText(col.key)}"><span>${escapeHtml(col.label)}${sortGlyph(col)}</span></th>`).join("")}</tr>`;
   const body = sortedRows.map(row => {
     const selected = String(row.id) === String(routineConsoleSelectedRoutineId);
     const checked = routineConsoleSelectedIdsSet.has(String(row.id)) ? " checked" : "";
-    return `<tr class="routine-grid-row ${selected ? "selected-row" : ""} ${routineConsoleStatusClassSafe(row)}" data-action="routine-console-row-select" data-id="${attrText(row.id)}" data-routine-id="${attrText(row.id)}" tabindex="0"><td class="grid-select-col"><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}"${checked} /></td>${columns.map((col, idx) => `<td class="routine-grid-cell ${idx === 0 ? "grid-frozen-cell" : ""}" data-col="${attrText(col.key)}">${routineConsoleRenderGridCellSafe(row, col)}</td>`).join("")}</tr>`;
+    return `<tr class="routine-grid-row ${selected ? "selected-row" : ""} ${routineConsoleStatusClassSafe(row)}" data-action="routine-console-row-select" data-id="${attrText(row.id)}" data-routine-id="${attrText(row.id)}" tabindex="0"><td class="grid-select-col"><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}"${checked} /></td>${columns.map((col, idx) => `<td class="routine-grid-cell ${idx === 0 ? "grid-frozen-cell" : ""} ${["name","folder","category"].includes(col.key) ? "grid-anchor-cell" : ""}" data-col="${attrText(col.key)}">${routineConsoleRenderGridCellSafe(row, col)}</td>`).join("")}</tr>`;
   }).join("");
   return body ? `<div class="routine-console-scroll routine-console-spreadsheet" role="region" aria-label="Routine spreadsheet grid"><table class="routine-console-table routine-grid-table"><colgroup>${colgroup}</colgroup><thead>${header}</thead><tbody>${body}</tbody></table></div>` : `<div class="analytics-note">No routines match this Routine Console filter.</div>`;
 }
@@ -20167,7 +20172,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76H</strong><span>Focus Inspector System</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Inspector keeps selected-routine context visible with validation, ETU, transfer and dependency status plus quick section navigation.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76H.1</strong><span>Routine Console Layout Alignment Fix</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Layout alignment fix: the desktop rail now uses a true app-shell layout, anchor columns remain visible in every grid view, and the dependency viewer heading is corrected.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -20266,7 +20271,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.76H", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.76H.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -20325,7 +20330,7 @@ function routineConsoleFocusEditorSectionSafe(section) {
 }
 /* ===== end v5.7.75F Contextual Validation Dock ===== */
 
-/* ===== v5.7.76H Focus Inspector System ===== */
+/* ===== v5.7.76H Routine Console Layout Alignment Fix ===== */
 function routineConsoleFocusInspectorHtmlSafe(row) {
   try {
     if (!row) {
@@ -20376,7 +20381,7 @@ function renderRoutineConsoleFocusInspectorSafe(row) {
     host.innerHTML = routineConsoleFocusInspectorHtmlSafe(row || null);
   } catch (err) { try { logAppError(err, "renderRoutineConsoleFocusInspectorSafe"); } catch (_) {} }
 }
-/* ===== end v5.7.76H Focus Inspector System ===== */
+/* ===== end v5.7.76H Routine Console Layout Alignment Fix ===== */
 
 function renderRoutineConsoleValidationDashboardSafe(rows) {
   try {

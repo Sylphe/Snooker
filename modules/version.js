@@ -1,3 +1,3 @@
-export const APP_VERSION = "5.7.76H-focus-inspector-system";
-export const APP_BUILD_LABEL = "v5.7.76H — Focus Inspector System";
-export const APP_BUILD_TIMESTAMP = "2026-05-28 20:35 CEST";
+export const APP_VERSION = "5.7.76H.1-routine-console-layout-alignment-fix";
+export const APP_BUILD_LABEL = "v5.7.76H.1 — Routine Console Layout Alignment Fix";
+export const APP_BUILD_TIMESTAMP = "2026-05-28 21:05 CEST";

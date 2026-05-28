@@ -1,8 +1,8 @@
 # Snooker Practice Log
 
-Version: 5.7.76H-focus-inspector-system
+Version: 5.7.76H.1-routine-console-layout-alignment-fix
 
-## v5.7.76H — Focus Inspector System
+## v5.7.76H.1 — Routine Console Layout Alignment Fix
 
 This release adds a persistent Focus Inspector to the Routine Management Console. The inspector keeps the selected routine visible while the user works through the grid, transfer graph, dependency chain, validation dock and ETU/benchmark editor.
 
@@ -14,7 +14,7 @@ Included:
 - quick section navigation buttons for Core, Transfer, Dependency and ETU / benchmark;
 - desktop sticky behavior and mobile-safe stacking;
 - v5.7.76G left navigation rail preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.76H.
+- build identity, version module, cache keys and visible app panel updated to v5.7.76H.1.
 
 Validation:
 
