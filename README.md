@@ -1,20 +1,19 @@
-# Snooker Practice PWA
+# Snooker Practice Log
 
-Version: 5.7.75F-contextual-validation-dock
+Version: 5.7.75G-semantic-chip-system
 
-## v5.7.75F — Contextual Validation Dock
+## v5.7.75G — Semantic Chip System
 
-This build adds contextual validation directly to the selected routine workflow in the Routine Management Console.
+This release adds a semantic chip layer to the Routine Management Console while preserving the Contextual Validation Dock and Quick Edit Mode.
 
 ### Included
 
-- selected routine validation dock beside the derived metadata summary;
-- routine-level issues now appear next to the routine editor instead of only in the global validation table;
-- section shortcuts route issues to Core, Transfer, Dependency, or Benchmark / ETU fields;
-- Quick Edit Mode from v5.7.75E is retained;
-- spreadsheet density, governance metrics, workflow simplification, dependency chains and visual transfer graph remain in place;
-- build identity, version module, cache keys and visible app panel updated to v5.7.75F.
+- semantic chips for archetype, preset, benchmark, recovery, pressure, transfer, validation and ETU source;
+- chip rendering in the spreadsheet grid for read-only semantic fields;
+- chip-styled select controls for editable semantic fields;
+- selected-routine semantic chip rail below the contextual validation/derived metadata summary;
+- derived metadata chips for recovery, confidence risk, cognitive load, benchmark density and transfer intensity;
+- validation severity chips in the contextual validation dock;
+- build identity, version module, cache keys and visible app panel updated to v5.7.75G.
 
-### Validation
-
-Run `node --check app.js` and `node --check modules/app-core.js` after unpacking. The release package was generated after those checks passed.
+No compilation is required. Deploy the static files to GitHub Pages as before.

@@ -7037,3 +7037,44 @@ body.routine-console-desktop-active .routine-console-kpis .kpi-card span{
 .routine-validation-dock-issue .secondary.small{min-height:30px;padding:5px 8px;font-size:11px;white-space:nowrap;}
 .routine-editor-section-focus{outline:2px solid var(--gold);outline-offset:3px;box-shadow:0 0 0 4px rgba(196,158,75,.16);transition:box-shadow .2s ease, outline .2s ease;}
 @media(max-width:900px){.routine-console-editor-context{grid-template-columns:1fr}.routine-validation-dock-issue{grid-template-columns:1fr}.routine-validation-dock-issue .secondary.small{width:100%;}}
+
+/* ===== v5.7.75G Semantic Chip System ===== */
+.routine-semantic-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:0.35rem;
+  max-width:100%;
+  min-height:1.35rem;
+  padding:0.16rem 0.46rem;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.26);
+  background:rgba(148,163,184,0.10);
+  color:var(--text-strong, #e5e7eb);
+  font-size:0.72rem;
+  font-weight:650;
+  line-height:1.05;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  vertical-align:middle;
+}
+.routine-semantic-chip small{font-size:0.65rem;opacity:.72;font-weight:600;}
+.routine-grid-cell .routine-semantic-chip{max-width:11.5rem;}
+.routine-derived-chip-row,.routine-editor-chip-rail{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+.routine-editor-chip-rail{margin:.55rem 0 .25rem;padding:.55rem .65rem;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:rgba(15,23,42,.20);}
+.chip-archetype-acquisition,.chip-archetype-stabilization,.chip-archetype-transfer,.chip-preset{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.32);color:#bfdbfe;}
+.chip-archetype-pressure,.chip-pressure-high,.chip-benchmark-pressure-test{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.34);color:#fecaca;}
+.chip-archetype-benchmark,.chip-benchmark-test,.chip-benchmark-calibration{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.35);color:#fde68a;}
+.chip-archetype-recovery,.chip-recovery-high,.chip-validation-ok,.chip-etu-defined{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.30);color:#bbf7d0;}
+.chip-transfer-direct,.chip-transfer-supporting,.chip-transfer-weak,.chip-dependency{background:rgba(168,85,247,.14);border-color:rgba(168,85,247,.33);color:#e9d5ff;}
+.chip-transfer-interference,.chip-validation-risk,.chip-validation-critical,.chip-etu-fallback{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.33);color:#fecaca;}
+.chip-validation-watch,.chip-etu-estimated,.chip-benchmark-support{background:rgba(250,204,21,.12);border-color:rgba(250,204,21,.28);color:#fef3c7;}
+.chip-derived,.chip-neutral,.chip-archetype-unassigned{background:rgba(148,163,184,.11);border-color:rgba(148,163,184,.25);color:#cbd5e1;}
+.routine-chip-select{border-radius:999px!important;font-weight:650!important;padding-left:.55rem!important;padding-right:1.35rem!important;min-height:1.55rem!important;}
+.routine-chip-select.chip-archetype-acquisition,.routine-chip-select.chip-preset{background:rgba(59,130,246,.12)!important;border-color:rgba(59,130,246,.32)!important;}
+.routine-chip-select.chip-benchmark-test,.routine-chip-select.chip-benchmark-calibration,.routine-chip-select.chip-benchmark-pressure-test{background:rgba(245,158,11,.12)!important;border-color:rgba(245,158,11,.34)!important;}
+.routine-chip-select.chip-recovery-high,.routine-chip-select.chip-validation-ok,.routine-chip-select.chip-etu-defined{background:rgba(34,197,94,.11)!important;border-color:rgba(34,197,94,.30)!important;}
+.routine-chip-select.chip-pressure-high,.routine-chip-select.chip-validation-risk{background:rgba(239,68,68,.10)!important;border-color:rgba(239,68,68,.30)!important;}
+.routine-validation-dock-issue strong .routine-semantic-chip{margin-right:.3rem;}
+@media (max-width: 720px){.routine-editor-chip-rail,.routine-derived-chip-row{gap:.28rem}.routine-semantic-chip{font-size:.68rem;max-width:100%;}}
+/* ===== end v5.7.75G Semantic Chip System ===== */

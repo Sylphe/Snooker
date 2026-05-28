@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75F";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75G";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18540,7 +18540,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75F";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75G";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18861,6 +18861,81 @@ function routineConsoleArrayTextSafe(value) {
 function routineConsoleParseListSafe(value) {
   return String(value || "").split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 }
+
+/* ===== v5.7.75G Semantic Chip System ===== */
+function routineConsoleChipKindSafe(type, value="") {
+  const t = String(type || "neutral").toLowerCase();
+  const v = String(value || "").toLowerCase();
+  if (t.includes("validation") || ["critical","risk","watch","ok"].includes(v)) return `validation-${v || "watch"}`;
+  if (t.includes("benchmark") || ["calibration","test","pressure-test","support"].includes(v)) return `benchmark-${v || "support"}`;
+  if (t.includes("pressure") || v.includes("pressure")) return `pressure-${v || "auto"}`;
+  if (t.includes("recovery") || v.includes("recovery")) return `recovery-${v || "auto"}`;
+  if (t.includes("transfer") || ["direct","supporting","weak","interference"].includes(v)) return `transfer-${v || "supporting"}`;
+  if (t.includes("dependency")) return "dependency";
+  if (t.includes("etu")) return v.includes("routine-defined") ? "etu-defined" : v.includes("fallback") ? "etu-fallback" : "etu-estimated";
+  if (t.includes("archetype")) return `archetype-${v || "unassigned"}`;
+  if (t.includes("preset")) return "preset";
+  if (t.includes("derived")) return "derived";
+  return "neutral";
+}
+function routineConsoleChipSafe(label, type="neutral", value="", opts={}) {
+  const text = String(label ?? "").trim();
+  if (!text) return "";
+  const cls = routineConsoleChipKindSafe(type, value || text).replace(/[^a-z0-9_-]/gi, "-");
+  const title = opts.title ? ` title="${attrText(opts.title)}"` : "";
+  const small = opts.small ? `<small>${escapeHtml(opts.small)}</small>` : "";
+  return `<span class="routine-semantic-chip chip-${attrText(cls)}"${title}>${escapeHtml(text)}${small}</span>`;
+}
+function routineConsoleChipListSafe(items, type="neutral", fallback="—") {
+  const arr = Array.isArray(items) ? items : routineConsoleParseListSafe(items);
+  const chips = arr.filter(Boolean).slice(0,6).map(x => routineConsoleChipSafe(skillLabel(x) || x, type, x)).join("");
+  return chips || `<span class="muted small">${escapeHtml(fallback)}</span>`;
+}
+function routineConsoleFieldChipHtmlSafe(row, key, value) {
+  const v = String(value ?? "").trim();
+  if (!v) return `<span class="muted small">—</span>`;
+  if (key === "semanticPreset") return routineConsoleChipSafe(ROUTINE_SEMANTIC_PRESETS[v]?.label || v, "preset", v);
+  if (key === "routineArchetype") return routineConsoleChipSafe(ROUTINE_ARCHETYPES[v]?.label || v, "archetype", v);
+  if (key === "benchmarkMode") return routineConsoleChipSafe(v, "benchmark", v);
+  if (key === "benchmarkStrictness") return routineConsoleChipSafe(v, "benchmark", v);
+  if (key === "recoverySuitability" || key === "derivedRecoverySuitability") return routineConsoleChipSafe(v, "recovery", v);
+  if (key === "pressureSuitability") return routineConsoleChipSafe(v, "pressure", v);
+  if (key === "volatilityProfile") return routineConsoleChipSafe(v, "validation", v === "high" ? "risk" : v === "medium" ? "watch" : "ok");
+  if (key === "etuSource" || key === "derivedMetadataSource") return routineConsoleChipSafe(v, "etu", v);
+  if (key === "transferTags") return routineConsoleChipListSafe(v, "transfer", "no transfer tags");
+  if (key === "transferGraph") return routineConsoleChipSafe(v, "transfer", v === "none" ? "weak" : "direct");
+  if (key === "dependencyChain") return routineConsoleChipSafe(v, "dependency", v);
+  if (key === "primarySkill") return routineConsoleChipSafe(skillLabel(v) || v, "archetype", v);
+  if (key === "secondarySkills") return routineConsoleChipListSafe(v, "archetype", "no secondary tags");
+  if (key === "recommendationMode") return routineConsoleChipSafe(v, "validation", v === "excluded" ? "risk" : v === "occasional" ? "watch" : "ok");
+  if (key === "validity") return routineConsoleChipSafe(`${numText(Number(row?.validity ?? parseFloat(v) || 0))}%`, "validation", Number(row?.validity ?? parseFloat(v) || 0) < 50 ? "critical" : Number(row?.validity ?? parseFloat(v) || 0) < 80 ? "risk" : "ok");
+  if (key === "completeness") return routineConsoleChipSafe(`${numText(Number(row?.completeness ?? parseFloat(v) || 0))}%`, "validation", Number(row?.completeness ?? parseFloat(v) || 0) < 70 ? "risk" : Number(row?.completeness ?? parseFloat(v) || 0) < 90 ? "watch" : "ok");
+  if (key === "issues") {
+    const issues = row?.issues || [];
+    if (!issues.length) return routineConsoleChipSafe("OK", "validation", "ok");
+    return issues.slice(0,3).map(x => routineConsoleChipSafe(x.label || x.code || "Issue", "validation", x.severity || "watch", {title:x.detail || x.fix || ""})).join("");
+  }
+  if (key.startsWith("derived")) return routineConsoleChipSafe(v, "derived", v);
+  return `<span class="routine-grid-readonly">${escapeHtml(v)}</span>`;
+}
+function routineConsoleEditorChipRailSafe(row) {
+  try {
+    const r = row || {};
+    const etuTotal = Number(r.technicalEtu||0)+Number(r.cognitiveEtu||0)+Number(r.confidenceEtu||0)+Number(r.pressureEtu||0);
+    return `<div class="routine-editor-chip-rail" aria-label="Routine semantic chips">
+      ${routineConsoleFieldChipHtmlSafe(r, "routineArchetype", r.routineArchetype || "unassigned")}
+      ${routineConsoleFieldChipHtmlSafe(r, "semanticPreset", r.semanticPreset || "no preset")}
+      ${routineConsoleFieldChipHtmlSafe(r, "benchmarkMode", r.benchmarkMode || "support")}
+      ${routineConsoleFieldChipHtmlSafe(r, "recoverySuitability", r.recoverySuitability || "auto")}
+      ${routineConsoleFieldChipHtmlSafe(r, "pressureSuitability", r.pressureSuitability || "auto")}
+      ${routineConsoleFieldChipHtmlSafe(r, "transferGraph", r.transferGraph || "none")}
+      ${routineConsoleChipSafe(etuTotal > 0 ? `${numText(etuTotal)} ETU` : "ETU missing", "etu", r.etuSource || "fallback")}
+      ${routineConsoleFieldChipHtmlSafe(r, "validity", r.validity)}
+    </div>`;
+  } catch (_) { return ""; }
+}
+/* ===== end v5.7.75G Semantic Chip System ===== */
+
 function routineTransferGraphProfileSafe(routine) {
   try {
     const profile = routine?.transferProfile && typeof routine.transferProfile === "object" ? routine.transferProfile : {};
@@ -18939,7 +19014,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75F",
+    version: "5.7.75G",
     updatedAt: new Date().toISOString()
   };
 }
@@ -18956,7 +19031,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18976,7 +19051,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18997,9 +19072,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75F"
+      version: profile.version || "5.7.75G"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75F"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75G"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19055,7 +19130,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19071,7 +19146,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19364,10 +19439,10 @@ function routineConsoleStatusClassSafe(row) {
 function routineConsoleRenderGridCellSafe(row, col) {
   const value = routineConsoleCellValueSafe(row, col.key);
   const common = `data-routine-id="${attrText(row.id)}" data-field="${attrText(col.key)}"`;
-  if (!col.editable) return `<span class="routine-grid-readonly">${escapeHtml(String(value || ""))}</span>`;
+  if (!col.editable) return routineConsoleFieldChipHtmlSafe(row, col.key, value);
   if (col.type === "select") {
     const opts = (col.options || []).map(opt => `<option value="${attrText(opt)}"${String(value)===String(opt)?" selected":""}>${escapeHtml(opt)}</option>`).join("");
-    return `<select class="routine-grid-input routine-grid-select" ${common}>${opts}</select>`;
+    return `<select class="routine-grid-input routine-grid-select routine-chip-select chip-${attrText(routineConsoleChipKindSafe(col.key, value))}" ${common}>${opts}</select>`;
   }
   if (col.type === "number") return `<input class="routine-grid-input" type="number" min="${numAttr(col.min ?? 0)}" max="${numAttr(col.max ?? 999)}" step="${attrText(col.step || "0.1")}" value="${numAttr(Number(value || 0))}" ${common} />`;
   return `<input class="routine-grid-input" type="text" value="${attrText(String(value || ""))}" ${common} />`;
@@ -19636,11 +19711,11 @@ function renderRoutineConsoleEditor(id) {
     routineConsoleSelectedRoutineId = String(r.id || "");
     const m = routineConsoleRoutineMetaSafe(r);
     const selectedRow = routineConsoleRowsSafe().find(row => String(row.id) === String(m.id)) || { ...m, routine:r, issues:[] };
-    const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })();
+    const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><div class="routine-derived-chip-row">${routineConsoleChipSafe(`Recovery ${d.recoverySuitability}`, "recovery", d.recoverySuitability)}${routineConsoleChipSafe(`Confidence risk ${d.confidenceRisk}`, "validation", d.confidenceRisk === "high" ? "risk" : d.confidenceRisk === "medium" ? "watch" : "ok")}${routineConsoleChipSafe(`Cognitive ${d.cognitiveLoad}`, "derived", d.cognitiveLoad)}${routineConsoleChipSafe(`Benchmark ${d.benchmarkDensity}`, "benchmark", d.benchmarkDensity)}${routineConsoleChipSafe(`Transfer ${d.transferIntensity}`, "transfer", d.transferIntensity)}</div><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })();
     const validationDockHtml = routineConsoleRenderContextualValidationDockSafe(selectedRow);
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
-      <div class="routine-console-editor-context">${derivedHtml}${validationDockHtml}</div>
+      <div class="routine-console-editor-context">${derivedHtml}${validationDockHtml}</div>${routineConsoleEditorChipRailSafe(selectedRow)}
       <div class="routine-editor-sections">
         <section class="routine-editor-section routine-editor-core" data-editor-section="core">
           <h4>Core metadata</h4>
@@ -19687,7 +19762,7 @@ function renderRoutineConsoleEditor(id) {
           </div>
         </section>
       </div>
-      <div class="smart-builder-constraint-summary"><span class="adaptive-pill compact">ETU source: ${escapeHtml(m.etuSource)}</span><span class="adaptive-pill compact">Metadata v${escapeHtml(String(m.metadataVersion))}</span><span class="adaptive-pill compact">Pack: ${escapeHtml(m.packSource)}</span></div>
+      <div class="smart-builder-constraint-summary">${routineConsoleChipSafe(`ETU source: ${m.etuSource}`, "etu", m.etuSource)}${routineConsoleChipSafe(`Metadata v${String(m.metadataVersion)}`, "validation", "ok")}${routineConsoleChipSafe(`Pack: ${m.packSource}`, "neutral", m.packSource)}</div>
       <div class="row compact-row routine-editor-actions"><button type="button" class="primary-start-btn" data-action="routine-console-save">Save routine metadata</button><button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(m.id)}">Open classic form</button></div>`;
     const setVal = (id, value) => { const el = $(id); if (el) el.value = value; };
     setVal("routineConsoleRecommendation", m.recommendationMode);
@@ -19717,7 +19792,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75F:</strong> this release adds a Contextual Validation Dock to the selected routine workflow.</p><p class="muted">Select a routine to see its validation issues directly beside the derived metadata summary, with section shortcuts for ETU/load, transfer, dependency, benchmark and core metadata fixes. Quick Edit Mode remains available in the grid.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75G:</strong> this release adds the Semantic Chip System across the Routine Console grid, selected-routine editor and validation surfaces.</p><p class="muted">Semantic values now render as compact chips for archetype, preset, benchmark, recovery, pressure, transfer, validation and ETU source, improving scan speed without changing the routine data model.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19815,7 +19890,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75F", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75G", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
