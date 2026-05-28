@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log v5.7.75F</title>
+  <title>Snooker Practice Log v5.7.75B.1</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.75F"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.75F" />
-  <link rel="stylesheet" href="styles.css?v=5.7.75F" />
-  <link rel="icon" href="icon.svg?v=5.7.75F" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.75B.1"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.75B.1" />
+  <link rel="stylesheet" href="styles.css?v=5.7.75B.1" />
+  <link rel="icon" href="icon.svg?v=5.7.75B.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.7.75F · Build 2026-05-28 16:45 CEST — Knowledge Graph Integrity Engine</p>
+      <p>5.7.75B.1 · Build 2026-05-28 16:25 CEST — Routine Console Workflow Simplification</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -848,8 +848,9 @@
           <p class="muted">Desktop-first routine governance dashboard. Use this console to load the app routine database, scan all parameters, relationships, tags and weights, edit routine metadata, validate schema quality, and prepare routine packs without compiling anything.</p>
           <div id="routineStudioSummary" class="analytics-note">Routine Console will load the routine schema audit here.</div>
           <div id="routineConsoleOverview" class="routine-console-overview"></div>
-          <div class="routine-pack-manager analytics-note">
-            <h3>Routine Pack Manager</h3>
+          <details class="routine-console-accordion routine-pack-manager" open>
+            <summary><span>Routine Pack Manager</span><small>Pack coverage, assignment, import/export</small></summary>
+            <div class="routine-console-accordion-body">
             <p class="muted">Manage routine packs from the same desktop console: review current pack coverage, assign selected routines to a pack, export one pack, import JSON packs, or reinstall bundled packs. This is still browser-only and requires no compilation.</p>
             <div class="grid three">
               <div><label>Pack</label><select id="routinePackManagerSelect"><option value="">All / choose pack</option></select></div>
@@ -858,7 +859,7 @@
             </div>
             <div class="row compact-row">
               <button type="button" class="secondary" data-action="routine-pack-refresh">Refresh packs</button>
-              <button type="button" class="secondary" data-action="routine-pack-assign-selected">Assign selected routines to pack</button>
+              <button type="button" class="secondary" data-action="routine-pack-assign-selected" data-routine-requires-selection="1">Assign selected routines to pack</button>
               <button type="button" class="secondary" data-action="routine-pack-export-selected">Export selected pack</button>
               <button type="button" class="secondary" data-action="routine-pack-import-click">Import JSON pack</button>
               <button type="button" class="secondary" data-action="routine-pack-install-curated">Install curated pack</button>
@@ -866,8 +867,12 @@
               <input id="routineConsolePackImportInput" type="file" accept="application/json,.json" class="hidden" />
             </div>
             <div id="routinePackManager" class="routine-pack-manager-list"></div>
-          </div>
+            </div>
+          </details>
 
+          <details class="routine-console-accordion routine-semantic-assistant-card" open>
+            <summary><span>Semantic Assistant</span><small>Archetype → preset → derived metadata</small></summary>
+            <div class="routine-console-accordion-body">
           <div class="analytics-note routine-semantic-preset-card">
             <h3>Semantic Preset System</h3>
             <p class="muted">Apply coherent metadata packages to selected routines. Presets update ETU subtype weights, benchmark semantics, volatility, recovery fit and pressure fit from one control. Fill mode protects existing curated metadata; overwrite mode deliberately replaces the selected fields.</p>
@@ -894,7 +899,7 @@
               </div>
               <div>
                 <label>Apply preset</label>
-                <button type="button" class="primary-start-btn" data-action="routine-semantic-preset-apply">Apply to selected routines</button>
+                <button type="button" class="primary-start-btn" data-action="routine-semantic-preset-apply" data-routine-requires-selection="1">Apply to selected routines</button>
               </div>
             </div>
             <p id="routineSemanticPresetPreview" class="muted small">Choose a preset to preview the metadata package.</p>
@@ -927,8 +932,8 @@
               <div>
                 <label>Apply archetype</label>
                 <div class="row compact-row">
-                  <button type="button" class="primary-start-btn" data-action="routine-archetype-apply">Apply</button>
-                  <button type="button" class="secondary" data-action="routine-archetype-infer">Infer</button>
+                  <button type="button" class="primary-start-btn" data-action="routine-archetype-apply" data-routine-requires-selection="1">Apply</button>
+                  <button type="button" class="secondary" data-action="routine-archetype-infer" data-routine-requires-selection="1">Infer</button>
                 </div>
               </div>
             </div>
@@ -948,28 +953,21 @@
               </div>
               <div>
                 <label>Preview</label>
-                <button type="button" class="secondary" data-action="routine-derived-metadata-preview">Preview selected</button>
+                <button type="button" class="secondary" data-action="routine-derived-metadata-preview" data-routine-requires-selection="1">Preview selected</button>
               </div>
               <div>
                 <label>Apply derived metadata</label>
-                <button type="button" class="primary-start-btn" data-action="routine-derived-metadata-apply">Apply to selected routines</button>
+                <button type="button" class="primary-start-btn" data-action="routine-derived-metadata-apply" data-routine-requires-selection="1">Apply to selected routines</button>
               </div>
             </div>
             <div id="routineDerivedMetadataPreview" class="routine-derived-preview"><p class="muted small">Select routines to preview derived recovery, confidence risk, cognitive load, benchmark density and transfer intensity.</p></div>
           </div>
+            </div>
+          </details>
 
-          <div class="analytics-note routine-semantic-completeness-card">
-            <h3>Semantic Completeness Scoring v2</h3>
-            <p class="muted">Governance KPI system for routine metadata quality. It scores taxonomy, ETU, benchmark, transfer/dependency, confidence quality and provenance separately so you can distinguish a routine that merely passes validation from one that is semantically ready for prediction and coaching logic.</p>
-            <div id="routineSemanticCompletenessDashboard"></div>
-          </div>
-
-          <div class="analytics-note routine-knowledge-graph-integrity-card">
-            <h3>Knowledge Graph Integrity Engine</h3>
-            <p class="muted">Checks whether transfer edges, dependencies, benchmark ladders and semantic classifications form a coherent training knowledge graph. Use this before adding deeper prediction or coaching logic, because graph contradictions will otherwise contaminate recommendations.</p>
-            <div id="routineKnowledgeGraphIntegrityDashboard"></div>
-          </div>
-
+          <details class="routine-console-accordion routine-validation-editor-accordion">
+            <summary><span>Validation & Bulk Editors</span><small>Issue triage and selected-row operations</small></summary>
+            <div class="routine-console-accordion-body">
           <div class="routine-console-74c-grid">
             <div class="analytics-note routine-console-validation-card">
               <h3>Validation Dashboard</h3>
@@ -988,7 +986,7 @@
                     <div><label>Confidence</label><input id="routineConsoleBulkConfidenceEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
                     <div><label>Pressure</label><input id="routineConsoleBulkPressureEtu" type="number" min="0" max="8" step="0.1" placeholder="keep" /></div>
                   </div>
-                  <button type="button" class="secondary" data-action="routine-console-apply-etu-editor">Apply ETU to selected</button>
+                  <button type="button" class="secondary" data-action="routine-console-apply-etu-editor" data-routine-requires-selection="1">Apply ETU to selected</button>
                 </div>
                 <div class="routine-console-editor-section">
                   <h4>Benchmark semantics editor</h4>
@@ -997,7 +995,7 @@
                     <div><label>Strictness</label><select id="routineConsoleBulkBenchmarkStrictness"><option value="">Keep</option><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
                     <div><label>Exposure weight</label><input id="routineConsoleBulkBenchmarkExposure" type="number" min="0" max="1" step="0.05" placeholder="keep" /></div>
                   </div>
-                  <button type="button" class="secondary" data-action="routine-console-apply-benchmark-editor">Apply benchmark metadata</button>
+                  <button type="button" class="secondary" data-action="routine-console-apply-benchmark-editor" data-routine-requires-selection="1">Apply benchmark metadata</button>
                 </div>
                 <div class="routine-console-editor-section">
                   <h4>Transfer graph editor</h4>
@@ -1006,14 +1004,18 @@
                     <div><label>Supporting transfer tags</label><input id="routineConsoleBulkSupportingTransfer" placeholder="comma separated" /></div>
                     <div><label>Interference tags</label><input id="routineConsoleBulkInterferenceTransfer" placeholder="comma separated" /></div>
                   </div>
-                  <button type="button" class="secondary" data-action="routine-console-apply-transfer-editor">Apply transfer graph metadata</button>
+                  <button type="button" class="secondary" data-action="routine-console-apply-transfer-editor" data-routine-requires-selection="1">Apply transfer graph metadata</button>
                 </div>
               </div>
               <div id="routineConsoleSemanticEditorSummary" class="muted small"></div>
             </div>
           </div>
+            </div>
+          </details>
 
-          <div class="grid four">
+          <div id="routineConsoleSelectionBar" class="routine-console-selection-bar analytics-note compact">No routines selected.</div>
+
+          <div class="grid four routine-console-grid-controls">
             <div>
               <label>Grid view</label>
               <select id="routineConsoleGridView">
@@ -1050,7 +1052,6 @@
               <select id="routineStudioBulkField">
                 <option value="">Choose metadata field</option>
                 <option value="recommendationMode">Recommendation eligibility</option>
-                <option value="routineArchetype">Routine archetype</option>
                 <option value="routineArchetype">Routine archetype</option>
                 <option value="benchmarkMode">Benchmark mode</option>
                 <option value="benchmarkStrictness">Benchmark strictness</option>
@@ -1095,11 +1096,11 @@
             </div>
             <div>
               <label>Copy down</label>
-              <button type="button" class="secondary" data-action="routine-console-copy-down">Copy first selected down</button>
+              <button type="button" class="secondary" data-action="routine-console-copy-down" data-routine-requires-selection="1">Copy first selected down</button>
             </div>
             <div>
               <label>Apply</label>
-              <button type="button" class="primary-start-btn" data-action="routine-studio-apply-bulk">Apply to selected routines</button>
+              <button type="button" class="primary-start-btn" data-action="routine-studio-apply-bulk" data-routine-requires-selection="1">Apply to selected routines</button>
             </div>
             <div>
               <label>Console export</label>
@@ -1798,7 +1799,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.75F"></script>
+  <script type="module" src="app.js?v=5.7.75B.1"></script>
 </body>
 
 

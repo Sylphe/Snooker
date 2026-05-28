@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75F";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75B.1";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18539,7 +18539,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75F";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75B.1";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18813,217 +18813,6 @@ function applyRoutineSemanticPresetToSelectedSafe() {
   } catch (err) { try { logAppError(err, "applyRoutineSemanticPresetToSelectedSafe"); } catch (_) {}; alert("Semantic preset application failed. Review the error log."); }
 }
 
-
-
-
-/* ===== v5.7.75F Knowledge Graph Integrity Engine ===== */
-const ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION = "5.7.75F";
-function routineKgSkillKeySafe(value) {
-  return String(value || "").trim().toLowerCase().replace(/\s+/g, "-");
-}
-function routineKgRoutineSkillsSafe(routine) {
-  try {
-    const m = routineConsoleRoutineMetaSafe(routine);
-    const out = [];
-    [m.primarySkill, ...(routineConsoleParseListSafe(m.secondarySkills || "")), m.category, m.subfolder].forEach(x => {
-      const v = String(x || "").trim();
-      if (v && !out.some(y => y.toLowerCase() === v.toLowerCase())) out.push(v);
-    });
-    return out;
-  } catch (_) { return []; }
-}
-function routineKgBuildGraphSafe(rows = routineConsoleRowsSafe()) {
-  try {
-    const nodes = new Map();
-    const edges = [];
-    const addNode = (label, type="skill") => {
-      const clean = String(label || "").trim();
-      if (!clean) return "";
-      const id = routineKgSkillKeySafe(clean);
-      if (!nodes.has(id)) nodes.set(id, {id, label:clean, type, routineIds:new Set(), in:0, out:0});
-      return id;
-    };
-    (rows || []).forEach(row => {
-      const r = row.routine || routineById(row.id) || {};
-      const skills = routineKgRoutineSkillsSafe(r);
-      skills.forEach(skill => { const id = addNode(skill, "skill"); if (id) nodes.get(id).routineIds.add(String(row.id)); });
-      const sourceSkill = skills[0] || row.primarySkill || row.category || row.name;
-      const sourceId = addNode(sourceSkill, "skill");
-      const transfer = routineTransferGraphProfileSafe(r);
-      [["direct", transfer.direct || []], ["supporting", transfer.supporting || []], ["weak", transfer.weak || []], ["interference", transfer.interference || []]].forEach(([kind, arr]) => {
-        (arr || []).forEach(target => {
-          const targetId = addNode(target, "skill");
-          if (sourceId && targetId && sourceId !== targetId) edges.push({source:sourceId, target:targetId, type:kind, routineId:String(row.id), routineName:row.name});
-        });
-      });
-      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
-      (dep.prerequisites || []).forEach(pre => {
-        const preId = addNode(pre, "skill");
-        if (preId && sourceId && preId !== sourceId) edges.push({source:preId, target:sourceId, type:"prerequisite", routineId:String(row.id), routineName:row.name});
-      });
-      (dep.enables || []).forEach(en => {
-        const enId = addNode(en, "skill");
-        if (sourceId && enId && sourceId !== enId) edges.push({source:sourceId, target:enId, type:"enables", routineId:String(row.id), routineName:row.name});
-      });
-      (dep.blockedBy || []).forEach(block => {
-        const blockId = addNode(block, "skill");
-        if (blockId && sourceId && blockId !== sourceId) edges.push({source:blockId, target:sourceId, type:"blocked-by", routineId:String(row.id), routineName:row.name});
-      });
-    });
-    edges.forEach(e => { if (nodes.has(e.source)) nodes.get(e.source).out += 1; if (nodes.has(e.target)) nodes.get(e.target).in += 1; });
-    return {nodes:Array.from(nodes.values()).map(n=>({...n, routineIds:Array.from(n.routineIds || [])})), edges};
-  } catch (err) { try { logAppError(err, "routineKgBuildGraphSafe"); } catch (_) {}; return {nodes:[], edges:[]}; }
-}
-function routineKgDetectCyclesSafe(edges=[]) {
-  try {
-    const adjacency = new Map();
-    (edges || []).filter(e => !["weak","interference"].includes(e.type)).forEach(e => {
-      if (!adjacency.has(e.source)) adjacency.set(e.source, []);
-      adjacency.get(e.source).push(e.target);
-    });
-    const visited = new Set(), stack = new Set(), cycles = [];
-    const dfs = (node, path=[]) => {
-      if (stack.has(node)) { cycles.push([...path.slice(path.indexOf(node)), node]); return; }
-      if (visited.has(node)) return;
-      visited.add(node); stack.add(node);
-      (adjacency.get(node) || []).forEach(next => dfs(next, [...path, node]));
-      stack.delete(node);
-    };
-    Array.from(adjacency.keys()).forEach(n => dfs(n, []));
-    return cycles.slice(0, 10);
-  } catch (_) { return []; }
-}
-function routineKnowledgeGraphIntegrityEngineSafe(rows = routineConsoleRowsSafe()) {
-  try {
-    const all = rows || [];
-    const graph = routineKgBuildGraphSafe(all);
-    const nodesById = new Map(graph.nodes.map(n => [n.id, n]));
-    const findings = [];
-    const add = (severity, code, label, detail, fix, routineId="") => findings.push({severity, code, label, detail, fix, routineId});
-    const duplicateEdges = new Map();
-    graph.edges.forEach(e => {
-      const key = `${e.source}->${e.target}:${e.type}`;
-      duplicateEdges.set(key, (duplicateEdges.get(key) || 0) + 1);
-      if (e.source === e.target) add("error", "kg_self_loop", "Self-loop edge", `${e.routineName || "Routine"} links a skill to itself.`, "Remove the self-referential transfer/dependency edge.", e.routineId);
-    });
-    duplicateEdges.forEach((count, key) => { if (count > 2) add("warning", "kg_duplicate_edges", "Duplicate graph edges", `${key} appears ${count} times.`, "Consolidate repeated transfer/dependency links or lower duplicate intensity."); });
-    routineKgDetectCyclesSafe(graph.edges).forEach(cycle => {
-      const labels = cycle.map(id => nodesById.get(id)?.label || id).join(" → ");
-      add("error", "kg_cycle", "Dependency / transfer cycle", labels, "Review prerequisite/enables links and break circular progression dependencies.");
-    });
-    const orphanRows = all.filter(row => {
-      const r = row.routine || routineById(row.id) || {};
-      const transfer = routineTransferGraphProfileSafe(r);
-      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
-      const transferCount = [transfer.direct, transfer.supporting, transfer.weak, transfer.interference].flat().filter(Boolean).length;
-      const depCount = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean).length;
-      return transferCount === 0 && depCount === 0 && Number(row.semanticCompleteness || 0) < 75;
-    });
-    orphanRows.slice(0, 20).forEach(row => add("warning", "kg_orphan_routine", "Orphan routine", `${row.name} has no transfer or dependency links.`, "Add at least one transfer target or dependency-chain relation if this routine belongs to a progression system.", row.id));
-    const brokenDependencyRows = all.filter(row => {
-      const r = row.routine || routineById(row.id) || {};
-      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
-      const deps = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean);
-      return deps.some(skill => !nodesById.has(routineKgSkillKeySafe(skill)) || (nodesById.get(routineKgSkillKeySafe(skill))?.routineIds || []).length === 0);
-    });
-    brokenDependencyRows.slice(0,20).forEach(row => add("warning", "kg_weak_dependency_support", "Weak dependency support", `${row.name} references a skill with no clearly linked routine coverage.`, "Add routines covering the referenced skill or rename the dependency to match the taxonomy.", row.id));
-    all.forEach(row => {
-      const r = row.routine || routineById(row.id) || {};
-      const transfer = routineTransferGraphProfileSafe(r);
-      const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
-      const inter = new Set((transfer.interference || []).map(routineKgSkillKeySafe));
-      [dep.prerequisites || [], dep.enables || []].flat().forEach(skill => {
-        if (inter.has(routineKgSkillKeySafe(skill))) add("error", "kg_interference_contradiction", "Interference contradiction", `${row.name} marks ${skill} as both interference and prerequisite/enabled dependency.`, "Decide whether the relation is supportive/progression-based or interference-based, not both.", row.id);
-      });
-      if (["benchmark","pressure"].includes(String(row.routineArchetype || "")) && String(row.benchmarkMode || "support") === "support") {
-        add("warning", "kg_archetype_benchmark_mismatch", "Archetype / benchmark mismatch", `${row.name} is ${row.routineArchetype} but benchmark mode is only support.`, "Set benchmark mode to calibration/test/pressure-test or change archetype.", row.id);
-      }
-      if (String(row.routineArchetype || "") === "recovery" && Number(row.pressureEtu || 0) > 1.2) {
-        add("warning", "kg_recovery_pressure_conflict", "Recovery / pressure conflict", `${row.name} is recovery archetype but pressure ETU is high.`, "Lower pressure ETU or reclassify the routine.", row.id);
-      }
-    });
-    const brokenLadders = all.filter(row => (row.routine?.benchmarkLadder || row.routine?.benchmarkTargets) && (!row.benchmarkMode || row.benchmarkMode === "support"));
-    brokenLadders.slice(0,20).forEach(row => add("warning", "kg_broken_benchmark_ladder", "Broken benchmark ladder", `${row.name} has benchmark ladder/targets but weak benchmark semantics.`, "Map the routine to calibration, test or pressure-test and set exposure weight.", row.id));
-    const critical = findings.filter(f => f.severity === "error" || f.severity === "critical").length;
-    const warnings = findings.filter(f => f.severity === "warning" || f.severity === "risk").length;
-    const score = Math.max(0, Math.min(100, Math.round(100 - critical*12 - warnings*4 - Math.max(0, orphanRows.length-3)*2)));
-    const status = score >= 85 ? "strong" : score >= 70 ? "usable" : score >= 50 ? "fragile" : "broken";
-    return {version:ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION, score, status, graph, findings, metrics:{nodes:graph.nodes.length, edges:graph.edges.length, cycles:routineKgDetectCyclesSafe(graph.edges).length, orphanRoutines:orphanRows.length, brokenDependencies:brokenDependencyRows.length, critical, warnings}};
-  } catch (err) { try { logAppError(err, "routineKnowledgeGraphIntegrityEngineSafe"); } catch (_) {}; return {version:ROUTINE_KNOWLEDGE_GRAPH_INTEGRITY_VERSION, score:0, status:"unavailable", graph:{nodes:[],edges:[]}, findings:[], metrics:{nodes:0,edges:0,cycles:0,orphanRoutines:0,brokenDependencies:0,critical:0,warnings:0}}; }
-}
-function renderRoutineKnowledgeGraphIntegrityDashboardSafe(rows) {
-  try {
-    const host = $("routineKnowledgeGraphIntegrityDashboard");
-    if (!host) return;
-    const kg = routineKnowledgeGraphIntegrityEngineSafe(rows || routineConsoleRowsSafe());
-    const top = (kg.findings || []).slice(0, 12).map(f => `<tr><td>${escapeHtml(f.severity)}</td><td>${escapeHtml(f.code)}</td><td>${escapeHtml(f.label)}<div class="muted small">${escapeHtml(f.detail)}</div></td><td>${escapeHtml(f.fix)}</td></tr>`).join("");
-    host.innerHTML = `<div class="routine-console-kpis compact kg-integrity-kpis"><div class="kpi-card"><strong>${numText(kg.score)}%</strong><span>integrity</span></div><div class="kpi-card"><strong>${escapeHtml(kg.status)}</strong><span>status</span></div><div class="kpi-card"><strong>${numText(kg.metrics.nodes)}</strong><span>nodes</span></div><div class="kpi-card"><strong>${numText(kg.metrics.edges)}</strong><span>edges</span></div><div class="kpi-card"><strong>${numText(kg.metrics.cycles)}</strong><span>cycles</span></div><div class="kpi-card"><strong>${numText(kg.metrics.orphanRoutines)}</strong><span>orphans</span></div></div><div class="smart-builder-constraint-summary"><span class="adaptive-pill compact">Critical ${numText(kg.metrics.critical)}</span><span class="adaptive-pill compact">Warnings ${numText(kg.metrics.warnings)}</span><span class="adaptive-pill compact">Broken dependencies ${numText(kg.metrics.brokenDependencies)}</span></div>${top ? `<div class="routine-console-scroll compact"><table class="routine-console-table routine-kg-table"><thead><tr><th>Severity</th><th>Code</th><th>Finding</th><th>Suggested fix</th></tr></thead><tbody>${top}</tbody></table></div>` : `<p class="muted">No knowledge-graph integrity issues detected.</p>`}`;
-  } catch (err) { try { logAppError(err, "renderRoutineKnowledgeGraphIntegrityDashboardSafe"); } catch (_) {} }
-}
-/* ===== end v5.7.75F Knowledge Graph Integrity Engine ===== */
-
-/* ===== v5.7.75C Semantic Completeness Scoring v2 ===== */
-const ROUTINE_SEMANTIC_COMPLETENESS_VERSION = "5.7.75F";
-function routineSemanticCompletenessScoreV2Safe(routine, meta={}) {
-  try {
-    const r = routine || meta.routine || {};
-    const m = {...routineConsoleRoutineMetaSafe(r), ...(meta || {})};
-    const etuTotal = Number(m.technicalEtu||0)+Number(m.cognitiveEtu||0)+Number(m.confidenceEtu||0)+Number(m.pressureEtu||0);
-    const transferGraph = routineTransferGraphProfileSafe(r);
-    const transferCount = [transferGraph.direct, transferGraph.supporting, transferGraph.weak, transferGraph.interference].flat().filter(Boolean).length;
-    const dep = routineDependencyProfileSafe ? routineDependencyProfileSafe(r) : (r.dependencyProfile || {});
-    const depCount = [dep.prerequisites, dep.enables, dep.blockedBy].flat().filter(Boolean).length;
-    const derived = r.derivedMetadata || routineDerivedMetadataSafe(r);
-    const confidenceObj = r.metadataConfidence && typeof r.metadataConfidence === "object" ? r.metadataConfidence : {};
-    const provenance = r.metadataProvenance && typeof r.metadataProvenance === "object" ? r.metadataProvenance : {};
-    const taxonomyChecks = [m.folder && m.folder !== "Unfiled", m.subfolder && m.subfolder !== "General", m.category && m.category !== "uncategorized", m.primarySkill, m.secondarySkills, m.routineArchetype, m.semanticPreset];
-    const etuChecks = [etuTotal > 0, Number(m.technicalEtu||0) > 0, Number(m.cognitiveEtu||0) > 0, String(m.etuSource||"") !== "fallback", derived && derived.source];
-    const benchmarkChecks = [m.benchmarkMode, m.benchmarkStrictness, Number.isFinite(Number(m.benchmarkExposureWeight)), m.benchmarkMode !== "none" && m.benchmarkMode !== "", r.target || r.targetScore || r.benchmarkTargets || r.benchmarkLadder];
-    const transferChecks = [transferCount > 0 || String(m.transferTags||"").trim(), transferGraph.direct.length || transferGraph.supporting.length, transferGraph.weak.length || transferGraph.interference.length || transferGraph.edgeWeights && Object.keys(transferGraph.edgeWeights).length, depCount > 0, m.dependencyChain && m.dependencyChain !== "none"];
-    const confidenceChecks = [Object.keys(confidenceObj).length > 0, String(m.derivedMetadataSource||"") !== "preview", String(m.archetypeSource||"") !== "unassigned", Number(meta.validity ?? 100) >= 80, Number(meta.completeness ?? 0) >= 75];
-    const provenanceChecks = [Object.keys(provenance).length > 0, r.updatedAt, r.metadataVersion, r.packSource || r.routinePackSource, r.semanticPresetAppliedAt || r.archetypeAppliedAt || r.derivedMetadataVersion];
-    const pct = arr => Math.round(100 * arr.filter(Boolean).length / Math.max(1, arr.length));
-    const scores = {
-      taxonomy: pct(taxonomyChecks),
-      etu: pct(etuChecks),
-      benchmark: pct(benchmarkChecks),
-      transfer: pct(transferChecks),
-      confidence: pct(confidenceChecks),
-      provenance: pct(provenanceChecks)
-    };
-    const total = Math.round((scores.taxonomy*0.22)+(scores.etu*0.20)+(scores.benchmark*0.15)+(scores.transfer*0.18)+(scores.confidence*0.15)+(scores.provenance*0.10));
-    const gaps = [];
-    if (scores.taxonomy < 80) gaps.push("taxonomy");
-    if (scores.etu < 80) gaps.push("ETU");
-    if (scores.benchmark < 70) gaps.push("benchmark");
-    if (scores.transfer < 70) gaps.push("transfer/dependency");
-    if (scores.confidence < 70) gaps.push("confidence");
-    if (scores.provenance < 70) gaps.push("provenance");
-    const status = total >= 85 ? "strong" : total >= 70 ? "usable" : total >= 50 ? "weak" : "poor";
-    return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION, total, status, scores, gaps};
-  } catch (err) { try { logAppError(err, "routineSemanticCompletenessScoreV2Safe"); } catch (_) {}; return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION,total:0,status:"unavailable",scores:{taxonomy:0,etu:0,benchmark:0,transfer:0,confidence:0,provenance:0},gaps:["scoring unavailable"]}; }
-}
-function routineSemanticCompletenessPortfolioV2Safe(rows=[]) {
-  try {
-    const all = rows.length ? rows : routineConsoleRowsSafe();
-    const scores = all.map(r => r.semanticCompletenessV2 || routineSemanticCompletenessScoreV2Safe(r.routine || routineById(r.id), r));
-    const avgKey = key => scores.length ? Math.round(scores.reduce((sum,x)=>sum+Number(key==="total"?x.total:x.scores?.[key]||0),0)/scores.length) : 0;
-    const gaps = new Map();
-    scores.forEach(s => (s.gaps || []).forEach(g => gaps.set(g, (gaps.get(g)||0)+1)));
-    return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION, totalRoutines:all.length, overall:avgKey("total"), taxonomy:avgKey("taxonomy"), etu:avgKey("etu"), benchmark:avgKey("benchmark"), transfer:avgKey("transfer"), confidence:avgKey("confidence"), provenance:avgKey("provenance"), weak:scores.filter(s=>Number(s.total||0)<70).length, strong:scores.filter(s=>Number(s.total||0)>=85).length, gaps:Array.from(gaps.entries()).sort((a,b)=>b[1]-a[1]).slice(0,6)};
-  } catch (err) { try { logAppError(err, "routineSemanticCompletenessPortfolioV2Safe"); } catch (_) {}; return {version:ROUTINE_SEMANTIC_COMPLETENESS_VERSION,totalRoutines:0,overall:0,taxonomy:0,etu:0,benchmark:0,transfer:0,confidence:0,provenance:0,weak:0,strong:0,gaps:[]}; }
-}
-function renderRoutineSemanticCompletenessDashboardV2Safe(rows) {
-  try {
-    const host = $("routineSemanticCompletenessDashboard");
-    if (!host) return;
-    const p = routineSemanticCompletenessPortfolioV2Safe(rows || routineConsoleRowsSafe());
-    const chips = (p.gaps || []).map(([g,c]) => `<span class="adaptive-pill compact">${escapeHtml(g)} gap: ${numText(c)}</span>`).join("") || `<span class="adaptive-pill compact">No major gap cluster</span>`;
-    host.innerHTML = `<div class="routine-console-kpis compact semantic-completeness-kpis"><div class="kpi-card"><strong>${numText(p.overall)}%</strong><span>overall</span></div><div class="kpi-card"><strong>${numText(p.strong)}</strong><span>strong routines</span></div><div class="kpi-card"><strong>${numText(p.weak)}</strong><span>weak routines</span></div><div class="kpi-card"><strong>${numText(p.totalRoutines)}</strong><span>routines scored</span></div></div><div class="semantic-completeness-bars"><div><span>Taxonomy</span><meter min="0" max="100" value="${numAttr(p.taxonomy)}"></meter><strong>${numText(p.taxonomy)}%</strong></div><div><span>ETU</span><meter min="0" max="100" value="${numAttr(p.etu)}"></meter><strong>${numText(p.etu)}%</strong></div><div><span>Benchmark</span><meter min="0" max="100" value="${numAttr(p.benchmark)}"></meter><strong>${numText(p.benchmark)}%</strong></div><div><span>Transfer</span><meter min="0" max="100" value="${numAttr(p.transfer)}"></meter><strong>${numText(p.transfer)}%</strong></div><div><span>Confidence</span><meter min="0" max="100" value="${numAttr(p.confidence)}"></meter><strong>${numText(p.confidence)}%</strong></div><div><span>Provenance</span><meter min="0" max="100" value="${numAttr(p.provenance)}"></meter><strong>${numText(p.provenance)}%</strong></div></div><div class="smart-builder-constraint-summary">${chips}</div>`;
-  } catch (err) { try { logAppError(err, "renderRoutineSemanticCompletenessDashboardV2Safe"); } catch (_) {} }
-}
-/* ===== end v5.7.75C Semantic Completeness Scoring v2 ===== */
-
 const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"name", label:"Routine", type:"text", editable:true, preset:["core","minimal"]},
   {key:"folder", label:"Folder", type:"text", editable:true, preset:["core","minimal","validation"]},
@@ -19054,13 +18843,6 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"derivedBenchmarkDensity", label:"Derived benchmark", type:"readonly", preset:["derived","benchmark"]},
   {key:"derivedTransferIntensity", label:"Derived transfer", type:"readonly", preset:["derived","transfer"]},
   {key:"derivedMetadataSource", label:"Derived source", type:"readonly", preset:["derived","validation"]},
-  {key:"semanticCompleteness", label:"Semantic complete", type:"readonly", preset:["validation","minimal"]},
-  {key:"taxonomyCompleteness", label:"Taxonomy", type:"readonly", preset:["validation"]},
-  {key:"etuCompleteness", label:"ETU quality", type:"readonly", preset:["validation","etu"]},
-  {key:"benchmarkCompleteness", label:"Benchmark quality", type:"readonly", preset:["validation","benchmark"]},
-  {key:"transferCompleteness", label:"Transfer quality", type:"readonly", preset:["validation","transfer"]},
-  {key:"confidenceCompleteness", label:"Confidence quality", type:"readonly", preset:["validation"]},
-  {key:"provenanceCompleteness", label:"Provenance", type:"readonly", preset:["validation"]},
   {key:"recommendationMode", label:"Reco", type:"select", editable:true, options:["active","occasional","excluded"], preset:["validation","minimal"]},
   {key:"packSource", label:"Pack", type:"readonly", preset:["validation"]},
   {key:"completeness", label:"Completeness", type:"readonly", preset:["validation","minimal"]},
@@ -19156,7 +18938,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75F",
+    version: "5.7.75B.1",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19173,7 +18955,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19193,7 +18975,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19203,7 +18985,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
   } catch (err) { try { logAppError(err, "routineTransferGraphRemoveEdgeSafe"); } catch (_) {}; alert("Could not remove transfer graph edge."); }
 }
 
-/* ===== v5.7.75B Dependency Chain Engine ===== */
+/* ===== v5.7.75B.1 Dependency Chain Engine ===== */
 function routineDependencyProfileSafe(routine) {
   try {
     const profile = routine?.dependencyProfile && typeof routine.dependencyProfile === "object" ? routine.dependencyProfile : {};
@@ -19214,9 +18996,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75F"
+      version: profile.version || "5.7.75B.1"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75F"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75B.1"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19272,7 +19054,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19288,7 +19070,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75F", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19296,7 +19078,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
     showTransientNotice?.("Dependency chain link removed.", "success");
   } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
 }
-/* ===== end v5.7.75B Dependency Chain Engine ===== */
+/* ===== end v5.7.75B.1 Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
   const skillMap = r?.skillMap || {};
@@ -19334,13 +19116,6 @@ function routineConsoleRoutineMetaSafe(r) {
     derivedBenchmarkDensity: r?.derivedMetadata?.benchmarkDensity || "preview",
     derivedTransferIntensity: r?.derivedMetadata?.transferIntensity || "preview",
     derivedMetadataSource: r?.derivedMetadata?.source || "preview",
-    semanticCompleteness: 0,
-    taxonomyCompleteness: 0,
-    etuCompleteness: 0,
-    benchmarkCompleteness: 0,
-    transferCompleteness: 0,
-    confidenceCompleteness: 0,
-    provenanceCompleteness: 0,
     metadataVersion: r?.metadataVersion || 1,
     packSource: r?.packSource || r?.routinePackSource || "app"
   };
@@ -19365,20 +19140,12 @@ function routineConsoleRowsSafe() {
       const issues = [...(validationRow.findings || []), ...(auditRow.issues || []), ...(auditRow.warnings || []), ...(auditRow.findings || [])];
       const completeness = Number(auditRow.completeness || auditRow.completenessScore || auditRow.metadataCompleteness || 0);
       const validity = Number(validationRow.validityScore ?? 100);
-      const semanticCompletenessV2 = routineSemanticCompletenessScoreV2Safe(r, {...meta, completeness, validity});
-      meta.semanticCompleteness = semanticCompletenessV2.total;
-      meta.taxonomyCompleteness = semanticCompletenessV2.scores.taxonomy;
-      meta.etuCompleteness = semanticCompletenessV2.scores.etu;
-      meta.benchmarkCompleteness = semanticCompletenessV2.scores.benchmark;
-      meta.transferCompleteness = semanticCompletenessV2.scores.transfer;
-      meta.confidenceCompleteness = semanticCompletenessV2.scores.confidence;
-      meta.provenanceCompleteness = semanticCompletenessV2.scores.provenance;
-      return {...meta, routine:r, auditRow, validationRow, issues, completeness, validity, semanticCompletenessV2, status:validationRow.status || auditRow.status || "ok"};
+      return {...meta, routine:r, auditRow, validationRow, issues, completeness, validity, status:validationRow.status || auditRow.status || "ok"};
     });
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
-  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${row.semanticCompletenessV2?.status||""} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
+  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
   if (q && !text.includes(q)) return false;
   const issueText = (row.issues || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ").toLowerCase();
@@ -19536,7 +19303,7 @@ function routineConsoleVisibleGridColumnsSafe() {
 }
 function routineConsoleCellValueSafe(row, key) {
   if (key === "issues") return (row.issues || []).slice(0,3).map(x => x.label || x.detail || x.code || String(x)).join(" · ") || "OK";
-  if (["completeness","validity","semanticCompleteness","taxonomyCompleteness","etuCompleteness","benchmarkCompleteness","transferCompleteness","confidenceCompleteness","provenanceCompleteness"].includes(key)) return `${numText(row[key])}%`;
+  if (key === "completeness" || key === "validity") return `${numText(row[key])}%`;
   return row[key] ?? "";
 }
 function routineConsoleSortRowsSafe(rows) {
@@ -19608,6 +19375,19 @@ function routineConsoleToggleGridSort(field) {
   else routineConsoleSortState = {field, direction:"asc"};
   renderRoutineStudioLite();
 }
+function routineConsoleUpdateSelectionBarSafe(rows = routineConsoleLastRows) {
+  try {
+    const ids = Array.from(routineConsoleSelectedIdsSet).filter(Boolean);
+    const host = $("routineConsoleSelectionBar");
+    const count = ids.length;
+    if (host) {
+      const visibleCount = (rows || []).length;
+      host.innerHTML = `<strong>${numText(count)}</strong> selected routine${count === 1 ? "" : "s"}<span class="muted small"> · ${numText(visibleCount)} visible · bulk actions ${count ? "enabled" : "disabled until selection"}</span>`;
+      host.classList.toggle("has-selection", count > 0);
+    }
+    document.querySelectorAll("[data-routine-requires-selection]").forEach(btn => { btn.disabled = count <= 0; btn.classList.toggle("disabled", count <= 0); });
+  } catch (_) {}
+}
 function routineConsoleSelectedIdsRefreshFromDomSafe() {
   try {
     document.querySelectorAll(".routine-studio-check").forEach(chk => {
@@ -19620,6 +19400,7 @@ function routineStudioClearSelection() {
   routineConsoleSelectedIdsSet.clear();
   document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = false; });
   renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows);
+  routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows);
 }
 function routineConsoleCopyDownSelectedSafe() {
   try {
@@ -19647,7 +19428,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
     if (["transferGraph","dependencyChain"].includes(col.key)) return 180;
     if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset","routineArchetype","archetypeSource","derivedRecoverySuitability","derivedConfidenceRisk","derivedCognitiveLoad","derivedBenchmarkDensity","derivedTransferIntensity","derivedMetadataSource"].includes(col.key)) return 150;
-    if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity","semanticCompleteness","taxonomyCompleteness","etuCompleteness","benchmarkCompleteness","transferCompleteness","confidenceCompleteness","provenanceCompleteness"].includes(col.key)) return 118;
+    if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
     return 170;
   };
   const colgroup = `<col class="routine-grid-select-col" />${columns.map(col => `<col style="width:${numAttr(widthFor(col))}px;min-width:${numAttr(widthFor(col))}px;" />`).join("")}`;
@@ -19671,9 +19452,10 @@ function bindRoutineConsoleGridEngineSafe() {
       const checked = !!target.checked;
       document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = checked; checked ? routineConsoleSelectedIdsSet.add(String(chk.value)) : routineConsoleSelectedIdsSet.delete(String(chk.value)); });
       renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows);
+      routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows);
       return;
     }
-    if (target.classList?.contains("routine-studio-check")) { routineConsoleSelectedIdsRefreshFromDomSafe(); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); return; }
+    if (target.classList?.contains("routine-studio-check")) { routineConsoleSelectedIdsRefreshFromDomSafe(); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows); return; }
     if (target.classList?.contains("routine-grid-input")) {
       routineConsoleApplyInlineEditSafe(target.dataset.routineId, target.dataset.field, target.value);
       renderRoutineStudioLite();
@@ -19708,36 +19490,58 @@ function renderRoutineConsoleEditor(id) {
     if (!r) { host.innerHTML = `<strong>Routine editor</strong><p class="muted">Select a routine from the table to edit its metadata profile.</p>`; return; }
     routineConsoleSelectedRoutineId = String(r.id || "");
     const m = routineConsoleRoutineMetaSafe(r);
+    const derivedHtml = (() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })();
     host.innerHTML = `<div class="routine-console-editor-head"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.folder)} / ${escapeHtml(m.subfolder)}</span></div>
       <input id="routineConsoleSelectedId" type="hidden" value="${attrText(m.id)}" />
-      ${(() => { const d = routineDerivedMetadataSafe(r); return `<div class="routine-derived-inline"><strong>Derived metadata</strong><span>Recovery ${escapeHtml(d.recoverySuitability)} · Confidence risk ${escapeHtml(d.confidenceRisk)} · Cognitive ${escapeHtml(d.cognitiveLoad)} · Benchmark ${escapeHtml(d.benchmarkDensity)} · Transfer ${escapeHtml(d.transferIntensity)}</span><small>${escapeHtml((d.drivers||[]).join(" · "))}</small></div>`; })()}
-      ${(() => { const sc = routineSemanticCompletenessScoreV2Safe(r, m); const s2 = sc.scores || {}; return `<div class="routine-derived-inline semantic-completeness-inline"><strong>Semantic completeness ${numText(sc.total)}% · ${escapeHtml(sc.status)}</strong><span>Taxonomy ${numText(s2.taxonomy)}% · ETU ${numText(s2.etu)}% · Benchmark ${numText(s2.benchmark)}% · Transfer ${numText(s2.transfer)}% · Confidence ${numText(s2.confidence)}% · Provenance ${numText(s2.provenance)}%</span><small>${escapeHtml((sc.gaps || []).length ? `Gaps: ${(sc.gaps||[]).join(", ")}` : "No major semantic gap")}</small></div>`; })()}
-      <div class="grid two routine-console-editor-grid">
-        <div><label>Name</label><input id="routineConsoleName" value="${attrText(m.name)}" /></div>
-        <div><label>Recommendation</label><select id="routineConsoleRecommendation"><option value="active">Active</option><option value="occasional">Occasional</option><option value="excluded">Excluded</option></select></div>
-        <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
-        <div><label>Routine archetype</label><select id="routineConsoleArchetype">${routineArchetypeOptionsHtmlSafe(m.routineArchetype)}</select></div>
-        <div><label>Folder</label><input id="routineConsoleFolder" value="${attrText(m.folder)}" /></div>
-        <div><label>Subfolder</label><input id="routineConsoleSubfolder" value="${attrText(m.subfolder)}" /></div>
-        <div><label>Category</label><input id="routineConsoleCategory" value="${attrText(m.category)}" /></div>
-        <div><label>Primary skill</label><input id="routineConsolePrimarySkill" value="${attrText(m.primarySkill)}" /></div>
-        <div><label>Secondary skills</label><textarea id="routineConsoleSecondarySkills" rows="2">${escapeHtml(m.secondarySkills)}</textarea></div>
-        <div><label>Transfer tags</label><textarea id="routineConsoleTransferTags" rows="2">${escapeHtml(m.transferTags)}</textarea></div>
-        <div class="routine-transfer-graph-editor-cell">${routineTransferGraphRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}</div>
-        <div class="routine-dependency-chain-editor-cell">${routineDependencyChainRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}</div>
-        <div><label>Benchmark mode</label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
-        <div><label>Benchmark strictness</label><select id="routineConsoleBenchmarkStrictness"><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
-        <div><label>Benchmark exposure weight</label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="1" step="0.05" value="${numAttr(m.benchmarkExposureWeight)}" /></div>
-        <div><label>Volatility profile</label><select id="routineConsoleVolatility"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-        <div><label>Recovery suitability</label><select id="routineConsoleRecovery"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-        <div><label>Pressure suitability</label><select id="routineConsolePressure"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-        <div><label>Technical ETU</label><input id="routineConsoleTechnicalEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.technicalEtu)}" /></div>
-        <div><label>Cognitive ETU</label><input id="routineConsoleCognitiveEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.cognitiveEtu)}" /></div>
-        <div><label>Confidence / emotional ETU</label><input id="routineConsoleConfidenceEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.confidenceEtu)}" /></div>
-        <div><label>Pressure ETU</label><input id="routineConsolePressureEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.pressureEtu)}" /></div>
+      ${derivedHtml}
+      <div class="routine-editor-sections">
+        <section class="routine-editor-section routine-editor-core" data-editor-section="core">
+          <h4>Core metadata</h4>
+          <div class="grid four routine-console-editor-grid">
+            <div><label>Name</label><input id="routineConsoleName" value="${attrText(m.name)}" /></div>
+            <div><label>Recommendation</label><select id="routineConsoleRecommendation"><option value="active">Active</option><option value="occasional">Occasional</option><option value="excluded">Excluded</option></select></div>
+            <div><label>Folder</label><input id="routineConsoleFolder" value="${attrText(m.folder)}" /></div>
+            <div><label>Subfolder</label><input id="routineConsoleSubfolder" value="${attrText(m.subfolder)}" /></div>
+            <div><label>Category</label><input id="routineConsoleCategory" value="${attrText(m.category)}" /></div>
+            <div><label>Primary skill</label><input id="routineConsolePrimarySkill" value="${attrText(m.primarySkill)}" /></div>
+            <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
+            <div><label>Routine archetype</label><select id="routineConsoleArchetype">${routineArchetypeOptionsHtmlSafe(m.routineArchetype)}</select></div>
+          </div>
+          <details class="routine-editor-advanced-tags">
+            <summary>Advanced legacy tags</summary>
+            <div class="grid two routine-console-editor-grid">
+              <div><label>Secondary skills</label><textarea id="routineConsoleSecondarySkills" rows="2">${escapeHtml(m.secondarySkills)}</textarea></div>
+              <div><label>Transfer tags</label><textarea id="routineConsoleTransferTags" rows="2">${escapeHtml(m.transferTags)}</textarea></div>
+            </div>
+          </details>
+        </section>
+        <section class="routine-editor-section routine-editor-graph" data-editor-section="transfer">
+          <h4>Transfer graph</h4>
+          <p class="muted small">Default transfer editing is visual. Legacy comma-separated tags are kept under Advanced legacy tags for compatibility.</p>
+          ${routineTransferGraphRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}
+        </section>
+        <section class="routine-editor-section routine-editor-dependency" data-editor-section="dependency">
+          <h4>Dependency chain</h4>
+          ${routineDependencyChainRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}
+        </section>
+        <section class="routine-editor-section routine-editor-load" data-editor-section="load">
+          <h4>Benchmark, suitability and ETU</h4>
+          <div class="grid four routine-console-editor-grid">
+            <div><label>Benchmark mode</label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
+            <div><label>Benchmark strictness</label><select id="routineConsoleBenchmarkStrictness"><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
+            <div><label>Benchmark exposure weight</label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="1" step="0.05" value="${numAttr(m.benchmarkExposureWeight)}" /></div>
+            <div><label>Volatility profile</label><select id="routineConsoleVolatility"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+            <div><label>Recovery suitability</label><select id="routineConsoleRecovery"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+            <div><label>Pressure suitability</label><select id="routineConsolePressure"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+            <div><label>Technical ETU</label><input id="routineConsoleTechnicalEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.technicalEtu)}" /></div>
+            <div><label>Cognitive ETU</label><input id="routineConsoleCognitiveEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.cognitiveEtu)}" /></div>
+            <div><label>Confidence / emotional ETU</label><input id="routineConsoleConfidenceEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.confidenceEtu)}" /></div>
+            <div><label>Pressure ETU</label><input id="routineConsolePressureEtu" type="number" min="0" max="8" step="0.1" value="${numAttr(m.pressureEtu)}" /></div>
+          </div>
+        </section>
       </div>
       <div class="smart-builder-constraint-summary"><span class="adaptive-pill compact">ETU source: ${escapeHtml(m.etuSource)}</span><span class="adaptive-pill compact">Metadata v${escapeHtml(String(m.metadataVersion))}</span><span class="adaptive-pill compact">Pack: ${escapeHtml(m.packSource)}</span></div>
-      <div class="row compact-row"><button type="button" class="primary-start-btn" data-action="routine-console-save">Save routine metadata</button><button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(m.id)}">Open classic form</button></div>`;
+      <div class="row compact-row routine-editor-actions"><button type="button" class="primary-start-btn" data-action="routine-console-save">Save routine metadata</button><button type="button" class="secondary" data-action="edit-routine" data-id="${attrText(m.id)}">Open classic form</button></div>`;
     const setVal = (id, value) => { const el = $(id); if (el) el.value = value; };
     setVal("routineConsoleRecommendation", m.recommendationMode);
     setVal("routineConsoleSemanticPreset", m.semanticPreset || "");
@@ -19758,8 +19562,6 @@ function renderRoutineStudioLite() {
     renderRoutineConsoleOverviewSafe(allRows);
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
-    renderRoutineSemanticCompletenessDashboardV2Safe(allRows);
-    renderRoutineKnowledgeGraphIntegrityDashboardSafe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
     const filter = $("routineStudioAuditFilter")?.value || "all";
     const query = $("routineStudioSearch")?.value || "";
@@ -19768,11 +19570,12 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75F:</strong> this release adds the Knowledge Graph Integrity Engine on top of semantic completeness scoring.</p><p class="muted">The console now checks whether routine relationships form a coherent training graph: transfer loops, broken dependencies, benchmark ladder gaps, semantic contradictions and orphan routines are surfaced before prediction or coaching logic relies on them.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75B.1:</strong> this workflow simplification pass keeps the Dependency Chain Engine but reduces console overload.</p><p class="muted">Governance tools are now grouped into accordions, the selected-row counter sits above the grid, sticky headers are clearer, and the selected routine editor is split into full-width sections below the grid.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
     host.innerHTML = routineConsoleRenderSpreadsheetGridSafe(rows);
+    routineConsoleUpdateSelectionBarSafe(rows);
     renderRoutineConsoleEditor(routineConsoleSelectedRoutineId);
   } catch (err) { try { logAppError(err, "renderRoutineStudioLite"); } catch (_) {} }
 }
@@ -19782,7 +19585,7 @@ function routineStudioSelectedIdsSafe() {
     return Array.from(routineConsoleSelectedIdsSet).filter(Boolean);
   } catch (_) { return []; }
 }
-function routineStudioSelectVisible() { document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; routineConsoleSelectedIdsSet.add(String(chk.value)); }); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); }
+function routineStudioSelectVisible() { document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; routineConsoleSelectedIdsSet.add(String(chk.value)); }); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows); }
 function routineStudioNormalizeBulkValueSafe(field, raw) {
   const value = String(raw || "").trim();
   if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 1 : 8);
@@ -19865,7 +19668,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75F", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75B.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }

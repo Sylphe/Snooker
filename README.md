@@ -1,27 +1,21 @@
 # Snooker Practice PWA
 
-Version: 5.7.75F-knowledge-graph-integrity-engine
-Build: 2026-05-28 16:45 CEST
+Version: 5.7.75B.1-routine-console-workflow-simplification
 
-## v5.7.75F
+## v5.7.75B.1
 
-This release adds the Knowledge Graph Integrity Engine to the Routine Management Console.
+Routine Console Workflow Simplification pass on top of v5.7.75B Dependency Chain Engine. This release reduces desktop-console overload without removing the governance functionality.
 
-### Included
+### Changes
 
-- Knowledge Graph Integrity Engine.
-- Graph-level checks for transfer and dependency cycles.
-- Orphan routine detection.
-- Weak dependency support detection.
-- Benchmark ladder gap detection.
-- Semantic contradiction checks, including interference versus prerequisite conflicts and recovery versus pressure conflicts.
-- Portfolio-level integrity score and graph metrics.
-- Routine Console dashboard panel for knowledge-graph findings and suggested fixes.
-- Existing Semantic Completeness Scoring v2 retained.
-- Mobile Routine Studio and desktop Routine Console compatibility retained.
-- Build number, visible panel, cache and version module updated to v5.7.75F.
+- Top governance modules converted into collapsible accordion cards.
+- Semantic Preset, Archetype and Derived Metadata grouped under one Semantic Assistant section.
+- Sticky routine grid header and stronger column-header styling.
+- Persistent selected-row counter added above the grid.
+- Bulk/action buttons are disabled until routines are selected where relevant.
+- Selected routine editor reorganized into wider, sectioned panels below the grid.
+- Legacy comma-separated transfer tags moved into an advanced collapsible block; visual transfer graph remains the default editor.
+- Validation dashboard retained but made scroll-safe and positioned as a triage section.
+- Build identity panel, version module, cache keys and README updated to v5.7.75B.1.
 
-### Validation
-
-- `node --check` passed for `modules/app-core.js` and `app.js`.
-- Zip integrity test passed.
+No compilation required. Deploy the files to GitHub Pages as before.
