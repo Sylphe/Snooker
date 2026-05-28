@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75A";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75A.1";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -19434,7 +19434,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75A:</strong> this release adds the Visual Transfer Graph Editor in both mobile Routine Studio and the full-screen desktop console. Transfer links are now managed as typed edges: direct, supporting, weak and interference.</p><p class="muted">Use the visual graph editor to add or remove transfer edges without editing comma-separated lists manually. Existing transfer tags remain compatible, while the transferProfile object now stores graph source, edge type and optional weight metadata.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75A:</strong> this patch optimizes the full-screen desktop Routine Console layout so the spreadsheet grid and inspector use the browser viewport more effectively. The visual transfer graph remains available in both mobile Routine Studio and the desktop console.</p><p class="muted">Desktop mode now uses a wider inspector, a taller spreadsheet workspace, tighter KPI/control sections and a side-panel transfer editor that no longer bunches graph controls into the right edge. Existing transfer tags remain compatible with transferProfile edges.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();

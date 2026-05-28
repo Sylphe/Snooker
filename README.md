@@ -1,5 +1,22 @@
 # Snooker Practice PWA
 
+Version: 5.7.75A.1-desktop-layout-optimization
+Build: 2026-05-28 15:28 CEST
+
+## v5.7.75A.1
+
+Desktop Routine Console layout optimization patch.
+
+- Preserves Visual Transfer Graph Editor functionality in both mobile and desktop contexts.
+- Improves full-screen desktop Routine Console viewport usage.
+- Enlarges the desktop inspector panel and prevents transfer graph controls from bunching on the right edge.
+- Increases spreadsheet workspace height and tightens top governance controls.
+- Updates build identity panel, cache keys, version module and README.
+
+---
+
+# Snooker Practice PWA
+
 Version: 5.7.75A-visual-transfer-graph-editor
 
 ## v5.7.75A

@@ -6562,3 +6562,101 @@ body.routine-console-desktop-active .transfer-graph-lanes{grid-template-columns:
   .transfer-graph-stage{grid-template-columns:1fr}
   .transfer-graph-add-row{grid-template-columns:1fr}
 }
+
+/* v5.7.75A.1 Desktop Routine Console Layout Optimization */
+body.routine-console-desktop-active .routine-studio-lite-card{
+  padding:16px 18px 18px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+body.routine-console-desktop-active .routine-console-titlebar{
+  padding:.15rem 0 .65rem!important;
+  margin-bottom:.65rem!important;
+}
+body.routine-console-desktop-active .routine-console-titlebar h2{font-size:1.25rem!important;}
+body.routine-console-desktop-active .routine-console-overview{margin:.55rem 0 .75rem!important;}
+body.routine-console-desktop-active .routine-console-kpis{gap:.45rem!important;}
+body.routine-console-desktop-active .routine-console-kpis .kpi-card{padding:.55rem .65rem!important;}
+body.routine-console-desktop-active .routine-pack-manager-card,
+body.routine-console-desktop-active .routine-semantic-preset-card,
+body.routine-console-desktop-active .routine-archetype-card,
+body.routine-console-desktop-active .routine-derived-metadata-card{
+  margin-top:.75rem!important;
+  padding:.8rem!important;
+}
+body.routine-console-desktop-active .routine-console-74c-grid{
+  grid-template-columns:minmax(520px,1fr) minmax(520px,1fr)!important;
+  gap:1rem!important;
+  align-items:start!important;
+}
+body.routine-console-desktop-active .routine-console-layout{
+  grid-template-columns:minmax(720px,1fr) minmax(500px,560px)!important;
+  gap:1rem!important;
+  align-items:start!important;
+}
+body.routine-console-desktop-active .routine-console-spreadsheet{
+  max-height:calc(100vh - 335px)!important;
+  min-height:430px!important;
+}
+body.routine-console-desktop-active .routine-console-editor{
+  top:76px!important;
+  max-height:calc(100vh - 94px)!important;
+  overflow:auto!important;
+  padding:.85rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:.55rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor-grid label,
+body.routine-console-desktop-active .routine-console-editor-grid input,
+body.routine-console-desktop-active .routine-console-editor-grid select,
+body.routine-console-desktop-active .routine-console-editor-grid textarea{
+  font-size:.78rem!important;
+}
+body.routine-console-desktop-active .routine-transfer-graph-editor.desktop{
+  grid-column:1 / -1!important;
+  padding:.8rem!important;
+  margin:.45rem 0 .6rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-stage{
+  grid-template-columns:1fr!important;
+  gap:.55rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-source{
+  min-height:76px!important;
+  align-content:start!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-lanes{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:.45rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-lane{
+  min-height:76px!important;
+  padding:.48rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-add-row{
+  grid-template-columns:minmax(100px,.75fr) minmax(160px,1.25fr) minmax(84px,.55fr)!important;
+  gap:.45rem!important;
+}
+body.routine-console-desktop-active .routine-console-editor .transfer-graph-add-row button{
+  grid-column:1 / -1!important;
+  width:100%!important;
+}
+body.routine-console-desktop-active .routine-grid-table{
+  font-size:.76rem!important;
+}
+body.routine-console-desktop-active .routine-grid-input{
+  height:28px!important;
+  padding:.18rem .32rem!important;
+}
+@media(max-width:1360px){
+  body.routine-console-desktop-active .routine-console-layout{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  body.routine-console-desktop-active .routine-console-editor{
+    position:relative!important;
+    top:auto!important;
+    max-height:none!important;
+  }
+}
