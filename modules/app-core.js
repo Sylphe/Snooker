@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75G.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75G.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75H";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75H";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.75G.1";
+} from "./utils.js?v=5.7.75H";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.75G.1";
+} from "./settings.js?v=5.7.75H";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.75G.1";
+} from "./analytics.js?v=5.7.75H";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.75G.1";
+} from "./bayesian.js?v=5.7.75H";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.75G.1";
+} from "./session.js?v=5.7.75H";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.75G.1";
+} from "./pressure.js?v=5.7.75H";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.75G.1";
+} from "./recommendations.js?v=5.7.75H";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.75G.1";
+} from "./store.js?v=5.7.75H";
 
 
 
@@ -18540,7 +18540,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75G.1";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75H";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18862,7 +18862,7 @@ function routineConsoleParseListSafe(value) {
   return String(value || "").split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 }
 
-/* ===== v5.7.75G.1 Semantic Chip System ===== */
+/* ===== v5.7.75G Semantic Chip System ===== */
 function routineConsoleChipKindSafe(type, value="") {
   const t = String(type || "neutral").toLowerCase();
   const v = String(value || "").toLowerCase();
@@ -18934,7 +18934,7 @@ function routineConsoleEditorChipRailSafe(row) {
     </div>`;
   } catch (_) { return ""; }
 }
-/* ===== end v5.7.75G.1 Semantic Chip System ===== */
+/* ===== end v5.7.75G Semantic Chip System ===== */
 
 function routineTransferGraphProfileSafe(routine) {
   try {
@@ -19014,7 +19014,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75G.1",
+    version: "5.7.75H",
     updatedAt: new Date().toISOString()
   };
 }
@@ -19031,7 +19031,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19051,7 +19051,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -19072,9 +19072,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75G.1"
+      version: profile.version || "5.7.75H"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75G.1"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75H"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19130,7 +19130,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19146,7 +19146,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75G.1", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75H", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19235,6 +19235,87 @@ function routineConsoleRowMatchesFilterSafe(row, filter, query) {
   if (filter === "validation") return /validation|contradiction|duplicate|over-tagging|under-tagging|ladder|loop|conflict/.test(issueText) || Number(row.validity || 100) < 80;
   return true;
 }
+
+
+/* ===== v5.7.75H Semantic Readiness Dashboard ===== */
+function routineSemanticReadinessClampSafe(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+}
+function routineSemanticReadinessScoreSafe(rows) {
+  try {
+    const all = Array.isArray(rows) ? rows : [];
+    const total = Math.max(1, all.length);
+    const avg = fn => all.length ? all.reduce((sum, row) => sum + Number(fn(row) || 0), 0) / total : 0;
+    const hasEtu = row => (Number(row.technicalEtu || 0) + Number(row.cognitiveEtu || 0) + Number(row.confidenceEtu || 0) + Number(row.pressureEtu || 0)) > 0;
+    const hasTransfer = row => String(row.transferTags || "").trim() || String(row.transferGraph || "").toLowerCase() !== "none";
+    const hasDependency = row => String(row.dependencyChain || "").trim() && String(row.dependencyChain || "").toLowerCase() !== "none";
+    const hasBenchmark = row => String(row.benchmarkMode || "support") !== "support" || Number(row.benchmarkExposureWeight || 0) > 0;
+    const hasConfidence = row => String(row.etuSource || "").includes("routine-defined") || String(row.derivedMetadataSource || "").match(/manual|derived|preset|archetype/);
+    const validation = avg(row => Math.max(0, Math.min(100, Number(row.validity ?? 100))));
+    const taxonomy = avg(row => {
+      let score = 0;
+      if (String(row.category || "").trim()) score += 25;
+      if (String(row.primarySkill || "").trim()) score += 35;
+      if (String(row.secondarySkills || "").trim()) score += 20;
+      if (String(row.routineArchetype || "").trim()) score += 20;
+      return score;
+    });
+    const etu = avg(row => hasEtu(row) ? 100 : String(row.etuSource || "").includes("estimated") ? 55 : 20);
+    const transfer = avg(row => hasTransfer(row) ? 100 : ((row.issues || []).some(x => /transfer/i.test(`${x.code||""} ${x.label||""}`)) ? 25 : 45));
+    const dependency = avg(row => hasDependency(row) ? 100 : 35);
+    const benchmark = avg(row => hasBenchmark(row) ? 100 : 55);
+    const confidence = avg(row => hasConfidence(row) ? 82 : 35);
+    const scores = {
+      taxonomy: routineSemanticReadinessClampSafe(taxonomy),
+      etu: routineSemanticReadinessClampSafe(etu),
+      transfer: routineSemanticReadinessClampSafe(transfer),
+      dependency: routineSemanticReadinessClampSafe(dependency),
+      benchmark: routineSemanticReadinessClampSafe(benchmark),
+      validation: routineSemanticReadinessClampSafe(validation),
+      confidence: routineSemanticReadinessClampSafe(confidence)
+    };
+    scores.overall = routineSemanticReadinessClampSafe(scores.taxonomy*0.15 + scores.etu*0.18 + scores.transfer*0.16 + scores.dependency*0.12 + scores.benchmark*0.13 + scores.validation*0.18 + scores.confidence*0.08);
+    const weak = Object.entries(scores).filter(([k,v]) => k !== "overall" && v < 70).sort((a,b) => a[1]-b[1]).map(([k,v]) => ({key:k, score:v}));
+    return {scores, weak, total:all.length};
+  } catch (err) { try { logAppError(err, "routineSemanticReadinessScoreSafe"); } catch (_) {}; return {scores:{overall:0}, weak:[], total:0}; }
+}
+function routineSemanticReadinessLabelSafe(score) {
+  const n = Number(score || 0);
+  if (n >= 85) return "prediction-ready";
+  if (n >= 70) return "usable";
+  if (n >= 50) return "needs curation";
+  return "fragile";
+}
+function routineSemanticReadinessBarSafe(label, score, key) {
+  const pct = routineSemanticReadinessClampSafe(score);
+  const cls = pct >= 80 ? "good" : pct >= 60 ? "watch" : "risk";
+  return `<div class="semantic-readiness-bar semantic-readiness-${attrText(cls)}"><div class="semantic-readiness-bar-head"><span>${escapeHtml(label)}</span><strong>${numText(pct)}%</strong></div><div class="semantic-readiness-track" aria-hidden="true"><span style="width:${pct}%"></span></div><small>${escapeHtml(routineSemanticReadinessBarHintSafe(key, pct))}</small></div>`;
+}
+function routineSemanticReadinessBarHintSafe(key, score) {
+  const hints = {
+    taxonomy:"domains, skills, archetypes and routine classification",
+    etu:"technical, cognitive, confidence and pressure load coverage",
+    transfer:"transfer tags, graph edges and interference links",
+    dependency:"prerequisites, enables and blocked-by chain metadata",
+    benchmark:"benchmark support, calibration, test and pressure-test mapping",
+    validation:"schema risk, contradictions and audit cleanliness",
+    confidence:"metadata source quality: curated, derived, preset or fallback"
+  };
+  return score >= 80 ? `Strong ${hints[key] || "metadata"}.` : score >= 60 ? `Usable ${hints[key] || "metadata"}; improve before prediction calibration.` : `Weak ${hints[key] || "metadata"}; prioritize curation.`;
+}
+function renderRoutineSemanticReadinessDashboardSafe(rows) {
+  try {
+    const host = $("routineSemanticReadinessDashboard");
+    if (!host) return;
+    const model = routineSemanticReadinessScoreSafe(rows || routineConsoleRowsSafe());
+    const s = model.scores || {};
+    const weak = (model.weak || []).slice(0, 4).map(item => routineConsoleChipSafe(`${item.key} ${item.score}%`, item.key === "etu" ? "etu" : item.key === "validation" ? "validation" : item.key === "benchmark" ? "benchmark" : item.key === "transfer" ? "transfer" : "derived", item.score >= 70 ? "ok" : item.score >= 50 ? "watch" : "risk")).join("") || routineConsoleChipSafe("No weak area", "validation", "ok");
+    host.innerHTML = `<section class="routine-readiness-card analytics-note"><div class="section-head"><div><h3>Semantic Readiness Dashboard</h3><p class="muted">Shows whether the visible routine database is ready for reliable recommendation, prediction and coaching logic.</p></div><div class="semantic-readiness-score"><strong>${numText(s.overall || 0)}%</strong><span>${escapeHtml(routineSemanticReadinessLabelSafe(s.overall || 0))}</span></div></div><div class="semantic-readiness-grid">${routineSemanticReadinessBarSafe("Taxonomy", s.taxonomy, "taxonomy")}${routineSemanticReadinessBarSafe("ETU", s.etu, "etu")}${routineSemanticReadinessBarSafe("Transfer", s.transfer, "transfer")}${routineSemanticReadinessBarSafe("Dependency", s.dependency, "dependency")}${routineSemanticReadinessBarSafe("Benchmark", s.benchmark, "benchmark")}${routineSemanticReadinessBarSafe("Validation", s.validation, "validation")}${routineSemanticReadinessBarSafe("Confidence", s.confidence, "confidence")}</div><div class="routine-readiness-weak-row"><strong>Weak-area queue</strong><div class="routine-derived-chip-row">${weak}</div></div></section>`;
+  } catch (err) { try { logAppError(err, "renderRoutineSemanticReadinessDashboardSafe"); } catch (_) {} }
+}
+/* ===== end v5.7.75H Semantic Readiness Dashboard ===== */
+
 function routineConsoleMetricCardSafe(metric, value, label, hint) {
   const active = routineConsoleActiveMetric === metric ? " active" : "";
   return `<button type="button" class="kpi-card routine-console-metric-card${active}" data-action="routine-console-metric-filter" data-id="${attrText(metric)}" title="${attrText(hint || label)}"><strong>${numText(value)}</strong><span>${escapeHtml(label)}</span><small>${escapeHtml(hint || "Click to filter")}</small></button>`;
@@ -19779,6 +19860,7 @@ function renderRoutineStudioLite() {
     if (!host && !summaryHost) return;
     const allRows = routineConsoleRowsSafe();
     renderRoutineConsoleOverviewSafe(allRows);
+    renderRoutineSemanticReadinessDashboardSafe(allRows);
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
@@ -19789,7 +19871,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75G.1:</strong> this release adds the Semantic Chip System across the Routine Console grid, selected-routine editor and validation surfaces.</p><p class="muted">Semantic values now render as compact chips for archetype, preset, benchmark, recovery, pressure, transfer, validation and ETU source, improving scan speed without changing the routine data model.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75H:</strong> this release adds the Semantic Readiness Dashboard and dark-mode semantic chip hardening.</p><p class="muted">The console now shows readiness scores for ETU, transfer, dependency, benchmark, validation, confidence and taxonomy, while semantic chips stay readable in dark mode.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19887,7 +19969,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75G.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75H", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
