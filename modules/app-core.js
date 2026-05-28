@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75B.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75D";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18467,6 +18467,7 @@ let routineConsoleSelectedRoutineId = "";
 let routineConsoleLastRows = [];
 let routineConsoleSelectedIdsSet = new Set();
 let routineConsoleGridView = "core";
+let routineConsoleActiveMetric = "all";
 let routineConsoleSortState = {field:"name", direction:"asc"};
 
 
@@ -18539,7 +18540,7 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 
 
 /* ===== v5.7.75A Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.75B.1";
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75D";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18938,7 +18939,7 @@ function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
     interference: dedupe(g.interference),
     edgeWeights: {...(g.edgeWeights || {})},
     source: "visual-editor",
-    version: "5.7.75B.1",
+    version: "5.7.75D",
     updatedAt: new Date().toISOString()
   };
 }
@@ -18955,7 +18956,7 @@ function routineTransferGraphAddEdgeSafe(routineId) {
       const profile = routineTransferGraphProfileSafe(next);
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18975,7 +18976,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
       const weights = {...(profile.edgeWeights || {})};
       delete weights[`${type}:${skill}`];
       profile.edgeWeights = weights;
-      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
       next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
       return next;
     });
@@ -18985,7 +18986,7 @@ function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
   } catch (err) { try { logAppError(err, "routineTransferGraphRemoveEdgeSafe"); } catch (_) {}; alert("Could not remove transfer graph edge."); }
 }
 
-/* ===== v5.7.75B.1 Dependency Chain Engine ===== */
+/* ===== v5.7.75D Dependency Chain Engine ===== */
 function routineDependencyProfileSafe(routine) {
   try {
     const profile = routine?.dependencyProfile && typeof routine.dependencyProfile === "object" ? routine.dependencyProfile : {};
@@ -18996,9 +18997,9 @@ function routineDependencyProfileSafe(routine) {
       lane: String(profile.lane || profile.progressionLane || "general"),
       chainStrength: clampNumber(Number(profile.chainStrength ?? 0.5), 0, 1),
       source: profile.source || "manual",
-      version: profile.version || "5.7.75B.1"
+      version: profile.version || "5.7.75D"
     };
-  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75B.1"}; }
+  } catch (_) { return {prerequisites:[], enables:[], blockedBy:[], lane:"general", chainStrength:0.5, source:"fallback", version:"5.7.75D"}; }
 }
 function routineDependencyChainSummaryTextSafe(routine) {
   const d = routineDependencyProfileSafe(routine);
@@ -19054,7 +19055,7 @@ function routineDependencyAddLinkSafe(routineId) {
       profile[type] = [...new Set([...(profile[type] || []), skill])];
       profile.lane = lane || profile.lane || "general";
       profile.chainStrength = strength;
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19070,7 +19071,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
       const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
       const profile = routineDependencyProfileSafe(next);
       profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
-      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75B.1", updatedAt:new Date().toISOString()};
+      next.dependencyProfile = {...(next.dependencyProfile || {}), ...profile, source:"dependency-chain-editor", version:"5.7.75D", updatedAt:new Date().toISOString()};
       return next;
     });
     saveData({render:"all", immediateIDB:true});
@@ -19078,7 +19079,7 @@ function routineDependencyRemoveLinkSafe(routineId, type, skill) {
     showTransientNotice?.("Dependency chain link removed.", "success");
   } catch (err) { try { logAppError(err, "routineDependencyRemoveLinkSafe"); } catch (_) {}; alert("Could not remove dependency chain link."); }
 }
-/* ===== end v5.7.75B.1 Dependency Chain Engine ===== */
+/* ===== end v5.7.75D Dependency Chain Engine ===== */
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
   const skillMap = r?.skillMap || {};
@@ -19159,6 +19160,10 @@ function routineConsoleRowMatchesFilterSafe(row, filter, query) {
   if (filter === "validation") return /validation|contradiction|duplicate|over-tagging|under-tagging|ladder|loop|conflict/.test(issueText) || Number(row.validity || 100) < 80;
   return true;
 }
+function routineConsoleMetricCardSafe(metric, value, label, hint) {
+  const active = routineConsoleActiveMetric === metric ? " active" : "";
+  return `<button type="button" class="kpi-card routine-console-metric-card${active}" data-action="routine-console-metric-filter" data-id="${attrText(metric)}" title="${attrText(hint || label)}"><strong>${numText(value)}</strong><span>${escapeHtml(label)}</span><small>${escapeHtml(hint || "Click to filter")}</small></button>`;
+}
 function renderRoutineConsoleOverviewSafe(rows) {
   try {
     const host = $("routineConsoleOverview");
@@ -19166,16 +19171,44 @@ function renderRoutineConsoleOverviewSafe(rows) {
     const total = rows.length;
     const missingEtu = rows.filter(r => (r.technicalEtu + r.cognitiveEtu + r.confidenceEtu + r.pressureEtu) <= 0).length;
     const validationRisk = rows.filter(r => /critical|risk/.test(String(r.status || "")) || Number(r.validity || 100) < 80).length;
-    const benchmarkMapped = rows.filter(r => r.benchmarkMode && r.benchmarkMode !== "support" || Number(r.benchmarkExposureWeight || 0) > 0).length;
-    const transferMapped = rows.filter(r => String(r.transferTags || "").trim()).length;
-    host.innerHTML = `<div class="routine-console-kpis">
-      <div class="kpi-card"><strong>${numText(total)}</strong><span>routines loaded</span></div>
-      <div class="kpi-card"><strong>${numText(validationRisk)}</strong><span>validation risks</span></div>
-      <div class="kpi-card"><strong>${numText(missingEtu)}</strong><span>missing explicit ETU</span></div>
-      <div class="kpi-card"><strong>${numText(benchmarkMapped)}</strong><span>benchmark-mapped</span></div>
-      <div class="kpi-card"><strong>${numText(transferMapped)}</strong><span>transfer-mapped</span></div>
-    </div>`;
+    const benchmarkMapped = rows.filter(r => (r.benchmarkMode && r.benchmarkMode !== "support") || Number(r.benchmarkExposureWeight || 0) > 0).length;
+    const transferMapped = rows.filter(r => String(r.transferTags || "").trim() || String(r.transferGraph || "").toLowerCase() !== "none").length;
+    host.innerHTML = `<div class="routine-console-kpis routine-console-clickable-kpis">
+      ${routineConsoleMetricCardSafe("all", total, "routines loaded", "Show all routines")}
+      ${routineConsoleMetricCardSafe("validation", validationRisk, "validation risks", "Open validation queue")}
+      ${routineConsoleMetricCardSafe("etu", missingEtu, "missing explicit ETU", "Open ETU triage view")}
+      ${routineConsoleMetricCardSafe("benchmark", benchmarkMapped, "benchmark-mapped", "Open benchmark view")}
+      ${routineConsoleMetricCardSafe("transfer", transferMapped, "transfer-mapped", "Open transfer graph view")}
+    </div><div id="routineConsoleMetricHint" class="routine-console-metric-hint muted small">Click a governance metric to filter the grid and switch to the relevant working view.</div>`;
   } catch (_) {}
+}
+function routineConsoleApplyMetricFilterSafe(metric) {
+  try {
+    const clean = String(metric || "all").trim().toLowerCase();
+    const map = {
+      all: {filter:"all", view:"core", hint:"Showing all routines."},
+      validation: {filter:"validation", view:"validation", hint:"Validation queue: routines with risk, low validity or schema issues."},
+      etu: {filter:"etu", view:"etu", hint:"ETU triage: routines missing explicit subtype load or load semantics."},
+      benchmark: {filter:"benchmark", view:"benchmark", hint:"Benchmark view: routines mapped to benchmark support, calibration, test or pressure-test semantics."},
+      transfer: {filter:"transfer", view:"transfer", hint:"Transfer view: routines with transfer metadata or transfer-related issues."}
+    };
+    const cfg = map[clean] || map.all;
+    routineConsoleActiveMetric = map[clean] ? clean : "all";
+    const filterEl = $("routineStudioAuditFilter");
+    const viewEl = $("routineConsoleGridView");
+    const searchEl = $("routineStudioSearch");
+    if (filterEl) filterEl.value = cfg.filter;
+    if (viewEl) viewEl.value = cfg.view;
+    if (searchEl) searchEl.value = "";
+    document.querySelectorAll(".routine-console-accordion").forEach(details => {
+      if (clean === "validation" && details.classList.contains("routine-validation-editor-accordion")) details.open = true;
+      if (["etu","benchmark","transfer"].includes(clean) && details.classList.contains("routine-validation-editor-accordion")) details.open = true;
+    });
+    renderRoutineStudioLite();
+    const hint = $("routineConsoleMetricHint");
+    if (hint) hint.textContent = cfg.hint;
+    showTransientNotice?.(cfg.hint, "info");
+  } catch (err) { try { logAppError(err, "routineConsoleApplyMetricFilterSafe"); } catch (_) {} }
 }
 
 /* ===== v5.7.74B Routine Pack Manager ===== */
@@ -19446,7 +19479,7 @@ function bindRoutineConsoleGridEngineSafe() {
   document.addEventListener("change", event => {
     const target = event.target;
     if (!target) return;
-    if (target.id === "routineConsoleGridView") return renderRoutineStudioLite();
+    if (target.id === "routineConsoleGridView") { routineConsoleActiveMetric = "custom"; return renderRoutineStudioLite(); }
     if (target.id === "routineConsoleCopyDownField") return;
     if (target.id === "routineConsoleSelectAllVisible") {
       const checked = !!target.checked;
@@ -19570,7 +19603,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75B.1:</strong> this workflow simplification pass keeps the Dependency Chain Engine but reduces console overload.</p><p class="muted">Governance tools are now grouped into accordions, the selected-row counter sits above the grid, sticky headers are clearer, and the selected routine editor is split into full-width sections below the grid.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75D:</strong> this release adds the Spreadsheet UX Density Pass on top of Interactive Governance Metrics.</p><p class="muted">The grid is denser and more spreadsheet-like, with tighter rows, stronger sticky headers, clearer separators, alternating rows, hover states and active-cell highlighting while keeping KPI-driven filters intact.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19668,7 +19701,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.75B.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75D", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19954,6 +19987,7 @@ function handleDelegatedUIAction(event) {
     case "routine-studio-apply-bulk": return applyRoutineStudioBulkMetadata();
     case "routine-studio-clear-selection": return routineStudioClearSelection();
     case "routine-console-copy-down": return routineConsoleCopyDownSelectedSafe();
+    case "routine-console-metric-filter": return routineConsoleApplyMetricFilterSafe(id);
     case "routine-semantic-preset-apply": return applyRoutineSemanticPresetToSelectedSafe();
     case "routine-archetype-apply": return applyRoutineArchetypeToSelectedSafe();
     case "routine-archetype-infer": return inferRoutineArchetypesForSelectedSafe();

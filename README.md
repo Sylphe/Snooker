@@ -1,21 +1,24 @@
 # Snooker Practice PWA
 
-Version: 5.7.75B.1-routine-console-workflow-simplification
+Version: 5.7.75D-spreadsheet-ux-density-pass
 
-## v5.7.75B.1
+## v5.7.75D — Spreadsheet UX Density Pass
 
-Routine Console Workflow Simplification pass on top of v5.7.75B Dependency Chain Engine. This release reduces desktop-console overload without removing the governance functionality.
+This build improves the desktop Routine Console grid so it behaves more like an operational spreadsheet rather than a loose HTML table. It preserves v5.7.75C Interactive Governance Metrics and the v5.7.75B Dependency Chain Engine.
 
-### Changes
+### Included
 
-- Top governance modules converted into collapsible accordion cards.
-- Semantic Preset, Archetype and Derived Metadata grouped under one Semantic Assistant section.
-- Sticky routine grid header and stronger column-header styling.
-- Persistent selected-row counter added above the grid.
-- Bulk/action buttons are disabled until routines are selected where relevant.
-- Selected routine editor reorganized into wider, sectioned panels below the grid.
-- Legacy comma-separated transfer tags moved into an advanced collapsible block; visual transfer graph remains the default editor.
-- Validation dashboard retained but made scroll-safe and positioned as a triage section.
-- Build identity panel, version module, cache keys and README updated to v5.7.75B.1.
+- denser spreadsheet rows;
+- stronger sticky headers;
+- clearer column separators;
+- alternating row backgrounds;
+- hover-row highlighting;
+- selected-row highlighting;
+- active-cell/focus highlighting;
+- smaller inline inputs and controls;
+- improved desktop viewport usage for the routine grid;
+- build identity, version module, cache keys and visible panel updated to v5.7.75D.
 
-No compilation required. Deploy the files to GitHub Pages as before.
+### Notes
+
+No routine data-model changes were introduced in this release. The change is a visual-density and usability pass for the Routine Console.
