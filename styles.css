@@ -7976,3 +7976,157 @@ body.routine-console-desktop-active .routine-console-spreadsheet{
   body.routine-console-desktop-active .routine-console-left-rail{width:auto!important;min-height:0!important;display:flex!important;flex-direction:row!important;overflow:auto!important;padding:.35rem!important;border:1px solid rgba(148,163,184,.24)!important;border-radius:14px!important;background:rgba(148,163,184,.06)!important;}
 }
 /* end v5.7.76H.1 */
+
+
+/* v5.7.76H.2 Routine Console Grid & Panel Stabilization */
+body.routine-console-desktop-active .routine-studio-lite-card{
+  overflow:auto!important;
+  overflow-x:hidden!important;
+  grid-auto-rows:min-content!important;
+}
+body.routine-console-desktop-active .routine-studio-lite-card > *{
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+body.routine-console-desktop-active .routine-console-scroll,
+body.routine-console-desktop-active .routine-console-spreadsheet{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:auto!important;
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  contain:layout paint!important;
+  isolation:isolate!important;
+  overscroll-behavior:contain!important;
+  position:relative!important;
+  z-index:1!important;
+}
+body.routine-console-desktop-active .routine-console-spreadsheet{
+  max-height:clamp(280px, 42vh, 520px)!important;
+  min-height:260px!important;
+}
+body.routine-console-desktop-active .routine-grid-table{
+  table-layout:fixed!important;
+  width:max-content!important;
+  min-width:100%!important;
+  max-width:none!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+body.routine-console-desktop-active .routine-grid-table th,
+body.routine-console-desktop-active .routine-grid-table td{
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+body.routine-console-desktop-active .routine-grid-table thead th{
+  z-index:11!important;
+}
+body.routine-console-desktop-active .routine-grid-table th.grid-select-col,
+body.routine-console-desktop-active .routine-grid-table td.grid-select-col{
+  position:sticky!important;
+  left:0!important;
+  z-index:12!important;
+  background:var(--card, var(--panel-bg,#fff))!important;
+}
+body.routine-console-desktop-active .routine-grid-table th.grid-frozen-head,
+body.routine-console-desktop-active .routine-grid-table td.grid-frozen-cell{
+  position:sticky!important;
+  left:36px!important;
+  z-index:13!important;
+  min-width:230px!important;
+  max-width:230px!important;
+  background:var(--card, var(--panel-bg,#fff))!important;
+  box-shadow:2px 0 0 rgba(100,116,139,.22)!important;
+}
+body.routine-console-desktop-active .routine-grid-table thead th.grid-frozen-head{
+  z-index:15!important;
+}
+body.routine-console-desktop-active .routine-grid-table tr.selected-row td.grid-frozen-cell,
+body.routine-console-desktop-active .routine-grid-table tbody tr:hover td.grid-frozen-cell{
+  background:linear-gradient(0deg, rgba(59,130,246,.075), rgba(59,130,246,.075)), var(--card, var(--panel-bg,#fff))!important;
+}
+body.routine-console-desktop-active .routine-grid-input,
+body.routine-console-desktop-active .routine-grid-select,
+body.routine-console-desktop-active .routine-chip-select{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+body.routine-console-desktop-active .routine-grid-cell .routine-semantic-chip{
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .routine-console-selection-bar{
+  position:relative!important;
+  top:auto!important;
+  z-index:2!important;
+  overflow:visible!important;
+  background:var(--card, var(--panel-bg,#fff))!important;
+}
+body.routine-console-desktop-active .routine-console-focus-inspector{
+  position:relative!important;
+  top:auto!important;
+  z-index:2!important;
+  overflow:hidden!important;
+  margin:.55rem 0 .75rem!important;
+}
+body.routine-console-desktop-active .routine-validation-dock,
+body.routine-console-desktop-active .routine-derived-explainability-card,
+body.routine-console-desktop-active .routine-dependency-viewer,
+body.routine-console-desktop-active .routine-editor-section,
+body.routine-console-desktop-active .routine-console-accordion,
+body.routine-console-desktop-active .routine-readiness-telemetry-card,
+body.routine-console-desktop-active .routine-console-overview{
+  position:relative!important;
+  z-index:0!important;
+  overflow:hidden!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .routine-console-editor,
+body.routine-console-desktop-active #routineConsoleEditor{
+  position:relative!important;
+  top:auto!important;
+  z-index:1!important;
+  overflow:visible!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .routine-editor-sections{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  max-width:100%!important;
+}
+body.routine-console-desktop-active .routine-editor-section{
+  min-width:0!important;
+}
+body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="graph"] .routine-console-spreadsheet,
+body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="benchmark"] .routine-console-spreadsheet,
+body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="validation"] .routine-console-spreadsheet,
+body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="routine"] .routine-console-spreadsheet{
+  max-height:clamp(240px, 34vh, 430px)!important;
+  min-height:240px!important;
+}
+body.routine-console-desktop-active .routine-studio-lite-card[data-workspace="analytics"] .routine-console-spreadsheet{
+  max-height:clamp(240px, 38vh, 480px)!important;
+}
+body.routine-console-desktop-active .routine-console-kpi-dashboard,
+body.routine-console-desktop-active .semantic-readiness-telemetry-strip{
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+body.routine-console-desktop-active .routine-console-metric-card{
+  min-width:0!important;
+}
+body[data-theme="dark"].routine-console-desktop-active .routine-grid-table th.grid-select-col,
+body[data-theme="dark"].routine-console-desktop-active .routine-grid-table td.grid-select-col,
+body[data-theme="dark"].routine-console-desktop-active .routine-grid-table th.grid-frozen-head,
+body[data-theme="dark"].routine-console-desktop-active .routine-grid-table td.grid-frozen-cell,
+body[data-theme="dark"].routine-console-desktop-active .routine-console-selection-bar{
+  background:var(--card, #0f172a)!important;
+}
+@media(max-width:980px){
+  body.routine-console-desktop-active .routine-console-spreadsheet{max-height:58vh!important;min-height:220px!important;}
+  body.routine-console-desktop-active .routine-editor-sections{grid-template-columns:1fr!important;}
+  body.routine-console-desktop-active .routine-grid-table{min-width:860px!important;}
+}
+/* end v5.7.76H.2 */

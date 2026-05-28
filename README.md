@@ -1,10 +1,10 @@
 # Snooker Practice Log
 
-Version: 5.7.76H.1-routine-console-layout-alignment-fix
+Version: 5.7.76H.2-routine-console-grid-panel-stabilization
 
-## v5.7.76H.1 — Routine Console Layout Alignment Fix
+## v5.7.76H.2 — Routine Console Grid & Panel Stabilization
 
-This release adds a persistent Focus Inspector to the Routine Management Console. The inspector keeps the selected routine visible while the user works through the grid, transfer graph, dependency chain, validation dock and ETU/benchmark editor.
+This patch stabilizes the desktop Routine Console after the rail/focus-inspector changes. KPI-driven views now keep the routine table contained, validation and explainability panels stay in normal document flow, and the grid uses safer sticky/frozen-column behavior.
 
 Included:
 
@@ -14,7 +14,7 @@ Included:
 - quick section navigation buttons for Core, Transfer, Dependency and ETU / benchmark;
 - desktop sticky behavior and mobile-safe stacking;
 - v5.7.76G left navigation rail preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.76H.1.
+- build identity, version module, cache keys and visible app panel updated to v5.7.76H.2.
 
 Validation:
 

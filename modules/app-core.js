@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76H.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76H.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76H.2";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76H.2";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.76H.1";
+} from "./utils.js?v=5.7.76H.2";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.76H.1";
+} from "./settings.js?v=5.7.76H.2";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.76H.1";
+} from "./analytics.js?v=5.7.76H.2";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.76H.1";
+} from "./bayesian.js?v=5.7.76H.2";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.76H.1";
+} from "./session.js?v=5.7.76H.2";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.76H.1";
+} from "./pressure.js?v=5.7.76H.2";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.76H.1";
+} from "./recommendations.js?v=5.7.76H.2";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.76H.1";
+} from "./store.js?v=5.7.76H.2";
 
 
 
@@ -20172,7 +20172,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76H.1</strong><span>Routine Console Layout Alignment Fix</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Layout alignment fix: the desktop rail now uses a true app-shell layout, anchor columns remain visible in every grid view, and the dependency viewer heading is corrected.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76H.2</strong><span>Routine Console Grid & Panel Stabilization</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Grid/panel stabilization: KPI-driven grid views now remain contained in the console viewport, sticky/frozen grid columns are aligned, validation panels no longer overlay adjacent fields, and the focus inspector uses normal flow positioning.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -20271,7 +20271,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.76H.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.76H.2", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -20330,7 +20330,7 @@ function routineConsoleFocusEditorSectionSafe(section) {
 }
 /* ===== end v5.7.75F Contextual Validation Dock ===== */
 
-/* ===== v5.7.76H Routine Console Layout Alignment Fix ===== */
+/* ===== v5.7.76H Routine Console Grid & Panel Stabilization ===== */
 function routineConsoleFocusInspectorHtmlSafe(row) {
   try {
     if (!row) {
@@ -20381,7 +20381,7 @@ function renderRoutineConsoleFocusInspectorSafe(row) {
     host.innerHTML = routineConsoleFocusInspectorHtmlSafe(row || null);
   } catch (err) { try { logAppError(err, "renderRoutineConsoleFocusInspectorSafe"); } catch (_) {} }
 }
-/* ===== end v5.7.76H Routine Console Layout Alignment Fix ===== */
+/* ===== end v5.7.76H Routine Console Grid & Panel Stabilization ===== */
 
 function renderRoutineConsoleValidationDashboardSafe(rows) {
   try {
