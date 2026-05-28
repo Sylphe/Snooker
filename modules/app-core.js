@@ -2,7 +2,7 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.74G";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75A";
 import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.74A.1.1";
 import {
   uuid,
@@ -18538,8 +18538,8 @@ function routineSemanticPresetApplyToRoutineSafe(routine, presetKey, mode="fill"
 }
 
 
-/* ===== v5.7.74G Routine Archetype Framework ===== */
-const ROUTINE_ARCHETYPE_VERSION = "5.7.74G";
+/* ===== v5.7.75A Routine Archetype Framework ===== */
+const ROUTINE_ARCHETYPE_VERSION = "5.7.75A";
 const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
@@ -18653,7 +18653,7 @@ function inferRoutineArchetypesForSelectedSafe() {
     showTransientNotice?.(`Inferred archetypes for ${count} routine(s).`, "success");
   } catch (err) { try { logAppError(err, "inferRoutineArchetypesForSelectedSafe"); } catch (_) {}; alert("Routine archetype inference failed. Review the error log."); }
 }
-/* ===== end v5.7.74G Routine Archetype Framework ===== */
+/* ===== end v5.7.75A Routine Archetype Framework ===== */
 
 
 /* ===== v5.7.74F Derived Metadata Engine ===== */
@@ -18821,6 +18821,7 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"primarySkill", label:"Primary skill", type:"text", editable:true, preset:["core","transfer","validation"]},
   {key:"secondarySkills", label:"Secondary skills", type:"list", editable:true, preset:["core","transfer"]},
   {key:"transferTags", label:"Transfer tags", type:"list", editable:true, preset:["transfer"]},
+  {key:"transferGraph", label:"Transfer graph", type:"readonly", preset:["transfer"]},
   {key:"benchmarkMode", label:"Benchmark mode", type:"select", editable:true, options:["support","calibration","test","pressure-test"], preset:["benchmark"]},
   {key:"benchmarkStrictness", label:"Strictness", type:"select", editable:true, options:["loose","normal","strict"], preset:["benchmark"]},
   {key:"benchmarkExposureWeight", label:"Benchmark w", type:"number", editable:true, min:0, max:1, step:"0.05", preset:["benchmark"]},
@@ -18858,6 +18859,130 @@ function routineConsoleArrayTextSafe(value) {
 function routineConsoleParseListSafe(value) {
   return String(value || "").split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 }
+function routineTransferGraphProfileSafe(routine) {
+  try {
+    const profile = routine?.transferProfile && typeof routine.transferProfile === "object" ? routine.transferProfile : {};
+    const normalize = value => normalizeSkillList(value || []);
+    const weights = profile.edgeWeights && typeof profile.edgeWeights === "object" ? profile.edgeWeights : {};
+    return {
+      direct: normalize(profile.direct || []),
+      supporting: normalize(profile.supporting || routine?.transferTags || routine?.skillMap?.transferTags || []),
+      weak: normalize(profile.weak || []),
+      interference: normalize(profile.interference || []),
+      edgeWeights: {...weights}
+    };
+  } catch (_) { return {direct:[], supporting:[], weak:[], interference:[], edgeWeights:{}}; }
+}
+function routineTransferGraphSummaryTextSafe(routine) {
+  const g = routineTransferGraphProfileSafe(routine);
+  const parts = [];
+  if (g.direct.length) parts.push(`D ${g.direct.length}`);
+  if (g.supporting.length) parts.push(`S ${g.supporting.length}`);
+  if (g.weak.length) parts.push(`W ${g.weak.length}`);
+  if (g.interference.length) parts.push(`I ${g.interference.length}`);
+  return parts.join(" · ") || "none";
+}
+function routineTransferGraphAvailableSkillsSafe() {
+  try {
+    return currentSkillLibrary({includeArchived:false}).filter(s => s && s.id).map(s => ({id:s.id, label:s.label || skillLabel(s.id), group:s.group || "Skill"}));
+  } catch (_) { return DEFAULT_SKILLS.map(s => ({id:s.id, label:s.label, group:s.group || "Skill"})); }
+}
+function routineTransferGraphSkillOptionsSafe(selected="") {
+  const skills = routineTransferGraphAvailableSkillsSafe();
+  return `<option value="">Choose skill</option>${skills.map(s => `<option value="${attrText(s.id)}"${String(selected)===String(s.id)?" selected":""}>${escapeHtml(s.label)}${s.group ? ` · ${escapeHtml(s.group)}` : ""}</option>`).join("")}`;
+}
+function routineTransferGraphEdgeLabelSafe(type) {
+  const labels = {direct:"Direct", supporting:"Supporting", weak:"Weak", interference:"Interference"};
+  return labels[type] || String(type || "Supporting");
+}
+function routineTransferGraphEdgeClassSafe(type) {
+  return `transfer-edge-${String(type || "supporting").replace(/[^a-z-]/gi, "")}`;
+}
+function routineTransferGraphRenderEditorSafe(routine, scope="side") {
+  try {
+    const id = String(routine?.id || "");
+    const g = routineTransferGraphProfileSafe(routine);
+    const edgeRows = ["direct","supporting","weak","interference"].map(type => {
+      const list = g[type] || [];
+      const body = list.length ? list.map(skill => {
+        const weight = Number(g.edgeWeights?.[`${type}:${skill}`] ?? (type === "direct" ? 0.75 : type === "supporting" ? 0.5 : type === "weak" ? 0.25 : 0.4));
+        return `<button type="button" class="transfer-graph-chip ${routineTransferGraphEdgeClassSafe(type)}" data-action="routine-transfer-edge-remove" data-id="${attrText(id)}" data-edge-type="${attrText(type)}" data-skill="${attrText(skill)}" title="Remove ${attrText(skillLabel(skill))}"><span>${escapeHtml(skillLabel(skill))}</span><small>${escapeHtml(routineTransferGraphEdgeLabelSafe(type))} · ${numText(weight)}</small></button>`;
+      }).join("") : `<span class="muted small">No ${escapeHtml(routineTransferGraphEdgeLabelSafe(type).toLowerCase())} edges.</span>`;
+      return `<div class="transfer-graph-lane ${routineTransferGraphEdgeClassSafe(type)}"><strong>${escapeHtml(routineTransferGraphEdgeLabelSafe(type))}</strong><div class="transfer-graph-chip-row">${body}</div></div>`;
+    }).join("");
+    return `<div class="routine-transfer-graph-editor ${scope === "desktop" ? "desktop" : "mobile"}">
+      <div class="routine-transfer-graph-head"><strong>Visual Transfer Graph Editor</strong><span class="muted small">Click an edge chip to remove it. Add edges with type and weight; data remains stored in the compatible transferProfile object.</span></div>
+      <div class="transfer-graph-stage" aria-label="Transfer graph for selected routine">
+        <div class="transfer-graph-source"><span>Source routine</span><strong>${escapeHtml(routine?.name || "Selected routine")}</strong><small>${escapeHtml(routine?.primarySkill ? skillLabel(routine.primarySkill) : "primary skill not set")}</small></div>
+        <div class="transfer-graph-lanes">${edgeRows}</div>
+      </div>
+      <div class="transfer-graph-add-row">
+        <select id="routineTransferGraphEdgeType"><option value="direct">Direct</option><option value="supporting">Supporting</option><option value="weak">Weak</option><option value="interference">Interference</option></select>
+        <select id="routineTransferGraphSkill">${routineTransferGraphSkillOptionsSafe()}</select>
+        <input id="routineTransferGraphWeight" type="number" min="0" max="1" step="0.05" value="0.50" />
+        <button type="button" class="secondary" data-action="routine-transfer-edge-add" data-id="${attrText(id)}">Add edge</button>
+      </div>
+      <p class="muted small">Direct edges represent strong downstream carry-over; supporting edges are useful secondary carry-over; weak edges are low-intensity links; interference edges warn the builder that excessive exposure may crowd out or conflict with another domain.</p>
+    </div>`;
+  } catch (err) { try { logAppError(err, "routineTransferGraphRenderEditorSafe"); } catch (_) {}; return ""; }
+}
+function routineTransferGraphNormalizeProfileAfterEditSafe(routine) {
+  const g = routineTransferGraphProfileSafe(routine);
+  const dedupe = arr => [...new Set(normalizeSkillList(arr || []))];
+  return {
+    ...(routine.transferProfile || {}),
+    direct: dedupe(g.direct),
+    supporting: dedupe(g.supporting),
+    weak: dedupe(g.weak),
+    interference: dedupe(g.interference),
+    edgeWeights: {...(g.edgeWeights || {})},
+    source: "visual-editor",
+    version: "5.7.75A",
+    updatedAt: new Date().toISOString()
+  };
+}
+function routineTransferGraphAddEdgeSafe(routineId) {
+  try {
+    const type = String($("routineTransferGraphEdgeType")?.value || "supporting");
+    const skill = normalizeSkillId($("routineTransferGraphSkill")?.value || "");
+    const weight = clampNumber(Number($("routineTransferGraphWeight")?.value || 0.5), 0, 1);
+    if (!routineId || !skill) return alert("Choose a transfer target skill first.");
+    if (!["direct","supporting","weak","interference"].includes(type)) return alert("Choose a valid edge type.");
+    data.routines = (data.routines || []).map(r => {
+      if (String(r.id) !== String(routineId)) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      const profile = routineTransferGraphProfileSafe(next);
+      profile[type] = [...new Set([...(profile[type] || []), skill])];
+      profile.edgeWeights = {...(profile.edgeWeights || {}), [`${type}:${skill}`]:weight};
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75A", updatedAt:new Date().toISOString()};
+      next.transferTags = [...new Set([...(next.transferTags || []), ...(profile.direct || []), ...(profile.supporting || [])])];
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.("Transfer graph edge added.", "success");
+  } catch (err) { try { logAppError(err, "routineTransferGraphAddEdgeSafe"); } catch (_) {}; alert("Could not add transfer graph edge."); }
+}
+function routineTransferGraphRemoveEdgeSafe(routineId, type, skill) {
+  try {
+    if (!routineId || !type || !skill) return;
+    data.routines = (data.routines || []).map(r => {
+      if (String(r.id) !== String(routineId)) return r;
+      const next = {...r, metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+      const profile = routineTransferGraphProfileSafe(next);
+      profile[type] = (profile[type] || []).filter(x => String(x) !== String(skill));
+      const weights = {...(profile.edgeWeights || {})};
+      delete weights[`${type}:${skill}`];
+      profile.edgeWeights = weights;
+      next.transferProfile = {...(next.transferProfile || {}), ...profile, source:"visual-editor", version:"5.7.75A", updatedAt:new Date().toISOString()};
+      next.transferTags = [...new Set([...(profile.direct || []), ...(profile.supporting || [])])];
+      return next;
+    });
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.("Transfer graph edge removed.", "success");
+  } catch (err) { try { logAppError(err, "routineTransferGraphRemoveEdgeSafe"); } catch (_) {}; alert("Could not remove transfer graph edge."); }
+}
 function routineConsoleRoutineMetaSafe(r) {
   const etu = r?.etuProfile || {};
   const skillMap = r?.skillMap || {};
@@ -18871,6 +18996,7 @@ function routineConsoleRoutineMetaSafe(r) {
     primarySkill: r?.primarySkill || skillMap.primarySkill || "",
     secondarySkills: routineConsoleArrayTextSafe(r?.secondarySkills || skillMap.secondarySkills),
     transferTags: routineConsoleArrayTextSafe(r?.transferTags || skillMap.transferTags || r?.transferProfile?.supporting || []),
+    transferGraph: routineTransferGraphSummaryTextSafe(r),
     recommendationMode: r?.recommendationMode || "active",
     benchmarkMode: r?.benchmarkMode || "support",
     benchmarkExposureWeight: Number(r?.benchmarkExposureWeight || 0),
@@ -18922,7 +19048,7 @@ function routineConsoleRowsSafe() {
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
-  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
+  const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
   if (q && !text.includes(q)) return false;
   const issueText = (row.issues || []).map(x => `${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ").toLowerCase();
@@ -19189,6 +19315,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
     if (["name"].includes(col.key)) return 240;
     if (["issues"].includes(col.key)) return 340;
     if (["secondarySkills","transferTags"].includes(col.key)) return 220;
+    if (["transferGraph"].includes(col.key)) return 180;
     if (["benchmarkMode","benchmarkStrictness","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode","etuSource","semanticPreset","routineArchetype","archetypeSource","derivedRecoverySuitability","derivedConfidenceRisk","derivedCognitiveLoad","derivedBenchmarkDensity","derivedTransferIntensity","derivedMetadataSource"].includes(col.key)) return 150;
     if (["technicalEtu","cognitiveEtu","confidenceEtu","pressureEtu","benchmarkExposureWeight","completeness","validity"].includes(col.key)) return 118;
     return 170;
@@ -19265,6 +19392,7 @@ function renderRoutineConsoleEditor(id) {
         <div><label>Primary skill</label><input id="routineConsolePrimarySkill" value="${attrText(m.primarySkill)}" /></div>
         <div><label>Secondary skills</label><textarea id="routineConsoleSecondarySkills" rows="2">${escapeHtml(m.secondarySkills)}</textarea></div>
         <div><label>Transfer tags</label><textarea id="routineConsoleTransferTags" rows="2">${escapeHtml(m.transferTags)}</textarea></div>
+        <div class="routine-transfer-graph-editor-cell">${routineTransferGraphRenderEditorSafe(r, routineConsoleIsDesktopModeSafe() ? "desktop" : "mobile")}</div>
         <div><label>Benchmark mode</label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
         <div><label>Benchmark strictness</label><select id="routineConsoleBenchmarkStrictness"><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
         <div><label>Benchmark exposure weight</label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="1" step="0.05" value="${numAttr(m.benchmarkExposureWeight)}" /></div>
@@ -19306,7 +19434,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.74G:</strong> this release adds the Routine Archetype Framework on top of presets, derived metadata and the desktop spreadsheet grid. Archetypes classify routines as acquisition, stabilization, pressure, benchmark, recovery, transfer or diagnostic work, then inherit coherent defaults for ETU, benchmark semantics, volatility and suitability.</p><p class="muted">Use archetypes as the higher-level classification layer, presets for more specific metadata packages, and derived metadata to fill remaining missing or auto fields. Curated manual fields remain protected in fill mode.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75A:</strong> this release adds the Visual Transfer Graph Editor in both mobile Routine Studio and the full-screen desktop console. Transfer links are now managed as typed edges: direct, supporting, weak and interference.</p><p class="muted">Use the visual graph editor to add or remove transfer edges without editing comma-separated lists manually. Existing transfer tags remain compatible, while the transferProfile object now stores graph source, edge type and optional weight metadata.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -19372,6 +19500,7 @@ function routineConsoleSaveSelected() {
       next.primarySkill = String(val("routineConsolePrimarySkill") || "").trim();
       next.secondarySkills = routineConsoleParseListSafe(val("routineConsoleSecondarySkills"));
       next.transferTags = routineConsoleParseListSafe(val("routineConsoleTransferTags"));
+      next.transferProfile = routineTransferGraphNormalizeProfileAfterEditSafe(next);
       next.recommendationMode = val("routineConsoleRecommendation") || "active";
       next.benchmarkMode = normalizeBenchmarkMode(val("routineConsoleBenchmarkMode") || "support");
       next.benchmarkStrictness = normalizeBenchmarkStrictness(val("routineConsoleBenchmarkStrictness") || "normal");
@@ -19402,7 +19531,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.74G", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.75A", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -19706,6 +19835,8 @@ function handleDelegatedUIAction(event) {
     case "routine-console-apply-etu-editor": return applyRoutineConsoleEtuEditorSafe();
     case "routine-console-apply-benchmark-editor": return applyRoutineConsoleBenchmarkEditorSafe();
     case "routine-console-apply-transfer-editor": return applyRoutineConsoleTransferEditorSafe();
+    case "routine-transfer-edge-add": return routineTransferGraphAddEdgeSafe(id);
+    case "routine-transfer-edge-remove": return routineTransferGraphRemoveEdgeSafe(id, actionEl.dataset.edgeType || "supporting", actionEl.dataset.skill || "");
     case "edit-skill-tag": return editSkillTag(id);
     case "archive-skill-tag": return archiveSkillTag(id);
     case "merge-skill-tag": return mergeSkillTag(id);
