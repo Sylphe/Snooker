@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.75K";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.75K";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76B";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76B";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.75K";
+} from "./utils.js?v=5.7.76B";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.75K";
+} from "./settings.js?v=5.7.76B";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.75K";
+} from "./analytics.js?v=5.7.76B";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.75K";
+} from "./bayesian.js?v=5.7.76B";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.75K";
+} from "./session.js?v=5.7.76B";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.75K";
+} from "./pressure.js?v=5.7.76B";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.75K";
+} from "./recommendations.js?v=5.7.76B";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.75K";
+} from "./store.js?v=5.7.76B";
 
 
 
@@ -19467,9 +19467,34 @@ function renderRoutineSemanticReadinessDashboardSafe(rows) {
 }
 /* ===== end v5.7.75K Semantic Readiness Dashboard ===== */
 
-function routineConsoleMetricCardSafe(metric, value, label, hint) {
+function routineConsoleMetricConfigSafe(metric) {
+  const map = {
+    all:{icon:"●", tone:"neutral", target:null},
+    validation:{icon:"!", tone:"risk", target:0},
+    etu:{icon:"∑", tone:"etu", target:0},
+    benchmark:{icon:"◎", tone:"benchmark", target:100},
+    transfer:{icon:"↔", tone:"transfer", target:100}
+  };
+  return map[String(metric || "all").toLowerCase()] || map.all;
+}
+function routineConsoleMetricHealthSafe(metric, value, total) {
+  const v = Math.max(0, Number(value || 0));
+  const t = Math.max(1, Number(total || 0));
+  if (metric === "all") return 100;
+  if (metric === "validation" || metric === "etu") return Math.max(0, Math.min(100, Math.round(100 - (v / t) * 100)));
+  if (metric === "benchmark" || metric === "transfer") return Math.max(0, Math.min(100, Math.round((v / t) * 100)));
+  return 0;
+}
+function routineConsoleMetricCardSafe(metric, value, label, hint, total) {
   const active = routineConsoleActiveMetric === metric ? " active" : "";
-  return `<button type="button" class="kpi-card routine-console-metric-card${active}" data-action="routine-console-metric-filter" data-id="${attrText(metric)}" title="${attrText(hint || label)}"><strong>${numText(value)}</strong><span>${escapeHtml(label)}</span><small>${escapeHtml(hint || "Click to filter")}</small></button>`;
+  const cfg = routineConsoleMetricConfigSafe(metric);
+  const pct = routineConsoleMetricHealthSafe(metric, value, total);
+  const status = pct >= 80 ? "good" : pct >= 55 ? "watch" : "risk";
+  return `<button type="button" class="kpi-card routine-console-metric-card routine-console-kpi-${attrText(cfg.tone)} routine-console-kpi-${attrText(status)}${active}" data-action="routine-console-metric-filter" data-id="${attrText(metric)}" title="${attrText(hint || label)}">
+    <span class="routine-console-kpi-top"><span class="routine-console-kpi-icon" aria-hidden="true">${escapeHtml(cfg.icon)}</span><span class="routine-console-kpi-label">${escapeHtml(label)}</span></span>
+    <span class="routine-console-kpi-main"><strong>${numText(value)}</strong><small>${escapeHtml(hint || "Click to filter")}</small></span>
+    <span class="routine-console-kpi-track" aria-hidden="true"><i style="width:${pct}%"></i></span>
+  </button>`;
 }
 function renderRoutineConsoleOverviewSafe(rows) {
   try {
@@ -19480,13 +19505,13 @@ function renderRoutineConsoleOverviewSafe(rows) {
     const validationRisk = rows.filter(r => /critical|risk/.test(String(r.status || "")) || Number(r.validity || 100) < 80).length;
     const benchmarkMapped = rows.filter(r => (r.benchmarkMode && r.benchmarkMode !== "support") || Number(r.benchmarkExposureWeight || 0) > 0).length;
     const transferMapped = rows.filter(r => String(r.transferTags || "").trim() || String(r.transferGraph || "").toLowerCase() !== "none").length;
-    host.innerHTML = `<div class="routine-console-kpis routine-console-clickable-kpis">
-      ${routineConsoleMetricCardSafe("all", total, "routines loaded", "Show all routines")}
-      ${routineConsoleMetricCardSafe("validation", validationRisk, "validation risks", "Open validation queue")}
-      ${routineConsoleMetricCardSafe("etu", missingEtu, "missing explicit ETU", "Open ETU triage view")}
-      ${routineConsoleMetricCardSafe("benchmark", benchmarkMapped, "benchmark-mapped", "Open benchmark view")}
-      ${routineConsoleMetricCardSafe("transfer", transferMapped, "transfer-mapped", "Open transfer graph view")}
-    </div><div id="routineConsoleMetricHint" class="routine-console-metric-hint muted small">Click a governance metric to filter the grid and switch to the relevant working view.</div>`;
+    host.innerHTML = `<div class="routine-console-kpis routine-console-clickable-kpis routine-console-kpi-dashboard">
+      ${routineConsoleMetricCardSafe("all", total, "Routines", "Show all routines", total)}
+      ${routineConsoleMetricCardSafe("validation", validationRisk, "Validation", "Open validation queue", total)}
+      ${routineConsoleMetricCardSafe("etu", missingEtu, "ETU gaps", "Open ETU triage view", total)}
+      ${routineConsoleMetricCardSafe("benchmark", benchmarkMapped, "Benchmark", "Open benchmark view", total)}
+      ${routineConsoleMetricCardSafe("transfer", transferMapped, "Transfer", "Open transfer graph view", total)}
+    </div><div id="routineConsoleMetricHint" class="routine-console-metric-hint muted small">Click a KPI to filter the grid and switch workspace.</div>`;
   } catch (_) {}
 }
 function routineConsoleApplyMetricFilterSafe(metric) {
@@ -20089,7 +20114,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<p><strong>Routine Management Console v5.7.75K:</strong> this release adds Derived Metadata Explainability.</p><p class="muted">Derived metadata now shows why each inference was made, including ETU, volatility, pressure, benchmark and transfer drivers, so automatic metadata can be trusted and debugged before prediction logic uses it.</p><p class="muted small">Average schema completeness ${numText(avgCompleteness)}% · average validation score ${numText(avgValidity)}% · visible rows ${numText(rows.length)} / ${numText(allRows.length)}.</p>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76B</strong><span>Governance KPI Dashboard Pass</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Governance KPIs now use compact dashboard cards with icons, health bars, color states and clearer hover feedback while keeping the metric-driven workspace filters.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();

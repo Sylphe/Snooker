@@ -1,19 +1,18 @@
 # Snooker Practice PWA
 
-Version: 5.7.75K-derived-metadata-explainability
+Version: 5.7.76B-governance-kpi-dashboard-pass
 
-## v5.7.75K — Derived Metadata Explainability
+## v5.7.76B — Governance KPI Dashboard Pass
 
-This release adds explainability to the derived metadata layer in the Routine Management Console. Derived recovery suitability, confidence risk, cognitive load, benchmark density and transfer intensity now show the main drivers behind each inference.
+This release compresses the Routine Management Console header and release-summary area so the desktop console opens faster, wastes less vertical space and feels more operational. Explanatory copy is moved into compact labels and optional About / Release note disclosure blocks.
 
 Included:
-- derived metadata explainability card in the selected-routine editor;
-- preview table in the Derived Metadata Engine panel;
-- confidence/source labels for derived metadata;
-- explanations based on ETU, volatility, pressure, benchmark exposure and transfer/dependency metadata;
-- mobile and desktop Routine Console support;
-- v5.7.75J Visual Dependency Chain Viewer preserved;
-- build identity, version module, cache keys and visible app panel updated to v5.7.75K.
+- compact Routine Console intro row;
+- optional About block for detailed console explanation;
+- compact release-summary line with completeness, validation and visible-row metrics;
+- optional release note disclosure;
+- preserved v5.7.75K Derived Metadata Explainability;
+- build identity, version module, cache keys and visible app panel updated to v5.7.76B.
 
 Validation:
 - ES module syntax check passed;
