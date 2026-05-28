@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76B";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76B";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.76D";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.76D";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.76B";
+} from "./utils.js?v=5.7.76D";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -38,7 +38,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.76B";
+} from "./settings.js?v=5.7.76D";
 import {
   avg,
   stdDev,
@@ -61,7 +61,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.76B";
+} from "./analytics.js?v=5.7.76D";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -70,7 +70,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.76B";
+} from "./bayesian.js?v=5.7.76D";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -79,7 +79,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.76B";
+} from "./session.js?v=5.7.76D";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -87,7 +87,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.76B";
+} from "./pressure.js?v=5.7.76D";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -99,7 +99,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.76B";
+} from "./recommendations.js?v=5.7.76D";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -113,7 +113,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.76B";
+} from "./store.js?v=5.7.76D";
 
 
 
@@ -5466,6 +5466,7 @@ function syncReflectionRatingTiles(targetId) {
       const active = String(btn.dataset.rating || "") === value;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.setAttribute("aria-selected", active ? "true" : "false");
     });
   });
 }
@@ -18468,7 +18469,17 @@ let routineConsoleLastRows = [];
 let routineConsoleSelectedIdsSet = new Set();
 let routineConsoleGridView = "core";
 let routineConsoleActiveMetric = "all";
-let routineConsoleActiveWorkspace = "grid";
+const ROUTINE_CONSOLE_WORKSPACE_STORAGE_KEY = "snookerRoutineConsoleWorkspace";
+function routineConsoleStoredWorkspaceSafe() {
+  try {
+    const value = localStorage.getItem(ROUTINE_CONSOLE_WORKSPACE_STORAGE_KEY);
+    return value || "grid";
+  } catch (_) { return "grid"; }
+}
+function routineConsolePersistWorkspaceSafe(workspace) {
+  try { localStorage.setItem(ROUTINE_CONSOLE_WORKSPACE_STORAGE_KEY, String(workspace || "grid")); } catch (_) {}
+}
+let routineConsoleActiveWorkspace = routineConsoleStoredWorkspaceSafe();
 let routineConsoleSortState = {field:"name", direction:"asc"};
 
 
@@ -19441,7 +19452,7 @@ function routineSemanticReadinessLabelSafe(score) {
 function routineSemanticReadinessBarSafe(label, score, key) {
   const pct = routineSemanticReadinessClampSafe(score);
   const cls = pct >= 80 ? "good" : pct >= 60 ? "watch" : "risk";
-  return `<div class="semantic-readiness-bar semantic-readiness-${attrText(cls)}"><div class="semantic-readiness-bar-head"><span>${escapeHtml(label)}</span><strong>${numText(pct)}%</strong></div><div class="semantic-readiness-track" aria-hidden="true"><span style="width:${pct}%"></span></div><small>${escapeHtml(routineSemanticReadinessBarHintSafe(key, pct))}</small></div>`;
+  return `<div class="semantic-readiness-telemetry-item semantic-readiness-${attrText(cls)}" data-readiness-key="${attrText(key)}" title="${attrText(routineSemanticReadinessBarHintSafe(key, pct))}"><div class="semantic-readiness-telemetry-label"><span>${escapeHtml(label)}</span><strong>${numText(pct)}%</strong></div><div class="semantic-readiness-track" aria-hidden="true"><span style="width:${pct}%"></span></div></div>`;
 }
 function routineSemanticReadinessBarHintSafe(key, score) {
   const hints = {
@@ -19462,7 +19473,7 @@ function renderRoutineSemanticReadinessDashboardSafe(rows) {
     const model = routineSemanticReadinessScoreSafe(rows || routineConsoleRowsSafe());
     const s = model.scores || {};
     const weak = (model.weak || []).slice(0, 4).map(item => routineConsoleChipSafe(`${item.key} ${item.score}%`, item.key === "etu" ? "etu" : item.key === "validation" ? "validation" : item.key === "benchmark" ? "benchmark" : item.key === "transfer" ? "transfer" : "derived", item.score >= 70 ? "ok" : item.score >= 50 ? "watch" : "risk")).join("") || routineConsoleChipSafe("No weak area", "validation", "ok");
-    host.innerHTML = `<section class="routine-readiness-card analytics-note"><div class="section-head"><div><h3>Semantic Readiness Dashboard</h3><p class="muted">Shows whether the visible routine database is ready for reliable recommendation, prediction and coaching logic.</p></div><div class="semantic-readiness-score"><strong>${numText(s.overall || 0)}%</strong><span>${escapeHtml(routineSemanticReadinessLabelSafe(s.overall || 0))}</span></div></div><div class="semantic-readiness-grid">${routineSemanticReadinessBarSafe("Taxonomy", s.taxonomy, "taxonomy")}${routineSemanticReadinessBarSafe("ETU", s.etu, "etu")}${routineSemanticReadinessBarSafe("Transfer", s.transfer, "transfer")}${routineSemanticReadinessBarSafe("Dependency", s.dependency, "dependency")}${routineSemanticReadinessBarSafe("Benchmark", s.benchmark, "benchmark")}${routineSemanticReadinessBarSafe("Validation", s.validation, "validation")}${routineSemanticReadinessBarSafe("Confidence", s.confidence, "confidence")}</div><div class="routine-readiness-weak-row"><strong>Weak-area queue</strong><div class="routine-derived-chip-row">${weak}</div></div></section>`;
+    host.innerHTML = `<section class="routine-readiness-card routine-readiness-telemetry-card analytics-note"><div class="semantic-readiness-telemetry-head"><div><h3>Semantic Readiness</h3><p class="muted tiny">Horizontal telemetry for prediction and coaching readiness.</p></div><div class="semantic-readiness-score"><strong>${numText(s.overall || 0)}%</strong><span>${escapeHtml(routineSemanticReadinessLabelSafe(s.overall || 0))}</span></div></div><div class="semantic-readiness-telemetry-strip">${routineSemanticReadinessBarSafe("Taxonomy", s.taxonomy, "taxonomy")}${routineSemanticReadinessBarSafe("ETU", s.etu, "etu")}${routineSemanticReadinessBarSafe("Transfer", s.transfer, "transfer")}${routineSemanticReadinessBarSafe("Dependency", s.dependency, "dependency")}${routineSemanticReadinessBarSafe("Benchmark", s.benchmark, "benchmark")}${routineSemanticReadinessBarSafe("Validation", s.validation, "validation")}${routineSemanticReadinessBarSafe("Confidence", s.confidence, "confidence")}</div><div class="routine-readiness-weak-row routine-readiness-weak-row-compact"><strong>Weak-area queue</strong><div class="routine-derived-chip-row">${weak}</div></div></section>`;
   } catch (err) { try { logAppError(err, "renderRoutineSemanticReadinessDashboardSafe"); } catch (_) {} }
 }
 /* ===== end v5.7.75K Semantic Readiness Dashboard ===== */
@@ -19572,6 +19583,7 @@ function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
       const active = String(btn.dataset.id || "") === cfg.key;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.setAttribute("aria-selected", active ? "true" : "false");
     });
     document.querySelectorAll("[data-console-workspace]").forEach(el => {
       const allowed = String(el.getAttribute("data-console-workspace") || "").split(/\s+/).filter(Boolean);
@@ -19599,6 +19611,7 @@ function routineConsoleSetWorkspaceSafe(workspace) {
   try {
     const cfg = routineConsoleWorkspaceConfigSafe(workspace);
     routineConsoleActiveWorkspace = cfg.key;
+    routineConsolePersistWorkspaceSafe(cfg.key);
     const viewEl = $("routineConsoleGridView");
     const filterEl = $("routineStudioAuditFilter");
     if (viewEl && cfg.view) viewEl.value = cfg.view;
@@ -19938,7 +19951,7 @@ function routineConsoleRenderSpreadsheetGridSafe(rows) {
   const body = sortedRows.map(row => {
     const selected = String(row.id) === String(routineConsoleSelectedRoutineId);
     const checked = routineConsoleSelectedIdsSet.has(String(row.id)) ? " checked" : "";
-    return `<tr class="${selected ? "selected-row" : ""} ${routineConsoleStatusClassSafe(row)}" data-routine-id="${attrText(row.id)}"><td class="grid-select-col"><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}"${checked} /></td>${columns.map((col, idx) => `<td class="routine-grid-cell ${idx === 0 ? "grid-frozen-cell" : ""}" data-col="${attrText(col.key)}">${idx === 0 ? `<button type="button" class="link-button routine-grid-open" data-action="routine-console-select" data-id="${attrText(row.id)}">Open</button>` : ""}${routineConsoleRenderGridCellSafe(row, col)}</td>`).join("")}</tr>`;
+    return `<tr class="routine-grid-row ${selected ? "selected-row" : ""} ${routineConsoleStatusClassSafe(row)}" data-action="routine-console-row-select" data-id="${attrText(row.id)}" data-routine-id="${attrText(row.id)}" tabindex="0"><td class="grid-select-col"><input type="checkbox" class="routine-studio-check" value="${attrText(row.id)}"${checked} /></td>${columns.map((col, idx) => `<td class="routine-grid-cell ${idx === 0 ? "grid-frozen-cell" : ""}" data-col="${attrText(col.key)}">${routineConsoleRenderGridCellSafe(row, col)}</td>`).join("")}</tr>`;
   }).join("");
   return body ? `<div class="routine-console-scroll routine-console-spreadsheet" role="region" aria-label="Routine spreadsheet grid"><table class="routine-console-table routine-grid-table"><colgroup>${colgroup}</colgroup><thead>${header}</thead><tbody>${body}</tbody></table></div>` : `<div class="analytics-note">No routines match this Routine Console filter.</div>`;
 }
@@ -19962,6 +19975,21 @@ function bindRoutineConsoleGridEngineSafe() {
       routineConsoleCommitQuickEditSafe(target, {silent:true});
       renderRoutineStudioLite();
     }
+  });
+  document.addEventListener("click", event => {
+    const row = event.target?.closest?.(".routine-grid-row");
+    if (!row) return;
+    if (event.target?.closest?.("button,a,input,select,textarea,label")) return;
+    const id = row.dataset.id || row.dataset.routineId || "";
+    if (id) renderRoutineConsoleEditor(id);
+  });
+  document.addEventListener("keydown", event => {
+    const row = event.target?.closest?.(".routine-grid-row");
+    if (!row || !["Enter"," "].includes(event.key)) return;
+    if (event.target?.closest?.("button,a,input,select,textarea,label")) return;
+    event.preventDefault();
+    const id = row.dataset.id || row.dataset.routineId || "";
+    if (id) renderRoutineConsoleEditor(id);
   });
   document.addEventListener("focusin", event => {
     const target = event.target;
@@ -20114,7 +20142,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76B</strong><span>Governance KPI Dashboard Pass</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Governance KPIs now use compact dashboard cards with icons, health bars, color states and clearer hover feedback while keeping the metric-driven workspace filters.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.76E</strong><span>Grid Database Pass v2</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Grid Database Pass v2 tightens the spreadsheet/database experience with denser rows, row-based selection, sticky toolbar treatment, hover-only controls and stronger frozen-column behavior.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
