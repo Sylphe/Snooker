@@ -8904,3 +8904,113 @@ body[data-theme-mode="dark"] .focus-v2-micro-feedback {
   .focus-v2-thumb-dock { left: 10px; right: 10px; bottom: 8px; padding-top: 10px; }
 }
 /* end v5.7.77H */
+
+/* v5.7.77I Focus Mode v2 Persistent Session Memory */
+.focus-v2-session-memory {
+  width: min(100%, 620px);
+  justify-self: center;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--border, rgba(148,163,184,.28)) 45%, transparent);
+  background: color-mix(in srgb, var(--surface-soft, rgba(148,163,184,.10)) 72%, transparent);
+}
+.focus-v2-session-memory.compact {
+  padding: 8px 10px;
+  border-radius: 18px;
+}
+.focus-v2-memory-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted, #64748b);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 900;
+}
+.focus-v2-memory-head strong { color: var(--text, #0f172a); }
+.focus-v2-memory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.focus-v2-memory-grid span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface, #fff) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, rgba(148,163,184,.28)) 32%, transparent);
+}
+.focus-v2-memory-grid b {
+  font-size: clamp(1.05rem, 4vw, 1.55rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.focus-v2-memory-grid small {
+  color: var(--muted, #64748b);
+  font-size: .64rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 850;
+}
+.focus-v2-memory-recent {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.focus-v2-memory-recent i,
+.focus-v2-memory-empty {
+  font-style: normal;
+  color: var(--muted, #64748b);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.focus-v2-memory-recent i {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #2563eb) 10%, var(--surface, #fff));
+  color: var(--text, #0f172a);
+}
+body[data-theme="dark"] .focus-v2-session-memory,
+body[data-theme-mode="dark"] .focus-v2-session-memory,
+:root[data-theme="dark"] .focus-v2-session-memory {
+  background: rgba(15,23,42,.42);
+  border-color: rgba(148,163,184,.16);
+}
+body[data-theme="dark"] .focus-v2-memory-grid span,
+body[data-theme-mode="dark"] .focus-v2-memory-grid span,
+:root[data-theme="dark"] .focus-v2-memory-grid span {
+  background: rgba(8,25,18,.70);
+  border-color: rgba(148,163,184,.14);
+}
+body[data-theme="dark"] .focus-v2-memory-head strong,
+body[data-theme-mode="dark"] .focus-v2-memory-head strong,
+:root[data-theme="dark"] .focus-v2-memory-head strong,
+body[data-theme="dark"] .focus-v2-memory-recent i,
+body[data-theme-mode="dark"] .focus-v2-memory-recent i,
+:root[data-theme="dark"] .focus-v2-memory-recent i {
+  color: #f8fafc;
+}
+body[data-theme="dark"] .focus-v2-memory-recent i,
+body[data-theme-mode="dark"] .focus-v2-memory-recent i,
+:root[data-theme="dark"] .focus-v2-memory-recent i {
+  background: rgba(34,197,94,.16);
+}
+@media (max-width: 640px) {
+  .focus-v2-session-memory { border-radius: 18px; }
+  .focus-v2-memory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .focus-v2-session-memory.compact .focus-v2-memory-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .focus-v2-session-memory.compact .focus-v2-memory-grid span { padding: 6px 4px; text-align: center; }
+  .focus-v2-session-memory.compact .focus-v2-memory-grid small { font-size: .56rem; }
+}
+/* end v5.7.77I */

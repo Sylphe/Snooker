@@ -1,21 +1,22 @@
 # Snooker Practice PWA
 
-Version: 5.7.77H-focus-mode-v2-minimal-visual-language-pass
+Version: 5.7.77I-focus-mode-v2-persistent-session-memory
 
-## v5.7.77H — Focus Mode v2 Minimal Visual Language Pass
+## v5.7.77I — Focus Mode v2 Persistent Session Memory
 
-This release keeps the original Focus Mode untouched and refines only the parallel Focus Mode v2 test path. It preserves the state architecture, thumb-zone layout, adaptive input modes, quick logging, gestures, adaptive HUDs and micro-feedback, then applies a calmer training-cockpit visual language.
+This release keeps the original Focus Mode untouched and updates only the parallel Focus Mode v2 test path.
 
 ### Included
 
-- Minimal visual-language pass for Focus Mode v2.
-- Reduced card/border weight and lower visual fragmentation.
-- Larger calm score/HUD surfaces and cleaner thumb-zone hierarchy.
-- Dark-mode safe high-contrast HUD, numpad, micro-feedback and dock styling.
-- Softer transitions and less dashboard-like presentation.
+- Persistent Focus Mode v2 session memory stored locally.
+- Last score, session best, attempt continuity and recent v2 draft entries.
+- Table memory and adaptive input-mode memory per routine.
+- Session memory strip on Pre-shot, Logging and Review screens.
+- PB feedback corrected to compare against the previous session best before updating.
+- v5.7.77H minimal visual language preserved.
 - Existing Focus Mode remains untouched.
 
 ### Validation
 
 - ES module syntax checked.
-- Zip integrity checked.
+- Zip integrity tested.
