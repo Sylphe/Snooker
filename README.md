@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.77U.3-focus-mode-v2-break-control-stabilization
+Version: 5.7.77U.4-etu-decay-recovery-aware-load
 
-## v5.7.77U.3 — Focus Mode v2 Break Control Stabilization
+## v5.7.77U.4 — ETU Decay & Recovery-Aware Load Model
 
 - Fixes dark-mode visibility of compact snooker-ball break controls.
 - Reorders break controls into a prioritized block: ball increments, Miss/Foul/Clear/Save, then numpad.

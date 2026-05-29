@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-4";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-4";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.77U-3";
+} from "./utils.js?v=5.7.77U-4";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.77U-3";
+} from "./settings.js?v=5.7.77U-4";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.77U-3";
+} from "./analytics.js?v=5.7.77U-4";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -71,7 +71,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.77U-3";
+} from "./bayesian.js?v=5.7.77U-4";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -80,7 +80,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.77U-3";
+} from "./session.js?v=5.7.77U-4";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -88,7 +88,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.77U-3";
+} from "./pressure.js?v=5.7.77U-4";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -100,7 +100,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.77U-3";
+} from "./recommendations.js?v=5.7.77U-4";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -114,7 +114,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.77U-3";
+} from "./store.js?v=5.7.77U-4";
 
 
 
@@ -9118,6 +9118,51 @@ function etuWindowSumFromRowsSafe(rows, days, fallbackCount=0) {
     return arr.slice(-count).reduce((sum, r) => sum + Math.max(0, Number(r.effectiveEtu || 0)), 0);
   } catch (_) { return 0; }
 }
+function etuLatestDateFromRowsSafe(rows) {
+  try {
+    const dates = (Array.isArray(rows) ? rows : []).map(r => Number(r?.dateValue)).filter(Number.isFinite).sort((a,b)=>a-b);
+    return dates.length ? dates[dates.length - 1] : null;
+  } catch (_) { return null; }
+}
+function etuRestGapDaysFromRowsSafe(rows, nowMs=Date.now()) {
+  try {
+    const latest = etuLatestDateFromRowsSafe(rows);
+    return Number.isFinite(latest) ? Math.max(0, (Number(nowMs || Date.now()) - latest) / 86400000) : null;
+  } catch (_) { return null; }
+}
+function etuAcuteDecayWeightSafe(ageDays) {
+  try {
+    const d = Math.max(0, Number(ageDays || 0));
+    // Acute ETU is a fatigue proxy, not a weekly-volume proxy. Half-life ~1.6 days:
+    // Monday load still informs Friday, but should no longer block normal practice.
+    return Math.max(0, Math.min(1, Math.exp(-d / 2.35)));
+  } catch (_) { return 0; }
+}
+function etuRestRecoveryModifierSafe(gapDays) {
+  try {
+    if (!Number.isFinite(Number(gapDays))) return 1;
+    const d = Math.max(0, Number(gapDays));
+    if (d < 1) return 1.00;
+    if (d < 2) return 0.78;
+    if (d < 3) return 0.58;
+    if (d < 4) return 0.40;
+    if (d < 5) return 0.28;
+    return 0.20;
+  } catch (_) { return 1; }
+}
+function etuDecayedAcuteSumFromRowsSafe(rows, days=7, nowMs=Date.now()) {
+  try {
+    const arr = (Array.isArray(rows) ? rows : []).filter(r => Number.isFinite(Number(r?.dateValue)));
+    if (!arr.length) return 0;
+    const span = Math.max(1, Number(days || 7));
+    const cutoff = Number(nowMs || Date.now()) - span * 86400000;
+    return arr.filter(r => Number(r.dateValue) >= cutoff).reduce((sum, r) => {
+      const ageDays = Math.max(0, (Number(nowMs || Date.now()) - Number(r.dateValue)) / 86400000);
+      const etu = Math.max(0, Number(r.effectiveEtu ?? r.etu ?? 0));
+      return sum + etu * etuAcuteDecayWeightSafe(ageDays);
+    }, 0);
+  } catch (_) { return 0; }
+}
 function smartBuilderEtuContextSafe(logs=data.logs || []) {
   try {
     const scoped = Array.isArray(logs) ? logs : [];
@@ -9131,12 +9176,17 @@ function smartBuilderEtuContextSafe(logs=data.logs || []) {
     });
     const latestSession = sortedRows.length ? sortedRows[sortedRows.length - 1] : null;
     const totalEtu = Math.max(0, Number(load?.totalEtu || rows.reduce((sum, r) => sum + Math.max(0, Number(r.effectiveEtu || 0)), 0)));
-    const acute = etuWindowSumFromRowsSafe(sortedRows, 7, 3);
+    const weeklyEtu = etuWindowSumFromRowsSafe(sortedRows, 7, 3);
+    const acuteFatigueEtu = etuDecayedAcuteSumFromRowsSafe(sortedRows, 7);
+    const restGapDays = etuRestGapDaysFromRowsSafe(sortedRows);
+    const recoveryModifier = etuRestRecoveryModifierSafe(restGapDays);
+    const acute = acuteFatigueEtu;
     const last28 = etuWindowSumFromRowsSafe(sortedRows, 28, Math.min(12, sortedRows.length));
     const recent4 = sortedRows.slice(-4).reduce((sum, r) => sum + Math.max(0, Number(r.effectiveEtu || 0)), 0);
     const baseline = Math.max(0.1, last28 > 0 ? last28 / 4 : Math.max(0.1, totalEtu / Math.max(1, Math.ceil(sortedRows.length / 3))));
-    const ratio = baseline > 0 ? acute / baseline : 1;
-    const sustainable = typeof sustainablePredictionPaceSafe === "function" ? sustainablePredictionPaceSafe({...load, last7Etu:acute, last28Etu:last28}) : Math.max(1, Math.min(7, Number(load?.etuPerWeek || 0) || acute || 1));
+    const ratio = baseline > 0 ? acuteFatigueEtu / baseline : 1;
+    const weeklyRatio = baseline > 0 ? weeklyEtu / baseline : 1;
+    const sustainable = typeof sustainablePredictionPaceSafe === "function" ? sustainablePredictionPaceSafe({...load, last7Etu:weeklyEtu, acuteFatigueEtu, last28Etu:last28}) : Math.max(1, Math.min(7, Number(load?.etuPerWeek || 0) || weeklyEtu || 1));
     const sortedDomains = (domainLoads || []).slice().filter(d => Number(d?.etu || 0) > 0).sort((a,b)=>Number(a.etu||0)-Number(b.etu||0));
     const undertrained = sortedDomains.slice(0, Math.min(3, sortedDomains.length));
     const overloaded = sortedDomains.slice(-2).reverse();
@@ -9149,23 +9199,28 @@ function smartBuilderEtuContextSafe(logs=data.logs || []) {
     let label = "Productive ETU load";
     let guidance = "normal acquisition and transfer work is acceptable";
     const latestEtu = Number(latestSession?.effectiveEtu || 0);
-    if (ratio >= 1.45 || latestEtu >= 4.2) {
+    const latestAcuteEtu = latestEtu * etuAcuteDecayWeightSafe(Number.isFinite(Number(restGapDays)) ? Number(restGapDays) : 0);
+    if ((ratio >= 1.45 || latestAcuteEtu >= 4.2) && recoveryModifier >= 0.40) {
       state = "high";
-      label = "High recent ETU";
+      label = "High acute ETU";
       guidance = "bias the next build toward consolidation, recovery and lower pressure";
+    } else if (weeklyRatio >= 1.35 && ratio < 0.85 && Number(restGapDays || 0) >= 3) {
+      state = "recovered_high_week";
+      label = "Weekly load high, acute fatigue recovered";
+      guidance = "weekly volume is elevated, but the rest gap reduces the brake; controlled anchor work is acceptable";
     } else if (ratio <= 0.55 && acute < Math.max(1.2, sustainable * 0.55) && totalEtu > 0) {
       state = "low";
-      label = "Low recent ETU";
+      label = "Low acute ETU";
       guidance = "controlled acquisition is acceptable if readiness is normal";
-    } else if (ratio >= 1.15 || recent4 >= Math.max(6, sustainable * 0.9)) {
+    } else if (ratio >= 1.15 || (recent4 * recoveryModifier) >= Math.max(6, sustainable * 0.9)) {
       state = "moderate_high";
-      label = "Moderately high ETU";
+      label = "Moderately high acute ETU";
       guidance = "keep pressure controlled and avoid stacking too many volatile drills";
     }
-    return {load, domainLoads, latestSession, etuSource:load?.etuSource || latestSession?.etuSource || "estimated_from_session", acute, baseline, ratio, sustainable, undertrained, overloaded, strategic, subtypeTotals, recentSubtypeTotals, latestSubtype, dominantSubtype, state, label, guidance};
+    return {load, domainLoads, latestSession, etuSource:load?.etuSource || latestSession?.etuSource || "estimated_from_session", acute, acuteFatigueEtu, weeklyEtu, weeklyRatio, baseline, ratio, restGapDays, recoveryModifier, latestAcuteEtu, sustainable, undertrained, overloaded, strategic, subtypeTotals, recentSubtypeTotals, latestSubtype, dominantSubtype, state, label, guidance};
   } catch (err) {
     try { logAppError(err, "smartBuilderEtuContextSafe"); } catch (_) {}
-    return {load:null, domainLoads:[], latestSession:null, acute:0, baseline:0, ratio:1, sustainable:0, undertrained:[], overloaded:[], strategic:null, subtypeTotals:blankEtuSubtypeProfileSafe(), recentSubtypeTotals:blankEtuSubtypeProfileSafe(), latestSubtype:blankEtuSubtypeProfileSafe(), dominantSubtype:{key:"technical", label:"Tech", value:0}, state:"unknown", label:"ETU unavailable", guidance:"use normal builder logic"};
+    return {load:null, domainLoads:[], latestSession:null, acute:0, acuteFatigueEtu:0, weeklyEtu:0, weeklyRatio:1, baseline:0, ratio:1, restGapDays:null, recoveryModifier:1, latestAcuteEtu:0, sustainable:0, undertrained:[], overloaded:[], strategic:null, subtypeTotals:blankEtuSubtypeProfileSafe(), recentSubtypeTotals:blankEtuSubtypeProfileSafe(), latestSubtype:blankEtuSubtypeProfileSafe(), dominantSubtype:{key:"technical", label:"Tech", value:0}, state:"unknown", label:"ETU unavailable", guidance:"use normal builder logic"};
   }
 }
 function smartBuilderRoutineDomainKeySafe(routine) {
@@ -9785,13 +9840,17 @@ function renderSmartBuilderEtuContextSafe(ctx) {
     if (!smartBuilderEtuLayerEnabled()) return `<div class="adaptive-rationale"><strong>ETU layer bypassed:</strong> Smart Builder is using Bayesian ranking, strategy, template constraints, and readiness structure without ETU load modifiers.</div>`;
     if (!ctx || !ctx.load) return `<div class="adaptive-rationale">ETU state unavailable; Smart Builder used standard scoring.</div>`;
     const ratio = Number(ctx.ratio || 0);
+    const weeklyRatio = Number(ctx.weeklyRatio || 0);
     const latest = Number(ctx.latestSession?.effectiveEtu || 0);
+    const latestAcute = Number(ctx.latestAcuteEtu || 0);
     const under = (ctx.undertrained || []).slice(0,2).map(d => `${predictionDomainLabelSafe(d.key)} ${numText(d.etu)} ETU`).join(" · ") || "none yet";
     const strategyText = ctx.strategic ? smartBuilderStrategicLabelSafe(ctx.strategic) : "benchmark and skill calibration active";
     const subtypeText = formatEtuSubtypeProfileSafe(ctx.recentSubtypeTotals || ctx.subtypeTotals || {});
+    const gapText = Number.isFinite(Number(ctx.restGapDays)) ? `${numText(ctx.restGapDays)}d rest gap` : "rest gap unavailable";
+    const recoveryText = `recovery modifier ${numText(ctx.recoveryModifier || 1)}×`;
     const subtypeLine = subtypeText ? `<br><span class="muted small"><strong>ETU subtype mix:</strong> ${escapeHtml(subtypeText)} · dominant recent subtype: ${escapeHtml(ctx.dominantSubtype?.label || "—")}</span>` : "";
     const sourceBadge = renderEtuSourceBadgeSafe(ctx.etuSource || ctx.load?.etuSource || ctx.latestSession?.etuSource || "estimated_from_session", {long:true});
-    return `<div class="adaptive-rationale"><strong>ETU-aware builder:</strong> ${escapeHtml(ctx.label)} · 7d ${numText(ctx.acute)} ETU vs baseline ${numText(ctx.baseline)} (${numText(ratio)}×) · latest ${numText(latest)} ETU · ${sourceBadge} · undertrained: ${escapeHtml(under)}. ${escapeHtml(ctx.guidance)}${subtypeLine}<br><span class="muted small">${escapeHtml(smartBuilderSportDomainWeightsNoteSafe())}</span><br><strong>Smart Builder v2:</strong> ${escapeHtml(strategyText)}.</div>`;
+    return `<div class="adaptive-rationale"><strong>ETU-aware builder:</strong> ${escapeHtml(ctx.label)} · weekly 7d load ${numText(ctx.weeklyEtu)} ETU vs baseline ${numText(ctx.baseline)} (${numText(weeklyRatio)}×) · acute fatigue ${numText(ctx.acuteFatigueEtu ?? ctx.acute)} ETU (${numText(ratio)}×) · latest ${numText(latest)} ETU, decayed to ${numText(latestAcute)} · ${escapeHtml(gapText)} · ${escapeHtml(recoveryText)} · ${sourceBadge} · undertrained: ${escapeHtml(under)}. ${escapeHtml(ctx.guidance)}${subtypeLine}<br><span class="muted small">Weekly load is training-volume context; acute fatigue is the decayed load used for braking recommendations.</span><br><span class="muted small">${escapeHtml(smartBuilderSportDomainWeightsNoteSafe())}</span><br><strong>Smart Builder v2:</strong> ${escapeHtml(strategyText)}.</div>`;
   } catch (_) {
     return `<div class="adaptive-rationale">ETU-aware builder active.</div>`;
   }
@@ -11050,7 +11109,7 @@ function renderSmartBuilderRoutineSchemaAuditSafe(plan) {
 
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
-  const horizonWeeks = Math.max(1, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
+  const horizonWeeks = Math.max(0.25, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
   const compDateRaw = periodization.competitionDate || $("competitionDate")?.value || "";
   let compDate = null;
   if (compDateRaw) {
@@ -13532,13 +13591,18 @@ function predictionLoadManagementSafe(rows, load) {
   const w14 = predictionRollingEtuWindowSafe(list, 14);
   const w28 = predictionRollingEtuWindowSafe(list, 28);
   const baseline = Math.max(0.35, w28.etu > 0 ? w28.etu / 4 : w14.etu > 0 ? w14.etu / 2 : Number(load?.avgEtuPerSession || 0) * 2);
-  const acuteRatio = w7.etu / baseline;
+  const restGapDays = etuRestGapDaysFromRowsSafe(list);
+  const recoveryModifier = etuRestRecoveryModifierSafe(restGapDays);
+  const acuteFatigueEtu = etuDecayedAcuteSumFromRowsSafe(list, 7);
+  const weeklyRatio = w7.etu / baseline;
+  const acuteRatio = acuteFatigueEtu / baseline;
   let status = {label:"Build baseline", cls:"watch", note:"Log two stable weeks before treating load guidance as strong."};
   if (w14.sessions >= 3 || w28.sessions >= 5) {
-    if (w7.etu < 2.5 || acuteRatio < 0.65) status = {label:"Low load", cls:"watch", note:"Useful for recovery or maintenance; add acquisition only if you feel fresh."};
-    else if (w7.etu <= 8.5 && acuteRatio <= 1.35) status = {label:"Productive load", cls:"good", note:"Current load looks developmentally useful without obvious overload signal."};
-    else if (w7.etu <= 12.0 && acuteRatio <= 1.85) status = {label:"High load", cls:"watch", note:"Good adaptation stimulus, but the next block should usually be lighter or more consolidated."};
-    else status = {label:"Overload risk", cls:"risk", note:"Short-term load is materially above baseline; prioritize recovery or low-pressure consolidation."};
+    if (weeklyRatio >= 1.35 && acuteRatio < 0.85 && Number(restGapDays || 0) >= 3) status = {label:"Weekly high / acute recovered", cls:"good", note:"Weekly training volume is elevated, but the rest gap has materially reduced acute fatigue."};
+    else if (acuteFatigueEtu < 2.0 || acuteRatio < 0.65) status = {label:"Low acute load", cls:"watch", note:"Acute fatigue is low; controlled acquisition is acceptable if cueing and focus feel normal."};
+    else if (acuteFatigueEtu <= 7.5 && acuteRatio <= 1.35) status = {label:"Productive acute load", cls:"good", note:"Current decayed load looks developmentally useful without an acute overload signal."};
+    else if (acuteFatigueEtu <= 10.5 && acuteRatio <= 1.85) status = {label:"High acute load", cls:"watch", note:"Acute load is elevated; the next block should usually be lighter or more consolidated."};
+    else status = {label:"Acute overload risk", cls:"risk", note:"Decayed short-term load is materially above baseline; prioritize recovery or low-pressure consolidation."};
   }
   const recent = list.slice(-8).map(r => Number(r.etu || r.effectiveEtu || 0)).filter(Number.isFinite);
   const mean = recent.length ? avg(recent) : 0;
@@ -13547,12 +13611,14 @@ function predictionLoadManagementSafe(rows, load) {
   const consistency = Math.max(0, Math.min(100, 100 - cv * 55));
   const latest = list.length ? list[list.length - 1] : null;
   const latestEtu = Number(latest?.etu || latest?.effectiveEtu || 0);
+  const latestAcuteEtu = latestEtu * etuAcuteDecayWeightSafe(Number.isFinite(Number(restGapDays)) ? Number(restGapDays) : 0);
   let recommendation = "Build more ETU history before using load recommendations.";
   if (status.cls === "risk") recommendation = "Rest or 15–25 min very light recovery. Avoid benchmark or pressure work.";
-  else if (status.label === "High load" || latestEtu >= 3.6) recommendation = "Use a short consolidation/recovery block next: easy cueing, low pressure, stop before quality drops.";
-  else if (status.label === "Low load") recommendation = "If fresh, add one focused acquisition block; otherwise keep it as recovery.";
-  else if (status.label === "Productive load") recommendation = "Continue normal training rhythm; rotate acquisition and transfer rather than adding volume for its own sake.";
-  return { w7, w14, w28, baseline, acuteRatio, status, consistency, recommendation, latestEtu };
+  else if (status.label === "High acute load" || latestAcuteEtu >= 3.6) recommendation = "Use a short consolidation/recovery block next: easy cueing, low pressure, stop before quality drops.";
+  else if (status.label === "Weekly high / acute recovered") recommendation = "Weekly volume is high but acute fatigue is recovered; use normal duration with controlled pressure and avoid volume chasing.";
+  else if (status.label === "Low acute load") recommendation = "If fresh, add one focused acquisition or anchor block; otherwise keep it as recovery.";
+  else if (status.label === "Productive acute load") recommendation = "Continue normal training rhythm; rotate acquisition and transfer rather than adding volume for its own sake.";
+  return { w7, w14, w28, baseline, acuteRatio, weeklyRatio, acuteFatigueEtu, restGapDays, recoveryModifier, status, consistency, recommendation, latestEtu, latestAcuteEtu };
 }
 function predictionLoadBarSafe(label, value, max, detail) {
   const pct = Math.max(3, Math.min(100, Number(value || 0) / Math.max(1, Number(max || 1)) * 100));
@@ -13562,10 +13628,12 @@ function renderPredictionEtuLoadManagementSafe(load) {
   try {
     const rows = Array.isArray(load?.rows) ? load.rows : [];
     const mgmt = predictionLoadManagementSafe(rows, load || {});
-    const max = Math.max(6, mgmt.w7.etu, mgmt.w14.etu / 2, mgmt.w28.etu / 4, mgmt.baseline * 1.8);
+    const max = Math.max(6, mgmt.w7.etu, mgmt.acuteFatigueEtu || 0, mgmt.w14.etu / 2, mgmt.w28.etu / 4, mgmt.baseline * 1.8);
     const ratioPct = Math.max(3, Math.min(100, mgmt.acuteRatio / 2.0 * 100));
+    const weeklyRatioPct = Math.max(3, Math.min(100, mgmt.weeklyRatio / 2.0 * 100));
     const consistencyPct = Math.max(0, Math.min(100, mgmt.consistency));
-    return `<div class="prediction-load-management"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary ${mgmt.status.cls}"><span>Load status</span><div class="value">${htmlText(mgmt.status.label)}</div><small>${htmlText(mgmt.status.note)}</small></div><div class="overview-kpi"><span>7-day load</span><div class="value">${numText(mgmt.w7.etu)}</div><small>${mgmt.w7.sessions} sessions</small></div><div class="overview-kpi"><span>Baseline pace</span><div class="value">${numText(mgmt.baseline)}</div><small>weekly equivalent from recent history</small></div><div class="overview-kpi"><span>Acute / baseline</span><div class="value">${numText(mgmt.acuteRatio)}×</div><small>short-term load pressure</small></div><div class="overview-kpi"><span>Load consistency</span><div class="value">${Math.round(consistencyPct)}/100</div><small>last 8 sessions</small></div></div><div class="prediction-etu-component-list">${predictionLoadBarSafe("7-day ETU", mgmt.w7.etu, max, "acute load")}${predictionLoadBarSafe("14-day avg/week", mgmt.w14.etu / 2, max, "short baseline")}${predictionLoadBarSafe("28-day avg/week", mgmt.w28.etu / 4, max, "longer baseline")}${predictionLoadBarSafe("Sustainable cap", sustainablePredictionPaceSafe(load), max, "forecast cap")}<div class="prediction-domain-bar"><span>Acute / baseline ratio</span><div class="prediction-domain-track"><b style="width:${ratioPct.toFixed(1)}%"></b></div><strong>${numText(mgmt.acuteRatio)}×</strong><small>~1.0× is balanced; >1.8× is caution</small></div><div class="prediction-domain-bar"><span>Load consistency</span><div class="prediction-domain-track"><b style="width:${consistencyPct.toFixed(1)}%"></b></div><strong>${Math.round(consistencyPct)}/100</strong><small>stable load beats sporadic spikes</small></div></div><div class="analytics-note"><strong>Next-load guidance:</strong> ${htmlText(mgmt.recommendation)}</div></div>`;
+    const gapText = Number.isFinite(Number(mgmt.restGapDays)) ? `${numText(mgmt.restGapDays)} days` : "—";
+    return `<div class="prediction-load-management"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary ${mgmt.status.cls}"><span>Load status</span><div class="value">${htmlText(mgmt.status.label)}</div><small>${htmlText(mgmt.status.note)}</small></div><div class="overview-kpi"><span>Weekly 7-day load</span><div class="value">${numText(mgmt.w7.etu)}</div><small>${mgmt.w7.sessions} sessions · volume context</small></div><div class="overview-kpi"><span>Acute fatigue ETU</span><div class="value">${numText(mgmt.acuteFatigueEtu)}</div><small>decayed by time since sessions</small></div><div class="overview-kpi"><span>Recovery gap</span><div class="value">${htmlText(gapText)}</div><small>modifier ${numText(mgmt.recoveryModifier || 1)}×</small></div><div class="overview-kpi"><span>Baseline pace</span><div class="value">${numText(mgmt.baseline)}</div><small>weekly equivalent from recent history</small></div></div><div class="prediction-etu-component-list">${predictionLoadBarSafe("Weekly 7-day ETU", mgmt.w7.etu, max, "volume context")}${predictionLoadBarSafe("Acute fatigue ETU", mgmt.acuteFatigueEtu, max, "decayed fatigue load")}${predictionLoadBarSafe("14-day avg/week", mgmt.w14.etu / 2, max, "short baseline")}${predictionLoadBarSafe("28-day avg/week", mgmt.w28.etu / 4, max, "longer baseline")}${predictionLoadBarSafe("Sustainable cap", sustainablePredictionPaceSafe(load), max, "forecast cap")}<div class="prediction-domain-bar"><span>Acute / baseline ratio</span><div class="prediction-domain-track"><b style="width:${ratioPct.toFixed(1)}%"></b></div><strong>${numText(mgmt.acuteRatio)}×</strong><small>used for fatigue brakes; ~1.0× is balanced</small></div><div class="prediction-domain-bar"><span>Weekly / baseline ratio</span><div class="prediction-domain-track"><b style="width:${weeklyRatioPct.toFixed(1)}%"></b></div><strong>${numText(mgmt.weeklyRatio)}×</strong><small>used as volume context, not an automatic brake</small></div><div class="prediction-domain-bar"><span>Load consistency</span><div class="prediction-domain-track"><b style="width:${consistencyPct.toFixed(1)}%"></b></div><strong>${Math.round(consistencyPct)}/100</strong><small>stable load beats sporadic spikes</small></div></div><div class="analytics-note"><strong>Next-load guidance:</strong> ${htmlText(mgmt.recommendation)}<br><span class="muted small">Weekly ETU measures recent volume. Acute fatigue ETU applies decay, so a Monday load should not over-brake a Friday session.</span></div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEtuLoadManagementSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>ETU load guidance unavailable.</strong> ETU history remains safe.</div>`;
@@ -13590,7 +13658,8 @@ function predictionRecoveryReadinessSafe(load) {
 
   let readiness = 58;
   if (mgmt.status.cls === "risk") readiness -= 24;
-  else if (mgmt.status.label === "High load") readiness -= 12;
+  else if (mgmt.status.label === "High acute load") readiness -= 12;
+  else if (mgmt.status.label === "Weekly high / acute recovered") readiness += 4;
   else if (mgmt.status.label === "Productive load") readiness += 8;
   else if (mgmt.status.label === "Low load") readiness += 2;
   if (latestEtu >= 4.0) readiness -= 14;
@@ -13648,7 +13717,9 @@ function predictionRecoveryReadinessSafe(load) {
   const reasons = [];
   reasons.push(`load status: ${mgmt.status.label}`);
   reasons.push(`latest load: ${numText(latestEtu)} ETU`);
+  if (Number.isFinite(Number(mgmt.latestAcuteEtu))) reasons.push(`latest decayed load: ${numText(mgmt.latestAcuteEtu)} ETU`);
   reasons.push(`acute/baseline: ${numText(acute)}×`);
+  if (Number.isFinite(Number(mgmt.weeklyRatio))) reasons.push(`weekly/baseline: ${numText(mgmt.weeklyRatio)}×`);
   if (Number.isFinite(recentFatigue)) reasons.push(`fatigue: ${numText(recentFatigue)}/5`);
   if (Number.isFinite(recentQuality)) reasons.push(`quality: ${numText(recentQuality)}/5`);
   if (Number.isFinite(gapDays)) reasons.push(`gap: ${numText(gapDays)}d`);
@@ -13671,7 +13742,7 @@ function renderPredictionRecoveryReadinessSafe(load) {
       ["Rest", "rest"]
     ];
     const blockRows = types.map(([label, key]) => predictionSessionTypeBarSafe(label, r.nextType === key, r.blocks[key])).join("");
-    return `<div class="prediction-recovery-readiness"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary ${htmlText(r.cls)}"><span>Readiness</span><div class="value">${Math.round(pct)}/100</div><small>${htmlText(r.label)}</small></div><div class="overview-kpi"><span>Next session type</span><div class="value">${htmlText(r.nextType)}</div><small>${htmlText(r.guidance)}</small></div><div class="overview-kpi"><span>Latest ETU</span><div class="value">${numText(r.latestEtu)}</div><small>last logged session load</small></div><div class="overview-kpi"><span>Acute / baseline</span><div class="value">${numText(r.mgmt.acuteRatio)}×</div><small>${htmlText(r.mgmt.status.label)}</small></div></div><div class="prediction-scale-marker"><div class="prediction-visual-row-head"><span>Recovery-readiness score</span><strong>${Math.round(pct)}/100</strong></div><div class="prediction-scale"><span class="prediction-scale-fill" style="width:${pct}%"></span><i style="left:${pct}%"></i></div><small>combines ETU load, acute/baseline ratio, fatigue, quality, consistency and rest gap.</small></div><div class="prediction-etu-component-list">${blockRows}</div><div class="analytics-note"><strong>Recommendation:</strong> ${htmlText(r.guidance)}<br><strong>Why:</strong> ${r.reasons.map(htmlText).join(" · ")}</div></div>`;
+    return `<div class="prediction-recovery-readiness"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary ${htmlText(r.cls)}"><span>Readiness</span><div class="value">${Math.round(pct)}/100</div><small>${htmlText(r.label)}</small></div><div class="overview-kpi"><span>Next session type</span><div class="value">${htmlText(r.nextType)}</div><small>${htmlText(r.guidance)}</small></div><div class="overview-kpi"><span>Latest ETU</span><div class="value">${numText(r.latestEtu)}</div><small>last logged session load</small></div><div class="overview-kpi"><span>Acute / baseline</span><div class="value">${numText(r.mgmt.acuteRatio)}×</div><small>${htmlText(r.mgmt.status.label)} · weekly ${numText(r.mgmt.weeklyRatio)}×</small></div></div><div class="prediction-scale-marker"><div class="prediction-visual-row-head"><span>Recovery-readiness score</span><strong>${Math.round(pct)}/100</strong></div><div class="prediction-scale"><span class="prediction-scale-fill" style="width:${pct}%"></span><i style="left:${pct}%"></i></div><small>combines ETU load, acute/baseline ratio, fatigue, quality, consistency and rest gap.</small></div><div class="prediction-etu-component-list">${blockRows}</div><div class="analytics-note"><strong>Recommendation:</strong> ${htmlText(r.guidance)}<br><strong>Why:</strong> ${r.reasons.map(htmlText).join(" · ")}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionRecoveryReadinessSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Recovery readiness unavailable.</strong> ETU load guidance remains safe.</div>`;
@@ -21127,7 +21198,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.3</strong><span>Focus Mode v2 Break Control Stabilization</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.4</strong><span>ETU Decay & Recovery-Aware Load Model</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -21226,7 +21297,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.77U.3", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.77U.4", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
