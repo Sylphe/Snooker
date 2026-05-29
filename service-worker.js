@@ -1,26 +1,26 @@
-const CACHE_VERSION = "5.7.77U-13-ai-coaching-snapshot-reconciliation-fix";
+const CACHE_VERSION = "5.7.77U-13.2-bootstrap-hydration-cache-fix";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
-  "./index.html?v=5.7.77U-11",
-  "./styles.css?v=5.7.77U-11",
-  "./app.js?v=5.7.77U-11",
-  "./early-theme.js?v=5.7.77U-11",
-  "./modules/app-core.js?v=5.7.77U-11",
-  "./modules/version.js?v=5.7.77U-11",
-  "./modules/store.js?v=5.7.77U-11",
-  "./modules/utils.js?v=5.7.77U-11",
-  "./modules/settings.js?v=5.7.77U-11",
-  "./modules/analytics.js?v=5.7.77U-11",
-  "./modules/bayesian.js?v=5.7.77U-11",
-  "./modules/session.js?v=5.7.77U-11",
-  "./modules/pressure.js?v=5.7.77U-11",
-  "./modules/recommendations.js?v=5.7.77U-11",
-  "./modules/render.js?v=5.7.77U-11",
-  "./modules/inference.js?v=5.7.77U-11",
-  "./manifest.json?v=5.7.77U-11",
-  "./routine-packs/curated-snooker-routine-pack-v1.json?v=5.7.77U-11",
-  "./routine-packs/nolan-benchmark-pack-v1.json?v=5.7.77U-11",
-  "./icon.svg?v=5.7.77U-11"
+  "./index.html?v=5.7.77U-13.2",
+  "./styles.css?v=5.7.77U-13.2",
+  "./app.js?v=5.7.77U-13.2",
+  "./early-theme.js?v=5.7.77U-13.2",
+  "./modules/app-core.js?v=5.7.77U-13.2",
+  "./modules/version.js?v=5.7.77U-13.2",
+  "./modules/store.js?v=5.7.77U-13.2",
+  "./modules/utils.js?v=5.7.77U-13.2",
+  "./modules/settings.js?v=5.7.77U-13.2",
+  "./modules/analytics.js?v=5.7.77U-13.2",
+  "./modules/bayesian.js?v=5.7.77U-13.2",
+  "./modules/session.js?v=5.7.77U-13.2",
+  "./modules/pressure.js?v=5.7.77U-13.2",
+  "./modules/recommendations.js?v=5.7.77U-13.2",
+  "./modules/render.js?v=5.7.77U-13.2",
+  "./modules/inference.js?v=5.7.77U-13.2",
+  "./manifest.json?v=5.7.77U-13.2",
+  "./routine-packs/curated-snooker-routine-pack-v1.json?v=5.7.77U-13.2",
+  "./routine-packs/nolan-benchmark-pack-v1.json?v=5.7.77U-13.2",
+  "./icon.svg?v=5.7.77U-13.2"
 ];
 
 self.addEventListener("install", event => {
@@ -117,13 +117,15 @@ self.addEventListener("fetch", event => {
   }
   const isAppFile = isCacheableAppFile(url);
   if (isAppFile) {
+    // Network-first is intentional for versioned app shell files. A cache-first
+    // strategy with ignoreSearch:true can serve mixed-version modules after a
+    // deployment, which breaks module bootstrap and IndexedDB hydration.
     event.respondWith(
-      caches.match(request, {ignoreSearch:true}).then(cached => {
-        const networkFetch = fetch(request, {cache:"no-store"})
-          .then(response => cacheResponse(request, response))
-          .catch(() => offlineFallbackResponse(url));
-        return cached || networkFetch || offlineFallbackResponse(url);
-      })
+      fetch(request, {cache:"no-store"})
+        .then(response => cacheResponse(request, response))
+        .catch(() => caches.match(request, {ignoreSearch:false})
+          .then(cachedExact => cachedExact || caches.match(request, {ignoreSearch:true}))
+          .then(cached => cached || offlineFallbackResponse(url)))
     );
     return;
   }
