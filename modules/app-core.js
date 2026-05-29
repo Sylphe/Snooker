@@ -8646,7 +8646,7 @@ function smartBuilderEtuSessionBudgetPolicySafe(template, effectiveGoal="stabili
     if (tpl === "recovery" || goal === "recovery") { min = 1.2; max = 2.4; label = "Recovery ETU budget"; }
     else if (tpl === "consolidation" || goal === "stability") { min = 1.8; max = 3.2; label = "Consolidation ETU budget"; }
     else if (tpl === "pressure" || goal === "variety") { min = 1.8; max = 3.3; label = "Pressure / robustness ETU budget"; }
-    else if (tpl === "benchmark_prep") { min = 2.2; max = 4.0; label = "Benchmark-prep ETU budget"; }
+    else if (tpl === "benchmark_prep") { min = 2.6; max = 5.5; label = "Benchmark-prep ETU budget"; }
     else if (goal === "progression") { min = 2.8; max = 5.0; label = "Acquisition ETU budget"; }
     if (String(strictness || "normal") === "high") max *= 0.9;
     if (String(strictness || "normal") === "low") max *= 1.12;
@@ -10076,7 +10076,7 @@ function smartBuilderStrategicLabelSafe(strategy) {
 function smartBuilderEtuAdjustmentSafe(state, etuContext, sessionTemplate=null) {
   try {
     if (!smartBuilderEtuLayerEnabled()) {
-      return {adjustment:0, reasons:["ETU layer bypassed: Bayesian ranking only"], layerModifiers:blankSmartBuilderLayerModifiers(), layerReasons:blankSmartBuilderLayerReasons()};
+      return {adjustment:0, reasons:["ETU load modifiers bypassed: ETU kept as audit/compliance only"], layerModifiers:blankSmartBuilderLayerModifiers(), layerReasons:blankSmartBuilderLayerReasons()};
     }
     const ctx = etuContext || {};
     const energy = routineEnergyProfile(state);
@@ -10190,7 +10190,7 @@ function smartBuilderEtuAdjustmentSafe(state, etuContext, sessionTemplate=null) 
 }
 function renderSmartBuilderEtuContextSafe(ctx) {
   try {
-    if (!smartBuilderEtuLayerEnabled()) return `<div class="adaptive-rationale"><strong>ETU layer bypassed:</strong> Smart Builder is using Bayesian ranking, strategy, template constraints, and readiness structure without ETU load modifiers.</div>`;
+    if (!smartBuilderEtuLayerEnabled()) return `<div class="adaptive-rationale"><strong>ETU audit-only mode:</strong> Smart Builder is using Bayesian ranking, strategy, template constraints, and readiness structure without ETU load modifiers; template safety caps are still audited and enforced.</div>`;
     if (!ctx || !ctx.load) return `<div class="adaptive-rationale">ETU state unavailable; Smart Builder used standard scoring.</div>`;
     const ratio = Number(ctx.ratio || 0);
     const weeklyRatio = Number(ctx.weeklyRatio || 0);
@@ -10321,7 +10321,7 @@ function smartBuilderFormalTemplateLibrarySafe() {
     benchmark_prep:{
       key:"benchmark_prep", label:"Benchmark-prep block", layer:"benchmark",
       purpose:"Align drill selection with the next benchmark path while preserving load constraints.",
-      allowedDomains:allCore, forbiddenDomains:[], maxBenchmarkDensity:0.45, maxVolatility:"high", maxEtu:4.0, requiredRecoveryDrills:0, maxSwitchingCost:7, maxPressureDrills:2, maxHighRiskDrills:3, requiredBlockTypes:["warmup","primary","transfer","pressure"], strictness:"normal"
+      allowedDomains:allCore, forbiddenDomains:[], maxBenchmarkDensity:0.60, maxVolatility:"high", maxEtu:5.5, requiredRecoveryDrills:0, maxSwitchingCost:7, maxPressureDrills:2, maxHighRiskDrills:3, requiredBlockTypes:["warmup","primary","transfer","pressure"], strictness:"normal"
     },
     standard:{
       key:"standard", label:"Standard smart session", layer:"builder",
@@ -10410,6 +10410,80 @@ function smartBuilderTemplateSessionComplianceSafe(plan) {
     return {template, findings, benchmarkDensity:Math.round(benchmarkDensity * 100) / 100, pressureCount:pressureRows.length, highRiskCount:highRiskRows.length, recoveryCount:recoveryRows.length, etuTotal, switchingCost:Number(usage.switches || 0)};
   } catch (err) { try { logAppError(err, "smartBuilderTemplateSessionComplianceSafe"); } catch (_) {} return {template:plan?.sessionTemplate || null, findings:[]}; }
 }
+
+function smartBuilderEnforceTemplateHardCapsSafe(blocks, ranked=[], template=null, policy=null) {
+  try {
+    const t = smartBuilderFormalizeTemplateSafe(template || {});
+    let out = (blocks || []).map(block => ({...block, picks:[...(block.picks || [])]})).filter(b => b.picks.length);
+    const usedIds = () => new Set(out.flatMap(b => (b.picks || []).map(p => (p.state || p)?.routine?.id).filter(Boolean)));
+    const totalPicks = () => out.reduce((n,b)=>n+(b.picks || []).length,0);
+    const reasons = [];
+    const replacementPool = (predicate) => {
+      const used = usedIds();
+      return (ranked || []).filter(s => s?.routine?.id && !used.has(s.routine.id) && (!predicate || predicate(s))).sort((a,b)=>Number(b.adaptiveScore||0)-Number(a.adaptiveScore||0));
+    };
+    const replaceOrRemove = (row, avoidPredicate, reasonText) => {
+      const block = out[row.blockIndex];
+      if (!block) return false;
+      const pool = replacementPool(s => !avoidPredicate(s, block));
+      if (pool.length) {
+        block.picks[row.pickIndex] = normalizeAdaptivePick(pool[0], 1);
+        reasons.push(`${reasonText}: substituted ${row.name || "one drill"} with ${pool[0].routine?.name || "a lower-risk drill"}`);
+        return true;
+      }
+      if (totalPicks() > 2) {
+        (block.picks || []).splice(row.pickIndex, 1);
+        reasons.push(`${reasonText}: removed ${row.name || "one drill"} because no compliant substitute was available`);
+        return true;
+      }
+      return false;
+    };
+    let guard = 0;
+    while (guard++ < 20) {
+      const rows = [];
+      out.forEach((block, blockIndex) => (block.picks || []).forEach((pick, pickIndex) => {
+        const state = pick.state || pick;
+        rows.push({block, blockIndex, pick, pickIndex, state, name:state?.routine?.name || "drill", score:Number(state?.adaptiveScore || 0), benchmark:smartBuilderIsBenchmarkTestRoutineSafe(state), pressure:smartBuilderPressureLikeStateSafe(state, block)});
+      }));
+      if (!rows.length) break;
+      const total = Math.max(1, rows.length);
+      let changed = false;
+      const pressureRows = rows.filter(r => r.pressure).sort((a,b)=>a.score-b.score);
+      while (pressureRows.length > Number(t.maxPressureDrills ?? 99)) {
+        const row = pressureRows.shift();
+        if (replaceOrRemove(row, (s,b)=>smartBuilderPressureLikeStateSafe(s, b), "Template pressure cap enforced")) { changed = true; break; }
+        break;
+      }
+      if (changed) continue;
+      const rows2 = [];
+      out.forEach((block, blockIndex) => (block.picks || []).forEach((pick, pickIndex) => {
+        const state = pick.state || pick;
+        rows2.push({block, blockIndex, pick, pickIndex, state, name:state?.routine?.name || "drill", score:Number(state?.adaptiveScore || 0), benchmark:smartBuilderIsBenchmarkTestRoutineSafe(state), pressure:smartBuilderPressureLikeStateSafe(state, block)});
+      }));
+      const maxBenchmark = Math.max(1, Math.floor(Math.max(1, rows2.length) * Number(t.maxBenchmarkDensity || 1)));
+      const benchmarkRows = rows2.filter(r => r.benchmark).sort((a,b)=>a.score-b.score);
+      while (benchmarkRows.length > maxBenchmark) {
+        const row = benchmarkRows.shift();
+        if (replaceOrRemove(row, (s)=>smartBuilderIsBenchmarkTestRoutineSafe(s), "Template benchmark-density cap enforced")) { changed = true; break; }
+        break;
+      }
+      if (!changed) break;
+    }
+    out = out.filter(b => (b.picks || []).length);
+    const maxEtu = Number(policy?.max || t.maxEtu || 0);
+    const beforeEtu = smartBuilderBlocksEtuUsageSafe(out);
+    if (maxEtu > 0 && beforeEtu.total > maxEtu) {
+      const trimmed = smartBuilderApplyEtuSessionBudgetSafe(out, {label:"Template hard-cap ETU budget", max:maxEtu, min:Math.min(maxEtu, Number(policy?.min || 0)), target:Math.min(maxEtu, Number(policy?.target || maxEtu))});
+      out = trimmed.blocks || out;
+      if (trimmed?.after?.total < beforeEtu.total) reasons.push(`Template ETU cap enforced: trimmed ${numText(beforeEtu.total)} to ${numText(trimmed.after.total)} ETU`);
+    }
+    return {blocks:out, reasons, usage:smartBuilderBlocksEtuUsageSafe(out), template:t};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderEnforceTemplateHardCapsSafe"); } catch (_) {}
+    return {blocks:blocks || [], reasons:["Template hard-cap enforcement unavailable; using prior composition"], usage:smartBuilderBlocksEtuUsageSafe(blocks || []), template};
+  }
+}
+
 function renderSmartBuilderFormalTemplateSafe(template) {
   try {
     const t = smartBuilderFormalizeTemplateSafe(template || {});
@@ -11668,7 +11742,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   blocks = durationDiscipline.blocks;
   (durationDiscipline.reasons || []).forEach(r => globalReasons.push(r));
   const etuSessionBudgetPolicy = smartBuilderEtuSessionBudgetPolicySafe(sessionTemplate, effectiveGoal, targetMinutes, strictness);
-  const etuSessionBudget = smartBuilderApplyEtuSessionBudgetSafe(blocks, etuSessionBudgetPolicy);
+  let etuSessionBudget = smartBuilderApplyEtuSessionBudgetSafe(blocks, etuSessionBudgetPolicy);
   blocks = etuSessionBudget.blocks;
   (etuSessionBudget.reasons || []).forEach(r => globalReasons.push(r));
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
@@ -11676,21 +11750,26 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const compositionOptimization = smartBuilderOptimizeSessionCompositionSafe(preOptimizationPlan);
   blocks = compositionOptimization.blocks || blocks;
   if (compositionOptimization?.status === "optimized") globalReasons.push("composition optimized under constraints");
+  const templateHardCapEnforcement = smartBuilderEnforceTemplateHardCapsSafe(blocks, ranked, sessionTemplate, etuSessionBudgetPolicy);
+  blocks = templateHardCapEnforcement.blocks || blocks;
+  (templateHardCapEnforcement.reasons || []).forEach(r => globalReasons.push(r));
+  etuSessionBudget = smartBuilderApplyEtuSessionBudgetSafe(blocks, etuSessionBudgetPolicy);
+  blocks = etuSessionBudget.blocks || blocks;
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
   const budgetUsage = budgetUsageForBlocks(blocks);
-  const templateCompliance = smartBuilderTemplateSessionComplianceSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization});
-  const recommendationSanity = smartBuilderRecommendationSanityLayerSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, compositionOptimization});
-  const contradictionEngine = smartBuilderContradictionEngineSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, recommendationSanity, compositionOptimization, orchestratorStrategy:strategy, orchestratorIntensity:intensity});
-  const calibrationLock = smartBuilderCalibrationLockAuditSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateCompliance, recommendationSanity, contradictionEngine});
+  const templateCompliance = smartBuilderTemplateSessionComplianceSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateHardCapEnforcement});
+  const recommendationSanity = smartBuilderRecommendationSanityLayerSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, compositionOptimization, templateHardCapEnforcement});
+  const contradictionEngine = smartBuilderContradictionEngineSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, templateCompliance, recommendationSanity, compositionOptimization, templateHardCapEnforcement, orchestratorStrategy:strategy, orchestratorIntensity:intensity});
+  const calibrationLock = smartBuilderCalibrationLockAuditSafe({effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateHardCapEnforcement, templateCompliance, recommendationSanity, contradictionEngine});
   if (calibrationLock?.status === "locked") globalReasons.push("builder calibration locked");
   const skillProgressionLedger = smartBuilderSkillProgressionLedgerSafe(data.logs || [], {etuContext, effectiveGoal, sessionTemplate, blocks, ranked});
   const skillDomainDetails = smartBuilderSkillDomainDetailPagesSafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
   const skillLevelHistory = smartBuilderSkillLevelHistorySafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
   const routineSchemaAudit = smartBuilderRoutineSchemaAuditSafe({effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
-  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateCompliance, recommendationSanity, contradictionEngine, calibrationLock, skillProgressionLedger, skillDomainDetails, skillLevelHistory, routineSchemaAudit};
+  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateHardCapEnforcement, templateCompliance, recommendationSanity, contradictionEngine, calibrationLock, skillProgressionLedger, skillDomainDetails, skillLevelHistory, routineSchemaAudit};
   plan.transferGraphSummary = smartBuilderPlanTransferGraphSummarySafe(plan);
   return smartBuilderAttachRecommendationConfidenceSafe(plan);
 }

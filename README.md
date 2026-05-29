@@ -1,5 +1,18 @@
 # Snooker Practice PWA
 
+Version: 5.8.2-smart-builder-etu-template-hardening
+
+## v5.8.2 — Smart Builder ETU / Template Hardening
+
+- Raises Benchmark-prep ETU policy from a very low 4.0 cap to a 60-min-scaled 5.5 ETU cap.
+- Raises Benchmark-prep benchmark-density limit from 45% to 60%.
+- Rewords ETU bypass mode as audit-only mode: ETU load modifiers are bypassed, but template safety caps remain visible and enforced.
+- Adds post-optimization template hard-cap enforcement for pressure count, benchmark density, and final ETU.
+- Recomputes ETU budget after composition optimization so the audit reflects the final generated session, not the pre-optimization draft.
+- Preserves v5.8.1 metadata repair import/export branch.
+
+# Snooker Practice PWA
+
 Version: 5.7.77U.5-smart-engine-explanation-integrity
 
 ## v5.7.77U.5 — Smart Engine Explanation Integrity Patch
