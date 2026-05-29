@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.6";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.6";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.8";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.8";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.8.6";
+} from "./utils.js?v=5.8.8";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.8.6";
+} from "./settings.js?v=5.8.8";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.8.6";
+} from "./analytics.js?v=5.8.8";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -72,7 +72,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.8.6";
+} from "./bayesian.js?v=5.8.8";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -81,7 +81,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.8.6";
+} from "./session.js?v=5.8.8";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -89,7 +89,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.8.6";
+} from "./pressure.js?v=5.8.8";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -101,7 +101,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.8.6";
+} from "./recommendations.js?v=5.8.8";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -115,7 +115,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.8.6";
+} from "./store.js?v=5.8.8";
 
 
 
@@ -9922,8 +9922,14 @@ function benchmarkStrictnessLabel(value) {
   return "Normal";
 }
 function normalizeBenchmarkExposureWeight(value, mode = "none") {
-  const n = Number(value);
-  if (Number.isFinite(n) && n >= 0 && n <= 100) return Math.round(n);
+  const raw = String(value ?? "").trim();
+  const n = Number(raw);
+  // Internal convention is now 0-100. Legacy Routine Console presets used 0-1 fractions;
+  // convert those during normalization so old metadata does not appear as 1% exposure.
+  if (Number.isFinite(n) && n >= 0) {
+    if (n > 0 && n <= 1 && /^0?\./.test(raw)) return Math.round(n * 100);
+    if (n <= 100) return Math.round(n);
+  }
   const m = normalizeBenchmarkMode(mode);
   if (m === "pressure_test") return 100;
   if (m === "test") return 75;
@@ -10990,7 +10996,8 @@ function smartBuilderOptimizationCandidateFitSafe(state, block, context={}) {
     if (template?.forbiddenDomains && Array.isArray(template.forbiddenDomains) && template.forbiddenDomains.includes(smartBuilderOptimizationStateDomainSafe(state))) roleFit -= 30;
     if (template?.allowedDomains && Array.isArray(template.allowedDomains) && template.allowedDomains.length && !template.allowedDomains.includes(smartBuilderOptimizationStateDomainSafe(state))) roleFit -= 8;
     const confidenceTerm = confidence ? (Number(confidence.score || 0) - 50) * 0.08 : 0;
-    const benchmarkTerm = (effectiveGoal === "benchmark_prep" || template?.key === "benchmark_prep") ? benchmarkExposureWeight * 10 : isBenchmarkTest ? -2 : benchmarkExposureWeight * 2;
+    const benchmarkWeightUnit = clampNumber(benchmarkExposureWeight / 100, 0, 1);
+    const benchmarkTerm = (effectiveGoal === "benchmark_prep" || template?.key === "benchmark_prep") ? benchmarkWeightUnit * 10 : isBenchmarkTest ? -2 : benchmarkWeightUnit * 2;
     const etuPenalty = Math.max(0, etuTotal - 2.5) * (effectiveGoal === "recovery" ? 5 : 1.5);
     const volatilityPenalty = Math.max(0, volScore - 2) * (template?.maxVolatility === "low" ? 8 : template?.maxVolatility === "medium" ? 4 : 1.5);
     const score = adaptive * 0.48 + transferValue * 0.16 + Number(transferGraph?.modifier || 0) * 1.25 + roleFit + confidenceTerm + benchmarkTerm - etuPenalty - volatilityPenalty - readinessPenalty;
@@ -11679,8 +11686,8 @@ function smartBuilderRoutineAuditSuitabilitySafe(routine, state=null) {
   const skillMap = getRoutineSkillMap(routine);
   const skills = new Set([skillMap.primarySkill, ...(skillMap.secondarySkills || []), ...(skillMap.transferTags || [])].filter(Boolean));
   const acquisition = clampNumber(Math.round(52 + (transfer >= 65 ? 12 : 0) + (volatility.level === "low" ? 10 : volatility.level === "medium" ? 4 : -8) - Math.max(0, energy.cognitive - 3) * 4), 0, 100);
-  const recovery = clampNumber(Math.round(62 + (routine?.isAnchor ? 12 : 0) + (volatility.level === "low" ? 14 : volatility.level === "medium" ? 2 : -16) - (energy.cognitive + energy.fatigue + energy.confidence - 6) * 4 - (benchmarkMode === "test" || benchmarkMode === "pressure-test" ? 14 : 0)), 0, 100);
-  const pressure = clampNumber(Math.round(38 + (skills.has("pressure_resilience") ? 22 : 0) + (benchmarkMode === "pressure-test" ? 18 : benchmarkMode === "test" ? 10 : 0) + (volatility.level === "high" ? 8 : 0) + Math.max(0, energy.confidence - 2) * 5), 0, 100);
+  const recovery = clampNumber(Math.round(62 + (routine?.isAnchor ? 12 : 0) + (volatility.level === "low" ? 14 : volatility.level === "medium" ? 2 : -16) - (energy.cognitive + energy.fatigue + energy.confidence - 6) * 4 - (benchmarkMode === "test" || benchmarkMode === "pressure_test" ? 14 : 0)), 0, 100);
+  const pressure = clampNumber(Math.round(38 + (skills.has("pressure_resilience") ? 22 : 0) + (benchmarkMode === "pressure_test" ? 18 : benchmarkMode === "test" ? 10 : 0) + (volatility.level === "high" ? 8 : 0) + Math.max(0, energy.confidence - 2) * 5), 0, 100);
   return {acquisition, recovery, pressure, volatility, energy, transfer};
 }
 function smartBuilderRoutineSchemaAuditRowSafe(routine, context={}) {
@@ -11704,11 +11711,11 @@ function smartBuilderRoutineSchemaAuditRowSafe(routine, context={}) {
     const addWarn = (code, label) => warnings.push({code, label, severity:"watch"});
     if (!primary) addIssue("missing_primary_skill", "Missing primary skill");
     if (!routine?.category || String(routine.category).toLowerCase() === "uncategorized") addWarn("missing_category", "Weak/missing category");
-    if (!routine?.scoringMode && !routine?.scoringRule) addWarn("missing_scoring_rule", "Scoring rule not explicit");
+    if (!String(routine?.scoringRuleText || routine?.scoringRule || "").trim()) addWarn("missing_scoring_rule", "Scoring rule not explicit");
     if (!routine?.target && !routine?.targetScore && !routine?.benchmarks && !hasBenchmarkTargets(routine)) addWarn("missing_target_ladder", "No target or benchmark ladder");
-    if (["test","pressure-test"].includes(benchmarkMode) && !hasBenchmarkTargets(routine)) addIssue("benchmark_test_without_targets", "Benchmark test lacks explicit targets", "critical");
+    if (["test","pressure_test"].includes(benchmarkMode) && !hasBenchmarkTargets(routine)) addIssue("benchmark_test_without_targets", "Benchmark test lacks explicit targets", "critical");
     if (benchmarkMode === "support" && Number(benchmarkExposureWeight || 0) > 55) addWarn("support_weight_too_high", "Support drill has high benchmark weight");
-    if (benchmarkMode === "pressure-test" && suitability.pressure < 55) addIssue("pressure_mode_low_pressure_fit", "Pressure-test mode but low pressure suitability");
+    if (benchmarkMode === "pressure_test" && suitability.pressure < 55) addIssue("pressure_mode_low_pressure_fit", "Pressure-test mode but low pressure suitability");
     if (suitability.volatility.level === "high" && suitability.recovery > 65) addWarn("high_vol_recovery_fit", "High volatility conflicts with recovery suitability");
     if (secondary.length + transferTags.length > 8) addWarn("over_tagging", "Many skill tags; check over-tagging");
     if (!transferTags.length && transferStrength >= 65) addWarn("transfer_missing_tags", "High transfer score but no transfer tags");
@@ -19527,6 +19534,14 @@ const FIELD_HELP = {
       <p><strong>What it means:</strong> the specific colour constraint when the drill is built around one colour.</p>
       <div class="example"><strong>Example:</strong> choose Blue for a blue-only break-building drill; choose Black for a black-only line-up.</div>
       <p><strong>Best use:</strong> set this at exercise level when the colour changes the technical demand. Do not track colour ball-by-ball unless you are doing match analysis.</p>`
+  },
+  benchmarkMode: {
+    title: "Benchmark mode and weight",
+    body: `
+      <p><strong>Benchmark mode is not the scoring rule.</strong> It tells the recommendation engine what role the drill plays in benchmark governance.</p>
+      <p><strong>Support:</strong> builds capacity for a benchmark but is not itself the main measurement. <strong>Calibration:</strong> estimates current level and reduces uncertainty. <strong>Test:</strong> directly measures level. <strong>Pressure test:</strong> measures whether the skill survives consequence, fatigue, or match-like pressure.</p>
+      <div class="example"><strong>Benchmark weight:</strong> 0–100 measurement importance. Support is usually 20–60, calibration 35–65, and formal test / pressure test 75–100.</div>
+      <p><strong>Decision relevance:</strong> Smart Builder uses these fields for benchmark density, pressure caps, readiness checks, and benchmark-prep sessions.</p>`
   }
 
 };
@@ -20759,8 +20774,9 @@ function routineValidationEngineRowSafe(routine, schemaRow=null) {
     const r = routine || {};
     const skillMap = getRoutineSkillMap(r);
     const primary = routineValidationNormalizeSkillSafe(skillMap.primarySkill || r.primarySkill || r.skill);
-    const secondary = smartBuilderRoutineAuditNormalizeListSafe([...(skillMap.secondarySkills || []), ...(r.secondarySkills || [])]).map(routineValidationNormalizeSkillSafe).filter(Boolean);
-    const transferTags = smartBuilderRoutineAuditNormalizeListSafe([...(skillMap.transferTags || []), ...(r.transferTags || [])]).map(routineValidationNormalizeSkillSafe).filter(Boolean);
+    const uniqueCleanList = values => Array.from(new Set(smartBuilderRoutineAuditNormalizeListSafe(values).map(routineValidationNormalizeSkillSafe).filter(Boolean)));
+    const secondary = uniqueCleanList([...(skillMap.secondarySkills || []), ...(r.secondarySkills || [])]);
+    const transferTags = uniqueCleanList([...(skillMap.transferTags || []), ...(r.transferTags || [])]);
     const allTags = [primary, ...secondary, ...transferTags].filter(Boolean);
     const uniqueTags = Array.from(new Set(allTags));
     const benchmarkMode = normalizeBenchmarkMode(r.benchmarkMode || inferBenchmarkModeFromRoutine(r));
@@ -20783,13 +20799,14 @@ function routineValidationEngineRowSafe(routine, schemaRow=null) {
     if (secondary.includes(primary) || transferTags.includes(primary)) add("watch", "primary_duplicated_as_secondary", "Primary skill duplicated", "Primary skill also appears as secondary/transfer metadata.", "Remove duplicate secondary/transfer tag.");
     if (uniqueTags.length > 10) add("risk", "over_tagging", "Over-tagging", `${uniqueTags.length} skill/transfer tags are attached.`, "Keep only the causal skills the drill actually trains.");
     if (uniqueTags.length <= 1) add("watch", "under_tagging", "Under-tagging", "Routine has little secondary or transfer metadata.", "Add 1–3 secondary/transfer tags when they are genuinely causal.");
-    if (new Set(allTags).size !== allTags.length) add("watch", "duplicate_taxonomy_tags", "Duplicate taxonomy tags", "Same skill tag appears more than once after normalization.", "Deduplicate routine skill metadata.");
+    const nonPrimaryTags = [...secondary, ...transferTags].filter(tag => tag && tag !== primary);
+    if (new Set(nonPrimaryTags).size !== nonPrimaryTags.length) add("watch", "duplicate_taxonomy_tags", "Duplicate taxonomy tags", "Same skill tag appears more than once after normalization.", "Deduplicate routine skill metadata.");
     if (/uncategorized|unknown|general/i.test(String(r.category || ""))) add("watch", "weak_category", "Weak category", "Category is too generic for schema governance.", "Set a stable sport-domain category.");
 
-    if (["test","pressure-test"].includes(benchmarkMode) && !hasBenchmarkTargets(r)) add("critical", "benchmark_test_without_ladder", "Benchmark test without ladder", "Testing mode requires explicit target/benchmark levels.", "Add benchmark ladder, target score, or strict test criteria.");
-    if (benchmarkMode === "support" && benchmarkExposureWeight > 0.60) add("risk", "support_exposure_too_high", "Support mode exposure too high", `Support drill carries ${Math.round(benchmarkExposureWeight*100)}% benchmark exposure.`, "Reduce exposure or reclassify as calibration/test.");
-    if (benchmarkMode === "none" && benchmarkExposureWeight > 0.20) add("risk", "none_exposure_conflict", "Benchmark exposure conflict", "Benchmark mode is none but exposure weight is meaningful.", "Set mode to support/calibration or lower exposure.");
-    if (benchmarkMode === "pressure-test" && benchmarkStrictness === "loose") add("watch", "pressure_test_loose_strictness", "Pressure test has loose strictness", "Pressure-test classification normally needs normal/strict criteria.", "Increase strictness or reclassify to pressure support.");
+    if (["test","pressure_test"].includes(benchmarkMode) && !hasBenchmarkTargets(r)) add("critical", "benchmark_test_without_ladder", "Benchmark test without ladder", "Testing mode requires explicit target/benchmark levels.", "Add benchmark ladder, target score, or strict test criteria.");
+    if (benchmarkMode === "support" && benchmarkExposureWeight > 60) add("risk", "support_exposure_too_high", "Support mode exposure too high", `Support drill carries ${Math.round(benchmarkExposureWeight)}% benchmark exposure.`, "Reduce exposure or reclassify as calibration/test.");
+    if (benchmarkMode === "none" && benchmarkExposureWeight > 20) add("risk", "none_exposure_conflict", "Benchmark exposure conflict", "Benchmark mode is none but exposure weight is meaningful.", "Set mode to support/calibration or lower exposure.");
+    if (benchmarkMode === "pressure_test" && benchmarkStrictness === "loose") add("watch", "pressure_test_loose_strictness", "Pressure test has loose strictness", "Pressure-test classification normally needs normal/strict criteria.", "Increase strictness or reclassify to pressure support.");
     if (String(r.scoring || r.scoringMode || "").includes("progressive") && totalUnits <= 0) add("critical", "progressive_without_completion_size", "Progressive scoring without completion size", "Progressive-completion routines need a bounded unit size.", "Set totalUnits/completionSize.");
     if (String(r.scoring || r.scoringMode || "") === "highest_break" && totalUnits > 0 && !r.repeatOnClear && totalUnits <= 40) add("watch", "bounded_highest_break_needs_repeat_semantics", "Bounded break routine lacks repeat semantics", "Highest-break scoring on bounded setups should state whether clearing repeats until miss.", "Add repeatOnClear/setupCycleValue metadata if relevant.");
 
@@ -20797,8 +20814,8 @@ function routineValidationEngineRowSafe(routine, schemaRow=null) {
     if (duration > 0 && etuTotal > 0 && etuTotal / Math.max(1,duration) > 0.45) add("watch", "etu_duration_ratio_high", "ETU/duration ratio high", `${numText(etuTotal)} ETU for ${numText(duration)} minutes may be too dense.`, "Check if ETU is per block rather than per routine.");
     if (duration >= 25 && etuTotal < 1.2) add("watch", "long_duration_low_etu", "Long routine with low ETU", `${numText(duration)} minutes but only ${numText(etuTotal)} ETU.`, "Increase ETU subtypes or shorten estimated duration.");
     if (volatility === "high" && Number(etu.emotional || 0) < 1.2) add("watch", "high_vol_low_confidence_etu", "High volatility but low confidence ETU", "Volatile routines usually carry emotional/confidence load.", "Raise emotional ETU or lower volatility.");
-    if (Number(etu.pressure || 0) >= 2.5 && !["test","pressure-test"].includes(benchmarkMode) && String(r.pressureSuitability || "auto") === "low") add("risk", "pressure_etu_low_suitability", "Pressure ETU conflicts with suitability", "Pressure load is high while pressure suitability is low.", "Align pressure suitability, pressure ETU, and benchmark mode.");
-    if (String(r.recoverySuitability || "auto") === "high" && (volatility === "high" || Number(etu.pressure || 0) > 1.5 || benchmarkMode === "pressure-test")) add("risk", "recovery_conflict", "Recovery suitability contradiction", "Routine marked recovery-friendly but has high volatility/pressure/test load.", "Lower recovery suitability or reduce pressure/volatility metadata.");
+    if (Number(etu.pressure || 0) >= 2.5 && !["test","pressure_test"].includes(benchmarkMode) && String(r.pressureSuitability || "auto") === "low") add("risk", "pressure_etu_low_suitability", "Pressure ETU conflicts with suitability", "Pressure load is high while pressure suitability is low.", "Align pressure suitability, pressure ETU, and benchmark mode.");
+    if (String(r.recoverySuitability || "auto") === "high" && (volatility === "high" || Number(etu.pressure || 0) > 1.5 || benchmarkMode === "pressure_test")) add("risk", "recovery_conflict", "Recovery suitability contradiction", "Routine marked recovery-friendly but has high volatility/pressure/test load.", "Lower recovery suitability or reduce pressure/volatility metadata.");
 
     const graphProfile = typeof routineGraphTransferProfile === "function" ? routineGraphTransferProfile(r) : null;
     const transferStrength = Number(schemaRow?.transferStrength ?? r.transferStrength ?? routineTransferValue(r) ?? 0);
@@ -20873,32 +20890,32 @@ const ROUTINE_SEMANTIC_PRESETS = {
   "technical-repetition": {
     label: "Technical repetition",
     description: "Low-volatility repetition work for mechanics, delivery, potting rhythm or cue-ball control consolidation.",
-    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.1, technicalEtu:1.8, cognitiveEtu:0.5, confidenceEtu:0.3, pressureEtu:0.1}
+    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:10, technicalEtu:1.8, cognitiveEtu:0.5, confidenceEtu:0.3, pressureEtu:0.1}
   },
   "pressure-benchmark": {
     label: "Pressure benchmark",
     description: "Formal testing or pressure-test work where score reliability and pressure tolerance matter more than volume.",
-    patch: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:0.85, technicalEtu:1.2, cognitiveEtu:1.1, confidenceEtu:1.2, pressureEtu:2.2}
+    patch: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:85, technicalEtu:1.2, cognitiveEtu:1.1, confidenceEtu:1.2, pressureEtu:2.2}
   },
   "tactical-acquisition": {
     label: "Tactical acquisition",
     description: "Learning-oriented safety, shot selection or pattern-recognition work with heavier cognitive load.",
-    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.2, technicalEtu:0.8, cognitiveEtu:1.9, confidenceEtu:0.6, pressureEtu:0.4}
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:20, technicalEtu:0.8, cognitiveEtu:1.9, confidenceEtu:0.6, pressureEtu:0.4}
   },
   "confidence-rebuild": {
     label: "Confidence rebuild",
     description: "Low-risk repetition designed to restore touch, rhythm and positive feedback after poor form or fatigue.",
-    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.05, technicalEtu:1.0, cognitiveEtu:0.4, confidenceEtu:1.5, pressureEtu:0.05}
+    patch: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:5, technicalEtu:1.0, cognitiveEtu:0.4, confidenceEtu:1.5, pressureEtu:0.05}
   },
   "long-form-break-building": {
     label: "Long-form break-building",
     description: "Integrated scoring-pattern work with mixed technical and cognitive demand, suitable for line-ups and route building.",
-    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.45, technicalEtu:1.6, cognitiveEtu:1.4, confidenceEtu:0.7, pressureEtu:0.7}
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:45, technicalEtu:1.6, cognitiveEtu:1.4, confidenceEtu:0.7, pressureEtu:0.7}
   },
   "diagnostic": {
     label: "Diagnostic",
     description: "Measurement-oriented routine used to identify weakness, trend direction or readiness rather than to maximize training volume.",
-    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:0.7, technicalEtu:0.9, cognitiveEtu:0.9, confidenceEtu:0.8, pressureEtu:0.9}
+    patch: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:70, technicalEtu:0.9, cognitiveEtu:0.9, confidenceEtu:0.8, pressureEtu:0.9}
   },
   "recovery-control": {
     label: "Recovery control",
@@ -20943,37 +20960,37 @@ const ROUTINE_ARCHETYPES = {
   acquisition: {
     label: "Acquisition",
     description: "Learning-oriented work used to acquire or rewire a skill. Higher cognitive load, moderate volatility, and usually not a formal benchmark.",
-    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.2, technicalEtu:1.0, cognitiveEtu:1.8, confidenceEtu:0.5, pressureEtu:0.3}
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"high", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:20, technicalEtu:1.0, cognitiveEtu:1.8, confidenceEtu:0.5, pressureEtu:0.3}
   },
   stabilization: {
     label: "Stabilization",
     description: "Consistency work used to turn a skill into a repeatable baseline. Balanced technical load with low-to-medium volatility.",
-    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:0.15, technicalEtu:1.6, cognitiveEtu:0.7, confidenceEtu:0.5, pressureEtu:0.2}
+    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"medium", benchmarkMode:"support", benchmarkStrictness:"normal", benchmarkExposureWeight:15, technicalEtu:1.6, cognitiveEtu:0.7, confidenceEtu:0.5, pressureEtu:0.2}
   },
   pressure: {
     label: "Pressure",
     description: "Stress-adaptation work where evaluation, score pressure or consequence management is central.",
-    defaults: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:0.75, technicalEtu:1.1, cognitiveEtu:1.0, confidenceEtu:1.2, pressureEtu:2.0}
+    defaults: {volatilityProfile:"high", recoverySuitability:"low", pressureSuitability:"high", acquisitionSuitability:"low", benchmarkMode:"pressure-test", benchmarkStrictness:"strict", benchmarkExposureWeight:75, technicalEtu:1.1, cognitiveEtu:1.0, confidenceEtu:1.2, pressureEtu:2.0}
   },
   benchmark: {
     label: "Benchmark",
     description: "Measurement work used to calibrate level, detect breakthroughs, or validate capability under consistent rules.",
-    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:0.8, technicalEtu:1.0, cognitiveEtu:0.8, confidenceEtu:0.8, pressureEtu:0.9}
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"test", benchmarkStrictness:"normal", benchmarkExposureWeight:80, technicalEtu:1.0, cognitiveEtu:0.8, confidenceEtu:0.8, pressureEtu:0.9}
   },
   recovery: {
     label: "Recovery",
     description: "Low-load consolidation work used when readiness is low or confidence needs rebuilding.",
-    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"low", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0.0, technicalEtu:0.8, cognitiveEtu:0.3, confidenceEtu:0.7, pressureEtu:0.0}
+    defaults: {volatilityProfile:"low", recoverySuitability:"high", pressureSuitability:"low", acquisitionSuitability:"low", benchmarkMode:"support", benchmarkStrictness:"loose", benchmarkExposureWeight:0, technicalEtu:0.8, cognitiveEtu:0.3, confidenceEtu:0.7, pressureEtu:0.0}
   },
   transfer: {
     label: "Transfer",
     description: "Multi-domain work intended to connect one skill domain to another, such as cue-ball control into break-building.",
-    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.35, technicalEtu:1.3, cognitiveEtu:1.4, confidenceEtu:0.6, pressureEtu:0.5}
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"medium", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:35, technicalEtu:1.3, cognitiveEtu:1.4, confidenceEtu:0.6, pressureEtu:0.5}
   },
   diagnostic: {
     label: "Diagnostic",
     description: "Weakness-discovery work used to identify constraints, instability or readiness before prescribing a training block.",
-    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:0.65, technicalEtu:0.9, cognitiveEtu:1.0, confidenceEtu:0.7, pressureEtu:0.6}
+    defaults: {volatilityProfile:"medium", recoverySuitability:"medium", pressureSuitability:"medium", acquisitionSuitability:"low", benchmarkMode:"calibration", benchmarkStrictness:"normal", benchmarkExposureWeight:65, technicalEtu:0.9, cognitiveEtu:1.0, confidenceEtu:0.7, pressureEtu:0.6}
   }
 };
 function routineArchetypeOptionsHtmlSafe(selected="") {
@@ -20989,7 +21006,7 @@ function routineArchetypeInferSafe(routine) {
     const text = `${m.name} ${m.folder} ${m.subfolder} ${m.category} ${m.primarySkill} ${m.secondarySkills} ${m.transferTags}`.toLowerCase();
     if (/recovery|confidence|warm.?up|alignment|easy|control/.test(text)) return "recovery";
     if (/pressure|match|clearance|consequence/.test(text)) return "pressure";
-    if (/benchmark|test|assessment|target/.test(text) || ["test","pressure-test"].includes(String(m.benchmarkMode))) return "benchmark";
+    if (/benchmark|test|assessment|target/.test(text) || ["test","pressure_test"].includes(normalizeBenchmarkMode(m.benchmarkMode))) return "benchmark";
     if (/diagnostic|weakness|probe|audit/.test(text)) return "diagnostic";
     if (/transfer|route|pattern|break.?building|line.?up|positional/.test(text)) return "transfer";
     if (/learn|acquisition|tactical|safety|shot.?selection/.test(text)) return "acquisition";
@@ -21087,7 +21104,7 @@ function routineDerivedMetadataSafe(routine) {
     const conf = Math.max(0, Number(m.confidenceEtu || 0));
     const pres = Math.max(0, Number(m.pressureEtu || 0));
     const etuTotal = tech + cog + conf + pres;
-    const benchmarkDensityScore = clampNumber(Number(m.benchmarkExposureWeight || 0) + (m.benchmarkMode === "calibration" ? 0.15 : ["test","pressure-test"].includes(m.benchmarkMode) ? 0.32 : 0), 0, 1);
+    const benchmarkDensityScore = clampNumber((Number(m.benchmarkExposureWeight || 0) / 100) + (m.benchmarkMode === "calibration" ? 0.15 : ["test","pressure_test"].includes(m.benchmarkMode) ? 0.32 : 0), 0, 1);
     const transferProfile = r.transferProfile || {};
     const transferCount = routineConsoleParseListSafe(m.transferTags).length
       + routineConsoleParseListSafe(transferProfile.direct || []).length
@@ -21096,7 +21113,7 @@ function routineDerivedMetadataSafe(routine) {
       + routineConsoleParseListSafe(transferProfile.interference || []).length;
     const transferIntensityScore = clampNumber(transferCount / 6, 0, 1);
     const volatilityScore = routineDerivedVolatilityScoreSafe(r, m);
-    const pressureScore = clampNumber((pres / 4) + (m.benchmarkMode === "pressure-test" ? 0.28 : 0) + (String(m.pressureSuitability || "") === "high" ? 0.12 : 0), 0, 1);
+    const pressureScore = clampNumber((pres / 4) + (m.benchmarkMode === "pressure_test" ? 0.28 : 0) + (String(m.pressureSuitability || "") === "high" ? 0.12 : 0), 0, 1);
     const cognitiveLoadScore = clampNumber((cog / Math.max(2.5, etuTotal || 2.5)) * 0.62 + transferIntensityScore * 0.18 + benchmarkDensityScore * 0.12 + volatilityScore * 0.08, 0, 1);
     const confidenceRiskScore = clampNumber(volatilityScore * 0.38 + pressureScore * 0.32 + (conf / Math.max(3.5, etuTotal || 3.5)) * 0.20 + benchmarkDensityScore * 0.10, 0, 1);
     const recoveryPenalty = volatilityScore * 0.34 + pressureScore * 0.28 + cognitiveLoadScore * 0.20 + clampNumber(etuTotal / 6, 0, 1) * 0.18;
@@ -21148,10 +21165,10 @@ function routineDerivedExplainabilitySafe(routine, derived=null) {
     const volatilityScore = routineDerivedVolatilityScoreSafe(r, m);
     const explicitVolatility = String(m.volatilityProfile || "auto").toLowerCase();
     const benchmarkMode = normalizeBenchmarkMode(m.benchmarkMode || "support");
-    const benchmarkWeight = clampNumber(Number(m.benchmarkExposureWeight || 0), 0, 1);
+    const benchmarkWeight = clampNumber(Number(m.benchmarkExposureWeight || 0) / 100, 0, 1);
     const pressureSignals = [];
     if (pres > 0) pressureSignals.push(`pressure ETU ${numText(pres)}`);
-    if (benchmarkMode === "pressure-test") pressureSignals.push("pressure-test benchmark mode");
+    if (benchmarkMode === "pressure_test") pressureSignals.push("pressure-test benchmark mode");
     if (String(m.pressureSuitability || "") === "high") pressureSignals.push("high pressure suitability");
     const recoveryWhy = [
       etuTotal <= 0 ? "ETU is missing, so recovery fit uses fallback heuristics" : `total ETU ${numText(etuTotal)}`,
@@ -21171,7 +21188,7 @@ function routineDerivedExplainabilitySafe(routine, derived=null) {
     const benchmarkWhy = [
       `benchmark mode ${benchmarkMode}`,
       `exposure weight ${numText(benchmarkWeight)}`,
-      ["test","pressure-test","calibration"].includes(benchmarkMode) ? "routine participates in benchmark governance" : "routine currently acts mainly as benchmark support"
+      ["test","pressure_test","calibration"].includes(benchmarkMode) ? "routine participates in benchmark governance" : "routine currently acts mainly as benchmark support"
     ];
     const transferWhy = [
       transferCount ? `${numText(transferCount)} transfer edge/tag signal(s)` : "no transfer edges or transfer tags defined",
@@ -21307,9 +21324,9 @@ const ROUTINE_CONSOLE_GRID_COLUMNS = [
   {key:"transferTags", label:"Transfer tags", type:"list", editable:true, preset:["transfer"]},
   {key:"transferGraph", label:"Transfer graph", type:"readonly", preset:["transfer"]},
   {key:"dependencyChain", label:"Dependency chain", type:"readonly", preset:["transfer","validation","archetype"]},
-  {key:"benchmarkMode", label:"Benchmark mode", type:"select", editable:true, options:["support","calibration","test","pressure-test"], preset:["benchmark"]},
+  {key:"benchmarkMode", label:"Benchmark mode", type:"select", editable:true, options:["support","calibration","test","pressure_test"], preset:["benchmark"]},
   {key:"benchmarkStrictness", label:"Strictness", type:"select", editable:true, options:["loose","normal","strict"], preset:["benchmark"]},
-  {key:"benchmarkExposureWeight", label:"Benchmark w", type:"number", editable:true, min:0, max:1, step:"0.05", preset:["benchmark"]},
+  {key:"benchmarkExposureWeight", label:"Benchmark w", type:"number", editable:true, min:0, max:100, step:"1", preset:["benchmark"]},
   {key:"technicalEtu", label:"Tech ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
   {key:"cognitiveEtu", label:"Cog ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
   {key:"confidenceEtu", label:"Conf ETU", type:"number", editable:true, min:0, max:8, step:"0.1", preset:["etu"]},
@@ -21350,7 +21367,7 @@ function routineConsoleChipKindSafe(type, value="") {
   const t = String(type || "neutral").toLowerCase();
   const v = String(value || "").toLowerCase();
   if (t.includes("validation") || ["critical","risk","watch","ok"].includes(v)) return `validation-${v || "watch"}`;
-  if (t.includes("benchmark") || ["calibration","test","pressure-test","support"].includes(v)) return `benchmark-${v || "support"}`;
+  if (t.includes("benchmark") || ["calibration","test","pressure_test","support"].includes(v)) return `benchmark-${v || "support"}`;
   if (t.includes("pressure") || v.includes("pressure")) return `pressure-${v || "auto"}`;
   if (t.includes("recovery") || v.includes("recovery")) return `recovery-${v || "auto"}`;
   if (t.includes("transfer") || ["direct","supporting","weak","interference"].includes(v)) return `transfer-${v || "supporting"}`;
@@ -21723,6 +21740,7 @@ function routineConsoleRoutineMetaSafe(r) {
     subfolder: r?.subfolder || "General",
     category: r?.category || "uncategorized",
     scoring: r?.scoring || r?.scoringType || "raw",
+    scoringRuleText: r?.scoringRuleText || r?.scoringRule || r?.setupMeta?.scoringRuleText || "",
     primarySkill: r?.primarySkill || skillMap.primarySkill || "",
     secondarySkills: routineConsoleArrayTextSafe(r?.secondarySkills || skillMap.secondarySkills),
     transferTags: routineConsoleArrayTextSafe(r?.transferTags || skillMap.transferTags || r?.transferProfile?.supporting || []),
@@ -21730,7 +21748,7 @@ function routineConsoleRoutineMetaSafe(r) {
     dependencyChain: routineDependencyChainSummaryTextSafe(r),
     recommendationMode: r?.recommendationMode || "active",
     benchmarkMode: r?.benchmarkMode || "support",
-    benchmarkExposureWeight: Number(r?.benchmarkExposureWeight || 0),
+    benchmarkExposureWeight: normalizeBenchmarkExposureWeight(r?.benchmarkExposureWeight, r?.benchmarkMode || "support"),
     benchmarkStrictness: r?.benchmarkStrictness || "normal",
     volatilityProfile: r?.volatilityProfile || "auto",
     pressureSuitability: r?.pressureSuitability || "auto",
@@ -22223,6 +22241,8 @@ function routineConsoleApplyInlineEditSafe(routineId, field, rawValue, options =
         next[field] = routineConsoleParseListSafe(rawValue);
       } else if (field === "benchmarkMode") {
         next[field] = normalizeBenchmarkMode(value);
+      } else if (field === "benchmarkExposureWeight") {
+        next[field] = normalizeBenchmarkExposureWeight(rawValue, next.benchmarkMode || "support");
       } else if (field === "benchmarkStrictness") {
         next[field] = normalizeBenchmarkStrictness(value);
       } else if (field === "semanticPreset") {
@@ -22522,6 +22542,7 @@ function renderRoutineConsoleEditor(id) {
             <div><label>Folder</label><input id="routineConsoleFolder" value="${attrText(m.folder)}" /></div>
             <div><label>Subfolder</label><input id="routineConsoleSubfolder" value="${attrText(m.subfolder)}" /></div>
             <div><label>Category</label><input id="routineConsoleCategory" value="${attrText(m.category)}" /></div>
+            <div class="span-two"><label>Scoring rule</label><textarea id="routineConsoleScoringRuleText" rows="2" placeholder="e.g. Record highest break achieved during the block.">${escapeHtml(m.scoringRuleText || "")}</textarea><p class="muted small">Used by validation to clear “Scoring rule not explicit”.</p></div>
             <div><label>Primary skill</label><input id="routineConsolePrimarySkill" value="${attrText(m.primarySkill)}" /></div>
             <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
             <div><label>Routine archetype</label><select id="routineConsoleArchetype">${routineArchetypeOptionsHtmlSafe(m.routineArchetype)}</select></div>
@@ -22547,9 +22568,9 @@ function renderRoutineConsoleEditor(id) {
         <section class="routine-editor-section routine-editor-load" data-editor-section="load">
           <h4>Benchmark, suitability and ETU</h4>
           <div class="grid four routine-console-editor-grid">
-            <div><label>Benchmark mode</label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
+            <div><label>Benchmark mode <button type="button" class="help-dot" data-action="field-help" data-help-key="benchmarkMode">?</button></label><select id="routineConsoleBenchmarkMode"><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure_test">Pressure test</option></select><p class="muted small">Role in benchmark logic, not the scoring mode. Support builds a benchmark, calibration estimates level, test measures level, pressure test measures robustness.</p></div>
             <div><label>Benchmark strictness</label><select id="routineConsoleBenchmarkStrictness"><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
-            <div><label>Benchmark exposure weight</label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="1" step="0.05" value="${numAttr(m.benchmarkExposureWeight)}" /></div>
+            <div><label>Benchmark exposure weight <button type="button" class="help-dot" data-action="field-help" data-help-key="benchmarkMode">?</button></label><input id="routineConsoleBenchmarkExposure" type="number" min="0" max="100" step="1" value="${numAttr(m.benchmarkExposureWeight)}" /><p class="muted small">0–100 measurement weight. Support usually 20–60; calibration 35–65; test/pressure test 75–100.</p></div>
             <div><label>Volatility profile</label><select id="routineConsoleVolatility"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
             <div><label>Recovery suitability</label><select id="routineConsoleRecovery"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
             <div><label>Pressure suitability</label><select id="routineConsolePressure"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
@@ -22593,11 +22614,16 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.5</strong><span>Focus V2 Default Entry Patch</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is now the default practice entry for plan sessions and free training. The legacy Focus Mode v1 remains available through fallback buttons for live-session safety.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.8.8</strong><span>Metadata Validation UX Patch</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Benchmark mode help, benchmark-weight normalization, scoring-rule editing, scroll-position preservation, and corrected duplicate/self-transfer validation checks.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
+    const previousScroll = (() => { const sc = host.querySelector?.(".routine-console-spreadsheet"); return {left:sc?.scrollLeft || 0, top:sc?.scrollTop || 0}; })();
     host.innerHTML = routineConsoleRenderSpreadsheetGridSafe(rows);
+    requestAnimationFrame(() => {
+      const sc = host.querySelector?.(".routine-console-spreadsheet");
+      if (sc) { sc.scrollLeft = previousScroll.left || 0; sc.scrollTop = previousScroll.top || 0; }
+    });
     routineConsoleUpdateSelectionBarSafe(rows);
     renderRoutineConsoleEditor(routineConsoleSelectedRoutineId);
     routineConsoleApplyWorkspaceModeSafe(routineConsoleActiveWorkspace || "grid", {silent:true, skipControlSync:true});
@@ -22612,7 +22638,7 @@ function routineStudioSelectedIdsSafe() {
 function routineStudioSelectVisible() { document.querySelectorAll(".routine-studio-check").forEach(chk => { chk.checked = true; routineConsoleSelectedIdsSet.add(String(chk.value)); }); renderRoutineConsoleSemanticEditorSummarySafe(routineConsoleLastRows); routineConsoleUpdateSelectionBarSafe(routineConsoleLastRows); }
 function routineStudioNormalizeBulkValueSafe(field, raw) {
   const value = String(raw || "").trim();
-  if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 1 : 8);
+  if (["technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu","benchmarkExposureWeight"].includes(field)) return clampNumber(Number(value || 0), 0, field === "benchmarkExposureWeight" ? 100 : 8);
   if (field === "recommendationMode") return ["active","occasional","excluded"].includes(value) ? value : "active";
   if (field === "routineArchetype") return ROUTINE_ARCHETYPES[value] ? value : "";
   if (field === "benchmarkMode") return normalizeBenchmarkMode(value || "support");
@@ -22659,13 +22685,14 @@ function routineConsoleSaveSelected() {
       next.subfolder = String(val("routineConsoleSubfolder") || "").trim() || "General";
       next.category = String(val("routineConsoleCategory") || "").trim() || "uncategorized";
       next.primarySkill = String(val("routineConsolePrimarySkill") || "").trim();
+      next.scoringRuleText = String(val("routineConsoleScoringRuleText") || "").trim();
       next.secondarySkills = routineConsoleParseListSafe(val("routineConsoleSecondarySkills"));
       next.transferTags = routineConsoleParseListSafe(val("routineConsoleTransferTags"));
       next.transferProfile = routineTransferGraphNormalizeProfileAfterEditSafe(next);
       next.recommendationMode = val("routineConsoleRecommendation") || "active";
       next.benchmarkMode = normalizeBenchmarkMode(val("routineConsoleBenchmarkMode") || "support");
       next.benchmarkStrictness = normalizeBenchmarkStrictness(val("routineConsoleBenchmarkStrictness") || "normal");
-      next.benchmarkExposureWeight = clampNumber(Number(val("routineConsoleBenchmarkExposure") || 0), 0, 1);
+      next.benchmarkExposureWeight = normalizeBenchmarkExposureWeight(val("routineConsoleBenchmarkExposure"), next.benchmarkMode);
       next.volatilityProfile = val("routineConsoleVolatility") || "auto";
       next.recoverySuitability = val("routineConsoleRecovery") || "auto";
       next.pressureSuitability = val("routineConsolePressure") || "auto";
@@ -22827,7 +22854,7 @@ function renderRoutineConsoleSemanticEditorSummarySafe(rows) {
     const all = rows || routineConsoleRowsSafe();
     const selected = routineStudioSelectedIdsSafe();
     const etuDefined = all.filter(x => String(x.etuSource || "").includes("routine-defined")).length;
-    const benchmarkTests = all.filter(x => ["test","pressure-test"].includes(String(x.benchmarkMode || ""))).length;
+    const benchmarkTests = all.filter(x => ["test","pressure_test"].includes(normalizeBenchmarkMode(x.benchmarkMode || ""))).length;
     const withTransfer = all.filter(x => String(x.transferTags || "").trim()).length;
     host.innerHTML = `Selected ${numText(selected.length)} routine(s). Routine-defined ETU ${numText(etuDefined)} / ${numText(all.length)} · benchmark tests ${numText(benchmarkTests)} · transfer-tagged ${numText(withTransfer)}.`;
   } catch (err) { try { logAppError(err, "renderRoutineConsoleSemanticEditorSummarySafe"); } catch (_) {} }
@@ -22875,12 +22902,12 @@ function applyRoutineConsoleEtuEditorSafe() {
 function applyRoutineConsoleBenchmarkEditorSafe() {
   const mode = String($("routineConsoleBulkBenchmarkMode")?.value || "").trim();
   const strictness = String($("routineConsoleBulkBenchmarkStrictness")?.value || "").trim();
-  const exposure = routineConsoleNullableNumberSafe("routineConsoleBulkBenchmarkExposure", 0, 1);
+  const exposure = routineConsoleNullableNumberSafe("routineConsoleBulkBenchmarkExposure", 0, 100);
   if (!mode && !strictness && exposure === null) return alert("Set at least one benchmark metadata field.");
   routineConsolePatchSelectedRoutinesSafe(next => {
     if (mode) next.benchmarkMode = normalizeBenchmarkMode(mode);
     if (strictness) next.benchmarkStrictness = normalizeBenchmarkStrictness(strictness);
-    if (exposure !== null) next.benchmarkExposureWeight = exposure;
+    if (exposure !== null) next.benchmarkExposureWeight = normalizeBenchmarkExposureWeight(exposure, next.benchmarkMode || mode || "support");
   }, "benchmark semantics");
 }
 function routineConsoleMergeUniqueListSafe(existing, added) {

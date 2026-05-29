@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log 5.8.7</title>
+  <title>Snooker Practice Log 5.8.8</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.8.7"></script>
-  <link rel="manifest" href="manifest.json?v=5.8.7" />
-  <link rel="stylesheet" href="styles.css?v=5.8.7" />
-  <link rel="icon" href="icon.svg?v=5.8.7" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.8.8"></script>
+  <link rel="manifest" href="manifest.json?v=5.8.8" />
+  <link rel="stylesheet" href="styles.css?v=5.8.8" />
+  <link rel="icon" href="icon.svg?v=5.8.8" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.8.7 · Build 2026-05-29 19:20 CEST — Exercise Edit Metadata Preservation</p>
+      <p>5.8.8 · Build 2026-05-29 21:40 CEST — Routine Console Benchmark Validation Fix</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -650,7 +650,7 @@
             <p class="helper-text">Controls Smart Builder template constraints. Recovery blocks avoid high-pressure benchmark tests but can allow low-pressure benchmark support.</p>
           </div>
           <div class="benchmark-config">
-            <label>Benchmark mode</label>
+            <label>Benchmark mode <button type="button" class="help-dot" data-action="field-help" data-help-key="benchmarkMode">?</button></label>
             <select id="routineBenchmarkMode">
               <option value="none">None</option>
               <option value="support">Support</option>
@@ -1015,7 +1015,7 @@
                   <div class="grid three">
                     <div><label>Mode</label><select id="routineConsoleBulkBenchmarkMode"><option value="">Keep</option><option value="none">None</option><option value="support">Support</option><option value="calibration">Calibration</option><option value="test">Test</option><option value="pressure-test">Pressure-test</option></select></div>
                     <div><label>Strictness</label><select id="routineConsoleBulkBenchmarkStrictness"><option value="">Keep</option><option value="loose">Loose</option><option value="normal">Normal</option><option value="strict">Strict</option></select></div>
-                    <div><label>Exposure weight</label><input id="routineConsoleBulkBenchmarkExposure" type="number" min="0" max="1" step="0.05" placeholder="keep" /></div>
+                    <div><label>Exposure weight</label><input id="routineConsoleBulkBenchmarkExposure" type="number" min="0" max="100" step="1" placeholder="keep" /></div>
                   </div>
                   <button type="button" class="secondary" data-action="routine-console-apply-benchmark-editor" data-routine-requires-selection="1">Apply benchmark metadata</button>
                 </div>
@@ -1843,7 +1843,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.8.7"></script>
+  <script type="module" src="app.js?v=5.8.8"></script>
 </body>
 
 

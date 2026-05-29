@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.8.7-exercise-edit-metadata-preservation
+Version: 5.8.8-routine-console-benchmark-validation-fix
 
-## v5.8.7 — Exercise Edit Metadata Preservation
+## v5.8.8 — Routine Console Benchmark Validation Fix
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.
