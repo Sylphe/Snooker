@@ -9086,7 +9086,7 @@ body[data-theme-mode="dark"] .focus-v2-memory-recent i,
 }
 /* end v5.7.77J */
 
-/* v5.7.77M Focus Mode v2 Score-Centric Layout */
+/* v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification */
 .focus-v2-flow-strip {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(56px, 0.65fr));
@@ -9151,9 +9151,9 @@ body[data-theme-mode="dark"] .focus-v2-flow-strip.active > span:first-child,
   background: color-mix(in srgb, var(--accent, #62d394) 16%, var(--panel, #111a16));
   border-color: color-mix(in srgb, var(--accent, #62d394) 54%, var(--border, #33443c));
 }
-/* end v5.7.77M */
+/* end v5.7.77O */
 
-/* ===== v5.7.77M Focus Mode v2 Score-Centric Layout ===== */
+/* ===== v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification ===== */
 .focus-v2-logging.score-centric { gap: 10px; }
 .focus-v2-logging-top-compact {
   padding: 4px 2px 0;
@@ -9284,3 +9284,164 @@ body[data-theme-mode="dark"] .focus-v2-compact-status span,
   .focus-v2-gesture-hint.compact span { grid-column: 1 / -1; }
   .focus-v2-logging-fields-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ===== v5.7.77N/O Focus Mode v2 telemetry compression + smart HUD simplification ===== */
+.focus-v2-logging.telemetry-compressed {
+  gap: 8px;
+}
+.focus-v2-logging-top-compact {
+  align-items: flex-start;
+}
+.focus-v2-telemetry-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  gap: 6px;
+  align-items: stretch;
+  justify-content: end;
+  max-width: min(100%, 360px);
+}
+.focus-v2-telemetry-strip > span,
+.focus-v2-telemetry-strip > label {
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, .06);
+  color: var(--text, #111827);
+  line-height: 1.05;
+}
+.focus-v2-telemetry-strip span b {
+  font-size: .9rem;
+  color: var(--text, #111827);
+}
+.focus-v2-telemetry-strip span small,
+.focus-v2-telemetry-strip label span {
+  font-size: .56rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted, #6b7280);
+  font-weight: 800;
+}
+.focus-v2-telemetry-strip input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text, #111827);
+  font-weight: 900;
+  font-size: .95rem;
+  outline: none;
+  line-height: 1.1;
+}
+.focus-v2-smart-hud {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: auto;
+  padding: 14px 16px;
+  border-radius: 22px;
+  box-shadow: none;
+}
+.focus-v2-smart-hud > div {
+  display: grid;
+  gap: 2px;
+}
+.focus-v2-smart-hud span {
+  font-size: .64rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-weight: 900;
+  color: var(--muted, #64748b);
+}
+.focus-v2-smart-hud strong {
+  font-size: clamp(3.4rem, 12vw, 6rem);
+  line-height: .95;
+  color: var(--text, #0f172a);
+}
+.focus-v2-smart-hud small {
+  font-weight: 800;
+  color: var(--muted, #64748b);
+}
+.focus-v2-smart-hud i {
+  display: block;
+  height: 7px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .2);
+  overflow: hidden;
+}
+.focus-v2-smart-hud i span {
+  display: block;
+  height: 100%;
+  width: var(--focus-v2-progress, 0%);
+  border-radius: inherit;
+  background: rgba(56, 189, 248, .72);
+}
+.focus-v2-logging.hud-simplified .focus-v2-control-hint.compact {
+  padding: 7px 10px;
+  font-size: .78rem;
+  opacity: .78;
+}
+.focus-v2-logging.hud-simplified .focus-v2-logging-fields-compact {
+  display: none !important;
+}
+body[data-theme="dark"] .focus-v2-telemetry-strip > span,
+body[data-theme="dark"] .focus-v2-telemetry-strip > label,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip > span,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip > label,
+html[data-theme="dark"] .focus-v2-telemetry-strip > span,
+html[data-theme="dark"] .focus-v2-telemetry-strip > label,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip > span,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip > label {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .22);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .focus-v2-telemetry-strip input,
+body[data-theme="dark"] .focus-v2-telemetry-strip span b,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip input,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip span b,
+html[data-theme="dark"] .focus-v2-telemetry-strip input,
+html[data-theme="dark"] .focus-v2-telemetry-strip span b,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip input,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip span b,
+body[data-theme="dark"] .focus-v2-smart-hud strong,
+body[data-theme-mode="dark"] .focus-v2-smart-hud strong,
+html[data-theme="dark"] .focus-v2-smart-hud strong,
+html[data-theme-mode="dark"] .focus-v2-smart-hud strong {
+  color: #f8fafc;
+}
+@media (max-width: 720px) {
+  .focus-v2-logging-top-compact {
+    grid-template-columns: 1fr;
+  }
+  .focus-v2-telemetry-strip {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+  .focus-v2-telemetry-strip > span,
+  .focus-v2-telemetry-strip > label {
+    min-width: 0;
+    padding: 5px 5px;
+    text-align: center;
+  }
+  .focus-v2-telemetry-strip input {
+    text-align: center;
+  }
+  .focus-v2-score-hero {
+    padding-top: 14px;
+    padding-bottom: 16px;
+  }
+}
+@media (max-width: 390px) {
+  .focus-v2-telemetry-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* ===== end v5.7.77N/O Focus Mode v2 telemetry compression + smart HUD simplification ===== */

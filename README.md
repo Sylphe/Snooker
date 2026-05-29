@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.77M-focus-mode-v2-score-centric-layout
+Version: 5.7.77O-focus-mode-v2-telemetry-compression-smart-hud
 
-## v5.7.77M — Focus Mode v2 Score-Centric Layout
+## v5.7.77O — Focus Mode v2 Telemetry Compression + Smart HUD Simplification
 
 This release keeps the original Focus Mode untouched and updates only the parallel Focus Mode v2 test path. It adds a continuous execution loop so practice can flow from log to next attempt without modal interruptions or dead-end review states.
 
@@ -21,6 +21,6 @@ This release keeps the original Focus Mode untouched and updates only the parall
 - Zip integrity tested.
 
 
-## v5.7.77M — Focus Mode v2 Score-Centric Layout
+## v5.7.77O — Focus Mode v2 Telemetry Compression + Smart HUD Simplification
 
 Focus Mode v2 now prioritizes a single dominant score surface in the logging state. Duplicate break/HUD cards are suppressed, live telemetry is compressed, and the logging hierarchy is simplified around current score → input controls → save/next. Existing Focus Mode remains untouched.

@@ -5484,7 +5484,7 @@ function setReflectionRating(targetId, rating) {
 
 
 
-/* ===== v5.7.77M Focus Mode v2 Score-Centric Layout ===== */
+/* ===== v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification ===== */
 const FOCUS_V2_STATES = Object.freeze({ PRE: "pre-shot", LOGGING: "logging", REVIEW: "review" });
 const FOCUS_V2_INPUT_MODES = Object.freeze({ NUMERIC: "numeric", SUCCESS: "success-failure", INCREMENTAL: "incremental", BREAK: "break-building", TIME: "time-attack" });
 const FOCUS_V2_INTENSITY_MODES = Object.freeze({ MINIMAL: "minimal", STANDARD: "standard", ANALYTICAL: "analytical", COACHING: "coaching" });
@@ -5780,37 +5780,49 @@ function focusV2HudSubtitleSafe(type, routine, stats) {
   if (type === "progress") return `Progressive completion · ${target} · ${reach}`;
   return `${focusV2InputModeLabelSafe(focusV2Draft.inputMode)} · ${target} · ${reach}`;
 }
+function focusV2HudPrimaryLabelSafe(type) {
+  if (type === "break") return "Current break";
+  if (type === "streak") return "Current streak";
+  if (type === "progress") return "Progress";
+  if (type === "attempt") return "Attempt";
+  if (type === "timer") return "Elapsed";
+  return "Current score";
+}
 function renderFocusV2AdaptiveHudSafe(routine, stats, variant = "standard") {
   const type = focusV2InferHudTypeSafe(routine);
   const value = focusV2HudValueSafe(type, stats);
-  const label = focusV2HudLabelSafe(type);
-  const sub = focusV2HudSubtitleSafe(type, routine, stats);
-  const mode = focusV2InputModeLabelSafe(focusV2Draft.inputMode || focusV2InferInputModeSafe(routine));
+  const label = focusV2HudPrimaryLabelSafe(type);
   const target = stats?.target === null || stats?.target === undefined ? 0 : Number(stats.target || 0);
   const current = Number(focusV2Draft.score || focusV2Draft.incrementalValue || focusV2Draft.currentBreak || focusV2Draft.lastSavedScore || stats?.lastScore || 0);
   const progress = target > 0 ? Math.max(0, Math.min(100, Math.round((current / target) * 100))) : 0;
-  return `<div class="focus-v2-adaptive-hud focus-v2-hud-${attrText(type)} ${variant === "compact" ? "compact" : ""}"><div><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(sub)}</small></div><aside><b>${htmlText(mode)}</b><em>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</em>${target > 0 ? `<i style="--focus-v2-progress:${progress}%"><span></span></i>` : ""}</aside></div>`;
+  const best = stats?.bestScore === null || stats?.bestScore === undefined ? "—" : numText(stats.bestScore);
+  const targetText = target > 0 ? `target ${numText(target)}` : "target —";
+  const mode = focusV2InputModeLabelSafe(focusV2Draft.inputMode || focusV2InferInputModeSafe(routine));
+  const context = type === "break" ? `${targetText} · best ${best}` : type === "progress" ? `${targetText} · ${numText(progress)}%` : type === "attempt" ? `success ${numText(focusV2Draft.successCount || 0)} · miss ${numText(focusV2Draft.missCount || 0)}` : type === "timer" ? `attempt ${numText(focusV2Draft.attempt || 1)}` : `${targetText} · ${mode}`;
+  return `<div class="focus-v2-adaptive-hud focus-v2-smart-hud focus-v2-hud-${attrText(type)} ${variant === "compact" ? "compact" : ""}"><div><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(context)}</small></div>${target > 0 ? `<i style="--focus-v2-progress:${progress}%"><span></span></i>` : ""}</div>`;
 }
 
 function renderFocusV2ScoreHeroSafe(routine, stats) {
   const type = focusV2InferHudTypeSafe(routine);
   const value = focusV2HudValueSafe(type, stats);
-  const label = type === "break" ? "Current break" : type === "streak" ? "Current streak" : type === "progress" ? "Progress" : type === "attempt" ? "Attempt" : type === "timer" ? "Elapsed" : "Current score";
+  const label = focusV2HudPrimaryLabelSafe(type);
   const target = stats?.target === null || stats?.target === undefined ? null : stats?.target;
   const best = stats?.bestScore === null || stats?.bestScore === undefined ? null : stats?.bestScore;
-  const mode = focusV2InputModeLabelSafe(focusV2Draft.inputMode || focusV2InferInputModeSafe(routine));
   const subParts = [];
   if (target !== null && target !== undefined) subParts.push(`target ${numText(target)}`);
   if (best !== null && best !== undefined) subParts.push(`best ${numText(best)}`);
-  subParts.push(mode);
   return `<div class="focus-v2-score-hero focus-v2-score-hero-${attrText(type)}"><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(subParts.join(" · "))}</small></div>`;
 }
 
-function renderFocusV2CompactStatusSafe() {
+function renderFocusV2CompressedTelemetrySafe(stats = {}) {
   const attempts = Number(focusV2Draft.attempt || 1);
   const elapsed = focusV2Draft.timeMinutes !== "" ? focusV2Draft.timeMinutes : focusV2ElapsedMinutesSafe();
   const last = focusV2Draft.lastSavedScore === null || focusV2Draft.lastSavedScore === undefined ? "—" : numText(focusV2Draft.lastSavedScore);
-  return `<div class="focus-v2-compact-status"><span>Attempt <b>${numText(attempts)}</b></span><span>${numText(elapsed)} min</span><span>Last <b>${htmlText(last)}</b></span></div>`;
+  const best = focusV2Draft.sessionBestScore === null || focusV2Draft.sessionBestScore === undefined ? (stats?.bestScore === null || stats?.bestScore === undefined ? "—" : numText(stats.bestScore)) : numText(focusV2Draft.sessionBestScore);
+  return `<div class="focus-v2-telemetry-strip" aria-label="Session telemetry"><label><span>Attempt</span><input id="focusV2AttemptsInput" type="number" min="1" step="1" inputmode="numeric" value="${escapeAttr(attempts)}"></label><label><span>Time</span><input id="focusV2TimeInput" type="number" min="0" step="0.5" inputmode="decimal" value="${escapeAttr(elapsed || "")}"></label><span><b>${htmlText(last)}</b><small>Last</small></span><span><b>${htmlText(best)}</b><small>Best</small></span></div>`;
+}
+function renderFocusV2CompactStatusSafe(stats = {}) {
+  return renderFocusV2CompressedTelemetrySafe(stats);
 }
 function focusV2ControlOrderHintSafe(routine) {
   const type = focusV2InferHudTypeSafe(routine);
@@ -5963,7 +5975,7 @@ function renderFocusV2BreakInputSafe() {
   return `<div class="focus-v2-break-grid score-centric">${balls.map(n => `<button type="button" class="focus-v2-break-ball" data-action="focus-v2-break-add" data-points="${n}">+${n}</button>`).join("")}</div><div class="focus-v2-variation-row focus-v2-break-actions"><button type="button" class="focus-v2-variation" data-action="focus-v2-break-miss">Miss</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-foul">Foul</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-clear">Clear</button><button type="button" class="focus-v2-variation" data-action="focus-v2-save-draft">End break</button></div>`;
 }
 function renderFocusV2TimeInputSafe() {
-  return `<div class="focus-v2-time-hud"><span>Elapsed</span><strong>${numText(focusV2ElapsedMinutesSafe())}<small> min</small></strong></div><div class="focus-v2-outcome-grid"><button type="button" class="focus-v2-outcome success" data-action="focus-v2-log-outcome" data-outcome="success"><strong>✓</strong><span>Score / success</span></button><button type="button" class="focus-v2-outcome miss" data-action="focus-v2-log-outcome" data-outcome="miss"><strong>×</strong><span>Miss / fail</span></button></div><div class="focus-v2-logging-fields"><label>Time min<input id="focusV2TimeInput" type="number" min="0" step="0.5" inputmode="decimal" value="${escapeAttr(focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe())}"></label><label>Attempts<input id="focusV2AttemptsInput" type="number" min="1" step="1" inputmode="numeric" value="${escapeAttr(focusV2Draft.attempt || 1)}"></label></div>`;
+  return `<div class="focus-v2-time-hud focus-v2-time-hud-simple"><span>Elapsed</span><strong>${numText(focusV2ElapsedMinutesSafe())}<small> min</small></strong></div><div class="focus-v2-outcome-grid"><button type="button" class="focus-v2-outcome success" data-action="focus-v2-log-outcome" data-outcome="success"><strong>✓</strong><span>Score / success</span></button><button type="button" class="focus-v2-outcome miss" data-action="focus-v2-log-outcome" data-outcome="miss"><strong>×</strong><span>Miss / fail</span></button></div>`;
 }
 function renderFocusV2AdaptiveInputSafe(routine) {
   const mode = focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC;
@@ -5979,16 +5991,14 @@ function renderFocusV2QuickDockSafe() {
 }
 function renderFocusV2LoggingSafe(routine, stats) {
   const scoreLabel = focusV2ScoreLabelSafe(routine);
-  const time = focusV2Draft.timeMinutes !== "" ? focusV2Draft.timeMinutes : focusV2ElapsedMinutesSafe();
-  return `<section class="focus-v2-pane focus-v2-logging score-centric">
-    <div class="focus-v2-logging-top focus-v2-logging-top-compact"><div><span>${htmlText(scoreLabel)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><small>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</small></div>${renderFocusV2CompactStatusSafe()}</div>
+  return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified">
+    <div class="focus-v2-logging-top focus-v2-logging-top-compact"><div><span>${htmlText(scoreLabel)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><small>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</small></div>${renderFocusV2CompressedTelemetrySafe(stats)}</div>
     ${renderFocusV2ScoreHeroSafe(routine, stats)}
     ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2SessionMemorySafe(routine, stats, true) : ""}
     ${focusV2IntensityAllowsSafe("coachingHint") ? `<div class="focus-v2-control-hint compact">${htmlText(focusV2ControlOrderHintSafe(routine))}</div>` : ""}
     ${focusV2IntensityAllowsSafe("modeRail") ? renderFocusV2ModeRailSafe() : ""}
     ${focusV2IntensityAllowsSafe("gesture") ? `<div class="focus-v2-gesture-hint compact"><span>Gestures</span><b>Swipe right</b><b>Swipe left</b><b>Double tap</b><b>Long press</b></div>` : ""}
     ${renderFocusV2AdaptiveInputSafe(routine)}
-    ${focusV2Draft.inputMode === FOCUS_V2_INPUT_MODES.TIME ? "" : `<div class="focus-v2-logging-fields focus-v2-logging-fields-compact"><label>Attempts<input id="focusV2AttemptsInput" type="number" min="1" step="1" inputmode="numeric" value="${escapeAttr(focusV2Draft.attempt || 1)}"></label><label>Time min<input id="focusV2TimeInput" type="number" min="0" step="0.5" inputmode="decimal" value="${escapeAttr(time || "")}"></label></div>`}
     ${renderFocusV2QuickDockSafe()}
   </section>`;
 }
@@ -6229,7 +6239,7 @@ document.addEventListener("input", event => {
   if (!target) return;
   if (target.id === "focusV2ScoreInput" || target.id === "focusV2AttemptsInput" || target.id === "focusV2TimeInput" || target.id === "focusV2LeftInput" || target.id === "focusV2RightInput") focusV2SyncInputDraftSafe();
 });
-/* ===== end v5.7.77M Focus Mode v2 Score-Centric Layout ===== */
+/* ===== end v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification ===== */
 
 function startRoutineScreen() {
   persistActiveSession();
