@@ -1,5 +1,18 @@
 # Snooker Practice PWA
 
+Version: 5.7.77U-focus-mode-v2-stabilization-pass
+Build: 2026-05-29 09:23 CEST
+
+## v5.7.77U — Focus Mode v2 Stabilization Pass
+
+- Restores a Focus Mode v2 timer layer connected to the app timer settings: manual or auto-start with delay.
+- Adds timer start/pause/reset controls inside Focus Mode v2 and keeps elapsed time refreshed during logging.
+- Normalizes pre-shot and logging panel sizing so the cockpit does not jump between screens.
+- Fixes semantic colored ball buttons for break-building mode.
+- Keeps Focus Mode v2 parallel to the original Focus Mode.
+
+# Snooker Practice PWA
+
 Version: 5.7.77T-focus-mode-v2-pre-shot-compression-review-reduction
 
 ## v5.7.77T/R — Focus Mode v2 Pre-Shot Compression + Review Reduction

@@ -9799,3 +9799,152 @@ html[data-theme-mode="dark"] .focus-v2-pre-summary-strip b {
   }
 }
 /* ===== end v5.7.77T/R Focus Mode v2 pre-shot compression + review reduction ===== */
+
+/* ===== v5.7.77U Focus Mode v2 stabilization pass ===== */
+.focus-v2-pane,
+.focus-v2-pre-single-screen,
+.focus-v2-logging.score-centric {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+.focus-v2-pre-summary-strip span,
+.focus-v2-entry-box,
+.focus-v2-telemetry-strip > button,
+.focus-v2-telemetry-strip > span {
+  min-height: 54px;
+  box-sizing: border-box;
+}
+.focus-v2-logging-top-compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, auto);
+  align-items: start;
+  width: 100%;
+}
+.focus-v2-logging-top-compact > div:first-child {
+  min-width: 0;
+}
+.focus-v2-telemetry-strip {
+  min-width: 0;
+}
+.focus-v2-timer-strip {
+  width: min(100%, 640px);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, .2);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, .045);
+}
+.focus-v2-timer-strip div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.focus-v2-timer-strip span,
+.focus-v2-timer-strip small {
+  color: var(--muted, #64748b);
+  font-weight: 850;
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.focus-v2-timer-strip strong {
+  color: var(--text, #0f172a);
+  font-size: 1.2rem;
+  line-height: 1;
+  font-weight: 950;
+}
+.focus-v2-timer-control {
+  min-height: 38px;
+  border-radius: 999px;
+  padding-inline: 12px;
+  font-size: .78rem;
+  font-weight: 900;
+  background: rgba(15, 23, 42, .06);
+  color: var(--text, #0f172a);
+}
+.focus-v2-break-grid.semantic-balls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.focus-v2-break-grid.semantic-balls .focus-v2-break-ball {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-height: 64px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  text-shadow: 0 1px 1px rgba(0,0,0,.35);
+}
+.focus-v2-break-ball span {
+  display: block;
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 950;
+  opacity: .88;
+}
+.focus-v2-break-ball b {
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 1000;
+}
+.focus-v2-ball-red { background: linear-gradient(180deg, #ef4444, #991b1b) !important; }
+.focus-v2-ball-yellow { background: linear-gradient(180deg, #facc15, #a16207) !important; color: #111827 !important; text-shadow: none !important; }
+.focus-v2-ball-green { background: linear-gradient(180deg, #22c55e, #166534) !important; }
+.focus-v2-ball-brown { background: linear-gradient(180deg, #a16207, #5c2d0b) !important; }
+.focus-v2-ball-blue { background: linear-gradient(180deg, #3b82f6, #1e3a8a) !important; }
+.focus-v2-ball-pink { background: linear-gradient(180deg, #f472b6, #be185d) !important; }
+.focus-v2-ball-black { background: linear-gradient(180deg, #1f2937, #020617) !important; }
+body[data-theme="dark"] .focus-v2-timer-strip,
+body[data-theme-mode="dark"] .focus-v2-timer-strip,
+html[data-theme="dark"] .focus-v2-timer-strip,
+html[data-theme-mode="dark"] .focus-v2-timer-strip {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .22);
+}
+body[data-theme="dark"] .focus-v2-timer-strip strong,
+body[data-theme="dark"] .focus-v2-timer-control,
+body[data-theme-mode="dark"] .focus-v2-timer-strip strong,
+body[data-theme-mode="dark"] .focus-v2-timer-control,
+html[data-theme="dark"] .focus-v2-timer-strip strong,
+html[data-theme="dark"] .focus-v2-timer-control,
+html[data-theme-mode="dark"] .focus-v2-timer-strip strong,
+html[data-theme-mode="dark"] .focus-v2-timer-control {
+  color: #f8fafc;
+}
+body[data-theme="dark"] .focus-v2-timer-control,
+body[data-theme-mode="dark"] .focus-v2-timer-control,
+html[data-theme="dark"] .focus-v2-timer-control,
+html[data-theme-mode="dark"] .focus-v2-timer-control {
+  background: rgba(30, 41, 59, .88);
+  border-color: rgba(148, 163, 184, .26);
+}
+@media (max-width: 720px) {
+  .focus-v2-logging-top-compact {
+    grid-template-columns: 1fr;
+  }
+  .focus-v2-timer-strip {
+    grid-template-columns: 1fr auto auto;
+    padding: 7px 8px;
+  }
+  .focus-v2-timer-strip strong { font-size: 1.05rem; }
+  .focus-v2-break-grid.semantic-balls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .focus-v2-break-grid.semantic-balls .focus-v2-break-ball {
+    min-height: 58px;
+  }
+}
+@media (max-width: 420px) {
+  .focus-v2-timer-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .focus-v2-timer-strip > div { grid-column: 1 / -1; text-align: center; }
+  .focus-v2-timer-control { min-height: 36px; }
+}
+/* ===== end v5.7.77U Focus Mode v2 stabilization pass ===== */
