@@ -1,22 +1,24 @@
 # Snooker Practice PWA
 
-Version: 5.7.77B-focus-mode-v2-thumb-zone-mobile-layout
+Version: 5.7.77E-focus-mode-v2-gesture-interaction-layer
 
-## v5.7.77B — Focus Mode v2 Thumb-Zone Mobile Layout
+## v5.7.77E — Focus Mode v2 Gesture Interaction Layer
 
-This release keeps the existing Focus Mode untouched and extends the parallel Focus Mode v2 test cockpit. The v2 flow now starts with a richer pre-shot setup screen and moves into a mobile-first thumb-zone logging layout.
+This release uses v5.7.77D as the stable base and extends only the parallel Focus Mode v2 test path. The existing Focus Mode remains untouched.
 
 ### Included
 
-- Practice tab button: Focus Mode v2 Test.
-- Focus Mode v2 remains isolated from the current Focus Mode and does not write to main logs yet.
-- Pre-shot screen includes table selection, last score, best score, target and reach-to-target context.
-- Logging screen includes a large numeric score field, numpad, score variation buttons, attempts and time fields.
-- Side-split routines show left/right scoring boxes in Focus Mode v2.
-- Dark-mode layout and contrast improvements for the Focus Mode v2 modal, buttons, numpad and bottom dock.
-- Existing v5.7.76H.3 Routine Console containment fixes preserved.
+- Gesture Interaction Layer inside Focus Mode v2.
+- Swipe right: success / save current score and move to next attempt.
+- Swipe left: miss / failure / zero-score capture depending on input mode.
+- Swipe up: next attempt.
+- Double tap: repeat previous saved v2 draft score.
+- Long press: undo last v2 draft entry.
+- Gesture hint row in the logging screen.
+- Button-based quick logging preserved.
+- Draft-only v2 history still does not write to main logs.
 
 ### Validation
 
-- ES module syntax check passed.
-- ZIP integrity test passed.
+- JavaScript syntax checked with `node --check`.
+- Zip integrity tested.
