@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-1";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.77U";
+} from "./utils.js?v=5.7.77U-1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.77U";
+} from "./settings.js?v=5.7.77U-1";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.77U";
+} from "./analytics.js?v=5.7.77U-1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -71,7 +71,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.77U";
+} from "./bayesian.js?v=5.7.77U-1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -80,7 +80,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.77U";
+} from "./session.js?v=5.7.77U-1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -88,7 +88,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.77U";
+} from "./pressure.js?v=5.7.77U-1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -100,7 +100,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.77U";
+} from "./recommendations.js?v=5.7.77U-1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -114,7 +114,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.77U";
+} from "./store.js?v=5.7.77U-1";
 
 
 
@@ -5484,7 +5484,7 @@ function setReflectionRating(targetId, rating) {
 
 
 
-/* ===== v5.7.77U Focus Mode v2 Stabilization Pass ===== */
+/* ===== v5.7.77U.1 Focus Mode v2 HUD Density Refinement ===== */
 const FOCUS_V2_STATES = Object.freeze({ PRE: "pre-shot", LOGGING: "logging", REVIEW: "review" });
 const FOCUS_V2_INPUT_MODES = Object.freeze({ NUMERIC: "numeric", SUCCESS: "success-failure", INCREMENTAL: "incremental", BREAK: "break-building", TIME: "time-attack" });
 const FOCUS_V2_INTENSITY_MODES = Object.freeze({ MINIMAL: "minimal", STANDARD: "standard", ANALYTICAL: "analytical", COACHING: "coaching" });
@@ -5584,12 +5584,13 @@ function renderFocusV2SettingsPanelSafe() {
   return `<div class="focus-v2-settings-panel"><div class="focus-v2-settings-head"><strong>Focus settings</strong><small>Density is a global cockpit preference, not a pre-shot step.</small></div>${renderFocusV2IntensityRailSafe()}</div>`;
 }
 function focusV2SetActiveEntryFieldSafe(field) {
-  const allowed = ["score", "attempt", "time", "left", "right"];
+  const allowed = ["score", "break", "attempt", "time", "left", "right"];
   focusV2Draft.activeEntryField = allowed.includes(field) ? field : "score";
   renderFocusV2ModalSafe();
 }
 function focusV2EntryFieldLabelSafe(field) {
   if (field === "attempt") return "Attempt";
+  if (field === "break") return "Current break";
   if (field === "time") return "Time";
   if (field === "left") return "Left side";
   if (field === "right") return "Right side";
@@ -5597,6 +5598,7 @@ function focusV2EntryFieldLabelSafe(field) {
 }
 function focusV2EntryFieldValueSafe(field) {
   if (field === "attempt") return String(Math.max(1, Number(focusV2Draft.attempt || 1)));
+  if (field === "break") return String(focusV2Draft.currentBreak ?? focusV2Draft.score ?? "");
   if (field === "time") return String(focusV2Draft.timeMinutes ?? "");
   if (field === "left") return String(focusV2Draft.leftScore ?? "");
   if (field === "right") return String(focusV2Draft.rightScore ?? "");
@@ -5605,6 +5607,7 @@ function focusV2EntryFieldValueSafe(field) {
 function focusV2SetEntryFieldValueSafe(field, value) {
   const raw = String(value ?? "");
   if (field === "attempt") { focusV2Draft.attempt = Math.max(1, Number(raw || 1) || 1); return; }
+  if (field === "break") { focusV2Draft.currentBreak = Math.max(0, Number(raw || 0) || 0); focusV2Draft.score = raw; return; }
   if (field === "time") { focusV2Draft.timeMinutes = raw; return; }
   if (field === "left") { focusV2Draft.leftScore = raw; return; }
   if (field === "right") { focusV2Draft.rightScore = raw; return; }
@@ -5855,8 +5858,12 @@ function setFocusV2MicroFeedbackSafe(kind = "save", text = "Saved") {
 }
 function renderFocusV2MicroFeedbackSafe() {
   const text = focusV2Draft.feedbackText || focusV2Draft.message || "";
+  const kindRaw = String(focusV2Draft.feedbackKind || "save");
   if (!text) return "";
-  const kind = safeClassToken(focusV2Draft.feedbackKind || "save");
+  if (focusV2Draft.state === FOCUS_V2_STATES.LOGGING && kindRaw === "ready") return "";
+  const age = Date.now() - Number(focusV2Draft.feedbackAt || 0);
+  if (focusV2Draft.state === FOCUS_V2_STATES.LOGGING && kindRaw !== "pb" && age > 2600) return "";
+  const kind = safeClassToken(kindRaw);
   return `<div class="focus-v2-micro-feedback ${kind}" role="status" aria-live="polite"><span>${htmlText(text)}</span></div>`;
 }
 function focusV2RoutineTextSignatureSafe(routine) {
@@ -5950,7 +5957,9 @@ function renderFocusV2ScoreHeroSafe(routine, stats) {
   const subParts = [];
   if (target !== null && target !== undefined) subParts.push(`target ${numText(target)}`);
   if (best !== null && best !== undefined) subParts.push(`best ${numText(best)}`);
-  return `<div class="focus-v2-score-hero focus-v2-score-hero-${attrText(type)}"><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(subParts.join(" · "))}</small></div>`;
+  const field = type === "break" ? "break" : "score";
+  const active = (focusV2Draft.activeEntryField || "score") === field;
+  return `<button type="button" class="focus-v2-score-hero focus-v2-score-hero-${attrText(type)} ${active ? "active-entry" : ""}" data-action="focus-v2-entry-field" data-field="${attrText(field)}"><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(subParts.join(" · "))}</small></button>`;
 }
 
 function renderFocusV2CompressedTelemetrySafe(stats = {}) {
@@ -6035,6 +6044,7 @@ function setFocusV2StateSafe(state) {
   if (!Object.values(FOCUS_V2_STATES).includes(state)) state = FOCUS_V2_STATES.PRE;
   focusV2Draft.state = state;
   if (state === FOCUS_V2_STATES.LOGGING && !focusV2Draft.loggingStartedAt) focusV2Draft.loggingStartedAt = Date.now();
+  if (state === FOCUS_V2_STATES.LOGGING && (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) === FOCUS_V2_INPUT_MODES.BREAK) focusV2Draft.activeEntryField = "break";
   if (state === FOCUS_V2_STATES.LOGGING) focusV2MaybeAutoStartTimerSafe();
   renderFocusV2ModalSafe();
 }
@@ -6122,7 +6132,7 @@ function renderFocusV2BreakInputSafe() {
     { points: 6, label: "Pink", key: "pink" },
     { points: 7, label: "Black", key: "black" }
   ];
-  return `<div class="focus-v2-break-grid score-centric semantic-balls">${balls.map(ball => `<button type="button" class="focus-v2-break-ball focus-v2-ball-${attrText(ball.key)}" data-action="focus-v2-break-add" data-points="${ball.points}"><span>${htmlText(ball.label)}</span><b>+${ball.points}</b></button>`).join("")}</div><div class="focus-v2-variation-row focus-v2-break-actions"><button type="button" class="focus-v2-variation" data-action="focus-v2-break-miss">Miss</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-foul">Foul</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-clear">Clear</button><button type="button" class="focus-v2-variation" data-action="focus-v2-save-draft">End break</button></div>`;
+  return `<div class="focus-v2-break-compact-zone"><div class="focus-v2-break-grid score-centric semantic-balls compact-balls">${balls.map(ball => `<button type="button" aria-label="Add ${ball.label} ${ball.points} point${ball.points === 1 ? "" : "s"}" class="focus-v2-break-ball focus-v2-ball-${attrText(ball.key)}" data-action="focus-v2-break-add" data-points="${ball.points}"><span>${htmlText(ball.label[0])}</span><b>+${ball.points}</b></button>`).join("")}</div>${renderFocusV2NumpadSafe()}</div><div class="focus-v2-variation-row focus-v2-break-actions"><button type="button" class="focus-v2-variation" data-action="focus-v2-break-miss">Miss</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-foul">Foul</button><button type="button" class="focus-v2-variation" data-action="focus-v2-break-clear">Clear</button><button type="button" class="focus-v2-variation" data-action="focus-v2-save-draft">End break</button></div>`;
 }
 function renderFocusV2TimeInputSafe() {
   return `${renderFocusV2TimerControlsSafe()}<div class="focus-v2-outcome-grid"><button type="button" class="focus-v2-outcome success" data-action="focus-v2-log-outcome" data-outcome="success"><strong>✓</strong><span>Score / success</span></button><button type="button" class="focus-v2-outcome miss" data-action="focus-v2-log-outcome" data-outcome="miss"><strong>×</strong><span>Miss / fail</span></button></div>`;
@@ -6141,8 +6151,8 @@ function renderFocusV2QuickDockSafe() {
 }
 function renderFocusV2LoggingSafe(routine, stats) {
   const scoreLabel = focusV2ScoreLabelSafe(routine);
-  return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified">
-    <div class="focus-v2-logging-top focus-v2-logging-top-compact"><div><span>${htmlText(scoreLabel)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><small>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</small></div>${renderFocusV2CompressedTelemetrySafe(stats)}</div>
+  return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified hud-density-refined">
+    <div class="focus-v2-logging-top focus-v2-logging-top-compact focus-v2-logging-telemetry-only">${renderFocusV2CompressedTelemetrySafe(stats)}</div>
     ${renderFocusV2ScoreHeroSafe(routine, stats)}
     ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2RecentMemorySafe(routine, stats) : ""}
     ${focusV2IntensityAllowsSafe("coachingHint") ? `<div class="focus-v2-control-hint compact">${htmlText(focusV2ControlOrderHintSafe(routine))}</div>` : ""}
@@ -6150,7 +6160,7 @@ function renderFocusV2LoggingSafe(routine, stats) {
     ${focusV2IntensityAllowsSafe("gesture") ? `<div class="focus-v2-gesture-hint compact"><span>Gestures</span><b>Swipe right</b><b>Swipe left</b><b>Double tap</b><b>Long press</b></div>` : ""}
     ${(focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) === FOCUS_V2_INPUT_MODES.TIME ? "" : renderFocusV2TimerControlsSafe()}
     ${renderFocusV2AdaptiveInputSafe(routine)}
-    ${(focusV2Draft.activeEntryField || "score") !== "score" && (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) !== FOCUS_V2_INPUT_MODES.NUMERIC ? renderFocusV2NumpadSafe() : ""}
+    ${(focusV2Draft.activeEntryField || "score") !== "score" && ![FOCUS_V2_INPUT_MODES.NUMERIC, FOCUS_V2_INPUT_MODES.BREAK].includes(focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) ? renderFocusV2NumpadSafe() : ""}
     ${renderFocusV2QuickDockSafe()}
   </section>`;
 }
@@ -6171,7 +6181,8 @@ function renderFocusV2ModalSafe() {
   if (state === FOCUS_V2_STATES.PRE) body = renderFocusV2PreShotSafe(routine, stats);
   else if (state === FOCUS_V2_STATES.LOGGING) body = renderFocusV2LoggingSafe(routine, stats);
   else body = renderFocusV2ReviewSafe(routine, stats);
-  host.innerHTML = `<div class="focus-v2-shell ${focusV2IntensityClassSafe()}"><header class="focus-v2-header"><div><p class="focus-v2-kicker">Focus Mode v2 test</p><h1 id="focusV2Title">${htmlText(copy.title)}</h1><p>${htmlText(copy.body)}</p></div><div class="focus-v2-header-actions"><button type="button" class="focus-v2-gear" data-action="focus-v2-toggle-settings" aria-label="Focus Mode v2 settings">⚙</button><button type="button" class="modal-close focus-v2-close" data-action="close-focus-v2-test">×</button></div></header>${renderFocusV2SettingsPanelSafe()}${renderFocusV2ProgressSafe()}<div class="focus-v2-current"><span>${htmlText(copy.eyebrow)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><em>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</em></div>${renderFocusV2MicroFeedbackSafe()}${body}</div>`;
+  const contextBar = state === FOCUS_V2_STATES.LOGGING ? "" : `<div class="focus-v2-current"><span>${htmlText(copy.eyebrow)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><em>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</em></div>`;
+  host.innerHTML = `<div class="focus-v2-shell ${focusV2IntensityClassSafe()}"><header class="focus-v2-header"><div><p class="focus-v2-kicker">Focus Mode v2 test</p><h1 id="focusV2Title">${htmlText(copy.title)}</h1><p>${htmlText(copy.body)}</p></div><div class="focus-v2-header-actions"><button type="button" class="focus-v2-gear" data-action="focus-v2-toggle-settings" aria-label="Focus Mode v2 settings">⚙</button><button type="button" class="modal-close focus-v2-close" data-action="close-focus-v2-test">×</button></div></header>${renderFocusV2SettingsPanelSafe()}${renderFocusV2ProgressSafe()}${contextBar}${renderFocusV2MicroFeedbackSafe()}${body}</div>`;
 }
 function focusV2CurrentScoreValueSafe() {
   const mode = focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC;
@@ -6393,7 +6404,7 @@ document.addEventListener("input", event => {
   if (!target) return;
   if (target.id === "focusV2ScoreInput" || target.id === "focusV2AttemptsInput" || target.id === "focusV2TimeInput" || target.id === "focusV2LeftInput" || target.id === "focusV2RightInput") focusV2SyncInputDraftSafe();
 });
-/* ===== end v5.7.77U Focus Mode v2 Stabilization Pass ===== */
+/* ===== end v5.7.77U.1 Focus Mode v2 HUD Density Refinement ===== */
 
 function startRoutineScreen() {
   persistActiveSession();
@@ -21097,7 +21108,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U</strong><span>Focus Mode v2 Stabilization Pass</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.1</strong><span>Focus Mode v2 HUD Density Refinement</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -21196,7 +21207,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.77U", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.77U.1", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
@@ -21536,10 +21547,10 @@ function handleDelegatedUIAction(event) {
     case "focus-v2-adjust": hapticFeedback("tap"); return handleFocusV2AdjustSafe(Number(actionEl.dataset.delta || 0));
     case "focus-v2-key": hapticFeedback("tap"); return handleFocusV2KeySafe(actionEl.dataset.key || "");
     case "focus-v2-increment": hapticFeedback("tap"); return handleFocusV2IncrementSafe(Number(actionEl.dataset.delta || 0));
-    case "focus-v2-break-add": hapticFeedback("tap"); return handleFocusV2BreakAddSafe(Number(actionEl.dataset.points || 0));
+    case "focus-v2-break-add": hapticFeedback("tap"); focusV2Draft.activeEntryField = "break"; return handleFocusV2BreakAddSafe(Number(actionEl.dataset.points || 0));
     case "focus-v2-break-miss": return handleFocusV2BreakMissSafe("Miss");
     case "focus-v2-break-foul": return handleFocusV2BreakMissSafe("Foul");
-    case "focus-v2-break-clear": { focusV2Draft.currentBreak = 0; focusV2Draft.score = ""; renderFocusV2ModalSafe(); return; }
+    case "focus-v2-break-clear": { focusV2Draft.currentBreak = 0; focusV2Draft.score = ""; focusV2Draft.activeEntryField = "break"; renderFocusV2ModalSafe(); return; }
     case "focus-v2-timer-toggle": { hapticFeedback("tap"); if (focusV2Draft.timerStartedAt) focusV2PauseTimerSafe(); else focusV2StartTimerSafe(); renderFocusV2ModalSafe(); return; }
     case "focus-v2-timer-reset": { hapticFeedback("tap"); focusV2ResetTimerSafe(); renderFocusV2ModalSafe(); return; }
     case "focus-v2-log-outcome": return handleFocusV2OutcomeSafe(actionEl.dataset.outcome || "miss");

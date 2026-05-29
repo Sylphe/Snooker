@@ -9948,3 +9948,93 @@ html[data-theme-mode="dark"] .focus-v2-timer-control {
   .focus-v2-timer-control { min-height: 36px; }
 }
 /* ===== end v5.7.77U Focus Mode v2 stabilization pass ===== */
+
+/* ===== v5.7.77U.1 Focus Mode v2 HUD density refinement ===== */
+.focus-v2-logging.hud-density-refined {
+  gap: 8px;
+}
+.focus-v2-logging-telemetry-only {
+  display: block;
+  padding: 0;
+}
+.focus-v2-logging-telemetry-only .focus-v2-telemetry-strip {
+  width: min(100%, 620px);
+  margin-inline: auto;
+}
+.focus-v2-score-hero {
+  border: 1px solid rgba(148, 163, 184, .18);
+  cursor: pointer;
+  width: min(100%, 560px);
+  justify-self: center;
+  font-family: inherit;
+  color: inherit;
+}
+.focus-v2-score-hero.active-entry {
+  border-color: color-mix(in srgb, var(--accent, #22c55e) 68%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #22c55e) 18%, transparent);
+}
+.focus-v2-break-compact-zone {
+  display: grid;
+  gap: 7px;
+  width: min(100%, 460px);
+  justify-self: center;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 auto -2px;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  box-shadow: inset -5px -7px 10px rgba(0,0,0,.30), inset 4px 4px 8px rgba(255,255,255,.22), 0 2px 7px rgba(0,0,0,.14);
+  overflow: hidden;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball b {
+  font-size: .72rem;
+  line-height: 1;
+  font-weight: 1000;
+  letter-spacing: -.03em;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b {
+  color: #111827;
+}
+.focus-v2-break-actions {
+  margin-top: 0;
+}
+.focus-v2-micro-feedback.ready {
+  display: none;
+}
+.focus-v2-logging.hud-density-refined .focus-v2-control-hint.compact,
+.focus-v2-logging.hud-density-refined .focus-v2-gesture-hint.compact {
+  margin-block: 0;
+}
+@media (max-width: 520px) {
+  .focus-v2-break-grid.semantic-balls.compact-balls { gap: 5px; }
+  .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    flex-basis: 34px;
+  }
+  .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball b { font-size: .66rem; }
+  .focus-v2-break-compact-zone { gap: 5px; }
+}
+/* ===== end v5.7.77U.1 Focus Mode v2 HUD density refinement ===== */

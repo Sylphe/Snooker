@@ -1,3 +1,16 @@
+# Snooker Practice Log
+
+Version: 5.7.77U.1-focus-mode-v2-hud-density-refinement
+Build: 2026-05-29 10:10 CEST
+
+## v5.7.77U.1 — Focus Mode v2 HUD Density Refinement
+
+- Compresses semantic colored ball controls into small snooker-ball chips positioned directly above the v2 numpad.
+- Makes Current Break selectable/editable through the in-app numpad.
+- Removes the ready flashing box from the logging screen.
+- Removes redundant logging exercise name/folder context from the logging state.
+- Keeps the original Focus Mode untouched and preserves v5.7.77U timer stabilization.
+
 # Snooker Practice PWA
 
 Version: 5.7.77U-focus-mode-v2-stabilization-pass
