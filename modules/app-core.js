@@ -2160,6 +2160,7 @@ const AI_COACHING_LAYER_V2_VERSION = "v5.6.17";
 const AI_EXPORT_MAX_ROUTINE_SNAPSHOTS = 50;
 const AI_EXPORT_MAX_GLOBAL_RECENT_LOGS = 100;
 const AI_EXPORT_MAX_PER_ROUTINE_LOGS = 12;
+const AI_EXPORT_FULL_ROUTINE_SNAPSHOT_VERSION = "v5.7.77U.12";
 function aiCoachLogScore(log){
   const v = Number(log?.normalizedScore ?? normalizeScore(log));
   return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : null;
@@ -16877,6 +16878,266 @@ function buildAiSkillProfile(routineSnapshots) {
 }
 
 
+
+function aiRoutineConsoleIssueExportSafe(issue) {
+  const i = issue || {};
+  return {
+    severity: i.severity || i.status || "info",
+    code: i.code || "issue",
+    label: i.label || i.detail || i.code || "Validation issue",
+    detail: i.detail || i.label || "",
+    fix: i.fix || "",
+    weight: Number(i.weight || 0)
+  };
+}
+
+function buildAiRoutineConsoleExportSafe() {
+  return aiTry("routineConsoleFullExport", () => {
+    const rows = routineConsoleRowsSafe();
+    const readiness = routineSemanticReadinessScoreSafe(rows);
+    const validation = routineValidationEngineSafe((typeof smartBuilderRoutineSchemaAuditSafe === "function" ? smartBuilderRoutineSchemaAuditSafe().rows : []) || []);
+    const issueRows = routineConsoleIssueRowsSafe(rows);
+    const summarizeBy = (fn) => rows.reduce((acc, row) => {
+      const key = String(fn(row) || "unclassified");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const etuGapRows = rows.filter(row => (Number(row.technicalEtu || 0) + Number(row.cognitiveEtu || 0) + Number(row.confidenceEtu || 0) + Number(row.pressureEtu || 0)) <= 0 || /etu/i.test((row.issues || []).map(x => `${x.code || ""} ${x.label || ""} ${x.detail || ""}`).join(" "))).map(row => ({
+      routineId: row.id,
+      routineName: row.name,
+      etuProfile: {technical:row.technicalEtu, cognitive:row.cognitiveEtu, confidence:row.confidenceEtu, pressure:row.pressureEtu, source:row.etuSource},
+      issues: (row.issues || []).filter(x => /etu|volatility|confidence|pressure|recovery/i.test(`${x.code || ""} ${x.label || ""} ${x.detail || ""}`)).map(aiRoutineConsoleIssueExportSafe)
+    }));
+    const benchmarkRows = rows.map(row => ({
+      routineId: row.id,
+      routineName: row.name,
+      benchmarkMode: row.benchmarkMode,
+      benchmarkExposureWeight: row.benchmarkExposureWeight,
+      benchmarkStrictness: row.benchmarkStrictness,
+      issues: (row.issues || []).filter(x => /benchmark|ladder|strictness|exposure/i.test(`${x.code || ""} ${x.label || ""} ${x.detail || ""}`)).map(aiRoutineConsoleIssueExportSafe)
+    }));
+    const transferRows = rows.map(row => ({
+      routineId: row.id,
+      routineName: row.name,
+      primarySkill: row.primarySkill,
+      secondarySkills: row.secondarySkills,
+      transferTags: row.transferTags,
+      transferGraph: row.transferGraph,
+      dependencyChain: row.dependencyChain,
+      transferValue: aiTry(`routineTransferValue ${row.id}`, () => routineTransferValue(row.routine), null),
+      transferProfile: aiTry(`routineGraphTransferProfile ${row.id}`, () => routineGraphTransferProfile(row.routine), null),
+      transferReadiness: aiTry(`transferReadinessForRoutine ${row.id}`, () => transferReadinessForRoutine(row.routine), null),
+      issues: (row.issues || []).filter(x => /transfer|tag|dependency|chain|graph|loop/i.test(`${x.code || ""} ${x.label || ""} ${x.detail || ""}`)).map(aiRoutineConsoleIssueExportSafe)
+    }));
+    return {
+      version: AI_EXPORT_FULL_ROUTINE_SNAPSHOT_VERSION,
+      source: "Routine Console full audit",
+      summary: {
+        totalRows: rows.length,
+        readiness,
+        validationSummary: validation.summary || {total:validation.total, critical:validation.critical, risks:validation.risks, watches:validation.watches, avgValidity:validation.avgValidity},
+        statusCounts: summarizeBy(row => row.status || "ok"),
+        benchmarkModeCounts: summarizeBy(row => row.benchmarkMode || "support"),
+        recommendationModeCounts: summarizeBy(row => row.recommendationMode || "active"),
+        etuGapCount: etuGapRows.length,
+        issueCount: issueRows.length
+      },
+      checksAndValidations: issueRows.map(issue => ({
+        routineId: issue.routineId,
+        routineName: issue.routineName,
+        severity: issue.severity,
+        code: issue.code,
+        label: issue.label,
+        detail: issue.detail,
+        fix: issue.fix
+      })),
+      etuGaps: etuGapRows,
+      benchmarks: benchmarkRows,
+      transferAndTags: transferRows,
+      rows: rows.map(row => ({
+        routineId: row.id,
+        routineName: row.name,
+        folder: row.folder,
+        subfolder: row.subfolder,
+        category: row.category,
+        scoring: row.scoring,
+        recommendationMode: row.recommendationMode,
+        primarySkill: row.primarySkill,
+        secondarySkills: row.secondarySkills,
+        transferTags: row.transferTags,
+        transferGraph: row.transferGraph,
+        dependencyChain: row.dependencyChain,
+        benchmarkMode: row.benchmarkMode,
+        benchmarkExposureWeight: row.benchmarkExposureWeight,
+        benchmarkStrictness: row.benchmarkStrictness,
+        volatilityProfile: row.volatilityProfile,
+        pressureSuitability: row.pressureSuitability,
+        recoverySuitability: row.recoverySuitability,
+        acquisitionSuitability: row.acquisitionSuitability,
+        etuProfile: {technical:row.technicalEtu, cognitive:row.cognitiveEtu, confidence:row.confidenceEtu, pressure:row.pressureEtu, source:row.etuSource},
+        semanticPreset: row.semanticPreset,
+        routineArchetype: row.routineArchetype,
+        derivedMetadata: {
+          recoverySuitability: row.derivedRecoverySuitability,
+          confidenceRisk: row.derivedConfidenceRisk,
+          cognitiveLoad: row.derivedCognitiveLoad,
+          benchmarkDensity: row.derivedBenchmarkDensity,
+          transferIntensity: row.derivedTransferIntensity,
+          source: row.derivedMetadataSource
+        },
+        completeness: row.completeness,
+        validity: row.validity,
+        status: row.status,
+        auditRow: row.auditRow,
+        validationRow: row.validationRow,
+        issues: (row.issues || []).map(aiRoutineConsoleIssueExportSafe),
+        rawRoutine: row.routine
+      }))
+    };
+  }, {version:AI_EXPORT_FULL_ROUTINE_SNAPSHOT_VERSION, source:"Routine Console full audit", error:"unavailable"});
+}
+
+function buildAiFullStatsPanelsExportSafe(logs) {
+  return aiTry("fullStatsPanelsExport", () => {
+    const scoped = Array.isArray(logs) ? logs : (data.logs || []);
+    const values = scoped.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+    const profile = inferLatentSkillLevels(scoped, activeRoutines());
+    const rating = estimateGlobalPlayerRating(profile, scoped);
+    const benchmark = estimateBenchmarkPlayerClass(scoped, activeRoutines());
+    const velocity = estimatePredictionVelocitySafe(scoped);
+    const load = estimateEffectiveTrainingLoadSafe(scoped);
+    const domainLoads = estimatePredictionDomainEtuSafe(scoped);
+    const confidence = predictionConfidenceLabelSafe(scoped.length, rating?.evidenceN, velocity?.volatility);
+    const sessionSeries = buildSessionKpiSeries(scoped);
+    return {
+      version: AI_EXPORT_FULL_ROUTINE_SNAPSHOT_VERSION,
+      source: "Stats panels full AI-readable export",
+      scope: {logs:scoped.length, routines:activeRoutines().length, sessions:(data.sessions || []).length, firstLogAt:scoped[0]?.createdAt || null, lastLogAt:scoped[scoped.length-1]?.createdAt || null},
+      overview: {
+        totalLogs: scoped.length,
+        averageScore: values.length ? avg(values) : null,
+        volatility: values.length >= 3 ? stdDev(values) : null,
+        targetHitRate: targetHitRate(scoped),
+        currentForm: aiTry("stats current form", () => estimateCurrentFormForLogs(scoped), null),
+        performanceStability: aiTry("stats performance stability", () => performanceStabilityIndex(scoped, 10), null),
+        fatigueSlope: aiTry("stats fatigue slope", () => cachedFatigueSlope(scoped), null),
+        plateau: aiTry("stats plateau", () => plateauDetector(scoped, 8), null),
+        overtraining: aiTry("stats overtraining", () => overtrainingSignal(scoped, 8), null),
+        forecast: aiTry("stats forecast", () => forecastWithConfidence(scoped, 5), null)
+      },
+      trends: {
+        sessionKpiSeries: sessionSeries,
+        rollingAverage5: rollingAverage(values, 5),
+        movingTrend5: movingTrend(values, 5),
+        progressVelocity10: progressVelocity(scoped, 10),
+        performanceDrift10: performanceDrift(scoped, 10)
+      },
+      predictions: {
+        profile,
+        rating,
+        benchmark,
+        velocity,
+        load,
+        sustainableEtuPerWeek: sustainablePredictionPaceSafe(load),
+        domainLoads,
+        confidence,
+        breakMilestones: [
+          {label:"Stable 30+ profile", target:44},
+          {label:"Stable 50+ profile", target:58},
+          {label:"Stable 70+ profile", target:70},
+          {label:"Century-capable profile", target:82}
+        ].map(m => {
+          const effectiveVelocity = Math.max(0, Number(velocity?.effectiveSlope ?? velocity?.slope ?? 0));
+          const probability = predictionProbabilitySafe(rating?.matchScore, m.target, effectiveVelocity, confidence?.index, velocity?.volatility);
+          return {...m, probability, status:predictionBandStatusSafe(probability), readinessWindow:predictionReadinessWindowSafe(rating?.matchScore, m.target, effectiveVelocity, confidence?.label, load)};
+        }),
+        benchmarkRoadmap: aiTry("benchmark roadmap export", () => ({targetLevels:benchmarkRoadmapTargetLevelsSafe(), domainGaps:benchmarkRoadmapDomainGapsSafe(benchmark)}), null),
+        recoveryReadiness: aiTry("prediction recovery readiness", () => predictionRecoveryReadinessSafe(load), null)
+      },
+      routinesPanel: activeRoutines().map(r => {
+        const stats = routineStats(r);
+        return {routineId:r.id, routineName:r.name, category:r.category, folder:r.folder, logCount:stats.logs.length, targetHitRate:stats.hit, recentAverage:stats.recent, priorAverage:stats.prior, recommendationScore:stats.score, bayesian:stats.bayesian, contextSignal:stats.contextSignal};
+      }),
+      coachingPanel: {
+        coachingNarrative: aiTry("coaching narrative", () => buildAiCoachingNarrative(scoped), null),
+        weeklyReport: aiTry("weekly coaching report", () => weeklyAiCoachingReport(scoped), null),
+        generatedSessionPlans: [60,90,180].map(m => aiTry(`generated session ${m}`, () => aiGeneratedSessionPlan(scoped, m), null)),
+        targetSuggestions: aiTry("ai target suggestions", () => aiTargetSuggestionRows(scoped).map(x => ({routineId:x.routine.id, routineName:x.routine.name, currentTarget:x.currentTarget, suggestedTarget:x.suggestedTarget, action:x.action, confidence:x.confidence, interval:x.interval, health:x.health})), [])
+      },
+      pressurePanel: {
+        pressureLogs: scoped.filter(l => l.pressureEnabled || l.sessionType === "pressure").length,
+        pressureAnalytics: aiTry("pressure scoped stability", () => {
+          const p = scoped.filter(l => l.pressureEnabled || l.sessionType === "pressure");
+          const vals = p.map(l => Number(l.pressureSuccessRate ?? l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite);
+          return {average: vals.length ? avg(vals) : null, volatility: vals.length >= 3 ? stdDev(vals) : null, targetHitRate: targetHitRate(p), forecast: forecastWithConfidence(p, 5)};
+        }, null)
+      },
+      researchPanel: {
+        probabilisticTrend: aiTry("probabilistic trend", () => probabilisticTrendDiagnosis(scoped), null),
+        probabilisticRoutineTargetRows: aiTry("prob routine targets", () => probabilisticRoutineTargetRows(scoped), []),
+        probabilisticSkillUncertaintyRows: aiTry("prob skill uncertainty", () => probabilisticSkillUncertaintyRows(scoped), []),
+        crossRoutineSkillGraph: aiTry("cross routine skill graph", () => buildCrossRoutineSkillGraph(scoped, activeRoutines()), null),
+        bottlenecks: aiTry("skill graph bottlenecks", () => skillGraphBottleneckAnalysis(scoped), null)
+      },
+      graphsPanel: {sessionKpiSeries: sessionSeries}
+    };
+  }, {version:AI_EXPORT_FULL_ROUTINE_SNAPSHOT_VERSION, source:"Stats panels full AI-readable export", error:"unavailable"});
+}
+
+function buildAiCompleteRoutineLibraryExportSafe(routineSnapshots, grouped) {
+  return aiTry("completeRoutineLibraryExport", () => activeRoutines().map(r => {
+    const stats = routineStats(r, grouped);
+    return {
+      routine: exportableRoutineRecord ? exportableRoutineRecord(r) : r,
+      rawRoutine: r,
+      statisticalSnapshot: {
+        logCount: stats.logs.length,
+        targetHitRate: stats.hit,
+        recentAverage: stats.recent,
+        priorAverage: stats.prior,
+        recommendationScore: stats.score,
+        bayesian: stats.bayesian,
+        contextSignal: stats.contextSignal,
+        recentEvidence: aiRecentEvidenceLogs(stats.logs, AI_EXPORT_MAX_PER_ROUTINE_LOGS)
+      },
+      routineConsoleRow: (routineSnapshots || []).find(x => String(x?.routine?.id) === String(r.id)) || null,
+      transferReadiness: aiTry(`complete library transfer ${r.id}`, () => transferReadinessForRoutine(r), null),
+      targetCalibration: aiTry(`complete library target ${r.id}`, () => targetHealthForRoutine(r, stats.logs), null),
+      dynamicDifficulty: aiTry(`complete library difficulty ${r.id}`, () => latentRoutineDifficultyEstimate(r), null)
+    };
+  }), []);
+}
+
+async function loadBundledRoutinePacksForAiExportSafe() {
+  const packs = [];
+  const paths = [
+    {path:"./routine-packs/curated-snooker-routine-pack-v1.json", label:"curated-snooker-routine-pack-v1"},
+    {path:"./routine-packs/nolan-benchmark-pack-v1.json", label:"nolan-benchmark-pack-v1"}
+  ];
+  for (const item of paths) {
+    try {
+      const response = await fetch(item.path, {cache:"no-store"});
+      if (!response.ok) throw new Error(`${item.label} fetch failed ${response.status}`);
+      const pack = await response.json();
+      packs.push({label:item.label, path:item.path, loaded:true, routineCount:Array.isArray(pack?.routines) ? pack.routines.length : 0, pack});
+    } catch (err) {
+      try { logAppError(err, `loadBundledRoutinePacksForAiExportSafe ${item.label}`); } catch (_) {}
+      packs.push({label:item.label, path:item.path, loaded:false, error:String(err?.message || err)});
+    }
+  }
+  return packs;
+}
+
+async function enrichAiCoachingSnapshotWithBundledPacksSafe(payload) {
+  try {
+    const packs = await loadBundledRoutinePacksForAiExportSafe();
+    return {...payload, bundledRoutinePacks: packs, metadata:{...(payload.metadata || {}), bundledRoutinePackExport:true, bundledRoutinePackCount:packs.length}};
+  } catch (err) {
+    try { logAppError(err, "enrichAiCoachingSnapshotWithBundledPacksSafe"); } catch (_) {}
+    return {...payload, bundledRoutinePacks: [], metadata:{...(payload.metadata || {}), bundledRoutinePackExport:false}};
+  }
+}
+
 function buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates) {
   const mature = routineSnapshots.filter(r => Number(r.statisticalSnapshot?.logCount || 0) >= 6);
   const tooHard = mature.filter(r => r.targetCalibration?.health?.state === "too_hard");
@@ -16918,9 +17179,12 @@ function buildAiCoachingSnapshot(options = {}) {
   const allRoutines = activeRoutines();
   const logs = (data.logs || []).slice().sort((a,b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
   const grouped = getLogsByRoutineMap(logs);
-  const maxRoutineSnapshots = Math.max(1, Number(options.maxRoutineSnapshots || AI_EXPORT_MAX_ROUTINE_SNAPSHOTS));
+  const maxRoutineSnapshots = Math.max(1, Number(options.maxRoutineSnapshots || allRoutines.length || AI_EXPORT_MAX_ROUTINE_SNAPSHOTS));
   const routines = prioritizeRoutinesForAiExport(allRoutines, grouped, maxRoutineSnapshots);
   const routineSnapshots = routines.map(r => buildAiRoutineSnapshot(r, grouped));
+  const routineConsoleFullAudit = buildAiRoutineConsoleExportSafe();
+  const fullStatsPanels = buildAiFullStatsPanelsExportSafe(logs);
+  const completeRoutineLibrary = buildAiCompleteRoutineLibraryExportSafe(routineSnapshots, grouped);
   const targetCalibrationCandidates = routineSnapshots
     .filter(r => r.targetCalibration?.suggestion)
     .map(r => ({
@@ -17002,10 +17266,10 @@ function buildAiCoachingSnapshot(options = {}) {
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
-    schemaVersion: "1.4",
+    schemaVersion: "1.5",
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    purpose: "AI-readable snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, skill-specific latent level inference, and AI coaching layer v2 explainability.",
+    purpose: "AI-readable complete snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, skill-specific latent level inference, full Routine Console validation, complete routine library review, full Stats panel review, prediction/readiness analysis, and AI coaching layer v2 explainability.",
     privacy: {
       localOnlySource: true,
       containsPersonalPracticeData: true,
@@ -17067,10 +17331,13 @@ function buildAiCoachingSnapshot(options = {}) {
     weakestLinkProfile,
     targetCalibrationCandidates,
     routineSnapshots,
+    completeRoutineLibrary,
+    routineConsoleFullAudit,
+    fullStatsPanels,
     recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, AI_EXPORT_MAX_GLOBAL_RECENT_LOGS) : [],
     metadata: {
       routinePackSchemaVersion: ROUTINE_PACK_SCHEMA_VERSION,
-      exportLimits: {globalRecentLogs:AI_EXPORT_MAX_GLOBAL_RECENT_LOGS, perRoutineRecentLogs:AI_EXPORT_MAX_PER_ROUTINE_LOGS, targetHistoryPerRoutine:8, routineSnapshots:maxRoutineSnapshots},
+      exportLimits: {globalRecentLogs:AI_EXPORT_MAX_GLOBAL_RECENT_LOGS, perRoutineRecentLogs:AI_EXPORT_MAX_PER_ROUTINE_LOGS, targetHistoryPerRoutine:8, routineSnapshots:maxRoutineSnapshots, routineConsoleRows:"all", statsPanels:"all", completeRoutineLibrary:"all active routines"},
       exportTruncated: allRoutines.length > routines.length,
       generatedBy: "Snooker Practice PWA AI Coaching Export"
     }
@@ -17078,10 +17345,11 @@ function buildAiCoachingSnapshot(options = {}) {
 }
 
 async function exportAiCoachingSnapshot() {
-  const payload = buildAiCoachingSnapshot({includeRawRecentLogs:true});
+  const basePayload = buildAiCoachingSnapshot({includeRawRecentLogs:true, maxRoutineSnapshots:activeRoutines().length});
+  const payload = await enrichAiCoachingSnapshotWithBundledPacksSafe(basePayload);
   const filename = `snooker-ai-coaching-export-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
-  await exportFile(filename, JSON.stringify(payload), "application/json");
-  showTransientNotice("Target calibration v2 created.", "ok");
+  await exportFile(filename, JSON.stringify(payload, null, 2), "application/json");
+  showTransientNotice("Complete AI coaching snapshot exported.", "ok");
 }
 
 

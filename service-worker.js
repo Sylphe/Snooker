@@ -1,4 +1,4 @@
-const CACHE_VERSION = "5.7.77U-11-focus-v2-default-entry-patch";
+const CACHE_VERSION = "5.7.77U-12-ai-coaching-snapshot-complete-export";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
   "./index.html?v=5.7.77U-11",
