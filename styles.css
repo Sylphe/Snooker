@@ -10038,3 +10038,185 @@ html[data-theme-mode="dark"] .focus-v2-timer-control {
   .focus-v2-break-compact-zone { gap: 5px; }
 }
 /* ===== end v5.7.77U.1 Focus Mode v2 HUD density refinement ===== */
+
+/* ===== v5.7.77U.2 Focus Mode v2 logging layout correction ===== */
+.focus-v2-layout-corrected,
+.focus-v2-pre-single-screen {
+  width: min(100%, 720px);
+  max-width: 720px;
+  margin-inline: auto;
+  justify-self: center;
+  box-sizing: border-box;
+}
+.focus-v2-logging-context-card {
+  width: min(100%, 620px);
+  justify-self: center;
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  background: rgba(148, 163, 184, .08);
+  text-align: center;
+  box-sizing: border-box;
+}
+.focus-v2-logging-context-card strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .92rem;
+  line-height: 1.12;
+  font-weight: 950;
+  color: var(--text, #0f172a);
+}
+.focus-v2-logging-context-card span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .68rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  font-weight: 900;
+  color: var(--muted, #64748b);
+}
+.focus-v2-thumb-dock-compact-actions {
+  width: min(100%, 620px);
+  justify-self: center;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.focus-v2-thumb-dock-compact-actions .focus-v2-utility-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+.focus-v2-thumb-dock-compact-actions .focus-v2-utility-row button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.focus-v2-thumb-dock-compact-actions .focus-v2-full {
+  grid-column: auto;
+  min-height: 52px;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls {
+  gap: 5px;
+  margin-block: 0 1px;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  flex: 0 0 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.38) !important;
+  box-shadow:
+    inset -7px -8px 11px rgba(0,0,0,.40),
+    inset 5px 5px 9px rgba(255,255,255,.26),
+    0 2px 7px rgba(0,0,0,.20) !important;
+  color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,.55) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  width: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.42);
+  filter: blur(.2px);
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball b {
+  position: relative;
+  z-index: 1;
+  font-size: .64rem;
+  line-height: 1;
+  font-weight: 1000;
+  letter-spacing: -.04em;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red {
+  background: radial-gradient(circle at 32% 25%, #ff9f9f 0 9%, #ef4444 28%, #991b1b 82%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow {
+  background: radial-gradient(circle at 32% 25%, #fff7ad 0 10%, #facc15 36%, #a16207 88%) !important;
+  color: #111827 !important;
+  text-shadow: none !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green {
+  background: radial-gradient(circle at 32% 25%, #9ff7b4 0 10%, #22c55e 34%, #166534 86%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown {
+  background: radial-gradient(circle at 32% 25%, #d6a06a 0 10%, #92400e 36%, #431407 88%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue {
+  background: radial-gradient(circle at 32% 25%, #93c5fd 0 10%, #3b82f6 34%, #1e3a8a 86%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink {
+  background: radial-gradient(circle at 32% 25%, #fbcfe8 0 10%, #f472b6 34%, #be185d 86%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black {
+  background: radial-gradient(circle at 32% 25%, #64748b 0 8%, #1f2937 30%, #020617 84%) !important;
+  border-color: rgba(255,255,255,.46) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b {
+  color: #111827 !important;
+}
+body[data-theme="dark"] .focus-v2-logging-context-card,
+body[data-theme-mode="dark"] .focus-v2-logging-context-card,
+html[data-theme="dark"] .focus-v2-logging-context-card,
+html[data-theme-mode="dark"] .focus-v2-logging-context-card {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .24);
+}
+body[data-theme="dark"] .focus-v2-logging-context-card strong,
+body[data-theme-mode="dark"] .focus-v2-logging-context-card strong,
+html[data-theme="dark"] .focus-v2-logging-context-card strong,
+html[data-theme-mode="dark"] .focus-v2-logging-context-card strong {
+  color: #f8fafc;
+}
+@media (max-width: 520px) {
+  .focus-v2-layout-corrected,
+  .focus-v2-pre-single-screen {
+    max-width: none;
+    width: 100%;
+  }
+  .focus-v2-logging-context-card {
+    width: 100%;
+    padding: 7px 10px;
+  }
+  .focus-v2-thumb-dock-compact-actions .focus-v2-utility-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .focus-v2-thumb-dock-compact-actions .focus-v2-utility-row button {
+    min-height: 35px;
+    padding-inline: 4px;
+    font-size: .68rem;
+  }
+  .focus-v2-thumb-dock-compact-actions .focus-v2-full {
+    min-height: 50px;
+  }
+  .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    flex-basis: 30px;
+  }
+  .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball b {
+    font-size: .58rem;
+  }
+}
+/* ===== end v5.7.77U.2 Focus Mode v2 logging layout correction ===== */

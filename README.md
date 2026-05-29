@@ -1,7 +1,15 @@
 # Snooker Practice Log
 
-Version: 5.7.77U.1-focus-mode-v2-hud-density-refinement
+Version: 5.7.77U.2-focus-mode-v2-logging-layout-correction
 Build: 2026-05-29 10:10 CEST
+
+## v5.7.77U.2 — Focus Mode v2 Logging Layout Correction
+
+- Restored the compact routine name/folder context card above attempts/time in Focus Mode v2 logging.
+- Kept redundant lower logging context removed.
+- Recolored compact snooker-ball increment chips with dark-mode-safe true ball colors.
+- Compressed Undo / Repeat last / Review into a single utility row.
+- Re-aligned Pre-shot and Logging panels to the same width and positioning contract.
 
 ## v5.7.77U.1 — Focus Mode v2 HUD Density Refinement
 

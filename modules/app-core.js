@@ -5484,7 +5484,7 @@ function setReflectionRating(targetId, rating) {
 
 
 
-/* ===== v5.7.77U.1 Focus Mode v2 HUD Density Refinement ===== */
+/* ===== v5.7.77U.2 Focus Mode v2 logging layout correction ===== */
 const FOCUS_V2_STATES = Object.freeze({ PRE: "pre-shot", LOGGING: "logging", REVIEW: "review" });
 const FOCUS_V2_INPUT_MODES = Object.freeze({ NUMERIC: "numeric", SUCCESS: "success-failure", INCREMENTAL: "incremental", BREAK: "break-building", TIME: "time-attack" });
 const FOCUS_V2_INTENSITY_MODES = Object.freeze({ MINIMAL: "minimal", STANDARD: "standard", ANALYTICAL: "analytical", COACHING: "coaching" });
@@ -6145,13 +6145,21 @@ function renderFocusV2AdaptiveInputSafe(routine) {
   if (mode === FOCUS_V2_INPUT_MODES.TIME) return renderFocusV2TimeInputSafe();
   return renderFocusV2NumericInputSafe(routine);
 }
+function renderFocusV2LoggingRoutineContextSafe(routine) {
+  if (!routine) return "";
+  const folder = routine.folder || "Unfiled";
+  const subfolder = routine.subfolder || "General";
+  return `<div class="focus-v2-logging-context-card" aria-label="Selected routine"><strong>${htmlText(routine.name || "Routine")}</strong><span>${htmlText(folder)} / ${htmlText(subfolder)}</span></div>`;
+}
+
 function renderFocusV2QuickDockSafe() {
   const canUndo = Array.isArray(focusV2Draft.history) && focusV2Draft.history.length > 0;
-  return `<div class="focus-v2-thumb-dock focus-v2-thumb-dock-reduced"><button type="button" class="secondary" data-action="focus-v2-undo" ${canUndo ? "" : "disabled"}>Undo</button><button type="button" class="secondary" data-action="focus-v2-repeat-last">Repeat last</button><button type="button" class="secondary focus-v2-manual-review" data-action="focus-v2-state" data-state="${FOCUS_V2_STATES.REVIEW}">Review</button><button type="button" class="primary focus-v2-primary focus-v2-full" data-action="focus-v2-save-draft">Save + next</button></div>`;
+  return `<div class="focus-v2-thumb-dock focus-v2-thumb-dock-reduced focus-v2-thumb-dock-compact-actions"><div class="focus-v2-utility-row"><button type="button" class="secondary" data-action="focus-v2-undo" ${canUndo ? "" : "disabled"}>Undo</button><button type="button" class="secondary" data-action="focus-v2-repeat-last">Repeat last</button><button type="button" class="secondary focus-v2-manual-review" data-action="focus-v2-state" data-state="${FOCUS_V2_STATES.REVIEW}">Review</button></div><button type="button" class="primary focus-v2-primary focus-v2-full" data-action="focus-v2-save-draft">Save + next</button></div>`;
 }
+
 function renderFocusV2LoggingSafe(routine, stats) {
-  const scoreLabel = focusV2ScoreLabelSafe(routine);
-  return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified hud-density-refined">
+  return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified hud-density-refined focus-v2-layout-corrected">
+    ${renderFocusV2LoggingRoutineContextSafe(routine)}
     <div class="focus-v2-logging-top focus-v2-logging-top-compact focus-v2-logging-telemetry-only">${renderFocusV2CompressedTelemetrySafe(stats)}</div>
     ${renderFocusV2ScoreHeroSafe(routine, stats)}
     ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2RecentMemorySafe(routine, stats) : ""}
@@ -6164,6 +6172,7 @@ function renderFocusV2LoggingSafe(routine, stats) {
     ${renderFocusV2QuickDockSafe()}
   </section>`;
 }
+
 function renderFocusV2ReviewSafe(routine, stats) {
   const last = focusV2Draft.lastSavedScore === null || focusV2Draft.lastSavedScore === undefined ? "No v2 draft score saved yet." : `Last v2 draft score: ${focusV2Draft.lastSavedScore}`;
   const type = focusV2InferHudTypeSafe(routine);
@@ -6404,7 +6413,7 @@ document.addEventListener("input", event => {
   if (!target) return;
   if (target.id === "focusV2ScoreInput" || target.id === "focusV2AttemptsInput" || target.id === "focusV2TimeInput" || target.id === "focusV2LeftInput" || target.id === "focusV2RightInput") focusV2SyncInputDraftSafe();
 });
-/* ===== end v5.7.77U.1 Focus Mode v2 HUD Density Refinement ===== */
+/* ===== end v5.7.77U.2 Focus Mode v2 logging layout correction ===== */
 
 function startRoutineScreen() {
   persistActiveSession();
