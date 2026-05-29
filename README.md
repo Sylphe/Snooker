@@ -1,7 +1,13 @@
-# Snooker Practice Log
+# Snooker Practice PWA
 
-Version: 5.7.77U.2-focus-mode-v2-logging-layout-correction
-Build: 2026-05-29 10:10 CEST
+Version: 5.7.77U.3-focus-mode-v2-break-control-stabilization
+
+## v5.7.77U.3 — Focus Mode v2 Break Control Stabilization
+
+- Fixes dark-mode visibility of compact snooker-ball break controls.
+- Reorders break controls into a prioritized block: ball increments, Miss/Foul/Clear/Save, then numpad.
+- Makes break reset and new-attempt reset reliable so Current Break returns to 0 instead of falling back to the previous saved break.
+- Preserves Focus Mode v2 layout correction and original Focus Mode.
 
 ## v5.7.77U.2 — Focus Mode v2 Logging Layout Correction
 

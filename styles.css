@@ -10220,3 +10220,143 @@ html[data-theme-mode="dark"] .focus-v2-logging-context-card strong {
   }
 }
 /* ===== end v5.7.77U.2 Focus Mode v2 logging layout correction ===== */
+
+/* ===== v5.7.77U.3 Focus Mode v2 break control stabilization ===== */
+.focus-v2-break-priority-zone {
+  width: min(100%, 460px);
+  justify-self: center;
+  display: grid;
+  gap: 6px;
+}
+.focus-v2-break-actions-priority {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.focus-v2-break-action {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: .72rem;
+  line-height: 1;
+  font-weight: 950;
+  border: 1px solid rgba(148, 163, 184, .28);
+  background: rgba(148, 163, 184, .10);
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+}
+.focus-v2-break-action.miss,
+.focus-v2-break-action.foul {
+  border-color: rgba(239, 68, 68, .34);
+  background: rgba(239, 68, 68, .10);
+}
+.focus-v2-break-action.save {
+  border-color: rgba(34, 197, 94, .40);
+  background: rgba(34, 197, 94, .14);
+}
+.focus-v2-break-action.clear {
+  border-color: rgba(148, 163, 184, .34);
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-break-ball {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  filter: saturate(1.08) contrast(1.06) !important;
+  mix-blend-mode: normal !important;
+  background-blend-mode: normal !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-red {
+  background: radial-gradient(circle at 31% 23%, #fecaca 0 8%, #ef4444 31%, #7f1d1d 88%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow {
+  background: radial-gradient(circle at 31% 23%, #fef9c3 0 10%, #fde047 36%, #a16207 90%) !important;
+  color: #111827 !important;
+  text-shadow: none !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-green {
+  background: radial-gradient(circle at 31% 23%, #bbf7d0 0 10%, #22c55e 34%, #14532d 88%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-brown {
+  background: radial-gradient(circle at 31% 23%, #f0c48e 0 10%, #92400e 38%, #3b1707 90%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-blue {
+  background: radial-gradient(circle at 31% 23%, #bfdbfe 0 10%, #3b82f6 34%, #1e3a8a 88%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-pink {
+  background: radial-gradient(circle at 31% 23%, #fce7f3 0 10%, #f472b6 34%, #9d174d 88%) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-black {
+  background: radial-gradient(circle at 31% 23%, #94a3b8 0 8%, #111827 32%, #020617 88%) !important;
+  border-color: rgba(255, 255, 255, .56) !important;
+}
+.focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b,
+body[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b,
+body[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b,
+html[data-theme="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b,
+html[data-theme-mode="dark"] .focus-v2-break-grid.semantic-balls.compact-balls .focus-v2-ball-yellow b {
+  color: #111827 !important;
+  text-shadow: none !important;
+}
+body[data-theme="dark"] .focus-v2-break-action,
+body[data-theme-mode="dark"] .focus-v2-break-action,
+html[data-theme="dark"] .focus-v2-break-action,
+html[data-theme-mode="dark"] .focus-v2-break-action {
+  background: rgba(15, 23, 42, .72);
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, .28);
+}
+body[data-theme="dark"] .focus-v2-break-action.miss,
+body[data-theme="dark"] .focus-v2-break-action.foul,
+body[data-theme-mode="dark"] .focus-v2-break-action.miss,
+body[data-theme-mode="dark"] .focus-v2-break-action.foul,
+html[data-theme="dark"] .focus-v2-break-action.miss,
+html[data-theme="dark"] .focus-v2-break-action.foul,
+html[data-theme-mode="dark"] .focus-v2-break-action.miss,
+html[data-theme-mode="dark"] .focus-v2-break-action.foul {
+  background: rgba(127, 29, 29, .52);
+  border-color: rgba(248, 113, 113, .36);
+}
+body[data-theme="dark"] .focus-v2-break-action.save,
+body[data-theme-mode="dark"] .focus-v2-break-action.save,
+html[data-theme="dark"] .focus-v2-break-action.save,
+html[data-theme-mode="dark"] .focus-v2-break-action.save {
+  background: rgba(20, 83, 45, .62);
+  border-color: rgba(74, 222, 128, .42);
+}
+@media (max-width: 420px) {
+  .focus-v2-break-actions-priority { gap: 4px; }
+  .focus-v2-break-action { min-height: 32px; padding-inline: 4px; font-size: .66rem; }
+}
+/* ===== end v5.7.77U.3 Focus Mode v2 break control stabilization ===== */
