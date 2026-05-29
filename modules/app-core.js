@@ -3761,7 +3761,6 @@ function normalizeStatsMode(value) {
   return STATS_MODES.has(v) ? v : "overview";
 }
 let statsMode = normalizeStatsMode(localStorage.getItem(STATS_MODE_KEY) || "overview");
-let selectedPredictionEtuSessionKey = null;
 const STATS_ROUTINE_FILTER_KEY = "snookerPracticePWA.statsRoutineFilter";
 let statsRoutineFilterId = localStorage.getItem(STATS_ROUTINE_FILTER_KEY) || "all";
 
@@ -12869,7 +12868,6 @@ function estimateEffectiveTrainingLoadSafe(logs) {
     const etuSource = sessionEtuSourceKeySafe(arr, minutes);
     const dateValue = Math.min(...arr.map(log => Date.parse(log?.createdAt || log?.date || "")).filter(Number.isFinite));
     return {
-      sessionKey: key,
       etu: effectiveEtu,
       effectiveEtu,
       etuSource,
@@ -13611,75 +13609,16 @@ function predictionEtuBandSafe(etu) {
   return {label:"Micro / recovery", cls:"risk"};
 }
 function predictionEtuTimelineBarsSafe(rows) {
-  const list = Array.isArray(rows) ? rows : [];
-  const recent = list.slice(-14);
+  const recent = (rows || []).slice(-14);
   if (!recent.length) return `<div class="analytics-note">Add sessions to build the ETU timeline.</div>`;
   const max = Math.max(1, ...recent.map(r => Number(r.etu || 0)));
-  const baseIndex = Math.max(0, list.length - recent.length);
-  if (!selectedPredictionEtuSessionKey || !list.some(r => String(r.sessionKey || "") === String(selectedPredictionEtuSessionKey))) {
-    const latest = recent[recent.length - 1];
-    selectedPredictionEtuSessionKey = latest ? String(latest.sessionKey || `session-${list.length - 1}`) : null;
-  }
-  const bars = recent.map((r, i) => {
-    const globalIndex = baseIndex + i;
-    const key = String(r.sessionKey || `session-${globalIndex}`);
-    const selected = String(selectedPredictionEtuSessionKey || "") === key;
+  return `<div class="prediction-etu-bars">${recent.map((r, i) => {
     const etu = Math.max(0, Number(r.etu || 0));
     const pct = Math.max(4, Math.min(100, etu / max * 100));
     const band = predictionEtuBandSafe(etu);
-    return `<button type="button" class="prediction-etu-bar-row ${band.cls} ${selected ? "selected" : ""}" data-action="prediction-etu-session-select" data-session-key="${attrText(key)}" aria-pressed="${selected ? "true" : "false"}"><span>S${Math.max(1, globalIndex + 1)}<small>${htmlText(predictionShortDateSafe(r.dateValue))}</small></span><div class="prediction-etu-bar-track"><i style="width:${pct.toFixed(1)}%"></i></div><strong>${numText(etu)} ETU</strong></button>`;
-  }).join("");
-  const selectedRow = list.find(r => String(r.sessionKey || "") === String(selectedPredictionEtuSessionKey)) || recent[recent.length - 1];
-  return `<div class="prediction-etu-bars" role="list" aria-label="Session ETU timeline. Select a session to inspect ETU decomposition.">${bars}</div>${renderPredictionEtuSessionDecompositionSafe(selectedRow, list.indexOf(selectedRow))}`;
+    return `<div class="prediction-etu-bar-row ${band.cls}"><span>S${Math.max(1, (rows || []).length - recent.length + i + 1)}<small>${htmlText(predictionShortDateSafe(r.dateValue))}</small></span><div class="prediction-etu-bar-track"><i style="width:${pct.toFixed(1)}%"></i></div><strong>${numText(etu)} ETU</strong></div>`;
+  }).join("")}</div>`;
 }
-function predictionEtuComponentRowsForSessionSafe(row) {
-  const c = row?.components || {};
-  const raw = Math.max(0, Number(row?.rawEtu || 0));
-  const duration = Math.max(0, Number(c.duration || row?.effectiveEtu || 0));
-  const items = [
-    {key:"duration", label:"Duration component", value:duration, delta:duration - raw, detail:"diminishing-return duration curve; raw table-time remains the reference"},
-    {key:"diversity", label:"Diversity", value:Number(c.diversity || 1), detail:"distinct routines increase development density"},
-    {key:"density", label:"Routine density", value:Number(c.density || 1), detail:"more logged work inside the session"},
-    {key:"pressure", label:"Pressure", value:Number(c.pressure || 1), detail:"match, tactical or consequence exposure"},
-    {key:"transfer", label:"Transfer", value:Number(c.transfer || 1), detail:"cross-domain carryover work"},
-    {key:"adaptive", label:"Adaptive", value:Number(c.adaptive || 1), detail:"smart/recommended/adaptive work"},
-    {key:"challenge", label:"Challenge", value:Number(c.challenge || 1), detail:"productive target band from hit-rate difficulty"},
-    {key:"quality", label:"Quality", value:Number(c.quality || 1), detail:"subjective quality adjustment when available"},
-    {key:"fatigue", label:"Fatigue", value:Number(c.fatigue || 1), detail:"fatigue penalty when available"}
-  ];
-  let running = duration;
-  return items.map((item, idx) => {
-    if (idx === 0) return {...item, before:raw, after:duration, factor:null, delta:duration - raw};
-    const before = running;
-    const factor = Number.isFinite(item.value) && item.value > 0 ? item.value : 1;
-    const after = before * factor;
-    running = after;
-    return {...item, before, after, factor, delta:after - before};
-  });
-}
-function renderPredictionEtuSessionDecompositionSafe(row, rowIndex) {
-  if (!row) return `<div class="analytics-note">Select a session to inspect ETU decomposition.</div>`;
-  const rows = predictionEtuComponentRowsForSessionSafe(row);
-  const raw = Math.max(0, Number(row.rawEtu || 0));
-  const effective = Math.max(0, Number(row.effectiveEtu || row.etu || 0));
-  const band = predictionEtuBandSafe(effective);
-  const sessionLabel = Number.isFinite(Number(rowIndex)) && Number(rowIndex) >= 0 ? `S${Number(rowIndex) + 1}` : "Selected session";
-  const source = renderEtuSourceBadgeSafe(row.etuSource || "estimated_from_session", {long:true});
-  const componentRows = rows.map(x => {
-    const delta = Number(x.delta || 0);
-    const deltaText = `${delta >= 0 ? "+" : "−"}${numText(Math.abs(delta))}`;
-    const multiplierText = x.factor === null ? "—" : `${Number(x.factor || 1) >= 1.04 ? "+" : Number(x.factor || 1) <= 0.96 ? "−" : "="}${numText(x.factor)}`;
-    return `<tr><td><strong>${htmlText(x.label)}</strong><small>${htmlText(x.detail)}</small></td><td>${multiplierText}</td><td>${deltaText}</td><td>${numText(x.after)}</td></tr>`;
-  }).join("");
-  const subtype = row.etuSubtypes || {};
-  const subtypeText = `Tech ${numText(subtype.technical || 0)} · Cog ${numText(subtype.cognitive || 0)} · Pressure ${numText(subtype.pressure || 0)} · Conf ${numText(subtype.confidence || subtype.emotional || 0)}`;
-  return `<div class="prediction-etu-decomposition-card ${band.cls}"><div class="prediction-etu-decomposition-head"><div><h5>${htmlText(sessionLabel)} ETU decomposition</h5><p>${htmlText(predictionShortDateSafe(row.dateValue))} · ${htmlText(band.label)} · ${source}</p></div><div class="prediction-etu-decomposition-total"><span>${numText(effective)}</span><small>final ETU</small></div></div><p class="muted">This decomposes the selected session from raw table-time exposure into calibrated effective load. Positive adjustments mean the session produced denser or more transferable training load; negative adjustments mean the session was shorter, too easy/hard, or fatigue/quality reduced the expected benefit.</p><div class="overview-kpi-dashboard compact"><div class="overview-kpi"><span>Raw exposure</span><div class="value">${numText(raw)}</div><small>table-time equivalent</small></div><div class="overview-kpi"><span>Final ETU</span><div class="value">${numText(effective)}</div><small>calibrated effective load</small></div><div class="overview-kpi"><span>Logs / routines</span><div class="value">${numText(row.logCount || 0)} / ${numText(row.uniqueRoutines || 0)}</div><small>${numText(row.minutes || 0)} min logged</small></div><div class="overview-kpi"><span>Subtype mix</span><div class="value small-value">${htmlText(subtypeText)}</div><small>estimated from session context</small></div></div><div class="prediction-etu-decomposition-table-wrap"><table class="prediction-etu-decomposition-table"><thead><tr><th>Component</th><th>Multiplier</th><th>ETU effect</th><th>Running ETU</th></tr></thead><tbody>${componentRows}</tbody><tfoot><tr><td>Final capped ETU</td><td>—</td><td>${effective >= raw ? "+" : "−"}${numText(Math.abs(effective - raw))}</td><td>${numText(effective)}</td></tr></tfoot></table></div></div>`;
-}
-function selectPredictionEtuSessionSafe(sessionKey) {
-  selectedPredictionEtuSessionKey = String(sessionKey || "");
-  try { renderStats(); } catch (err) { try { logAppError(err, "selectPredictionEtuSessionSafe"); } catch (_) {} }
-}
-
 function predictionCumulativeEtuSafe(rows) {
   const recent = (rows || []).slice(-24);
   if (!recent.length) return `<div class="analytics-note">Add sessions to build the cumulative ETU path.</div>`;
@@ -21792,7 +21731,6 @@ function handleDelegatedUIAction(event) {
     case "switch-tab": return activateTab(actionEl.dataset.tab || "practice");
     case "open-today-panel": return activateTab("today");
     case "stats-mode": activateTab("stats"); return setStatsMode(actionEl.dataset.statsMode || "overview");
-    case "prediction-etu-session-select": return selectPredictionEtuSessionSafe(actionEl.dataset.sessionKey || "");
     case "open-library-exercises": activateTab("templates"); return setTemplatesMainTab("exercises");
     case "open-library-plans": activateTab("plans"); return restorePlansMainTab();
     case "open-library-skills": activateTab("templates"); return setTemplatesMainTab("skills");
