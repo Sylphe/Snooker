@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.77U.4-etu-decay-recovery-aware-load
+Version: 5.7.77U.5-smart-engine-explanation-integrity
 
-## v5.7.77U.4 — ETU Decay & Recovery-Aware Load Model
+## v5.7.77U.5 — Smart Engine Explanation Integrity Patch
 
 - Fixes dark-mode visibility of compact snooker-ball break controls.
 - Reorders break controls into a prioritized block: ball increments, Miss/Foul/Clear/Save, then numpad.

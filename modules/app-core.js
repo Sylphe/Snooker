@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-5";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-5";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.77U-4";
+} from "./utils.js?v=5.7.77U-5";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.77U-4";
+} from "./settings.js?v=5.7.77U-5";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.77U-4";
+} from "./analytics.js?v=5.7.77U-5";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -71,7 +71,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.77U-4";
+} from "./bayesian.js?v=5.7.77U-5";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -80,7 +80,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.77U-4";
+} from "./session.js?v=5.7.77U-5";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -88,7 +88,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.77U-4";
+} from "./pressure.js?v=5.7.77U-5";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -100,7 +100,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.77U-4";
+} from "./recommendations.js?v=5.7.77U-5";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -114,7 +114,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.77U-4";
+} from "./store.js?v=5.7.77U-5";
 
 
 
@@ -1047,16 +1047,40 @@ function smartBuilderTransferGraphFitSafe(state, context={}) {
     return {version:SKILL_TRANSFER_MODEL_VERSION, modifier:0, graph:null, directCount:0, supportingCount:0, weakCount:0, interferenceCount:0, reasons:["transfer graph unavailable"]};
   }
 }
+function smartBuilderTransferDisplayEdgesSafe(graph){
+  const priority = {interference:4, direct:3, supporting:2, weak:1};
+  const bySkill = new Map();
+  ["direct","supporting","weak","interference"].forEach(type => {
+    ((graph?.typed || {})[type] || []).forEach(edge => {
+      const to = String(edge?.to || edge?.skill || "").trim();
+      if (!to) return;
+      const existing = bySkill.get(to);
+      const edgeAbs = Math.abs(Number(edge?.signedWeight ?? edge?.weight ?? 0));
+      const existingAbs = Math.abs(Number(existing?.signedWeight ?? existing?.weight ?? 0));
+      if (!existing || priority[type] > priority[existing.type] || (priority[type] === priority[existing.type] && edgeAbs > existingAbs)) {
+        bySkill.set(to, {...edge, type});
+      }
+    });
+  });
+  const rows = Array.from(bySkill.values());
+  return {
+    direct: rows.filter(x => x.type === "direct").sort((a,b)=>Math.abs(Number(b.signedWeight||b.weight||0))-Math.abs(Number(a.signedWeight||a.weight||0))),
+    supporting: rows.filter(x => x.type === "supporting").sort((a,b)=>Math.abs(Number(b.signedWeight||b.weight||0))-Math.abs(Number(a.signedWeight||a.weight||0))),
+    weak: rows.filter(x => x.type === "weak").sort((a,b)=>Math.abs(Number(b.signedWeight||b.weight||0))-Math.abs(Number(a.signedWeight||a.weight||0))),
+    interference: rows.filter(x => x.type === "interference").sort((a,b)=>Math.abs(Number(b.signedWeight||b.weight||0))-Math.abs(Number(a.signedWeight||a.weight||0)))
+  };
+}
 function renderSmartBuilderTransferGraphPickSafe(profile) {
   try {
     if (!profile?.graph) return "";
     const g = profile.graph;
-    const direct = (g.typed.direct || []).slice(0,2).map(x => `<span class="adaptive-pill compact">Direct: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
-    const support = (g.typed.supporting || []).slice(0,2).map(x => `<span class="adaptive-pill compact">Support: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
-    const weak = (g.typed.weak || []).slice(0,1).map(x => `<span class="adaptive-pill compact">Weak: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
-    const risk = (g.topInterference || []).slice(0,1).map(x => `<span class="adaptive-pill compact danger">Interference: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
-    const reason = (profile.reasons || [])[0] || "typed transfer graph applied";
-    return `<div class="adaptive-rationale transfer-graph-v1"><strong>Transfer graph:</strong> modifier ${numText(profile.modifier)} · direct ${numText(profile.directCount)} · supporting ${numText(profile.supportingCount)} · weak ${numText(profile.weakCount)} · interference ${numText(profile.interferenceCount)}.<br><span class="muted small">${escapeHtml(reason)}</span><div class="smart-builder-constraint-summary">${direct}${support}${weak}${risk}</div></div>`;
+    const display = smartBuilderTransferDisplayEdgesSafe(g);
+    const direct = display.direct.slice(0,2).map(x => `<span class="adaptive-pill compact">Direct: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
+    const support = display.supporting.slice(0,2).map(x => `<span class="adaptive-pill compact">Support: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
+    const weak = display.weak.slice(0,1).map(x => `<span class="adaptive-pill compact">Weak: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
+    const risk = display.interference.slice(0,1).map(x => `<span class="adaptive-pill compact danger">Interference: ${escapeHtml(skillLabel(x.to))}</span>`).join("");
+    const reason = smartBuilderSanitizeReasonStringSafe((profile.reasons || [])[0]) || "typed transfer graph applied";
+    return `<div class="adaptive-rationale transfer-graph-v1"><strong>Transfer graph:</strong> modifier ${numText(profile.modifier)} · direct ${numText(display.direct.length)} · supporting ${numText(display.supporting.length)} · weak ${numText(display.weak.length)} · interference ${numText(display.interference.length)}.<br><span class="muted small">${escapeHtml(reason)}</span><div class="smart-builder-constraint-summary">${direct}${support}${weak}${risk}</div></div>`;
   } catch (_) { return ""; }
 }
 function smartBuilderPlanTransferGraphSummarySafe(plan) {
@@ -3504,6 +3528,7 @@ function smartBuilderTaxonomyForStateSafe(state, block=null){
       if (blockType === "confidence" || blockType === "warmup" || phase === "recover") return "recovery";
       return "consolidation";
     }
+    if ((state?.pressureDowngraded || state?.smartPressureDowngraded) && blockType === "pressure") return "consolidation";
     if (blockType === "pressure" || phase === "vary" || (state?.reasons || []).some(r => String(r).toLowerCase().includes("pressure"))) return "pressure";
     if (phase === "recover" || blockType === "confidence" || blockType === "warmup") {
       if (smartBuilderRoutineHasBenchmarkIntentSafe(state?.routine) && phase !== "recover") return "consolidation";
@@ -10183,7 +10208,8 @@ function renderRecommendationLayerAuditSafe(p) {
       const label = recommendationAuditContributionLabel(layer.value, maxAbs);
       return `<div class="audit-layer-row ${state}"><div class="audit-layer-head"><strong>${escapeHtml(layer.label)}</strong><span>${escapeHtml(label)}</span></div><div class="audit-layer-bar"><span style="width:${pct.toFixed(0)}%"></span></div><small>${escapeHtml(layer.text)}</small></div>`;
     }).join("");
-    const constraints = (audit.constraintsApplied || []).slice(0,5).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>No hard constraint applied.</li>`;
+    const constraintItems = (audit.constraintsApplied || []).map(x => smartBuilderSanitizeReasonStringSafe(x)).filter(Boolean);
+    const constraints = constraintItems.slice(0,5).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>No hard constraint applied.</li>`;
     const supportText = topSupport ? `Selected mainly by ${escapeHtml(topSupport.label)}` : "No dominant support layer";
     const brakeText = topSuppress ? `softened by ${escapeHtml(topSuppress.label)}` : "no material brake";
     const raw = `<details class="audit-raw-values"><summary>Advanced raw audit values</summary><div class="adaptive-rationale"><strong>Final fit:</strong> ${numText(audit.finalScore)} · <strong>Base skill score:</strong> ${numText(audit.baseSkillScore)} · <strong>Strategy modifier:</strong> ${numText(audit.strategyModifier)}</div><ul class="reason-list">${rawLayers.map(layer => `<li><strong>${escapeHtml(layer.label)}:</strong> ${numText(layer.value)}</li>`).join("")}</ul></details>`;
@@ -11107,6 +11133,23 @@ function renderSmartBuilderRoutineSchemaAuditSafe(plan) {
 /* ===== end v5.7.71 Routine Schema Audit ===== */
 
 
+function smartBuilderPressureDowngradePolicySafe(etuContext, effectiveGoal="stability", template=null){
+  try {
+    const state = String(etuContext?.state || "").toLowerCase();
+    const acuteRatio = Number(etuContext?.ratio || 0);
+    const acute = Number(etuContext?.acuteFatigueEtu ?? etuContext?.acute ?? 0);
+    const weeklyRatio = Number(etuContext?.weeklyRatio || 0);
+    const restGapDays = Number(etuContext?.restGapDays);
+    const tpl = String(template?.key || "").toLowerCase();
+    const goal = String(effectiveGoal || "").toLowerCase();
+    const highRecent = state === "high" || state === "moderate_high" || acuteRatio >= 1.15 || acute >= 6.0;
+    const recoveredButHighWeek = state === "recovered_high_week" || (weeklyRatio >= 1.35 && Number.isFinite(restGapDays) && restGapDays >= 3);
+    if ((goal === "pressure" || tpl === "pressure") && !highRecent) return {active:false};
+    if (highRecent) return {active:true, reason:"Pressure dose downgraded: acute ETU is elevated; use controlled robustness instead of full pressure.", shortReason:"acute ETU elevated"};
+    if (recoveredButHighWeek && tpl !== "pressure") return {active:true, reason:"Pressure dose downgraded: weekly load is high even though acute fatigue has recovered.", shortReason:"weekly load high"};
+    return {active:false};
+  } catch (_) { return {active:false}; }
+}
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(0.25, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -11274,6 +11317,23 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   }
 
   blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
+  const pressureDowngrade = smartBuilderPressureDowngradePolicySafe(etuContext, effectiveGoal, sessionTemplate);
+  if (pressureDowngrade.active) {
+    let downgraded = 0;
+    blocks = blocks.map(block => {
+      if (String(block.blockType || "").toLowerCase() !== "pressure") return block;
+      const picks = (block.picks || []).map(pick => {
+        const s = pick.state || pick;
+        s.pressureDowngraded = true;
+        s.smartPressureDowngraded = true;
+        s.reasons = [...(s.reasons || []), pressureDowngrade.reason];
+        downgraded += 1;
+        return {...pick, state:s};
+      });
+      return {...block, blockType:"transfer", name:"Controlled robustness block", purpose:"Pressure dose downgraded because current ETU/recovery context calls for lower-volatility consolidation.", picks};
+    });
+    if (downgraded) globalReasons.push(`pressure dose downgraded: ${pressureDowngrade.shortReason}`);
+  }
   blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
   const durationPolicy = smartBuilderDurationDisciplinePolicySafe(sessionTemplate, effectiveGoal, targetMinutes, strictness);
   const durationDiscipline = smartBuilderApplyDurationDisciplineSafe(blocks, ranked, durationPolicy);
@@ -11341,7 +11401,7 @@ function smartBuilderRationalePrefixForModeSafe(modeLabel){
   return "Acquisition";
 }
 function smartBuilderNormalizeReasonTextSafe(reason, modeLabel=""){
-  const raw = String(reason || "").replace(/\s+/g, " ").trim();
+  const raw = smartBuilderSanitizeReasonStringSafe(reason);
   const lower = raw.toLowerCase();
   if (!raw) return "";
   const prefix = smartBuilderRationalePrefixForModeSafe(modeLabel);
@@ -11349,7 +11409,7 @@ function smartBuilderNormalizeReasonTextSafe(reason, modeLabel=""){
   if (lower.startsWith("acquisition rationale:")) return raw.replace(/^Acquisition rationale:/i, `${prefix}:`);
   if (lower.includes("exploration upside")) return "Exploration: uncertain upside with controlled volume.";
   if (lower.includes("maintain") && lower.includes("current")) return raw.replace(/maintain/ig, "consolidate");
-  return raw;
+  return smartBuilderSanitizeReasonStringSafe(raw);
 }
 function smartBuilderReasonDedupeKeySafe(reason){
   return String(reason || "")
@@ -11358,6 +11418,28 @@ function smartBuilderReasonDedupeKeySafe(reason){
     .replace(/[^a-z0-9#]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+function smartBuilderIsMeaningfulTextSafe(value){
+  const txt = String(value || "").replace(/\s+/g, " ").trim();
+  if (!txt || txt === "-" || txt === "·" || txt === "•") return false;
+  if (/^[-·•\s]+$/.test(txt)) return false;
+  if (txt.length <= 2 && !/\d/.test(txt)) return false;
+  return true;
+}
+function smartBuilderSanitizeReasonStringSafe(value){
+  let txt = String(value || "").replace(/\s+/g, " ").trim();
+  if (!smartBuilderIsMeaningfulTextSafe(txt)) return "";
+  txt = txt.replace(/^[\-·•\s]+/, "").replace(/[\-·•\s]+$/, "").trim();
+  const parts = txt.split(/\s*·\s*/).map(x => x.trim()).filter(part => {
+    if (!smartBuilderIsMeaningfulTextSafe(part)) return false;
+    if (/^[a-z]$/i.test(part)) return false;
+    if (/^(h|hig|med|lo)$/i.test(part)) return false;
+    return true;
+  });
+  txt = parts.length > 1 ? parts.join(" · ") : txt;
+  txt = txt.replace(/\s+([,.;:])/g, "$1").replace(/([:;,.])\1+/g, "$1").trim();
+  txt = txt.replace(/\s*·\s*$/g, "").trim();
+  return smartBuilderIsMeaningfulTextSafe(txt) ? txt : "";
 }
 function smartBuilderReasonPrioritySafe(reason){
   const lower = String(reason || "").toLowerCase();
@@ -11389,7 +11471,8 @@ function smartBuilderOneLineReasonSafe(p, clean, modeLabel=""){
   try {
     const auditReason = smartBuilderNormalizeReasonTextSafe(p?.recommendationAudit?.selectedReason || "", modeLabel);
     const first = clean[0] || auditReason || `${smartBuilderRationalePrefixForModeSafe(modeLabel)} fit.`;
-    return String(first).replace(/^(Acquisition|Recovery|Consolidation|Exploration|Pressure|Benchmark) rationale:\s*/i, "$1: ").replace(/\.$/, "").slice(0, 150);
+    const compact = smartBuilderSanitizeReasonStringSafe(String(first).replace(/^(Acquisition|Recovery|Consolidation|Exploration|Pressure|Benchmark) rationale:\s*/i, "$1: ").replace(/\.$/, ""));
+    return compact.length > 150 ? compact.slice(0, 147).replace(/\s+\S*$/, "") + "…" : compact;
   } catch (_) { return "Selected by current session fit."; }
 }
 function smartBuilderConstraintSummarySafe(p, clean){
@@ -11421,6 +11504,41 @@ function renderSmartBuilderReasonsSafe(reasons, modeLabel="", p=null, globalRegi
   }
 }
 
+function renderSmartBuilderGoalTemplateOverrideSafe(plan){
+  try {
+    const t = plan?.sessionTemplate || {};
+    const source = String(t.templateSelectionSource || "auto").toLowerCase();
+    const goal = String(t.requestedGoal || plan?.effectiveGoal || "auto").toLowerCase();
+    const effectiveGoal = String(plan?.effectiveGoal || "stability").toLowerCase();
+    const key = String(t.key || "").toLowerCase();
+    if (source !== "manual") return "";
+    const goalLabel = smartGoalLabel(effectiveGoal);
+    const templateLabel = t.label || key.replace(/_/g, " ") || "Manual template";
+    const cls = key && key !== effectiveGoal ? "adaptive-watch" : "adaptive-rationale";
+    return `<div class="adaptive-rationale ${cls}"><strong>Template override active:</strong> goal is ${escapeHtml(goalLabel)}, but ${escapeHtml(templateLabel)} rules control admissibility, caps and block composition. Ranking still follows the goal; final session structure follows the template.</div>`;
+  } catch (_) { return ""; }
+}
+function smartBuilderWhyNotTopRankedSafe(plan){
+  try {
+    const ranked = Array.isArray(plan?.ranked) ? plan.ranked : [];
+    const selected = new Set(flattenAdaptiveRoutineIds(plan?.blocks || []));
+    const top = ranked.find(s => s?.routine?.id);
+    if (!top || selected.has(top.routine.id)) return null;
+    const audit = top.recommendationAudit || {};
+    const reasons = [
+      ...(Array.isArray(top.templateReasons) ? top.templateReasons : []),
+      ...(Array.isArray(top.reasons) ? top.reasons : []),
+      ...(Array.isArray(audit.constraintsApplied) ? audit.constraintsApplied : [])
+    ].map(x => smartBuilderSanitizeReasonStringSafe(x)).filter(Boolean);
+    const reason = reasons.find(x => /etu|load|template|duration|volatility|pressure|benchmark|domain|already|brake/i.test(x)) || reasons[0] || "a stronger session-level constraint or block balance rule selected another drill.";
+    return {name:top.routine.name || "Top-ranked drill", score:Number(top.adaptiveScore || audit.finalScore || 0), reason};
+  } catch (_) { return null; }
+}
+function renderSmartBuilderWhyNotTopRankedSafe(plan){
+  const item = smartBuilderWhyNotTopRankedSafe(plan);
+  if (!item) return "";
+  return `<div class="adaptive-rationale adaptive-watch"><strong>Why not the top-ranked drill?</strong> ${escapeHtml(item.name)} was the strongest pre-session candidate, but was not selected because ${escapeHtml(item.reason.replace(/\.$/, ""))}. <span class="muted small">This separates ranking from final session composition constraints.</span></div>`;
+}
 function renderSmartBuilderTaxonomyNoteSafe(){
   try {
     const items = Object.entries(SMART_BUILDER_TAXONOMY)
@@ -11468,11 +11586,13 @@ function renderAdaptiveSessionInternal() {
     <div class="adaptive-rationale">${escapeHtml(uiLabel("targetDuration"))}: ${formatDurationHuman(plan.targetMinutes)} · ${escapeHtml(uiLabel("loadedEstimate"))}: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} ${escapeHtml(uiLabel("drillSlots"))} · ${escapeHtml(uiLabel("recommendationMode"))}: ${escapeHtml(smartRecommendationModeLabel(mode))}</div>
     ${renderSmartBuilderEtuContextSafe(plan.etuContext)}
     ${renderSmartBuilderTemplateSafe(plan.sessionTemplate)}
+    ${renderSmartBuilderGoalTemplateOverrideSafe(plan)}
     ${renderSmartBuilderTemplateComplianceSafe(plan)}
     ${renderSmartBuilderTaxonomyNoteSafe()}
     ${renderSmartBuilderDurationDisciplineSafe(plan)}
     ${renderSmartBuilderEtuSessionBudgetSafe(plan)}
     ${renderSmartBuilderCompositionOptimizationSafe(plan)}
+    ${renderSmartBuilderWhyNotTopRankedSafe(plan)}
     ${renderSmartBuilderRecommendationSanitySafe(plan)}
     ${renderSmartBuilderContradictionEngineSafe(plan)}
     ${renderSmartBuilderCalibrationLockSafe(plan)}
@@ -21198,7 +21318,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.4</strong><span>ETU Decay & Recovery-Aware Load Model</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.7.77U.5</strong><span>Smart Engine Explanation Integrity Patch</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Focus Mode v2 is introduced in parallel with the current focus mode. Practice tab includes a test button that opens a state-based cockpit with Pre-shot, Logging and Review states.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -21297,7 +21417,7 @@ function routineConsoleSaveSelected() {
 }
 function routineConsoleExportVisibleJson() {
   try {
-    const payload = {schema:"routine-console-visible-export", version:"5.7.77U.4", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
+    const payload = {schema:"routine-console-visible-export", version:"5.7.77U.5", exportedAt:new Date().toISOString(), rows:routineConsoleLastRows.map(r => r.routine || routineById(r.id)).filter(Boolean)};
     downloadFile(`snooker-routine-console-visible-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), "application/json");
   } catch (err) { try { logAppError(err, "routineConsoleExportVisibleJson"); } catch (_) {}; alert("Routine Console export failed."); }
 }
