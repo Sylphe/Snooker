@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.7.77U-13.2";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.7.77U-13.2";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.7.77U-13.2";
+} from "./utils.js?v=5.8.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.7.77U-13.2";
+} from "./settings.js?v=5.8.1";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.7.77U-13.2";
+} from "./analytics.js?v=5.8.1";
 import {
   betaPosterior,
   aggregateSuccessRateLogs,
@@ -71,7 +71,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.7.77U-13.2";
+} from "./bayesian.js?v=5.8.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -80,7 +80,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.7.77U-13.2";
+} from "./session.js?v=5.8.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -88,7 +88,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.7.77U-13.2";
+} from "./pressure.js?v=5.8.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -100,7 +100,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.7.77U-13.2";
+} from "./recommendations.js?v=5.8.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -114,7 +114,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.7.77U-13.2";
+} from "./store.js?v=5.8.1";
 
 
 
@@ -17413,6 +17413,202 @@ async function exportAiCoachingSnapshot() {
 }
 
 
+/* ===== v5.8.1 Routine Metadata Repair Pack import/export ===== */
+const ROUTINE_METADATA_REPAIR_PACK_VERSION = "5.8.1";
+const ROUTINE_METADATA_REPAIR_ALLOWED_FIELDS = new Set([
+  "scoringRuleText","setupType","setupDescription","coachingPurpose","commonMistake","benchmarkNotes","benchmarkSource","benchmarkMode","benchmarkStrictness","benchmarkExposureWeight","benchmarkTargets",
+  "etuProfile","technicalEtu","cognitiveEtu","emotionalEtu","confidenceEtu","pressureEtu","volatilityProfile","recoverySuitability","pressureSuitability","recommendationMode",
+  "primarySkill","secondarySkills","transferTags","skillMap","transferProfile","dependencyProfile","repeatOnClear","setupCycleValue","totalUnits","completionSize","metadataConfidence","metadataProvenance"
+]);
+function routineMetadataRepairSkillProfileSafe(routine={}) {
+  const map = getRoutineSkillMap(routine);
+  const primary = String(map.primarySkill || routine.primarySkill || "cueing");
+  const nameText = `${routine.name || ""} ${routine.folder || ""} ${routine.category || ""} ${routine.subfolder || ""}`.toLowerCase();
+  const add = [];
+  if (/long|distance|red/.test(nameText)) add.push("long_potting", "cueing", "confidence_stability");
+  if (/safety|snooker|shot to nothing|tough/.test(nameText)) add.push("safety", "tactical_decision_making", "cue_ball_control", "match_play");
+  if (/line|break|reds|clearance|pink|black|blue|around/.test(nameText)) add.push("break_building", "cue_ball_control", "transition_play", "positional_play");
+  if (/rest|bridge/.test(nameText)) add.push("rest_play", "recovery", "cueing");
+  if (/cushion|rail/.test(nameText)) add.push("rail_shots", "cue_ball_control", "confidence_stability");
+  const secondary = normalizeSkillList([...(map.secondarySkills || []), ...add]).filter(x => x !== primary).slice(0, 6);
+  const transfer = normalizeSkillList([...(map.transferTags || []), ...(primary === "long_potting" ? ["match_play", "confidence_stability"] : []), ...(primary === "safety" ? ["match_play", "tactical_decision_making"] : []), ...(primary === "break_building" ? ["match_play", "pressure_resilience"] : []), ...(secondary.includes("cue_ball_control") ? ["break_building"] : [])]).filter(x => x !== primary).slice(0, 5);
+  return {primarySkill:primary, secondarySkills:secondary, transferTags:transfer, source:"metadata-repair-pack", updatedAt:new Date().toISOString()};
+}
+function routineMetadataRepairEtuProfileSafe(routine={}, skillMap=null) {
+  const primary = String((skillMap || getRoutineSkillMap(routine)).primarySkill || "cueing");
+  const scoring = String(routine.scoring || routine.scoringMode || "raw");
+  const base = {technical:1.2, cognitive:0.5, emotional:0.4, pressure:0.2};
+  if (primary === "long_potting") return {technical:1.6, cognitive:0.4, emotional:0.8, pressure:0.3};
+  if (primary === "safety" || primary === "tactical_decision_making") return {technical:0.9, cognitive:1.4, emotional:0.6, pressure:0.5};
+  if (primary === "break_building") return {technical:1.1, cognitive:1.0, emotional:0.8, pressure:scoring === "highest_break" ? 0.7 : 0.4};
+  if (primary === "cue_ball_control" || primary === "positional_play" || primary === "transition_play") return {technical:1.4, cognitive:0.9, emotional:0.4, pressure:0.2};
+  if (primary === "rest_play" || primary === "recovery") return {technical:1.5, cognitive:0.6, emotional:0.9, pressure:0.4};
+  if (primary === "pressure_resilience" || primary === "match_play") return {technical:0.8, cognitive:1.0, emotional:1.2, pressure:1.2};
+  return base;
+}
+function routineMetadataRepairDependencyProfileSafe(routine={}, skillMap=null) {
+  const m = skillMap || getRoutineSkillMap(routine);
+  const primary = String(m.primarySkill || "cueing");
+  const secondary = normalizeSkillList(m.secondarySkills || []);
+  const transfer = normalizeSkillList(m.transferTags || []);
+  const prereq = [];
+  if (["break_building","transition_play","positional_play"].includes(primary)) prereq.push("cue_ball_control", "cueing");
+  if (["long_potting","rest_play","rail_shots"].includes(primary)) prereq.push("cueing", "confidence_stability");
+  if (["safety","tactical_decision_making"].includes(primary)) prereq.push("cue_ball_control", "pace_control");
+  const enables = normalizeSkillList([...transfer, ...(primary === "cue_ball_control" ? ["break_building", "positional_play"] : []), ...(primary === "long_potting" ? ["match_play", "confidence_stability"] : [])]).filter(x => x !== primary).slice(0, 5);
+  const blockedBy = normalizeSkillList([...(secondary.includes("confidence_stability") ? ["confidence_stability"] : []), ...(secondary.includes("pace_control") ? ["pace_control"] : [])]).filter(x => x !== primary).slice(0, 3);
+  return {prerequisites:normalizeSkillList(prereq).filter(x => x !== primary).slice(0, 4), enables, blockedBy, lane:primary.replace(/_/g,"-"), chainStrength:0.55, source:"metadata-repair-pack", version:ROUTINE_METADATA_REPAIR_PACK_VERSION, updatedAt:new Date().toISOString()};
+}
+function routineMetadataRepairPatchForRoutineSafe(routine={}) {
+  const validation = routineValidationEngineRowSafe(routine);
+  const findings = validation.findings || [];
+  const codes = findings.map(x => x.code).filter(Boolean);
+  const has = code => codes.includes(code);
+  const issueCount = findings.length;
+  const m = routineMetadataRepairSkillProfileSafe(routine);
+  const secondary = normalizeSkillList(m.secondarySkills || []).filter(x => x !== m.primarySkill);
+  const transfer = normalizeSkillList(m.transferTags || []).filter(x => x !== m.primarySkill);
+  const etu = routineMetadataRepairEtuProfileSafe(routine, m);
+  const patch = {metadataVersion:Number(routine.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+  const fields = [];
+  const reasons = [];
+  if (has("primary_duplicated_as_secondary") || has("duplicate_taxonomy_tags") || has("under_tagging") || has("missing_primary_skill")) {
+    patch.primarySkill = m.primarySkill;
+    patch.secondarySkills = secondary;
+    patch.transferTags = transfer;
+    patch.skillMap = {...m, secondarySkills:secondary, transferTags:transfer};
+    fields.push("skillMap","primarySkill","secondarySkills","transferTags");
+    reasons.push("taxonomy normalization");
+  }
+  if (has("missing_etu_profile") || has("long_duration_low_etu") || has("high_vol_low_confidence_etu")) {
+    patch.etuProfile = etu;
+    patch.technicalEtu = etu.technical;
+    patch.cognitiveEtu = etu.cognitive;
+    patch.emotionalEtu = etu.emotional;
+    patch.confidenceEtu = etu.emotional;
+    patch.pressureEtu = etu.pressure;
+    fields.push("etuProfile","technicalEtu","cognitiveEtu","emotionalEtu","pressureEtu");
+    reasons.push("ETU subtype calibration");
+  }
+  if (has("transfer_strength_without_tags") || has("self_transfer_loop") || has("under_tagging") || transfer.length) {
+    patch.transferProfile = {...routineTransferGraphProfileSafe(routine), direct:transfer.slice(0,2), supporting:transfer.slice(2), source:"metadata-repair-pack", version:ROUTINE_METADATA_REPAIR_PACK_VERSION, updatedAt:new Date().toISOString()};
+    patch.transferTags = transfer;
+    fields.push("transferProfile","transferTags");
+    reasons.push("transfer graph completion");
+  }
+  if (has("missing_scoring_rule") || !String(routine.scoringRuleText || "").trim()) {
+    patch.scoringRuleText = defaultScoringRuleText(routine);
+    patch.setupType = routine.setupType || "text";
+    fields.push("scoringRuleText","setupType");
+    reasons.push("explicit scoring rule");
+  }
+  if (has("progressive_without_completion_size")) {
+    const inferredUnits = Number(routine.attempts || routine.attemptsPerSession || 10) || 10;
+    patch.totalUnits = Number(routine.totalUnits || routine.completionSize || inferredUnits) || inferredUnits;
+    patch.completionSize = patch.totalUnits;
+    fields.push("totalUnits","completionSize");
+    reasons.push("progressive completion size repair");
+  }
+  if (has("bounded_highest_break_needs_repeat_semantics")) {
+    patch.repeatOnClear = true;
+    patch.setupCycleValue = Number(routine.totalUnits || routine.completionSize || routine.target || 0) || null;
+    fields.push("repeatOnClear","setupCycleValue");
+    reasons.push("bounded highest-break repeat semantics");
+  }
+  const dependency = routineMetadataRepairDependencyProfileSafe(routine, {...m, secondarySkills:secondary, transferTags:transfer});
+  if ((dependency.prerequisites || []).length || (dependency.enables || []).length) {
+    patch.dependencyProfile = dependency;
+    fields.push("dependencyProfile");
+    reasons.push("dependency-chain seed");
+  }
+  patch.metadataConfidence = {...(routine.metadataConfidence || {}), repairPack:"medium"};
+  patch.metadataProvenance = {...(routine.metadataProvenance || {}), repairPack:{source:"generated", version:ROUTINE_METADATA_REPAIR_PACK_VERSION, generatedAt:new Date().toISOString(), issues:codes}};
+  fields.push("metadataConfidence","metadataProvenance");
+  const uniqueFields = [...new Set(fields)].filter(f => ROUTINE_METADATA_REPAIR_ALLOWED_FIELDS.has(f) || ["metadataVersion","updatedAt"].includes(f));
+  const confidence = findings.some(x => x.severity === "critical") ? "review" : issueCount >= 3 ? "medium" : "high";
+  const applyMode = confidence === "review" ? "manual_review" : "safe_auto";
+  return {routineId:String(routine.id || ""), routineName:String(routine.name || "Exercise"), folder:routine.folder || "", issueCodes:codes, issueSummary:findings.map(x => ({severity:x.severity, code:x.code, label:x.label, fix:x.fix})), proposedPatch:patch, fieldsChanged:uniqueFields, confidence, applyMode, rationale:reasons.join("; ") || "metadata normalization", generatedAt:new Date().toISOString()};
+}
+function buildRoutineMetadataRepairPackSafe(options={}) {
+  const routines = Array.isArray(options.routines) ? options.routines : (data.routines || []);
+  const patches = routines.map(routineMetadataRepairPatchForRoutineSafe).filter(p => p.routineId && p.fieldsChanged.length > 2);
+  return {exportType:"snooker_routine_metadata_repair_pack", schemaVersion:"1.0", appVersion:APP_VERSION, repairVersion:ROUTINE_METADATA_REPAIR_PACK_VERSION, generatedAt:new Date().toISOString(), mode:"patch-only-no-log-rewrite", summary:{routinesScanned:routines.length, patchCount:patches.length, safeAuto:patches.filter(p=>p.applyMode==="safe_auto").length, manualReview:patches.filter(p=>p.applyMode!=="safe_auto").length}, instructions:"Import this file from Settings/Data → Backup → Import Routine Metadata Repair Pack. It updates routine metadata only; logs are not deleted or rewritten.", patches};
+}
+async function exportRoutineMetadataRepairPackSafe() {
+  try {
+    const pack = buildRoutineMetadataRepairPackSafe();
+    const filename = `snooker-routine-metadata-repair-pack-${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
+    await exportFile(filename, JSON.stringify(pack, null, 2), "application/json");
+    showTransientNotice?.(`Routine metadata repair pack exported: ${pack.summary.patchCount} patch(es).`, "ok");
+  } catch (err) { try { logAppError(err, "exportRoutineMetadataRepairPackSafe"); } catch (_) {}; alert("Could not export the routine metadata repair pack."); }
+}
+function sanitizeRoutineMetadataPatchSafe(patch={}) {
+  const out = {};
+  Object.entries(patch || {}).forEach(([key,value]) => {
+    if (key === "metadataVersion" || key === "updatedAt" || ROUTINE_METADATA_REPAIR_ALLOWED_FIELDS.has(key)) out[key] = cloneSimple(value);
+  });
+  return out;
+}
+function applyRoutineMetadataRepairPackSafe(pack, options={}) {
+  if (!pack || pack.exportType !== "snooker_routine_metadata_repair_pack" || !Array.isArray(pack.patches)) throw new Error("Invalid routine metadata repair pack.");
+  const includeManual = !!options.includeManual;
+  const now = new Date().toISOString();
+  let applied = 0, skipped = 0, missing = 0;
+  const byId = new Map((data.routines || []).map((r,i)=>[String(r.id), {r,i}]));
+  const backup = cloneSimple(data.routines || []);
+  (pack.patches || []).forEach(item => {
+    const hit = byId.get(String(item.routineId || ""));
+    if (!hit) { missing++; return; }
+    if (item.applyMode !== "safe_auto" && !includeManual) { skipped++; return; }
+    const patch = sanitizeRoutineMetadataPatchSafe(item.proposedPatch || {});
+    if (!Object.keys(patch).length) { skipped++; return; }
+    const current = data.routines[hit.i] || hit.r;
+    const next = {...current, ...patch, metadataVersion:Number(current.metadataVersion || 1) + 1, updatedAt:now};
+    if (patch.skillMap || patch.primarySkill || patch.secondarySkills || patch.transferTags) {
+      next.skillMap = normalizeRoutineSkillMap(next, patch.skillMap || next.skillMap || {});
+      next.primarySkill = next.skillMap.primarySkill;
+      next.secondarySkills = normalizeSkillList(next.skillMap.secondarySkills || []);
+      next.transferTags = normalizeSkillList(next.skillMap.transferTags || next.transferTags || []);
+    }
+    if (patch.etuProfile) {
+      const etu = patch.etuProfile || {};
+      next.etuProfile = {technical:Number(etu.technical||0), cognitive:Number(etu.cognitive||0), emotional:Number(etu.emotional||0), pressure:Number(etu.pressure||0)};
+    }
+    next.metadataProvenance = {...(next.metadataProvenance || {}), importedRepairPack:{source:pack.appVersion || "repair-pack", version:pack.repairVersion || pack.schemaVersion || "1.0", importedAt:now, applyMode:item.applyMode || "unknown"}};
+    data.routines[hit.i] = next;
+    data.routineSkillMap = data.routineSkillMap || {};
+    data.routineSkillMap[next.id] = normalizeRoutineSkillMap(next, next.skillMap);
+    applied++;
+  });
+  if (applied) {
+    try { data.metadataRepairHistory = data.metadataRepairHistory || []; data.metadataRepairHistory.push({version:pack.repairVersion || pack.schemaVersion || "1.0", importedAt:now, applied, skipped, missing, includeManual, sourceAppVersion:pack.appVersion || ""}); } catch (_) {}
+    saveData({render:"all", immediateIDB:true});
+    try { renderRoutineStudioLite?.(); } catch (_) {}
+  } else {
+    data.routines = backup;
+  }
+  return {applied, skipped, missing, includeManual};
+}
+async function importRoutineMetadataRepairPackFileSafe(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > 8 * 1024 * 1024) return alert("Repair pack is too large. Maximum size is 8MB.");
+    const pack = JSON.parse(await file.text());
+    if (pack.exportType !== "snooker_routine_metadata_repair_pack" || !Array.isArray(pack.patches)) return alert("Invalid repair pack. Expected snooker_routine_metadata_repair_pack JSON.");
+    const safeCount = pack.patches.filter(p=>p.applyMode === "safe_auto").length;
+    const manualCount = pack.patches.length - safeCount;
+    const includeManual = manualCount ? confirm(`Repair pack contains ${safeCount} safe-auto patch(es) and ${manualCount} manual-review patch(es).\n\nOK = apply all patches, including manual-review.\nCancel = apply safe-auto patches only.`) : false;
+    const proceed = confirm(`Apply routine metadata repair pack?\n\nPatches: ${pack.patches.length}\nSafe-auto: ${safeCount}\nManual-review: ${manualCount}\n\nThis updates routine metadata only and does not rewrite historical logs.`);
+    if (!proceed) return;
+    const result = applyRoutineMetadataRepairPackSafe(pack, {includeManual});
+    showTransientNotice?.(`Metadata repair applied: ${result.applied} routine(s) · skipped ${result.skipped} · missing ${result.missing}.`, result.applied ? "ok" : "warn");
+  } catch (err) { try { logAppError(err, "importRoutineMetadataRepairPackFileSafe"); } catch (_) {}; alert("Could not import the routine metadata repair pack."); }
+  finally { if (input) input.value = ""; }
+}
+
+
 async function loadBundledRoutinePackFromPath(path, label = "bundled routine pack") {
   try {
     const response = await fetch(path, {cache:"no-store"});
@@ -18086,6 +18282,8 @@ window.SnookerLegacyMigration = {
 safeOn("exportRoutinePackBtn", "click", exportRoutinePackJson);
 safeOn("exportRoutineCsvBtn", "click", exportRoutineLibraryCsv);
 safeOn("exportAiCoachingBtn", "click", exportAiCoachingSnapshot);
+safeOn("exportRoutineMetadataRepairPackBtn", "click", exportRoutineMetadataRepairPackSafe);
+safeOn("importRoutineMetadataRepairPackInput", "change", importRoutineMetadataRepairPackFileSafe);
 safeOn("installCuratedRoutinePackBtn", "click", installBundledCuratedRoutinePack);
 safeOn("downloadCuratedRoutinePackBtn", "click", downloadBundledCuratedRoutinePack);
 safeOn("installNolanBenchmarkPackBtn", "click", installBundledNolanBenchmarkPack);

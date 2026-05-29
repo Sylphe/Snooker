@@ -9,10 +9,10 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.77U-13.2"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.77U-13.2" />
-  <link rel="stylesheet" href="styles.css?v=5.7.77U-13.2" />
-  <link rel="icon" href="icon.svg?v=5.7.77U-13.2" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.8.1"></script>
+  <link rel="manifest" href="manifest.json?v=5.8.1" />
+  <link rel="stylesheet" href="styles.css?v=5.8.1" />
+  <link rel="icon" href="icon.svg?v=5.8.1" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
@@ -1570,6 +1570,7 @@
                 <button id="exportCsvBtn" type="button">Export Logs CSV</button>
                 <button id="exportRoutinePackBtn" class="secondary" type="button">Export Routine Pack JSON</button>
                 <button id="exportAiCoachingBtn" class="secondary" type="button">Export AI Coaching Snapshot</button>
+                <button id="exportRoutineMetadataRepairPackBtn" class="secondary" type="button">Export Metadata Repair Pack</button>
                 <button id="exportRoutineCsvBtn" class="secondary subtle-action" type="button">Export Routine Library CSV</button>
               </div>
             </details>
@@ -1583,6 +1584,10 @@
                 <label class="file-btn secondary">
                   Import JSON Backup
                   <input id="importJsonInput" type="file" accept="application/json" />
+                </label>
+                <label class="file-btn secondary">
+                  Import Routine Metadata Repair Pack
+                  <input id="importRoutineMetadataRepairPackInput" type="file" accept="application/json,.json" />
                 </label>
                 <label class="file-btn secondary">
                   Import Routine Pack
@@ -1836,7 +1841,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.77U-13.2"></script>
+  <script type="module" src="app.js?v=5.8.1"></script>
 </body>
 
 

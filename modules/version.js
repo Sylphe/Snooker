@@ -1,4 +1,4 @@
-export const APP_VERSION = "5.7.77U-13.2-bootstrap-hydration-cache-fix";
+export const APP_VERSION = "5.8.1-routine-metadata-repair-branch";
 export const BUILD_DATE = "2026-05-29";
-export const APP_BUILD_LABEL = "v5.7.77U.13.2 — Bootstrap/Hydration Cache Fix";
-export const APP_BUILD_TIMESTAMP = "2026-05-29 15:10 CEST";
+export const APP_BUILD_LABEL = "v5.8.1 — Routine Metadata Repair Branch";
+export const APP_BUILD_TIMESTAMP = "2026-05-29 15:45 CEST";
