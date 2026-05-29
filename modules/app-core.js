@@ -16647,7 +16647,7 @@ function buildAiRoutineSnapshot(routine, groupedLogs) {
       progressiveCompletion: aiTry("progressiveStatsForLogs", () => routine.scoring === "progressive_completion" ? progressiveStatsForLogs(logs) : null, null),
       contextNormalization: aiTry("routineContextNormalizationSignal", () => routineContextNormalizationSignal(routine), null),
       transferValue: aiTry("routineTransferValue", () => routineTransferValue(routine), null),
-      transferReadiness: aiTry("aiRoutineTransferReadiness", () => aiRoutineTransferReadiness(routine, logs, grouped), null),
+      transferReadiness: aiTry("aiRoutineTransferReadiness", () => aiRoutineTransferReadiness(routine, logs, groupedLogs), null),
       routineIntelligence: aiTry("routineIntelligence", () => ({latentDifficulty:latentRoutineDifficultyEstimate(routine, logs), dynamicTarget:dynamicTargetGenerationForRoutine(routine), nearestNeighbors:nearestRoutineNeighbors(routine).map(x=>({routineId:x.routine.id, routineName:x.routine.name, similarity:x.similarity, latentDifficulty:x.difficulty}))}), null),
       inferredSkillFit: aiTry("inferredSkillFit", () => inferredSkillRecommendationForRoutine(routine), null)
     },
@@ -17085,27 +17085,54 @@ function buildAiFullStatsPanelsExportSafe(logs) {
 }
 
 function buildAiCompleteRoutineLibraryExportSafe(routineSnapshots, grouped) {
-  return aiTry("completeRoutineLibraryExport", () => activeRoutines().map(r => {
-    const stats = routineStats(r, grouped);
-    return {
-      routine: exportableRoutineRecord ? exportableRoutineRecord(r) : r,
-      rawRoutine: r,
-      statisticalSnapshot: {
-        logCount: stats.logs.length,
-        targetHitRate: stats.hit,
-        recentAverage: stats.recent,
-        priorAverage: stats.prior,
-        recommendationScore: stats.score,
-        bayesian: stats.bayesian,
-        contextSignal: stats.contextSignal,
-        recentEvidence: aiRecentEvidenceLogs(stats.logs, AI_EXPORT_MAX_PER_ROUTINE_LOGS)
-      },
-      routineConsoleRow: (routineSnapshots || []).find(x => String(x?.routine?.id) === String(r.id)) || null,
-      transferReadiness: aiTry(`complete library transfer ${r.id}`, () => transferReadinessForRoutine(r), null),
-      targetCalibration: aiTry(`complete library target ${r.id}`, () => targetHealthForRoutine(r, stats.logs), null),
-      dynamicDifficulty: aiTry(`complete library difficulty ${r.id}`, () => latentRoutineDifficultyEstimate(r), null)
+  return aiTry("completeRoutineLibraryExport", () => {
+    const active = activeRoutines();
+    const snapshots = Array.isArray(routineSnapshots) ? routineSnapshots : [];
+    const snapshotById = new Map(snapshots.map(x => [String(x?.routine?.id || ""), x]));
+    const consoleRows = aiTry("complete library console rows", () => routineConsoleRowsSafe(), []) || [];
+    const activeIds = new Set(active.map(r => String(r.id)));
+    const makeActiveEntry = (r) => {
+      const stats = routineStats(r, grouped);
+      const snap = snapshotById.get(String(r.id)) || null;
+      return {
+        source: "active_library",
+        routine: exportableRoutineRecord ? exportableRoutineRecord(r) : r,
+        rawRoutine: r,
+        statisticalSnapshot: {
+          logCount: stats.logs.length,
+          targetHitRate: stats.hit,
+          recentAverage: stats.recent,
+          priorAverage: stats.prior,
+          recommendationScore: stats.score,
+          bayesian: stats.bayesian,
+          contextSignal: stats.contextSignal,
+          recentEvidence: aiRecentEvidenceLogs(stats.logs, AI_EXPORT_MAX_PER_ROUTINE_LOGS)
+        },
+        routineConsoleRow: snap,
+        transferReadiness: snap?.analyses?.transferReadiness || aiTry(`complete library transfer ${r.id}`, () => aiRoutineTransferReadiness(r, stats.logs, grouped), null),
+        targetCalibration: snap?.targetCalibration?.health || aiTry(`complete library target ${r.id}`, () => aiTargetHealthForRoutine(r, stats.logs), null),
+        dynamicDifficulty: snap?.analyses?.dynamicDifficulty || aiTry(`complete library difficulty ${r.id}`, () => latentRoutineDifficultyEstimate(r), null)
+      };
     };
-  }), []);
+    const activeEntries = active.map(makeActiveEntry);
+    const consoleOnlyEntries = consoleRows
+      .filter(row => row?.id && !activeIds.has(String(row.id)))
+      .map(row => {
+        const logs = grouped?.[String(row.id)] || [];
+        return {
+          source: "routine_console_only",
+          routine: row.rawRoutine || row.routine || {id:row.id, name:row.name, scoring:row.scoring, folder:row.folder, subfolder:row.subfolder, category:row.category},
+          rawRoutine: row.rawRoutine || row.routine || row,
+          statisticalSnapshot: {logCount:logs.length, targetHitRate:targetHitRate(logs), recentAverage: (() => { const vals = logs.map(l => Number(l.normalizedScore ?? normalizeScore(l))).filter(Number.isFinite).slice(-10); return vals.length ? avg(vals) : null; })(), recentEvidence: aiRecentEvidenceLogs(logs, AI_EXPORT_MAX_PER_ROUTINE_LOGS)},
+          routineConsoleRow: row,
+          transferReadiness: null,
+          targetCalibration: null,
+          dynamicDifficulty: null,
+          warning: "Present in Routine Console audit but not in active routine library; exported for reconciliation so AI analysis sees the same routine universe as the console."
+        };
+      });
+    return [...activeEntries, ...consoleOnlyEntries];
+  }, []);
 }
 
 async function loadBundledRoutinePacksForAiExportSafe() {
@@ -17185,6 +17212,24 @@ function buildAiCoachingSnapshot(options = {}) {
   const routineConsoleFullAudit = buildAiRoutineConsoleExportSafe();
   const fullStatsPanels = buildAiFullStatsPanelsExportSafe(logs);
   const completeRoutineLibrary = buildAiCompleteRoutineLibraryExportSafe(routineSnapshots, grouped);
+  const routineUniverseReconciliation = aiTry("routineUniverseReconciliation", () => {
+    const consoleRows = routineConsoleFullAudit?.rows || [];
+    const libraryIds = new Set((completeRoutineLibrary || []).map(x => String(x?.routine?.id || x?.rawRoutine?.id || "")).filter(Boolean));
+    const snapshotIds = new Set((routineSnapshots || []).map(x => String(x?.routine?.id || "")).filter(Boolean));
+    const loggedIds = new Set(Object.keys(grouped || {}));
+    const activeIds = new Set(allRoutines.map(r => String(r.id)));
+    return {
+      activeRoutineCount: allRoutines.length,
+      routineSnapshotCount: routineSnapshots.length,
+      completeRoutineLibraryCount: completeRoutineLibrary.length,
+      routineConsoleRowCount: consoleRows.length,
+      loggedRoutineIdCount: loggedIds.size,
+      consoleRowsNotInActiveLibrary: consoleRows.filter(r => r?.routineId || r?.id).filter(r => !activeIds.has(String(r.routineId || r.id))).map(r => ({routineId:r.routineId || r.id, routineName:r.routineName || r.name})),
+      loggedRoutinesNotInActiveLibrary: Array.from(loggedIds).filter(id => !activeIds.has(String(id))),
+      libraryCoversAllConsoleRows: consoleRows.every(r => libraryIds.has(String(r.routineId || r.id))),
+      snapshotsCoverAllActiveRoutines: allRoutines.every(r => snapshotIds.has(String(r.id)))
+    };
+  }, null);
   const targetCalibrationCandidates = routineSnapshots
     .filter(r => r.targetCalibration?.suggestion)
     .map(r => ({
@@ -17255,18 +17300,32 @@ function buildAiCoachingSnapshot(options = {}) {
   }), null);
   const crossRoutineSkillGraphProfile = aiTry("crossRoutineSkillGraphProfile", () => buildCrossRoutineSkillGraph(logs, routines), null);
   const crossRoutineBottleneckProfile = aiTry("crossRoutineBottleneckProfile", () => skillGraphBottleneckAnalysis(logs), null);
-  const aiCoachingLayerV2Profile = aiTry("aiCoachingLayerV2Profile", () => ({
-    narrative: buildAiCoachingNarrative(logs),
-    weeklyReport: weeklyAiCoachingReport(logs),
-    generatedSessionPlans: [60,90,180].map(m => aiGeneratedSessionPlan(logs, m)),
-    adjustedTargetSuggestions: aiTargetSuggestionRows(logs).map(x => ({routineId:x.routine.id, routineName:x.routine.name, currentTarget:x.currentTarget, suggestedTarget:x.suggestedTarget, action:x.action, confidence:x.confidence, interval:x.interval, health:x.health}))
-  }), null);
+  const aiCoachingLayerV2Profile = {
+    version: "v2.1-export-safe",
+    source: "AI Coaching Layer V2 export bridge",
+    narrative: aiTry("ai coaching narrative v2", () => buildAiCoachingNarrative(logs), null),
+    weeklyReport: aiTry("weekly ai coaching report v2", () => weeklyAiCoachingReport(logs), null),
+    generatedSessionPlans: [60,90,180].map(m => aiTry(`ai generated session plan ${m}`, () => aiGeneratedSessionPlan(logs, m), null)),
+    adjustedTargetSuggestions: aiTry("ai target suggestions v2", () => aiTargetSuggestionRows(logs).map(x => ({routineId:x.routine.id, routineName:x.routine.name, currentTarget:x.currentTarget, suggestedTarget:x.suggestedTarget, action:x.action, confidence:x.confidence, interval:x.interval, health:x.health})), []),
+    explanationCoverage: {
+      hasNarrative: false,
+      hasWeeklyReport: false,
+      generatedPlanCount: 0,
+      targetSuggestionCount: 0
+    }
+  };
+  aiCoachingLayerV2Profile.explanationCoverage = {
+    hasNarrative: !!aiCoachingLayerV2Profile.narrative,
+    hasWeeklyReport: !!aiCoachingLayerV2Profile.weeklyReport,
+    generatedPlanCount: aiCoachingLayerV2Profile.generatedSessionPlans.filter(Boolean).length,
+    targetSuggestionCount: aiCoachingLayerV2Profile.adjustedTargetSuggestions.length
+  };
   const inferredSkillLevelProfile = inferLatentSkillLevels(logs, routines);
   const weakestLinkProfile = detectWeakestLink(inferredSkillLevelProfile);
   const coachingSummary = buildAiCoachingExecutiveSummary(playerProfile, routineSnapshots, targetCalibrationCandidates);
   return {
     exportType: "snooker_ai_coaching_snapshot",
-    schemaVersion: "1.5",
+    schemaVersion: "1.6",
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     purpose: "AI-readable complete snooker practice coaching export for target calibration, routine prioritization, skill-gap analysis, probabilistic coaching, match simulation, cross-routine skill dependency graphs, skill-specific latent level inference, full Routine Console validation, complete routine library review, full Stats panel review, prediction/readiness analysis, and AI coaching layer v2 explainability.",
@@ -17334,6 +17393,7 @@ function buildAiCoachingSnapshot(options = {}) {
     completeRoutineLibrary,
     routineConsoleFullAudit,
     fullStatsPanels,
+    routineUniverseReconciliation,
     recentLogs: includeRawRecentLogs ? aiRecentEvidenceLogs(logs, AI_EXPORT_MAX_GLOBAL_RECENT_LOGS) : [],
     metadata: {
       routinePackSchemaVersion: ROUTINE_PACK_SCHEMA_VERSION,
