@@ -9445,3 +9445,228 @@ html[data-theme-mode="dark"] .focus-v2-smart-hud strong {
   }
 }
 /* ===== end v5.7.77N/O Focus Mode v2 telemetry compression + smart HUD simplification ===== */
+
+/* ===== v5.7.77O.1 Focus Mode v2 density gear + numpad field entry fix ===== */
+.focus-v2-header {
+  align-items: flex-start;
+}
+.focus-v2-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.focus-v2-gear {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, .26);
+  background: rgba(34, 197, 94, .16);
+  color: var(--text, #0f172a);
+  font-weight: 900;
+  cursor: pointer;
+}
+.focus-v2-settings-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: 22px;
+  background: rgba(15, 23, 42, .05);
+}
+.focus-v2-settings-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.focus-v2-settings-head small {
+  color: var(--muted, #64748b);
+  font-weight: 700;
+}
+.focus-v2-settings-panel .focus-v2-intensity-card {
+  margin: 0;
+}
+.focus-v2-pre-compressed {
+  gap: 12px;
+}
+.focus-v2-pre-compressed .focus-v2-adaptive-hud,
+.focus-v2-pre-compressed .focus-v2-session-memory,
+.focus-v2-pre-compressed .focus-v2-intensity-card {
+  display: none !important;
+}
+.focus-v2-pre-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.focus-v2-table-select-card.compact {
+  padding: 12px;
+  border-radius: 18px;
+}
+.focus-v2-mode-card.compact {
+  padding: 10px 12px;
+  border-radius: 18px;
+}
+.focus-v2-telemetry-strip.no-keyboard > button,
+.focus-v2-telemetry-strip > button,
+.focus-v2-entry-box {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, .22);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, .06);
+  color: var(--text, #111827);
+  min-width: 64px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.05;
+  cursor: pointer;
+  text-align: left;
+}
+.focus-v2-entry-box span,
+.focus-v2-telemetry-strip > button span {
+  font-size: .56rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted, #6b7280);
+  font-weight: 900;
+}
+.focus-v2-entry-box b,
+.focus-v2-telemetry-strip > button b {
+  font-size: .95rem;
+  color: var(--text, #111827);
+  font-weight: 950;
+}
+.focus-v2-entry-box small,
+.focus-v2-telemetry-strip > button small {
+  font-size: .58rem;
+  color: var(--muted, #64748b);
+  font-weight: 800;
+}
+.focus-v2-entry-box.active,
+.focus-v2-telemetry-strip > button.active {
+  border-color: rgba(74, 222, 128, .7);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, .16), inset 0 0 0 1px rgba(74, 222, 128, .2);
+  background: rgba(34, 197, 94, .14);
+}
+.focus-v2-score-display {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  border: 1px solid rgba(148, 163, 184, .22);
+  background: rgba(15, 23, 42, .07);
+  border-radius: 28px;
+  padding: 18px 20px;
+  text-align: center;
+  cursor: pointer;
+}
+.focus-v2-score-display span {
+  display: block;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--muted, #64748b);
+  font-weight: 900;
+}
+.focus-v2-score-display strong {
+  display: block;
+  font-size: clamp(3.5rem, 15vw, 6.5rem);
+  line-height: .95;
+  color: var(--text, #0f172a);
+}
+.focus-v2-numpad-target {
+  width: min(100%, 520px);
+  margin: 4px auto -2px;
+  color: var(--muted, #64748b);
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+}
+.focus-v2-numpad-target strong {
+  color: var(--text, #0f172a);
+}
+.focus-v2-recent-memory {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--muted, #64748b);
+  font-size: .76rem;
+  font-weight: 800;
+}
+.focus-v2-recent-memory i {
+  font-style: normal;
+  min-width: 28px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .08);
+  color: var(--text, #0f172a);
+  text-align: center;
+}
+body[data-theme="dark"] .focus-v2-gear,
+body[data-theme-mode="dark"] .focus-v2-gear,
+html[data-theme="dark"] .focus-v2-gear,
+html[data-theme-mode="dark"] .focus-v2-gear {
+  background: rgba(34, 197, 94, .22);
+  color: #f8fafc;
+  border-color: rgba(134, 239, 172, .26);
+}
+body[data-theme="dark"] .focus-v2-settings-panel,
+body[data-theme-mode="dark"] .focus-v2-settings-panel,
+html[data-theme="dark"] .focus-v2-settings-panel,
+html[data-theme-mode="dark"] .focus-v2-settings-panel,
+body[data-theme="dark"] .focus-v2-score-display,
+body[data-theme-mode="dark"] .focus-v2-score-display,
+html[data-theme="dark"] .focus-v2-score-display,
+html[data-theme-mode="dark"] .focus-v2-score-display,
+body[data-theme="dark"] .focus-v2-recent-memory i,
+body[data-theme-mode="dark"] .focus-v2-recent-memory i,
+html[data-theme="dark"] .focus-v2-recent-memory i,
+html[data-theme-mode="dark"] .focus-v2-recent-memory i,
+body[data-theme="dark"] .focus-v2-entry-box,
+body[data-theme="dark"] .focus-v2-telemetry-strip > button,
+body[data-theme-mode="dark"] .focus-v2-entry-box,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip > button,
+html[data-theme="dark"] .focus-v2-entry-box,
+html[data-theme="dark"] .focus-v2-telemetry-strip > button,
+html[data-theme-mode="dark"] .focus-v2-entry-box,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip > button {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .22);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .focus-v2-entry-box b,
+body[data-theme="dark"] .focus-v2-telemetry-strip > button b,
+body[data-theme="dark"] .focus-v2-score-display strong,
+body[data-theme="dark"] .focus-v2-numpad-target strong,
+body[data-theme-mode="dark"] .focus-v2-entry-box b,
+body[data-theme-mode="dark"] .focus-v2-telemetry-strip > button b,
+body[data-theme-mode="dark"] .focus-v2-score-display strong,
+body[data-theme-mode="dark"] .focus-v2-numpad-target strong,
+html[data-theme="dark"] .focus-v2-entry-box b,
+html[data-theme="dark"] .focus-v2-telemetry-strip > button b,
+html[data-theme="dark"] .focus-v2-score-display strong,
+html[data-theme="dark"] .focus-v2-numpad-target strong,
+html[data-theme-mode="dark"] .focus-v2-entry-box b,
+html[data-theme-mode="dark"] .focus-v2-telemetry-strip > button b,
+html[data-theme-mode="dark"] .focus-v2-score-display strong,
+html[data-theme-mode="dark"] .focus-v2-numpad-target strong {
+  color: #f8fafc;
+}
+@media (max-width: 720px) {
+  .focus-v2-pre-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .focus-v2-settings-head { display: grid; }
+  .focus-v2-header-actions { gap: 6px; }
+  .focus-v2-gear { width: 38px; height: 38px; }
+  .focus-v2-score-display { padding: 14px 12px; border-radius: 24px; }
+  .focus-v2-telemetry-strip.no-keyboard { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .focus-v2-telemetry-strip > button { min-width: 0; align-items: center; text-align: center; padding: 5px 4px; }
+}
+@media (max-width: 390px) {
+  .focus-v2-telemetry-strip.no-keyboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* ===== end v5.7.77O.1 Focus Mode v2 density gear + numpad field entry fix ===== */

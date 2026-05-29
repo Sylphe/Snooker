@@ -5484,7 +5484,7 @@ function setReflectionRating(targetId, rating) {
 
 
 
-/* ===== v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification ===== */
+/* ===== v5.7.77O.1 Focus Mode v2 Density Gear + Numpad Field Entry Fix ===== */
 const FOCUS_V2_STATES = Object.freeze({ PRE: "pre-shot", LOGGING: "logging", REVIEW: "review" });
 const FOCUS_V2_INPUT_MODES = Object.freeze({ NUMERIC: "numeric", SUCCESS: "success-failure", INCREMENTAL: "incremental", BREAK: "break-building", TIME: "time-attack" });
 const FOCUS_V2_INTENSITY_MODES = Object.freeze({ MINIMAL: "minimal", STANDARD: "standard", ANALYTICAL: "analytical", COACHING: "coaching" });
@@ -5516,7 +5516,9 @@ let focusV2Draft = {
   loggingStartedAt: 0,
   continuousFlow: true,
   lastFlowAction: "",
-  autoReadyAt: 0
+  autoReadyAt: 0,
+  settingsOpen: false,
+  activeEntryField: "score"
 };
 
 const FOCUS_V2_MEMORY_STORAGE_KEY = "snookerFocusModeV2SessionMemory";
@@ -5565,6 +5567,61 @@ function renderFocusV2IntensityRailSafe() {
   const modes = [FOCUS_V2_INTENSITY_MODES.MINIMAL, FOCUS_V2_INTENSITY_MODES.STANDARD, FOCUS_V2_INTENSITY_MODES.ANALYTICAL, FOCUS_V2_INTENSITY_MODES.COACHING];
   const current = focusV2Draft.intensityMode || FOCUS_V2_INTENSITY_MODES.STANDARD;
   return `<div class="focus-v2-intensity-card"><div><strong>Focus density</strong><small>${htmlText(focusV2IntensityCopySafe(current))}</small></div><div class="focus-v2-intensity-rail" role="tablist" aria-label="Focus Mode v2 density">${modes.map(mode => `<button type="button" class="focus-v2-intensity-chip ${current === mode ? "active" : ""}" data-action="focus-v2-intensity" data-mode="${attrText(mode)}"><span>${htmlText(focusV2IntensityLabelSafe(mode))}</span></button>`).join("")}</div></div>`;
+}
+
+
+function toggleFocusV2SettingsSafe() {
+  focusV2SyncInputDraftSafe();
+  focusV2Draft.settingsOpen = !focusV2Draft.settingsOpen;
+  renderFocusV2ModalSafe();
+}
+function renderFocusV2SettingsPanelSafe() {
+  if (!focusV2Draft.settingsOpen) return "";
+  return `<div class="focus-v2-settings-panel"><div class="focus-v2-settings-head"><strong>Focus settings</strong><small>Density is a global cockpit preference, not a pre-shot step.</small></div>${renderFocusV2IntensityRailSafe()}</div>`;
+}
+function focusV2SetActiveEntryFieldSafe(field) {
+  const allowed = ["score", "attempt", "time", "left", "right"];
+  focusV2Draft.activeEntryField = allowed.includes(field) ? field : "score";
+  renderFocusV2ModalSafe();
+}
+function focusV2EntryFieldLabelSafe(field) {
+  if (field === "attempt") return "Attempt";
+  if (field === "time") return "Time";
+  if (field === "left") return "Left side";
+  if (field === "right") return "Right side";
+  return "Score";
+}
+function focusV2EntryFieldValueSafe(field) {
+  if (field === "attempt") return String(Math.max(1, Number(focusV2Draft.attempt || 1)));
+  if (field === "time") return String(focusV2Draft.timeMinutes ?? "");
+  if (field === "left") return String(focusV2Draft.leftScore ?? "");
+  if (field === "right") return String(focusV2Draft.rightScore ?? "");
+  return String(focusV2Draft.score ?? "");
+}
+function focusV2SetEntryFieldValueSafe(field, value) {
+  const raw = String(value ?? "");
+  if (field === "attempt") { focusV2Draft.attempt = Math.max(1, Number(raw || 1) || 1); return; }
+  if (field === "time") { focusV2Draft.timeMinutes = raw; return; }
+  if (field === "left") { focusV2Draft.leftScore = raw; return; }
+  if (field === "right") { focusV2Draft.rightScore = raw; return; }
+  focusV2Draft.score = raw;
+}
+function renderFocusV2EntryBoxSafe(field, label, value, sub = "") {
+  const active = (focusV2Draft.activeEntryField || "score") === field;
+  return `<button type="button" class="focus-v2-entry-box ${active ? "active" : ""}" data-action="focus-v2-entry-field" data-field="${attrText(field)}"><span>${htmlText(label)}</span><b>${htmlText(value === "" || value === null || value === undefined ? "—" : value)}</b>${sub ? `<small>${htmlText(sub)}</small>` : ""}</button>`;
+}
+function renderFocusV2PreShotSummarySafe(stats = {}) {
+  const last = stats.lastScore === null || stats.lastScore === undefined ? "—" : numText(stats.lastScore);
+  const best = stats.bestScore === null || stats.bestScore === undefined ? "—" : numText(stats.bestScore);
+  const target = stats.target === null || stats.target === undefined ? "—" : numText(stats.target);
+  const reach = stats.reach === null || stats.reach === undefined ? "—" : numText(stats.reach);
+  return `<div class="focus-v2-pre-summary">${renderFocusV2MetricCardSafe("Last", last)}${renderFocusV2MetricCardSafe("Best", best)}${renderFocusV2MetricCardSafe("Target", target)}${renderFocusV2MetricCardSafe("Reach", reach, "to target")}</div>`;
+}
+function renderFocusV2RecentMemorySafe(routine, stats) {
+  const m = focusV2SessionMemorySummarySafe(routine, stats);
+  const recent = (m.history || []).slice(-5).reverse();
+  if (!recent.length) return "";
+  return `<div class="focus-v2-recent-memory"><span>Recent</span>${recent.map(entry => `<i>${htmlText(entry.score ?? "—")}</i>`).join("")}</div>`;
 }
 
 function focusV2RoutineMemoryKeySafe(routine) {
@@ -5815,11 +5872,11 @@ function renderFocusV2ScoreHeroSafe(routine, stats) {
 }
 
 function renderFocusV2CompressedTelemetrySafe(stats = {}) {
-  const attempts = Number(focusV2Draft.attempt || 1);
-  const elapsed = focusV2Draft.timeMinutes !== "" ? focusV2Draft.timeMinutes : focusV2ElapsedMinutesSafe();
+  const attempts = String(Math.max(1, Number(focusV2Draft.attempt || 1)));
+  const elapsed = focusV2Draft.timeMinutes !== "" ? String(focusV2Draft.timeMinutes) : String(focusV2ElapsedMinutesSafe() || "");
   const last = focusV2Draft.lastSavedScore === null || focusV2Draft.lastSavedScore === undefined ? "—" : numText(focusV2Draft.lastSavedScore);
   const best = focusV2Draft.sessionBestScore === null || focusV2Draft.sessionBestScore === undefined ? (stats?.bestScore === null || stats?.bestScore === undefined ? "—" : numText(stats.bestScore)) : numText(focusV2Draft.sessionBestScore);
-  return `<div class="focus-v2-telemetry-strip" aria-label="Session telemetry"><label><span>Attempt</span><input id="focusV2AttemptsInput" type="number" min="1" step="1" inputmode="numeric" value="${escapeAttr(attempts)}"></label><label><span>Time</span><input id="focusV2TimeInput" type="number" min="0" step="0.5" inputmode="decimal" value="${escapeAttr(elapsed || "")}"></label><span><b>${htmlText(last)}</b><small>Last</small></span><span><b>${htmlText(best)}</b><small>Best</small></span></div>`;
+  return `<div class="focus-v2-telemetry-strip no-keyboard" aria-label="Session telemetry">${renderFocusV2EntryBoxSafe("attempt", "Attempt", attempts)}${renderFocusV2EntryBoxSafe("time", "Time", elapsed || "—", "min")}<span><b>${htmlText(last)}</b><small>Last</small></span><span><b>${htmlText(best)}</b><small>Best</small></span></div>`;
 }
 function renderFocusV2CompactStatusSafe(stats = {}) {
   return renderFocusV2CompressedTelemetrySafe(stats);
@@ -5874,7 +5931,9 @@ function openFocusV2TestSafe() {
     loggingStartedAt: 0,
     continuousFlow: true,
     lastFlowAction: "Ready to start",
-    autoReadyAt: 0
+    autoReadyAt: 0,
+    settingsOpen: false,
+    activeEntryField: "score"
   };
   focusV2ApplySessionMemorySafe(routine);
   focusV2PersistSessionMemorySafe(routine);
@@ -5932,34 +5991,28 @@ function renderFocusV2MetricCardSafe(label, value, sub = "") {
   return `<div class="focus-v2-metric"><span>${htmlText(label)}</span><strong>${htmlText(value === null || value === undefined || value === "" ? "—" : value)}</strong>${sub ? `<small>${htmlText(sub)}</small>` : ""}</div>`;
 }
 function renderFocusV2PreShotSafe(routine, stats) {
-  const last = stats.lastScore === null ? "No log" : numText(stats.lastScore);
-  const best = stats.bestScore === null ? "No best" : numText(stats.bestScore);
-  const target = stats.target === null ? "Not set" : numText(stats.target);
-  const reach = stats.reach === null ? "—" : numText(stats.reach);
-  return `<section class="focus-v2-pane focus-v2-pre">
+  return `<section class="focus-v2-pane focus-v2-pre focus-v2-pre-compressed">
     <div class="focus-v2-big-context"><span>Attempt ${numText(focusV2Draft.attempt || 1)}</span><h2>${htmlText(routine?.name || "Routine")}</h2><p>${htmlText(focusV2TargetLineSafe(routine))}</p></div>
-    ${renderFocusV2AdaptiveHudSafe(routine, stats)}
-    ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2SessionMemorySafe(routine, stats) : ""}
-    ${renderFocusV2IntensityRailSafe()}
-    <div class="focus-v2-table-select-card"><label for="focusV2TableSelect">Table</label><select id="focusV2TableSelect" class="focus-v2-table-select">${focusV2TableOptionsSafe(focusV2Draft.tableId)}</select><small>${htmlText(focusV2SelectedTableNameSafe())}</small></div>
-    ${focusV2IntensityAllowsSafe("deepStats") ? `<div class="focus-v2-metric-grid">${renderFocusV2MetricCardSafe("Last", last)}${renderFocusV2MetricCardSafe("Best", best)}${renderFocusV2MetricCardSafe("Target", target)}${renderFocusV2MetricCardSafe("Reach", reach, "to target")}</div>` : ""}
-    ${focusV2IntensityAllowsSafe("modeRail") ? `<div class="focus-v2-mode-card"><strong>Adaptive HUD + input mode</strong><small>${htmlText(focusV2ControlOrderHintSafe(routine))}</small>${renderFocusV2ModeRailSafe()}</div>` : ""}
+    ${renderFocusV2PreShotSummarySafe(stats)}
+    <div class="focus-v2-table-select-card compact"><label for="focusV2TableSelect">Table</label><select id="focusV2TableSelect" class="focus-v2-table-select">${focusV2TableOptionsSafe(focusV2Draft.tableId)}</select><small>${htmlText(focusV2SelectedTableNameSafe())}</small></div>
+    ${focusV2IntensityAllowsSafe("modeRail") ? `<div class="focus-v2-mode-card compact"><strong>Input mode</strong><small>${htmlText(focusV2ControlOrderHintSafe(routine))}</small>${renderFocusV2ModeRailSafe()}</div>` : ""}
     <div class="focus-v2-thumb-dock"><button type="button" class="primary focus-v2-primary focus-v2-full" data-action="focus-v2-state" data-state="${FOCUS_V2_STATES.LOGGING}">Start logging</button></div>
   </section>`;
 }
 function renderFocusV2NumpadSafe() {
-  const keys = ["7","8","9","4","5","6","1","2","3","⌫","0","Clear"];
-  return `<div class="focus-v2-numpad" aria-label="Numeric score pad">${keys.map(k => `<button type="button" class="focus-v2-key ${k === "Clear" ? "wide" : ""}" data-action="focus-v2-key" data-key="${attrText(k)}">${htmlText(k)}</button>`).join("")}</div>`;
+  const keys = ["7","8","9","4","5","6","1","2","3",".","0","⌫","Clear"];
+  const target = focusV2EntryFieldLabelSafe(focusV2Draft.activeEntryField || "score");
+  return `<div class="focus-v2-numpad-target">Editing: <strong>${htmlText(target)}</strong></div><div class="focus-v2-numpad" aria-label="Numeric score pad">${keys.map(k => `<button type="button" class="focus-v2-key ${k === "Clear" ? "wide" : ""}" data-action="focus-v2-key" data-key="${attrText(k)}">${htmlText(k)}</button>`).join("")}</div>`;
 }
 function renderFocusV2SideBoxesSafe(routine) {
   const sideSplit = !!routineUsesSideSplit?.(routine);
   if (!sideSplit) {
     return `<div class="focus-v2-variation-row"><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="-5">−5</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="-1">−1</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="1">+1</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="5">+5</button></div>`;
   }
-  return `<div class="focus-v2-side-grid"><label class="focus-v2-side-box"><span>Left side</span><input id="focusV2LeftInput" type="number" min="0" step="1" inputmode="numeric" value="${escapeAttr(focusV2Draft.leftScore ?? "")}" placeholder="0"></label><label class="focus-v2-side-box"><span>Right side</span><input id="focusV2RightInput" type="number" min="0" step="1" inputmode="numeric" value="${escapeAttr(focusV2Draft.rightScore ?? "")}" placeholder="0"></label></div>`;
+  return `<div class="focus-v2-side-grid">${renderFocusV2EntryBoxSafe("left", "Left side", focusV2Draft.leftScore ?? "")}${renderFocusV2EntryBoxSafe("right", "Right side", focusV2Draft.rightScore ?? "")}</div>`;
 }
 function renderFocusV2NumericInputSafe(routine) {
-  return `<input id="focusV2ScoreInput" class="focus-v2-score-input" type="number" min="0" step="1" inputmode="numeric" value="${escapeAttr(focusV2Draft.score ?? "")}" placeholder="0" autofocus>
+  return `<div class="focus-v2-score-input focus-v2-score-display" data-action="focus-v2-entry-field" data-field="score" role="button" tabindex="0"><span>Score</span><strong>${htmlText(focusV2Draft.score === "" || focusV2Draft.score === null || focusV2Draft.score === undefined ? "0" : focusV2Draft.score)}</strong></div>
     ${renderFocusV2SideBoxesSafe(routine)}
     ${renderFocusV2NumpadSafe()}`;
 }
@@ -5994,11 +6047,12 @@ function renderFocusV2LoggingSafe(routine, stats) {
   return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified">
     <div class="focus-v2-logging-top focus-v2-logging-top-compact"><div><span>${htmlText(scoreLabel)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><small>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</small></div>${renderFocusV2CompressedTelemetrySafe(stats)}</div>
     ${renderFocusV2ScoreHeroSafe(routine, stats)}
-    ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2SessionMemorySafe(routine, stats, true) : ""}
+    ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2RecentMemorySafe(routine, stats) : ""}
     ${focusV2IntensityAllowsSafe("coachingHint") ? `<div class="focus-v2-control-hint compact">${htmlText(focusV2ControlOrderHintSafe(routine))}</div>` : ""}
     ${focusV2IntensityAllowsSafe("modeRail") ? renderFocusV2ModeRailSafe() : ""}
     ${focusV2IntensityAllowsSafe("gesture") ? `<div class="focus-v2-gesture-hint compact"><span>Gestures</span><b>Swipe right</b><b>Swipe left</b><b>Double tap</b><b>Long press</b></div>` : ""}
     ${renderFocusV2AdaptiveInputSafe(routine)}
+    ${(focusV2Draft.activeEntryField || "score") !== "score" && (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) !== FOCUS_V2_INPUT_MODES.NUMERIC ? renderFocusV2NumpadSafe() : ""}
     ${renderFocusV2QuickDockSafe()}
   </section>`;
 }
@@ -6019,8 +6073,7 @@ function renderFocusV2ModalSafe() {
   if (state === FOCUS_V2_STATES.PRE) body = renderFocusV2PreShotSafe(routine, stats);
   else if (state === FOCUS_V2_STATES.LOGGING) body = renderFocusV2LoggingSafe(routine, stats);
   else body = renderFocusV2ReviewSafe(routine, stats);
-  host.innerHTML = `<div class="focus-v2-shell ${focusV2IntensityClassSafe()}"><header class="focus-v2-header"><div><p class="focus-v2-kicker">Focus Mode v2 test</p><h1 id="focusV2Title">${htmlText(copy.title)}</h1><p>${htmlText(copy.body)}</p></div><button type="button" class="modal-close focus-v2-close" data-action="close-focus-v2-test">×</button></header>${renderFocusV2ProgressSafe()}<div class="focus-v2-current"><span>${htmlText(copy.eyebrow)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><em>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</em></div>${renderFocusV2MicroFeedbackSafe()}${body}</div>`;
-  setTimeout(() => { try { $("focusV2ScoreInput")?.focus?.(); } catch(e) {} }, 0);
+  host.innerHTML = `<div class="focus-v2-shell ${focusV2IntensityClassSafe()}"><header class="focus-v2-header"><div><p class="focus-v2-kicker">Focus Mode v2 test</p><h1 id="focusV2Title">${htmlText(copy.title)}</h1><p>${htmlText(copy.body)}</p></div><div class="focus-v2-header-actions"><button type="button" class="focus-v2-gear" data-action="focus-v2-toggle-settings" aria-label="Focus Mode v2 settings">⚙</button><button type="button" class="modal-close focus-v2-close" data-action="close-focus-v2-test">×</button></div></header>${renderFocusV2SettingsPanelSafe()}${renderFocusV2ProgressSafe()}<div class="focus-v2-current"><span>${htmlText(copy.eyebrow)}</span><strong>${htmlText(routine?.name || "Routine")}</strong><em>${htmlText(routine?.folder || "Unfiled")} / ${htmlText(routine?.subfolder || "General")}</em></div>${renderFocusV2MicroFeedbackSafe()}${body}</div>`;
 }
 function focusV2CurrentScoreValueSafe() {
   const mode = focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC;
@@ -6028,35 +6081,30 @@ function focusV2CurrentScoreValueSafe() {
   if (mode === FOCUS_V2_INPUT_MODES.INCREMENTAL) return String(Number(focusV2Draft.incrementalValue || focusV2Draft.score || 0));
   if (mode === FOCUS_V2_INPUT_MODES.BREAK) return String(Number(focusV2Draft.currentBreak || focusV2Draft.score || 0));
   if (mode === FOCUS_V2_INPUT_MODES.TIME) return String(Number(focusV2Draft.successCount || 0));
-  const input = $("focusV2ScoreInput");
-  const raw = input ? input.value : focusV2Draft.score;
+  const raw = focusV2Draft.score;
   return raw === "" || raw === null || raw === undefined ? "" : String(raw);
 }
 function focusV2SyncInputDraftSafe() {
-  const input = $("focusV2ScoreInput");
-  if (input) focusV2Draft.score = input.value;
-  focusV2Draft.leftScore = $("focusV2LeftInput")?.value ?? focusV2Draft.leftScore ?? "";
-  focusV2Draft.rightScore = $("focusV2RightInput")?.value ?? focusV2Draft.rightScore ?? "";
-  focusV2Draft.timeMinutes = $("focusV2TimeInput")?.value ?? focusV2Draft.timeMinutes ?? "";
-  const attemptInput = $("focusV2AttemptsInput")?.value;
-  if (attemptInput !== undefined && attemptInput !== null && attemptInput !== "") focusV2Draft.attempt = Math.max(1, Number(attemptInput) || 1);
+  // Focus Mode v2 uses its own numpad for score, attempt, time and side fields. Native inputs are intentionally avoided to prevent the phone keyboard from opening mid-practice.
 }
 function handleFocusV2AdjustSafe(delta) {
-  const input = $("focusV2ScoreInput");
-  const current = Number(input?.value || focusV2Draft.score || 0);
+  const field = focusV2Draft.activeEntryField || "score";
+  const current = Number(focusV2EntryFieldValueSafe(field) || 0);
   const next = Math.max(0, current + Number(delta || 0));
-  focusV2Draft.score = String(next);
-  if (input) input.value = String(next);
+  focusV2SetEntryFieldValueSafe(field, String(next));
+  renderFocusV2ModalSafe();
 }
 function handleFocusV2KeySafe(key) {
-  const input = $("focusV2ScoreInput");
-  const current = String(input?.value ?? focusV2Draft.score ?? "");
+  const field = focusV2Draft.activeEntryField || "score";
+  const current = String(focusV2EntryFieldValueSafe(field) ?? "");
   let next = current;
   if (key === "⌫") next = current.slice(0, -1);
   else if (key === "Clear") next = "";
+  else if (key === ".") next = field === "time" && !current.includes(".") ? (current || "0") + "." : current;
   else if (/^\d$/.test(String(key))) next = (current === "0" ? "" : current) + String(key);
-  focusV2Draft.score = next;
-  if (input) input.value = next;
+  if (field === "attempt" && next.includes(".")) next = next.split(".")[0];
+  focusV2SetEntryFieldValueSafe(field, next);
+  renderFocusV2ModalSafe();
 }
 function focusV2PushHistorySafe(entry) {
   if (!Array.isArray(focusV2Draft.history)) focusV2Draft.history = [];
@@ -6239,7 +6287,7 @@ document.addEventListener("input", event => {
   if (!target) return;
   if (target.id === "focusV2ScoreInput" || target.id === "focusV2AttemptsInput" || target.id === "focusV2TimeInput" || target.id === "focusV2LeftInput" || target.id === "focusV2RightInput") focusV2SyncInputDraftSafe();
 });
-/* ===== end v5.7.77O Focus Mode v2 Telemetry Compression + Smart HUD Simplification ===== */
+/* ===== end v5.7.77O.1 Focus Mode v2 Density Gear + Numpad Field Entry Fix ===== */
 
 function startRoutineScreen() {
   persistActiveSession();
@@ -21377,6 +21425,8 @@ function handleDelegatedUIAction(event) {
     case "focus-v2-state": return setFocusV2StateSafe(actionEl.dataset.state || "pre-shot");
     case "focus-v2-mode": return setFocusV2InputModeSafe(actionEl.dataset.mode || "numeric");
     case "focus-v2-intensity": return focusV2SetIntensityModeSafe(actionEl.dataset.mode || "standard");
+    case "focus-v2-toggle-settings": return toggleFocusV2SettingsSafe();
+    case "focus-v2-entry-field": return focusV2SetActiveEntryFieldSafe(actionEl.dataset.field || "score");
     case "focus-v2-adjust": hapticFeedback("tap"); return handleFocusV2AdjustSafe(Number(actionEl.dataset.delta || 0));
     case "focus-v2-key": hapticFeedback("tap"); return handleFocusV2KeySafe(actionEl.dataset.key || "");
     case "focus-v2-increment": hapticFeedback("tap"); return handleFocusV2IncrementSafe(Number(actionEl.dataset.delta || 0));
