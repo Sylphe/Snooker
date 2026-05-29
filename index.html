@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log 5.7.77U.7</title>
+  <title>Snooker Practice Log 5.7.77U.11</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.7.77U-7"></script>
-  <link rel="manifest" href="manifest.json?v=5.7.77U-7" />
-  <link rel="stylesheet" href="styles.css?v=5.7.77U-7" />
-  <link rel="icon" href="icon.svg?v=5.7.77U-7" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.7.77U-11"></script>
+  <link rel="manifest" href="manifest.json?v=5.7.77U-11" />
+  <link rel="stylesheet" href="styles.css?v=5.7.77U-11" />
+  <link rel="icon" href="icon.svg?v=5.7.77U-11" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.7.77U.7 · Build 2026-05-29 11:25 CEST — Smart Engine Explanation Integrity Patch</p>
+      <p>5.7.77U.11 · Build 2026-05-29 13:35 CEST — Focus V2 Default Entry Patch</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -69,6 +69,7 @@
           </div>
           <div class="row primary-action-row">
             <button id="startSessionBtn" class="success primary-start-btn">Start Plan Session</button>
+            <button id="startSessionV1FallbackBtn" class="secondary focus-v1-fallback-btn" type="button" title="Fallback to the previous Focus Mode screen if v2 is unstable">Fallback to v1</button>
           </div>
         </div>
 
@@ -81,6 +82,7 @@
           </div>
           <div class="row">
             <button id="startFreeSessionBtn" class="success primary-start-btn">Start Free Training</button>
+            <button id="startFreeSessionV1FallbackBtn" class="secondary focus-v1-fallback-btn" type="button" title="Fallback to the previous Focus Mode screen if v2 is unstable">Fallback to v1</button>
             <button id="repeatLastExerciseBtn" class="secondary">Repeat Last Exercise</button>
             <button id="focusModeV2TestBtn" class="secondary focus-v2-test-btn" type="button" data-action="open-focus-v2-test">Focus Mode v2 Test</button>
             <button id="resetSessionBtn" class="secondary">Reset Active Session</button>
@@ -1834,7 +1836,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.7.77U-7"></script>
+  <script type="module" src="app.js?v=5.7.77U-11"></script>
 </body>
 
 
