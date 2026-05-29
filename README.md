@@ -1,6 +1,14 @@
 # Snooker Practice PWA
 
-Version: 5.8.2-smart-builder-etu-template-hardening
+Version: 5.8.3-smart-builder-goal-overrides-focus-v2-average-break
+
+## v5.8.3 — Smart Builder Goal Overrides + Focus V2 Average Break
+
+- Added Smart Session goal override: Maximize ETU.
+- Added Smart Session goal override: Fastest level progression.
+- Override goals bypass Smart Builder composition caps except selected time limit.
+- Added Focus Mode v2 average-break entry for break target / consistency / break-building drills.
+- Focus V2 average break is persisted on logs as averageBreak and averageBreakPerAttempt and mapped to break-target consistency statistics.
 
 ## v5.8.2 — Smart Builder ETU / Template Hardening
 

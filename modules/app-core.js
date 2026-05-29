@@ -5553,6 +5553,7 @@ let focusV2Draft = {
   score: "",
   leftScore: "",
   rightScore: "",
+  averageBreak: "",
   timeMinutes: "",
   successCount: 0,
   missCount: 0,
@@ -5647,7 +5648,7 @@ function renderFocusV2SettingsPanelSafe() {
   return `<div class="focus-v2-settings-panel"><div class="focus-v2-settings-head"><strong>Focus settings</strong><small>Numeric highest-score logging is the default. Alternate modes are optional test inputs.</small></div>${renderFocusV2IntensityRailSafe()}<div class="focus-v2-mode-card compact focus-v2-mode-card-settings"><strong>Logging mode</strong><small>Use Numeric for highest break / best score out of the routine attempt count.</small>${renderFocusV2ModeRailSafe()}</div></div>`;
 }
 function focusV2SetActiveEntryFieldSafe(field) {
-  const allowed = ["score", "break", "attempt", "time", "left", "right"];
+  const allowed = ["score", "break", "attempt", "time", "left", "right", "averageBreak"];
   focusV2Draft.activeEntryField = allowed.includes(field) ? field : "score";
   renderFocusV2ModalSafe();
 }
@@ -5657,6 +5658,7 @@ function focusV2EntryFieldLabelSafe(field) {
   if (field === "time") return "Time";
   if (field === "left") return "Left side";
   if (field === "right") return "Right side";
+  if (field === "averageBreak") return "Avg break";
   return "Score";
 }
 function focusV2EntryFieldValueSafe(field) {
@@ -5665,6 +5667,7 @@ function focusV2EntryFieldValueSafe(field) {
   if (field === "time") return String(focusV2Draft.timeMinutes ?? "");
   if (field === "left") return String(focusV2Draft.leftScore ?? "");
   if (field === "right") return String(focusV2Draft.rightScore ?? "");
+  if (field === "averageBreak") return String(focusV2Draft.averageBreak ?? "");
   return String(focusV2Draft.score ?? "");
 }
 function focusV2SetEntryFieldValueSafe(field, value) {
@@ -5674,6 +5677,7 @@ function focusV2SetEntryFieldValueSafe(field, value) {
   if (field === "time") { focusV2Draft.timeMinutes = raw; return; }
   if (field === "left") { focusV2Draft.leftScore = raw; return; }
   if (field === "right") { focusV2Draft.rightScore = raw; return; }
+  if (field === "averageBreak") { focusV2Draft.averageBreak = raw; return; }
   focusV2Draft.score = raw;
 }
 function renderFocusV2EntryBoxSafe(field, label, value, sub = "") {
@@ -5792,6 +5796,7 @@ function focusV2PrepareNextAttemptSafe(options = {}) {
   focusV2Draft.score = "";
   focusV2Draft.leftScore = "";
   focusV2Draft.rightScore = "";
+  focusV2Draft.averageBreak = "";
   focusV2Draft.timeMinutes = "";
   focusV2Draft.successCount = 0;
   focusV2Draft.missCount = 0;
@@ -6023,12 +6028,29 @@ function renderFocusV2ScoreHeroSafe(routine, stats) {
   return `<button type="button" class="focus-v2-score-hero focus-v2-score-hero-${attrText(type)} ${active ? "active-entry" : ""}" data-action="focus-v2-entry-field" data-field="${attrText(field)}"><span>${htmlText(label)}</span><strong>${htmlText(value)}</strong><small>${htmlText(subParts.join(" · "))}</small></button>`;
 }
 
+function focusV2UsesAverageBreakSafe(routine) {
+  try {
+    const scoring = String(routine?.scoring || "").toLowerCase();
+    const txt = focusV2RoutineTextSignatureSafe(routine);
+    return scoring === "break_target_consistency" || scoring === "highest_break" || !!routine?.trackHighestBreak || /break target|target break|consistency|average break|avg break/.test(txt);
+  } catch (_) { return false; }
+}
+function renderFocusV2AverageBreakBoxSafe(routine) {
+  if (!focusV2UsesAverageBreakSafe(routine)) return "";
+  const attempts = Math.max(1, Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10));
+  const best = Number(focusV2CurrentScoreValueSafe() || 0);
+  const avgBreak = focusV2Draft.averageBreak !== "" && focusV2Draft.averageBreak !== null && focusV2Draft.averageBreak !== undefined
+    ? focusV2Draft.averageBreak
+    : (attempts > 0 && best > 0 ? Math.round((best / attempts) * 10) / 10 : "");
+  const sub = attempts ? `per ${numText(attempts)} attempts` : "per attempt";
+  return renderFocusV2EntryBoxSafe("averageBreak", "Avg break", avgBreak, sub);
+}
 function renderFocusV2CompressedTelemetrySafe(stats = {}) {
   const attempts = String(Math.max(1, Number(focusV2Draft.attempt || 1)));
   const elapsed = focusV2Draft.timeMinutes !== "" ? String(focusV2Draft.timeMinutes) : String(focusV2ElapsedMinutesSafe() || "");
   const last = focusV2Draft.lastSavedScore === null || focusV2Draft.lastSavedScore === undefined ? "—" : numText(focusV2Draft.lastSavedScore);
   const best = focusV2Draft.sessionBestScore === null || focusV2Draft.sessionBestScore === undefined ? (stats?.bestScore === null || stats?.bestScore === undefined ? "—" : numText(stats.bestScore)) : numText(focusV2Draft.sessionBestScore);
-  return `<div class="focus-v2-telemetry-strip no-keyboard" aria-label="Session telemetry">${renderFocusV2EntryBoxSafe("attempt", focusV2IsNumericDefaultModeSafe() ? "Attempts" : "Attempt", attempts, focusV2IsNumericDefaultModeSafe() ? "planned" : "") }${renderFocusV2EntryBoxSafe("time", "Time", elapsed || "—", "min")}<span><b>${htmlText(last)}</b><small>Last</small></span><span><b>${htmlText(best)}</b><small>Best</small></span></div>`;
+  return `<div class="focus-v2-telemetry-strip no-keyboard" aria-label="Session telemetry">${renderFocusV2EntryBoxSafe("attempt", focusV2IsNumericDefaultModeSafe() ? "Attempts" : "Attempt", attempts, focusV2IsNumericDefaultModeSafe() ? "planned" : "") }${renderFocusV2AverageBreakBoxSafe(getFocusV2RoutineSafe())}${renderFocusV2EntryBoxSafe("time", "Time", elapsed || "—", "min")}<span><b>${htmlText(last)}</b><small>Last</small></span><span><b>${htmlText(best)}</b><small>Best</small></span></div>`;
 }
 function renderFocusV2CompactStatusSafe(stats = {}) {
   return renderFocusV2CompressedTelemetrySafe(stats);
@@ -6102,6 +6124,7 @@ function openFocusV2TestSafe() {
     score: "",
     leftScore: "",
     rightScore: "",
+    averageBreak: "",
     timeMinutes: "",
     successCount: 0,
     missCount: 0,
@@ -6431,7 +6454,7 @@ function handleFocusV2KeySafe(key) {
   let next = current;
   if (key === "⌫") next = current.slice(0, -1);
   else if (key === "Clear") next = "";
-  else if (key === ".") next = field === "time" && !current.includes(".") ? (current || "0") + "." : current;
+  else if (key === ".") next = ["time","averageBreak","score","break"].includes(field) && !current.includes(".") ? (current || "0") + "." : current;
   else if (/^\d$/.test(String(key))) next = (current === "0" ? "" : current) + String(key);
   if (field === "attempt" && next.includes(".")) next = next.split(".")[0];
   focusV2SetEntryFieldValueSafe(field, next);
@@ -6491,9 +6514,11 @@ async function focusV2PersistRealLogSafe(entry, routine, numericScore) {
       normalizedScore: 0,
       bestAttempt: "",
       completionCount: "",
-      highestBreak: routine.scoring === "highest_break" || routine.trackHighestBreak ? score : "",
-      commonBreakBand: "",
-      commonBreakBandAtLog: "",
+      highestBreak: routine.scoring === "highest_break" || routine.scoring === "break_target_consistency" || routine.trackHighestBreak ? score : "",
+      averageBreak: entry.averageBreak || entry.averageBreakPerAttempt || "",
+      averageBreakPerAttempt: entry.averageBreakPerAttempt || entry.averageBreak || "",
+      commonBreakBand: routine.scoring === "break_target_consistency" ? (entry.averageBreak || entry.averageBreakPerAttempt || "") : "",
+      commonBreakBandAtLog: routine.scoring === "break_target_consistency" ? (entry.averageBreak || entry.averageBreakPerAttempt || "") : "",
       consistencyWeightAtLog: "",
       peakWeightAtLog: "",
       totalUnits,
@@ -6548,7 +6573,7 @@ async function saveFocusV2DraftSafe(options = {}) {
   const routine = getFocusV2RoutineSafe();
   if (routineUsesSideSplit?.(routine)) score = String(focusV2SideCombinedScoreSafe());
   if (score === "") { showTransientNotice("Enter a score first.", "warn"); return; }
-  const entry = { mode: focusV2Draft.inputMode, score, leftSideScore: focusV2Draft.leftScore || "", rightSideScore: focusV2Draft.rightScore || "", combinedScore: routineUsesSideSplit?.(routine) ? focusV2SideCombinedScoreSafe() : "", attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
+  const entry = { mode: focusV2Draft.inputMode, score, averageBreak: focusV2Draft.averageBreak || "", averageBreakPerAttempt: focusV2Draft.averageBreak || "", leftSideScore: focusV2Draft.leftScore || "", rightSideScore: focusV2Draft.rightScore || "", combinedScore: routineUsesSideSplit?.(routine) ? focusV2SideCombinedScoreSafe() : "", attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
   const numericScore = Number(score || 0);
   const previousBest = Number(focusV2Draft.sessionBestScore || 0);
   const stats = focusV2StatsSafe(routine);
@@ -7209,6 +7234,8 @@ async function saveCurrentRoutine() {
     bestAttempt: wholeNumberOrNull($("bestAttemptValue")?.value || "") ?? "",
     completionCount: wholeNumberOrNull($("completionCountValue")?.value || "") ?? "",
     highestBreak: wholeNumberOrNull($("highestBreakValue")?.value || "") ?? "",
+    averageBreak: r.scoring === "break_target_consistency" ? commonBreakBand : "",
+    averageBreakPerAttempt: r.scoring === "break_target_consistency" ? commonBreakBand : "",
     commonBreakBand: r.scoring === "break_target_consistency" ? commonBreakBand : "",
     commonBreakBandAtLog: r.scoring === "break_target_consistency" ? commonBreakBand : "",
     consistencyWeightAtLog: r.scoring === "break_target_consistency" ? 0.6 : "",
@@ -8643,7 +8670,8 @@ function smartBuilderEtuSessionBudgetPolicySafe(template, effectiveGoal="stabili
     const goal = String(effectiveGoal || "stability").toLowerCase();
     const scale = Math.max(0.75, Math.min(1.35, Math.sqrt(Math.max(30, Number(targetMinutes || 60)) / 60)));
     let min = 2.0, max = 3.6, label = "Balanced ETU budget";
-    if (tpl === "recovery" || goal === "recovery") { min = 1.2; max = 2.4; label = "Recovery ETU budget"; }
+    if (smartBuilderIsOverrideGoalSafe(goal) || String(template?.templateSelectionSource || "") === "override") { min = 0; max = 999; label = "Override mode ETU audit"; }
+    else if (tpl === "recovery" || goal === "recovery") { min = 1.2; max = 2.4; label = "Recovery ETU budget"; }
     else if (tpl === "consolidation" || goal === "stability") { min = 1.8; max = 3.2; label = "Consolidation ETU budget"; }
     else if (tpl === "pressure" || goal === "variety") { min = 1.8; max = 3.3; label = "Pressure / robustness ETU budget"; }
     else if (tpl === "benchmark_prep") { min = 2.6; max = 5.5; label = "Benchmark-prep ETU budget"; }
@@ -9436,7 +9464,93 @@ function smartBlockPurpose(blockType, fallback=""){
 }
 function smartGoalLabel(goal){
   if(getInsightLanguageSetting() !== "friendly") return goal;
-  return ({recovery:"Recovery", progression:"Progress", stability:"Stability", variety:"Balanced", auto:"Auto"})[goal] || goal;
+  return ({recovery:"Recovery", progression:"Progress", stability:"Stability", variety:"Balanced", auto:"Auto", maximize_etu:"Maximize ETU", level_progression:"Fastest level progression"})[goal] || goal;
+}
+function smartBuilderIsOverrideGoalSafe(goal){
+  return ["maximize_etu", "level_progression"].includes(String(goal || "").toLowerCase());
+}
+function smartBuilderOverrideGoalLabelSafe(goal){
+  const g = String(goal || "").toLowerCase();
+  if (g === "maximize_etu") return "Maximize ETU";
+  if (g === "level_progression") return "Fastest level progression";
+  return smartGoalLabel(g);
+}
+function smartBuilderLevelProgressionDomainMapSafe(etuContext=null){
+  try {
+    const ledger = smartBuilderSkillProgressionLedgerSafe(data.logs || [], {etuContext});
+    const rows = Array.isArray(ledger?.rows) ? ledger.rows : Array.isArray(ledger) ? ledger : [];
+    const map = new Map();
+    rows.forEach(row => {
+      const key = String(row.key || row.domain || "general");
+      const progress = clampNumber(Number(row.progressToNext || 0), 0, 100);
+      const evidence = clampNumber(Number(row.recentLogs || row.totalLogs || 0) * 6, 0, 36);
+      const plateau = clampNumber(Number(row.plateauRisk || 0), 0, 100);
+      const closeness = progress >= 45 ? progress * 0.72 : progress * 0.35;
+      const lowExposureBoost = Number(row.etu || 0) < 4 ? 10 : 0;
+      const score = closeness + evidence + plateau * 0.12 + lowExposureBoost;
+      map.set(key, {score, progress, level:row.currentLevel || row.label || "", next:row.nextLBandRequirement || "", plateauRisk:plateau});
+    });
+    return map;
+  } catch (_) { return new Map(); }
+}
+function smartBuilderApplyOverrideGoalRankingSafe(ranked, goal, targetMinutes=60, etuContext=null){
+  try {
+    const g = String(goal || "").toLowerCase();
+    if (!smartBuilderIsOverrideGoalSafe(g)) return ranked || [];
+    const levelMap = smartBuilderLevelProgressionDomainMapSafe(etuContext);
+    return (ranked || []).map(state => {
+      const domain = smartBuilderRoutineDomainKeySafe(state?.routine || {});
+      const duration = Math.max(5, Number(state?.routine?.duration || adaptiveRoutineExpectedMinutes(state?.routine || {}) || 10));
+      const etu = smartBuilderPickEtuEstimateSafe({state, reps:1}, {blockType:state?.blockType || "primary"});
+      const etuDensity = etu / Math.max(1, duration);
+      let overrideBoost = 0;
+      let overrideReason = "";
+      if (g === "maximize_etu") {
+        overrideBoost = etu * 55 + etuDensity * 320 + Math.min(24, duration / Math.max(1, Number(targetMinutes || 60)) * 80);
+        overrideReason = `Override goal: ETU maximization prioritizes high productive load within ${numText(targetMinutes)} minutes.`;
+      } else if (g === "level_progression") {
+        const row = levelMap.get(domain) || {score:18, progress:0, next:"next L-band"};
+        overrideBoost = Number(row.score || 0) + etu * 18 + Number(state?.transferValue || routineTransferValue(state?.routine) || 0) * 0.18;
+        overrideReason = `Override goal: fastest level progression prioritizes ${predictionDomainLabelSafe(domain)} toward ${row.next || "the next L-band"}.`;
+      }
+      const next = {...state};
+      next.adaptiveScore = Number(state?.adaptiveScore || 0) + overrideBoost;
+      next.reasons = [...(state?.reasons || []), overrideReason].filter(Boolean);
+      next.overrideGoal = g;
+      next.recommendationAudit = {...(state?.recommendationAudit || {}), overrideGoal:g, overrideGoalModifier:roundSmartAuditNumber(overrideBoost), finalScore:roundSmartAuditNumber(next.adaptiveScore), constraintsApplied:[...((state?.recommendationAudit || {}).constraintsApplied || []), overrideReason].filter(Boolean)};
+      return next;
+    }).sort((a,b)=>Number(b.adaptiveScore || 0)-Number(a.adaptiveScore || 0));
+  } catch (err) { try { logAppError(err, "smartBuilderApplyOverrideGoalRankingSafe"); } catch (_) {} return ranked || []; }
+}
+function smartBuilderBuildOverrideGoalBlocksSafe(ranked, goal, targetMinutes=60){
+  try {
+    const g = String(goal || "").toLowerCase();
+    const pool = (ranked || []).filter(s => s?.routine?.id);
+    const used = new Set();
+    const take = (n) => {
+      const arr = [];
+      for (const s of pool) {
+        if (arr.length >= n) break;
+        if (used.has(s.routine.id)) continue;
+        used.add(s.routine.id);
+        arr.push(s);
+      }
+      return arr;
+    };
+    const slotCount = Math.max(3, Math.min(6, Math.round(Number(targetMinutes || 60) / 20)));
+    const first = take(1);
+    const middle = take(Math.max(1, slotCount - 2));
+    const last = take(1);
+    const warmM = Math.max(8, Math.round(Number(targetMinutes || 60) * 0.18));
+    const finishM = Math.max(8, Math.round(Number(targetMinutes || 60) * 0.16));
+    const mainM = Math.max(10, Number(targetMinutes || 60) - warmM - finishM);
+    const label = smartBuilderOverrideGoalLabelSafe(g);
+    return [
+      {name:`${label} · activation`, blockType:"warmup", minutes:warmM, purpose:"Override goal active: time limit is the only hard constraint; this first block primes the selected optimization path.", picks:first},
+      {name:g === "maximize_etu" ? "Maximum ETU load block" : "Fastest next-level progression block", blockType:"primary", minutes:mainM, purpose:g === "maximize_etu" ? "Highest productive ETU density available inside the selected duration." : "Best expected contribution to the next skill level inside the selected duration.", picks:middle},
+      {name:`${label} · close`, blockType:"completion", minutes:finishM, purpose:"Final high-value slot while staying inside the time cap.", picks:last}
+    ].filter(b => b.picks && b.picks.length).map(b => ({...b, picks:b.picks.map(p => normalizeAdaptivePick(p, 1))}));
+  } catch (err) { try { logAppError(err, "smartBuilderBuildOverrideGoalBlocksSafe"); } catch (_) {} return []; }
 }
 function smartRecommendationModeLabel(mode){
   if(getInsightLanguageSetting() !== "friendly") return mode === "thompson" ? "Exploration" : mode === "hybrid" ? "Balanced" : "Stable";
@@ -10515,7 +10629,17 @@ function smartBuilderSessionTemplateSafe(effectiveGoal, etuContext, options = {}
     let key = "consolidation";
     let overrides = {};
     let source = "auto";
-    if (manualTemplate && manualTemplate !== "auto") {
+    if (smartBuilderIsOverrideGoalSafe(effectiveGoal) || smartBuilderIsOverrideGoalSafe(goal)) {
+      key = "standard";
+      source = "override";
+      overrides = {
+        label: smartBuilderOverrideGoalLabelSafe(effectiveGoal || goal),
+        layer: "override",
+        purpose: "Override mode: optimize the requested objective and ignore ETU, benchmark, pressure, volatility, switching and recovery composition caps. Duration remains enforced.",
+        maxEtu: 999, maxBenchmarkDensity: 1, maxPressureDrills: 99, maxHighRiskDrills: 99, maxSwitchingCost: 99, requiredRecoveryDrills: 0, requiredBlockTypes: [], strictness: "override",
+        selectionReason: "Manual override goal selected; time limit is the only hard cap."
+      };
+    } else if (manualTemplate && manualTemplate !== "auto") {
       key = manualTemplate;
       source = "manual";
       overrides.selectionReason = `Manually selected template: ${manualTemplate.replace(/_/g, " ")}. Goal still shapes ranking, but template rules control admissibility.`;
@@ -10540,7 +10664,7 @@ function renderSmartBuilderTemplateSafe(template) {
   try {
     if (!template) return "";
     const t = smartBuilderFormalizeTemplateSafe(template || {});
-    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">${escapeHtml(t.templateSelectionSource === "manual" ? "Manual template" : "Auto template")}</span> <span class="badge">Goal: ${escapeHtml(t.requestedGoal || "auto")}</span> <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.73")}</span>${t.selectionReason ? `<br><span class="muted small">${escapeHtml(t.selectionReason)}</span>` : ""}</div>${renderSmartBuilderFormalTemplateSafe(t)}`;
+    return `<div class="adaptive-rationale"><strong>Session template:</strong> ${escapeHtml(t.label || "Smart session")} · ${escapeHtml(t.purpose || "Layered session structure active.")} <span class="badge">${escapeHtml(t.templateSelectionSource === "override" ? "Override mode" : t.templateSelectionSource === "manual" ? "Manual template" : "Auto template")}</span> <span class="badge">Goal: ${escapeHtml(t.requestedGoal || "auto")}</span> <span class="badge">Layer: ${escapeHtml(t.layer || "builder")}</span> <span class="badge">Schema ${escapeHtml(t.templateSchemaVersion || "5.7.73")}</span>${t.selectionReason ? `<br><span class="muted small">${escapeHtml(t.selectionReason)}</span>` : ""}</div>${renderSmartBuilderFormalTemplateSafe(t)}`;
   } catch (_) { return ""; }
 }
 function roundSmartAuditNumber(value) {
@@ -11616,6 +11740,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     enrichedState.recommendationAudit.confidence = enrichedState.recommendationConfidence;
     return enrichedState;
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
+  ranked = smartBuilderApplyOverrideGoalRankingSafe(ranked, goal, targetMinutes, etuContext);
   const fatigueAll = cachedFatigueSlope(data.logs || []);
   const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
@@ -11624,7 +11749,10 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const globalReasons = [];
   const contextualState = inferTrainingStateMode();
 
-  if (goal === "auto" && etuContext.state === "high") {
+  if (smartBuilderIsOverrideGoalSafe(goal)) {
+    effectiveGoal = goal;
+    globalReasons.push(`override goal: ${smartBuilderOverrideGoalLabelSafe(goal)}; all Smart Builder constraints bypassed except selected duration`);
+  } else if (goal === "auto" && etuContext.state === "high") {
     effectiveGoal = "recovery";
     globalReasons.push(`ETU load: ${etuContext.label.toLowerCase()} — ${etuContext.guidance}`);
   } else if (goal === "auto" && etuContext.state === "moderate_high" && intensity !== "pressure") {
@@ -11694,7 +11822,9 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     return take(s => (s.blockType === type) || (typeof fallback === "function" && fallback(s)), n);
   }
 
-  if (effectiveGoal === "recovery") {
+  if (smartBuilderIsOverrideGoalSafe(effectiveGoal)) {
+    blocks = smartBuilderBuildOverrideGoalBlocksSafe(ranked, effectiveGoal, targetMinutes);
+  } else if (effectiveGoal === "recovery") {
     const familiar = ranked.filter(s => Number(s.logs?.length || 0) >= 4 || s.routine.isAnchor);
     blocks.push({name:(getInsightLanguageSetting()==="friendly"?uiLabel("recoveryCalibration"):"Recovery calibration"), blockType:"warmup", minutes:Math.max(8, Math.round(targetMinutes*0.18)), purpose:smartBlockPurpose("warmup", "Familiar baseline work with low volatility"), picks:take(s => s.routine.isAnchor || Number(s.logs?.length || 0) >= 6, strictness === "high" ? 1 : 2)});
     blocks.push({name:(getInsightLanguageSetting()==="friendly"?uiLabel("lowSwitchPrimaryBlock"):"Low-switch primary block"), blockType:"primary", minutes:Math.round(targetMinutes*0.45), purpose:smartBlockPurpose("primary", "One or two familiar drills; protect confidence and reduce context switching"), picks:take(s => familiar.includes(s) && ["recover","stabilize","maintain"].includes(s.phase), 2)});
@@ -11719,7 +11849,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   }
 
   blocks = blocks.filter(b => b.picks && b.picks.length).map(b => ({...b, picks:(b.picks || []).map(p => normalizeAdaptivePick(p, 1))}));
-  const pressureDowngrade = smartBuilderPressureDowngradePolicySafe(etuContext, effectiveGoal, sessionTemplate);
+  const pressureDowngrade = smartBuilderIsOverrideGoalSafe(effectiveGoal) ? {active:false} : smartBuilderPressureDowngradePolicySafe(etuContext, effectiveGoal, sessionTemplate);
   if (pressureDowngrade.active) {
     let downgraded = 0;
     blocks = blocks.map(block => {
@@ -18347,7 +18477,7 @@ function exportValue(log, field) {
 }
 
 safeOn("exportCsvBtn", "click", async () => {
-  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","attemptMode","effectiveAttempts","leftSideScore","rightSideScore","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
+  const headers = ["createdAt","sessionName","currentPlanName","planNameSnapshot","sessionType","routineName","currentRoutineName","routineNameSnapshot","routineId","folder","subfolder","category","scoring","score","attempts","attemptMode","effectiveAttempts","leftSideScore","rightSideScore","timeMinutes","normalizedScore","performance","sessionRating","sessionTags","averageBreak","averageBreakPerAttempt","bestAttempt","completionCount","highestBreak","totalUnits","unitType","targetMode","targetColour","targetProfileId","targetAtLog","stretchTargetAtLog","difficultyLabelAtLog","currentTargetPerformance","notes"];
   const rows = [headers.join(",")].concat(data.logs.map(l => headers.map(h => csvEscape(exportValue(l, h))).join(",")));
   downloadFile("snooker-practice-logs.csv", rows.join("\n"), "text/csv");
 });
