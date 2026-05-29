@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.7.77L-focus-mode-v2-continuous-session-flow-engine
+Version: 5.7.77M-focus-mode-v2-score-centric-layout
 
-## v5.7.77L — Focus Mode v2 Continuous Session Flow Engine
+## v5.7.77M — Focus Mode v2 Score-Centric Layout
 
 This release keeps the original Focus Mode untouched and updates only the parallel Focus Mode v2 test path. It adds a continuous execution loop so practice can flow from log to next attempt without modal interruptions or dead-end review states.
 
@@ -19,3 +19,8 @@ This release keeps the original Focus Mode untouched and updates only the parall
 
 - ES module syntax checked.
 - Zip integrity tested.
+
+
+## v5.7.77M — Focus Mode v2 Score-Centric Layout
+
+Focus Mode v2 now prioritizes a single dominant score surface in the logging state. Duplicate break/HUD cards are suppressed, live telemetry is compressed, and the logging hierarchy is simplified around current score → input controls → save/next. Existing Focus Mode remains untouched.
