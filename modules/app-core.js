@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.5";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.5";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.8.1";
+} from "./utils.js?v=5.8.5";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.8.1";
+} from "./settings.js?v=5.8.5";
 import {
   avg,
   stdDev,
@@ -62,16 +62,17 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.8.1";
+} from "./analytics.js?v=5.8.5";
 import {
   betaPosterior,
+  BAYESIAN_DECAY_HALF_LIFE_DAYS,
   aggregateSuccessRateLogs,
   bayesianReliabilityLabel,
   formatPercent,
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.8.1";
+} from "./bayesian.js?v=5.8.5";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -80,7 +81,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.8.1";
+} from "./session.js?v=5.8.5";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -88,7 +89,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.8.1";
+} from "./pressure.js?v=5.8.5";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -100,7 +101,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.8.1";
+} from "./recommendations.js?v=5.8.5";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -114,7 +115,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.8.1";
+} from "./store.js?v=5.8.5";
 
 
 
@@ -1716,7 +1717,7 @@ function targetCredibleIntervalInsight(logs){
     return `<div class="insight-card ${cls}"><strong>${htmlText(uiLabel("targetCredibleIntervals"))}</strong>
       <div class="context-row"><span>${htmlText(uiLabel("expectedRange"))}</span><strong>${htmlText(rangeTxt)}</strong><span>${htmlText(t.badge)}</span></div>
       <div class="context-row"><span>${htmlText(uiLabel("shrinkageEstimate"))}</span><strong>${htmlText(expectedTxt)}</strong><span>${htmlText(getInsightLanguageSetting()==="friendly"?"consistency risk":"volatility")} ${htmlText(volatilityTxt)}</span></div>
-      <div class="adaptive-rationale">${htmlText(uiAdvancedText(t.recommendation))} ${htmlText(uiAdvancedText("Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice."))}</div>
+      <div class="adaptive-rationale">${htmlText(uiAdvancedText(t.recommendation))} ${htmlText(uiAdvancedText(t.n < 10 ? "Low-sample interval: fewer than 10 valid observations, so the estimate is deliberately conservative and should not drive aggressive target changes." : "Low-sample observations are shrunk toward a neutral prior so early hot/cold streaks do not overdrive target advice."))}</div>
     </div>`;
   }catch(err){
     console.warn("Target credible interval insight skipped", err);
@@ -6475,6 +6476,9 @@ async function focusV2PersistRealLogSafe(entry, routine, numericScore) {
     const leftSideScore = sideSplitEnabled ? Number(entry.leftSideScore || 0) : "";
     const rightSideScore = sideSplitEnabled ? Number(entry.rightSideScore || 0) : "";
     const score = Number.isFinite(Number(numericScore)) ? Number(numericScore) : Number(entry.score || 0);
+    const rawAverageBreak = entry.averageBreakPerAttempt ?? entry.averageBreak ?? "";
+    const averageBreakValue = rawAverageBreak === "" || rawAverageBreak === null || rawAverageBreak === undefined ? "" : Number(rawAverageBreak);
+    const safeAverageBreak = Number.isFinite(averageBreakValue) && averageBreakValue >= 0 ? Math.round(averageBreakValue * 100) / 100 : "";
     const attempts = Math.max(1, Math.round(Number(entry.attemptsPlanned || entry.attempt || focusV2DefaultAttemptsSafe(routine) || 10)));
     let timeMinutes = Number(entry.timeMinutes || focusV2ElapsedMinutesSafe() || routine.duration || 0);
     if (!Number.isFinite(timeMinutes) || timeMinutes < 0) timeMinutes = Number(routine.duration || 0) || 0;
@@ -6515,10 +6519,10 @@ async function focusV2PersistRealLogSafe(entry, routine, numericScore) {
       bestAttempt: "",
       completionCount: "",
       highestBreak: routine.scoring === "highest_break" || routine.scoring === "break_target_consistency" || routine.trackHighestBreak ? score : "",
-      averageBreak: entry.averageBreak || entry.averageBreakPerAttempt || "",
-      averageBreakPerAttempt: entry.averageBreakPerAttempt || entry.averageBreak || "",
-      commonBreakBand: routine.scoring === "break_target_consistency" ? (entry.averageBreak || entry.averageBreakPerAttempt || "") : "",
-      commonBreakBandAtLog: routine.scoring === "break_target_consistency" ? (entry.averageBreak || entry.averageBreakPerAttempt || "") : "",
+      averageBreak: safeAverageBreak,
+      averageBreakPerAttempt: safeAverageBreak,
+      commonBreakBand: routine.scoring === "break_target_consistency" ? safeAverageBreak : "",
+      commonBreakBandAtLog: routine.scoring === "break_target_consistency" ? safeAverageBreak : "",
       consistencyWeightAtLog: "",
       peakWeightAtLog: "",
       totalUnits,
@@ -8670,7 +8674,7 @@ function smartBuilderEtuSessionBudgetPolicySafe(template, effectiveGoal="stabili
     const goal = String(effectiveGoal || "stability").toLowerCase();
     const scale = Math.max(0.75, Math.min(1.35, Math.sqrt(Math.max(30, Number(targetMinutes || 60)) / 60)));
     let min = 2.0, max = 3.6, label = "Balanced ETU budget";
-    if (smartBuilderIsOverrideGoalSafe(goal) || String(template?.templateSelectionSource || "") === "override") { min = 0; max = 999; label = "Override mode ETU audit"; }
+    if (smartBuilderIsOverrideGoalSafe(goal) || String(template?.templateSelectionSource || "") === "override") { min = 0; max = 999; label = "Override mode — ETU cap disabled except duration"; }
     else if (tpl === "recovery" || goal === "recovery") { min = 1.2; max = 2.4; label = "Recovery ETU budget"; }
     else if (tpl === "consolidation" || goal === "stability") { min = 1.8; max = 3.2; label = "Consolidation ETU budget"; }
     else if (tpl === "pressure" || goal === "variety") { min = 1.8; max = 3.3; label = "Pressure / robustness ETU budget"; }
@@ -8799,7 +8803,8 @@ function smartBuilderFlattenPlanPicksSafe(blocks) {
     const out = [];
     (blocks || []).forEach(block => (block.picks || []).forEach(pick => {
       const state = pick?.state || pick;
-      if (state?.routine?.id) out.push({block, pick, state});
+      const reps = Math.max(1, Number(pick?.reps ?? state?.reps ?? 1) || 1);
+      if (state?.routine?.id) out.push({block, pick:{...(pick || {}), reps}, state, reps});
     }));
     return out;
   } catch (_) { return []; }
@@ -9526,24 +9531,30 @@ function smartBuilderBuildOverrideGoalBlocksSafe(ranked, goal, targetMinutes=60)
   try {
     const g = String(goal || "").toLowerCase();
     const pool = (ranked || []).filter(s => s?.routine?.id);
+    if (!pool.length) return [];
     const used = new Set();
-    const take = (n) => {
+    const take = (n, allowReuse=false) => {
       const arr = [];
       for (const s of pool) {
         if (arr.length >= n) break;
-        if (used.has(s.routine.id)) continue;
-        used.add(s.routine.id);
+        if (!allowReuse && used.has(s.routine.id)) continue;
+        if (!allowReuse) used.add(s.routine.id);
         arr.push(s);
       }
+      if (!arr.length && allowReuse && pool[0]) arr.push(pool[0]);
       return arr;
     };
-    const slotCount = Math.max(3, Math.min(6, Math.round(Number(targetMinutes || 60) / 20)));
-    const first = take(1);
-    const middle = take(Math.max(1, slotCount - 2));
-    const last = take(1);
-    const warmM = Math.max(8, Math.round(Number(targetMinutes || 60) * 0.18));
-    const finishM = Math.max(8, Math.round(Number(targetMinutes || 60) * 0.16));
-    const mainM = Math.max(10, Number(targetMinutes || 60) - warmM - finishM);
+    const minutesTotal = Math.max(30, Number(targetMinutes || 60));
+    const slotCount = Math.max(3, Math.min(6, Math.round(minutesTotal / 20)));
+    const first = take(1, false);
+    const middle = take(Math.max(1, slotCount - 2), false);
+    const last = take(1, false);
+    if (!first.length) first.push(...take(1, true));
+    if (!middle.length) middle.push(...take(1, true));
+    if (!last.length) last.push(...take(1, true));
+    const warmM = Math.max(8, Math.round(minutesTotal * 0.18));
+    const finishM = Math.max(8, Math.round(minutesTotal * 0.16));
+    const mainM = Math.max(10, minutesTotal - warmM - finishM);
     const label = smartBuilderOverrideGoalLabelSafe(g);
     return [
       {name:`${label} · activation`, blockType:"warmup", minutes:warmM, purpose:"Override goal active: time limit is the only hard constraint; this first block primes the selected optimization path.", picks:first},
@@ -10207,10 +10218,17 @@ function smartBuilderEtuAdjustmentSafe(state, etuContext, sessionTemplate=null) 
     const layerModifiers = {etuLoad:0, readiness:0, benchmark:0, prediction:0, lastSession:0, sportDiversity:0, transferGraph:0};
     const layerReasons = {etuLoad:[], readiness:[], benchmark:[], prediction:[], lastSession:[], sportDiversity:[]};
     const addLayer = (layer, value, reason) => {
-      const v = Number(value || 0);
-      layerModifiers[layer] = Number(layerModifiers[layer] || 0) + v;
-      if (reason) layerReasons[layer].push(reason);
-      return v;
+      const raw = Number(value || 0);
+      const bounded = Math.max(-12, Math.min(12, Number.isFinite(raw) ? raw : 0));
+      const current = Number(layerModifiers[layer] || 0);
+      const next = Math.max(-12, Math.min(12, current + bounded));
+      const applied = next - current;
+      layerModifiers[layer] = next;
+      if (reason) {
+        if (!Array.isArray(layerReasons[layer])) layerReasons[layer] = [];
+        layerReasons[layer].push(Math.abs(applied - raw) > 0.01 ? `${reason} (capped)` : reason);
+      }
+      return applied;
     };
     let adj = 0;
     const reasons = [];
@@ -10304,7 +10322,7 @@ function smartBuilderEtuAdjustmentSafe(state, etuContext, sessionTemplate=null) 
 }
 function renderSmartBuilderEtuContextSafe(ctx) {
   try {
-    if (!smartBuilderEtuLayerEnabled()) return `<div class="adaptive-rationale"><strong>ETU audit-only mode:</strong> Smart Builder is using Bayesian ranking, strategy, template constraints, and readiness structure without ETU load modifiers; template safety caps are still audited and enforced.</div>`;
+    if (!smartBuilderEtuLayerEnabled()) return `<div class="adaptive-rationale"><strong>ETU audit-only mode:</strong> Smart Builder is using Bayesian ranking, strategy, template constraints, and readiness structure without ETU load modifiers. ETU values remain visible for audit, but ETU does not brake selection in this mode; duration remains enforced.</div>`;
     if (!ctx || !ctx.load) return `<div class="adaptive-rationale">ETU state unavailable; Smart Builder used standard scoring.</div>`;
     const ratio = Number(ctx.ratio || 0);
     const weeklyRatio = Number(ctx.weeklyRatio || 0);
@@ -12550,7 +12568,7 @@ bindStatsNavigation();
 document.addEventListener("DOMContentLoaded", bindStatsNavigation);
 ["compareToggle","compareAStart","compareAEnd","compareBStart","compareBEnd"].forEach(id => {
   const el = $(id);
-  if (el) el.addEventListener("change", renderABComparison);
+  if (el) el.addEventListener("change", () => { if (id !== "compareToggle") saveABCompareCustomDatesSafe(); renderABComparison(); });
 });
 
 ["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer"].forEach(id => {
@@ -12994,7 +13012,7 @@ function getScopedStatsLogs() {
   const scope = getStatsScope();
   const allLogs = data.logs || [];
   const hasValidRange = scope?.range?.start instanceof Date && !Number.isNaN(scope.range.start.getTime()) && scope?.range?.end instanceof Date && !Number.isNaN(scope.range.end.getTime());
-  let logs = (scope.period === "overall" || scope.period === "exercise" || !hasValidRange) ? allLogs.slice() : logsInRange(allLogs, scope.range.start, scope.range.end);
+  let logs = (scope.period === "overall" || !hasValidRange) ? allLogs.slice() : logsInRange(allLogs, scope.range.start, scope.range.end);
   if (scope.rid) logs = logs.filter(l => String(l.routineId) === String(scope.rid));
   return logs.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 }
@@ -13006,7 +13024,7 @@ function getTournamentPlannerLogs(scope = getStatsScope()) {
 }
 function renderStatsScopeBanner(scope, logs) {
   const filterLabel = scope.rid ? htmlText(scope.routineName || "Selected exercise") : "All exercises";
-  const periodLabel = scope.period === "exercise" ? "All history" : htmlText(scope.range.label);
+  const periodLabel = scope.period === "exercise" ? htmlText(scope.range?.label || "Selected date range") : htmlText(scope.range.label);
   return `<div class="analytics-note stats-scope-banner"><strong>Active stats scope:</strong> ${filterLabel} · ${periodLabel} · ${logs.length} log${logs.length === 1 ? "" : "s"}</div>`;
 }
 function getStatsModeMeta(mode = statsMode) {
@@ -13027,7 +13045,7 @@ function renderStatsScopeChips(scope, logs) {
   const el = $("statsScopeChips");
   if (!el) return;
   const filterLabel = scope.rid ? (scope.routineName || "Selected exercise") : "All exercises";
-  const periodLabel = scope.period === "exercise" ? "All history" : scope.range.label;
+  const periodLabel = scope.period === "exercise" ? (scope.range?.label || "Selected date range") : scope.range.label;
   const meta = getStatsModeMeta(statsMode);
   el.innerHTML = [
     `<span class="stats-scope-chip primary"><strong>${htmlText(meta.tier)}</strong><span>${htmlText(meta.label)}</span></span>`,
@@ -13438,8 +13456,10 @@ function estimateEffectiveTrainingLoadSafe(logs) {
   const etuSubtypes = aggregateEtuSubtypesFromRowsSafe(rows);
   const totalRawEtu = rows.reduce((sum, row) => sum + row.rawEtu, 0);
   const totalMinutes = rows.reduce((sum, row) => sum + row.minutes, 0);
-  const sessionCount = Math.max(1, rows.length);
-  const logCount = Math.max(1, scoped.length);
+  const sessionCount = rows.length;
+  const sessionDenom = Math.max(1, sessionCount);
+  const logCount = scoped.length;
+  const logDenom = Math.max(1, logCount);
   const dated = rows.map(r => r.dateValue).filter(Number.isFinite).sort((a,b)=>a-b);
   const daySpan = dated.length >= 2 ? Math.max(1, (dated[dated.length - 1] - dated[0]) / 86400000) : 7;
   const etuPerWeek = totalEtu > 0 ? totalEtu / Math.max(1, daySpan / 7) : 0;
@@ -13453,13 +13473,13 @@ function estimateEffectiveTrainingLoadSafe(logs) {
     totalMinutes,
     sessionCount,
     logCount,
-    avgEtuPerSession: totalEtu / sessionCount,
-    avgRawEtuPerSession: totalRawEtu / sessionCount,
-    avgEtuPerLog: totalEtu / logCount,
+    avgEtuPerSession: totalEtu / sessionDenom,
+    avgRawEtuPerSession: totalRawEtu / sessionDenom,
+    avgEtuPerLog: totalEtu / logDenom,
     etuPerWeek,
     rawEtuPerWeek,
-    typicalSessionMinutes: totalMinutes / sessionCount,
-    typicalRoutinesPerSession: rows.reduce((sum, row) => sum + row.uniqueRoutines, 0) / sessionCount,
+    typicalSessionMinutes: totalMinutes / sessionDenom,
+    typicalRoutinesPerSession: rows.reduce((sum, row) => sum + row.uniqueRoutines, 0) / sessionDenom,
     componentAverages: {
       duration: componentAvg("duration"),
       diversity: componentAvg("diversity"),
@@ -14420,6 +14440,37 @@ function renderPredictionEtuVisualsSafe(load) {
   }
 }
 
+function predictionDecayHalfLifeMetricsSafe(load) {
+  try {
+    const rows = Array.isArray(load?.rows) ? load.rows : [];
+    const bayesHalfLife = Math.max(1, Number(BAYESIAN_DECAY_HALF_LIFE_DAYS || 30));
+    const bayesCutoff = bayesHalfLife * 8;
+    const acuteHalfLife = Math.log(2) * 2.35;
+    const latest = rows.length ? rows[rows.length - 1] : null;
+    const latestAgeDays = latest && Number.isFinite(Number(latest.dateValue)) ? Math.max(0, (Date.now() - Number(latest.dateValue)) / 86400000) : null;
+    const latestWeight = latestAgeDays === null ? null : etuAcuteDecayWeightSafe(latestAgeDays);
+    const recentRows = rows.filter(r => Number.isFinite(Number(r.dateValue)) && (Date.now() - Number(r.dateValue)) <= 7 * 86400000);
+    const raw7 = recentRows.reduce((sum, r) => sum + Math.max(0, Number(r.effectiveEtu ?? r.etu ?? 0)), 0);
+    const decayed7 = etuDecayedAcuteSumFromRowsSafe(rows, 7);
+    const retention = raw7 > 0 ? decayed7 / raw7 : null;
+    return {bayesHalfLife, bayesCutoff, acuteHalfLife, latestAgeDays, latestWeight, raw7, decayed7, retention};
+  } catch (_) {
+    return {bayesHalfLife:30, bayesCutoff:240, acuteHalfLife:1.63, latestAgeDays:null, latestWeight:null, raw7:0, decayed7:0, retention:null};
+  }
+}
+function renderPredictionDecayHalfLifeMetricsSafe(load) {
+  try {
+    const m = predictionDecayHalfLifeMetricsSafe(load || {});
+    const latestAge = m.latestAgeDays === null ? "—" : `${numText(m.latestAgeDays)}d`;
+    const latestWeight = m.latestWeight === null ? "—" : `${Math.round(m.latestWeight * 100)}%`;
+    const retention = m.retention === null ? "—" : `${Math.round(m.retention * 100)}%`;
+    return `<div class="prediction-load-management"><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Bayesian half-life</span><div class="value">${numText(m.bayesHalfLife)} days</div><small>success-rate evidence keeps 50% weight after this age</small></div><div class="overview-kpi"><span>Evidence cutoff</span><div class="value">${numText(m.bayesCutoff)} days</div><small>older success-rate attempts are ignored by default</small></div><div class="overview-kpi"><span>Acute ETU half-life</span><div class="value">${numText(m.acuteHalfLife)} days</div><small>fatigue/load brake decay, separate from Bayesian skill evidence</small></div><div class="overview-kpi"><span>Latest session weight</span><div class="value">${htmlText(latestWeight)}</div><small>${htmlText(latestAge)} since latest logged session</small></div><div class="overview-kpi"><span>7-day load retained</span><div class="value">${htmlText(retention)}</div><small>${numText(m.decayed7)} decayed ETU / ${numText(m.raw7)} raw 7d ETU</small></div></div><div class="analytics-note"><strong>Decay interpretation:</strong> Bayesian half-life controls how old success-rate attempts are weighted in confidence and target calculations. Acute ETU half-life controls short-term fatigue braking. They are intentionally different: skill evidence should decay slowly; fatigue should decay quickly.</div></div>`;
+  } catch (err) {
+    try { logAppError(err, "renderPredictionDecayHalfLifeMetricsSafe"); } catch (_) {}
+    return `<div class="analytics-note warn"><strong>Decay metrics unavailable.</strong> Prediction calculations remain safe.</div>`;
+  }
+}
+
 function renderPredictionEngineSafe(logs) {
   try {
     const scoped = Array.isArray(logs) ? logs : [];
@@ -14434,7 +14485,7 @@ function renderPredictionEngineSafe(logs) {
     const bottleneck = domains[0]?.label || "Insufficient evidence";
     const secondBottleneck = domains[1]?.label || "Build more benchmark and pressure evidence";
     const trajectory = velocity.label === "accelerating" ? "Positive acceleration" : velocity.label === "improving" ? "Improving but noisy" : velocity.label === "declining" ? "Regression risk" : "Stable / noisy trajectory";
-    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.67.18 layer connects ETU, benchmark roadmap, last-session review and prediction bottlenecks to Smart Builder decisions while formalizing ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week · ${htmlText(etuSourceMetaSafe(load.etuSource || "estimated_from_session").short)}.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions and where ETU values originate", renderEtuHelperBoxSafe(), false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
+    return `<div class="prediction-engine"><div class="analytics-note"><strong>Forecasting logic:</strong> This v5.7.67.18 layer connects ETU, benchmark roadmap, last-session review and prediction bottlenecks to Smart Builder decisions while formalizing ETU by skill domain: calibrated ETU is allocated across break-building, cue-ball control, long potting, safety, pressure, tactical and rest-play exposure. Forecasts use domain-specific load, sustainable pace caps, nonlinear level distance, benchmark-distance guards, confidence penalties, volatility and weakest-link constraints. Higher break classes require consolidation time; distant ceilings are shown qualitatively rather than as precise promises.</div><div class="overview-kpi-dashboard prediction-cockpit"><div class="overview-kpi primary"><span>Trajectory</span><div class="value">${htmlText(trajectory)}</div><small>Raw slope ${numText(velocity.slope)} pts/log · effective ${numText(velocity.effectiveSlope)} after uncertainty.</small></div><div class="overview-kpi"><span>Effective load</span><div class="value">${numText(load.avgEtuPerSession)} ETU/session</div><small>${numText(load.typicalSessionMinutes)}m · ${numText(load.typicalRoutinesPerSession)} routines typical · ${numText(sustainablePredictionPaceSafe(load))} sustainable ETU/week · ${htmlText(etuSourceMetaSafe(load.etuSource || "estimated_from_session").short)}.</small></div><div class="overview-kpi"><span>Stable break class</span><div class="value">${htmlText(rating?.stableBand?.short || "—")}</div><small>${numText(rating?.matchScore)}/100 match-stable · technical ${htmlText(rating?.technicalBand?.short || "—")}.</small></div><div class="overview-kpi"><span>Benchmark path</span><div class="value">${htmlText(benchmark?.band?.short || "—")}</div><small>${numText(benchmark?.matchIndex)}/4 match-stable benchmark.</small></div><div class="overview-kpi"><span>Main blocker</span><div class="value">${htmlText(bottleneck)}</div><small>Secondary constraint: ${htmlText(secondBottleneck)}.</small></div></div><div class="advanced-stats-modules">${renderPredictionCalibrationV2SummarySafe(load, domainLoads, benchmark)}${statsModule("Last session impact", "Most recent session review snapshot and how it affected load/readiness", renderLastSessionImpactSafe(), true)}${statsModule("Prediction visual summary", "Compact view of milestone probability, benchmark readiness, domains and sustainable pace", renderPredictionVisualsSafe(rating, benchmark, profile, velocity, confidence, load), true)}${statsModule("Break milestone forecasts", "Stable class trajectory, expressed in ETU rather than raw sessions", `<div class="prediction-list">${predictionRowsForBreakMilestonesSafe(rating, velocity, confidence, load)}</div>`, false)}${statsModule("Benchmark progression outlook", "Conservative Junior / Club / Senior / Pro readiness based on benchmark-pack distance", `<div class="prediction-list">${predictionRowsForBenchmarksSafe(benchmark, velocity, confidence, load)}</div>`, true)}${statsModule("Benchmark roadmap", "Junior / Club / Senior / Pro benchmark gap, required domains, ETU gap and prep block", renderBenchmarkRoadmapSafe(benchmark, domainLoads, load), true)}${statsModule("Skill-domain progression", "Probability of moving each domain toward its next L-band", `<div class="prediction-list">${predictionRowsForDomainsSafe(profile, velocity, confidence, domainLoads)}</div>`, false)}${statsModule("ETU by skill domain", "Effective training load accumulated by domain and approximate load needed for the next L-band", `<div class="prediction-etu-component-list">${predictionRowsForDomainEtuLedgerSafe(profile, domainLoads)}</div>`, false)}${statsModule("Recovery and readiness", "Next-session type from ETU load, fatigue, quality and recent training gap", renderPredictionRecoveryReadinessSafe(load), true)}${statsModule("ETU Development Load", "Historical ETU per session, rolling load, cumulative progression load and quality mix", renderPredictionEtuVisualsSafe(load), true)}${statsModule("Decay half-life metrics", "How old evidence and recent ETU loads are time-decayed in predictions", renderPredictionDecayHalfLifeMetricsSafe(load), true)}${statsModule("ETU helper", "How Effective Training Units weight sessions and where ETU values originate", renderEtuHelperBoxSafe(), false)}${statsModule("Stable vs peak interpretation", "Separates one-off breakthrough potential from repeatable competitive level", `<div class="adaptive-rationale"><strong>Peak:</strong> ${htmlText(rating?.technicalBand?.label || "Insufficient evidence")} · ${numText(rating?.technicalScore)}/100.</div><div class="adaptive-rationale"><strong>Stable:</strong> ${htmlText(rating?.stableBand?.label || "Insufficient evidence")} · ${numText(rating?.matchScore)}/100.</div><div class="adaptive-rationale"><strong>Constraint:</strong> ${htmlText(rating?.reason || "Add more logs to estimate constraints.")}</div>`, false)}</div></div>`;
   } catch (err) {
     try { logAppError(err, "renderPredictionEngineSafe"); } catch (_) {}
     return `<div class="analytics-note warn"><strong>Prediction layer unavailable.</strong> This panel failed safely and did not block storage or hydration.</div>`;
@@ -15237,6 +15288,24 @@ function deltaFmt(a,b, suffix="") {
   const d = a-b;
   return `${d>=0?"+":""}${d.toFixed(1)}${suffix}`;
 }
+
+const AB_COMPARE_CUSTOM_DATES_KEY = "snooker_ab_compare_custom_dates_v1";
+function loadABCompareCustomDatesSafe(){
+  try { return JSON.parse(localStorage.getItem(AB_COMPARE_CUSTOM_DATES_KEY) || "{}"); } catch (_) { return {}; }
+}
+function saveABCompareCustomDatesSafe(){
+  try {
+    const payload = {aStart:$("compareAStart")?.value || "", aEnd:$("compareAEnd")?.value || "", bStart:$("compareBStart")?.value || "", bEnd:$("compareBEnd")?.value || ""};
+    localStorage.setItem(AB_COMPARE_CUSTOM_DATES_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+function restoreABCompareCustomDatesSafe(){
+  try {
+    const saved = loadABCompareCustomDatesSafe();
+    [["compareAStart","aStart"],["compareAEnd","aEnd"],["compareBStart","bStart"],["compareBEnd","bEnd"]].forEach(([id,key]) => { const el=$(id); if (el && !el.value && saved[key]) el.value = saved[key]; });
+  } catch (_) {}
+}
+
 function renderABComparison() {
   const out = $("compareOutput");
   if (!out) return;
@@ -15252,10 +15321,12 @@ function renderABComparison() {
     bEnd = new Date(aStart);
     bStart = new Date(bEnd); bStart.setDate(bStart.getDate()-(weeks*7));
   } else {
+    restoreABCompareCustomDatesSafe();
     const aStartInput = $("compareAStart")?.value || "";
     const aEndInput = $("compareAEnd")?.value || "";
     const bStartInput = $("compareBStart")?.value || "";
     const bEndInput = $("compareBEnd")?.value || "";
+    saveABCompareCustomDatesSafe();
     if (!aStartInput || !aEndInput || !bStartInput || !bEndInput) {
       out.innerHTML = `<p class="muted">Select all custom dates to compare.</p>`;
       return;
@@ -19766,7 +19837,7 @@ function renderTodayResumeCard() {
   const r = routineById(s.routineIds[s.index]);
   box.innerHTML = `<div class="resume-detail"><strong>${escapeHtml(s.planName || "Unfinished session")}</strong></div>
     <div class="resume-detail">Continue at exercise ${Number(s.index||0)+1} of ${s.routineIds.length}: ${escapeHtml(r?.name || "Missing exercise")}</div>
-    <div class="resume-detail">Venue/table: ${escapeHtml(s.venueTable || getLastVenueTable() || "Not specified")}</div>
+    <div class="resume-detail">Venue/table: ${escapeHtml(s.venueTable || (s.tableId && typeof getTableName === "function" ? getTableName(s.tableId) : "") || getLastVenueTable() || "Not specified")}</div>
     <div class="resume-detail">Started: ${new Date(s.startedAt || s.savedAt).toLocaleString()}</div>`;
 }
 
@@ -21198,6 +21269,16 @@ function routineConsoleChipListSafe(items, type="neutral", fallback="—") {
 }
 function routineConsoleFieldChipHtmlSafe(row, key, value) {
   const v = String(value ?? "").trim();
+  if (key === "issues") {
+    const issues = Array.isArray(row?.issues) ? row.issues : [];
+    if (!issues.length || String(value || "").toLowerCase() === "ok") return routineConsoleChipSafe("OK", "validation", "ok");
+    const sevRank = {critical:4, risk:3, watch:2, info:1};
+    const top = issues.slice().sort((a,b)=>(sevRank[String(b?.severity||"").toLowerCase()]||0)-(sevRank[String(a?.severity||"").toLowerCase()]||0))[0] || {};
+    const severity = String(top.severity || "watch").toLowerCase();
+    const label = `${issues.length} issue${issues.length === 1 ? "" : "s"}`;
+    const title = issues.slice(0,6).map(x => `${x.severity || "watch"}: ${x.label || x.code || x.detail || "issue"}`).join(" | ");
+    return routineConsoleChipSafe(label, "validation", severity, {title});
+  }
   if (!v) return `<span class="muted small">—</span>`;
   if (key === "semanticPreset") return routineConsoleChipSafe(ROUTINE_SEMANTIC_PRESETS[v]?.label || v, "preset", v);
   if (key === "routineArchetype") return routineConsoleChipSafe(ROUTINE_ARCHETYPES[v]?.label || v, "archetype", v);
@@ -22065,6 +22146,12 @@ function routineConsoleUpdateSelectionBarSafe(rows = routineConsoleLastRows) {
       host.classList.toggle("has-selection", count > 0);
     }
     document.querySelectorAll("[data-routine-requires-selection]").forEach(btn => { btn.disabled = count <= 0; btn.classList.toggle("disabled", count <= 0); });
+    document.querySelectorAll('[data-action="routine-console-copy-down"]').forEach(btn => {
+      const disabled = count < 2;
+      btn.disabled = disabled;
+      btn.classList.toggle("disabled", disabled);
+      btn.title = disabled ? "Select at least two routines; the first selected row is copied to the rest." : "Copy the chosen field from the first selected routine to the rest.";
+    });
   } catch (_) {}
 }
 function routineConsoleSelectedIdsRefreshFromDomSafe() {
@@ -22091,6 +22178,15 @@ function routineConsoleMarkActiveCellSafe(target) {
     if (cell) cell.classList.add("active-cell");
     target?.classList?.add("quick-editing");
     if (target && target.dataset && target.dataset.originalValue === undefined) target.dataset.originalValue = target.value ?? "";
+  } catch (_) {}
+}
+function routineConsoleClearActiveCellSafe() {
+  try {
+    document.querySelectorAll(".routine-grid-cell.active-cell,.routine-grid-input.quick-editing,.routine-grid-input.quick-edit-select-open").forEach(el => {
+      el.classList.remove("active-cell");
+      el.classList.remove("quick-editing");
+      el.classList.remove("quick-edit-select-open");
+    });
   } catch (_) {}
 }
 function routineConsoleOpenQuickEditSafe(target) {
@@ -22218,6 +22314,9 @@ function bindRoutineConsoleGridEngineSafe() {
     const id = row.dataset.id || row.dataset.routineId || "";
     if (id) renderRoutineConsoleEditor(id);
   });
+  document.addEventListener("click", event => {
+    if (!event.target?.closest?.(".routine-console-spreadsheet")) routineConsoleClearActiveCellSafe();
+  });
   document.addEventListener("keydown", event => {
     const row = event.target?.closest?.(".routine-grid-row");
     if (!row || !["Enter"," "].includes(event.key)) return;
@@ -22229,6 +22328,13 @@ function bindRoutineConsoleGridEngineSafe() {
   document.addEventListener("focusin", event => {
     const target = event.target;
     if (target?.classList?.contains("routine-grid-input")) routineConsoleMarkActiveCellSafe(target);
+  });
+  document.addEventListener("focusout", event => {
+    const target = event.target;
+    if (!target?.classList?.contains("routine-grid-input")) return;
+    setTimeout(() => {
+      if (!document.activeElement?.classList?.contains("routine-grid-input")) routineConsoleClearActiveCellSafe();
+    }, 0);
   });
   document.addEventListener("dblclick", event => {
     const target = event.target?.closest?.(".routine-grid-input,.routine-grid-cell");

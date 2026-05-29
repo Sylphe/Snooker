@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.8.3-smart-builder-goal-overrides-focus-v2-average-break
+Version: 5.8.5-stats-prediction-decay-maintenance
 
-## v5.8.3 — Smart Builder Goal Overrides + Focus V2 Average Break
+## v5.8.5 — Stats Prediction Decay Maintenance
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.
