@@ -9014,3 +9014,141 @@ body[data-theme-mode="dark"] .focus-v2-memory-recent i,
   .focus-v2-session-memory.compact .focus-v2-memory-grid small { font-size: .56rem; }
 }
 /* end v5.7.77I */
+
+/* v5.7.77J Focus Mode v2 Focus Intensity Modes (preserved) */
+.focus-v2-intensity-card {
+  display: grid;
+  gap: .75rem;
+  padding: .9rem;
+  border: 1px solid color-mix(in srgb, var(--border, #d7ded9) 70%, transparent);
+  border-radius: 1.1rem;
+  background: color-mix(in srgb, var(--surface, #ffffff) 88%, transparent);
+}
+.focus-v2-intensity-card strong { display:block; font-size: .95rem; }
+.focus-v2-intensity-card small { color: var(--muted, #647067); }
+.focus-v2-intensity-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .45rem;
+}
+.focus-v2-intensity-chip {
+  min-height: 2.3rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border, #d7ded9) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-2, #f5f7f4) 90%, transparent);
+  color: var(--text, #122016);
+  font-weight: 700;
+  font-size: .8rem;
+  padding: .35rem .5rem;
+}
+.focus-v2-intensity-chip.active {
+  border-color: color-mix(in srgb, var(--accent, #2f7d4f) 70%, var(--border, #d7ded9));
+  background: color-mix(in srgb, var(--accent, #2f7d4f) 16%, var(--surface, #ffffff));
+  color: var(--text, #122016);
+}
+.focus-v2-density-minimal .focus-v2-header p:not(.focus-v2-kicker),
+.focus-v2-density-minimal .focus-v2-current em,
+.focus-v2-density-minimal .focus-v2-state-rail,
+.focus-v2-density-minimal .focus-v2-table-select-card,
+.focus-v2-density-minimal .focus-v2-logging-fields,
+.focus-v2-density-minimal .focus-v2-review-card small {
+  display: none !important;
+}
+.focus-v2-density-minimal .focus-v2-header { padding-bottom: .35rem; }
+.focus-v2-density-minimal .focus-v2-adaptive-hud { min-height: 7.25rem; }
+.focus-v2-density-minimal .focus-v2-adaptive-hud strong { font-size: clamp(3.5rem, 17vw, 7rem); }
+.focus-v2-density-minimal .focus-v2-pane { gap: .85rem; }
+.focus-v2-density-standard .focus-v2-gesture-hint,
+.focus-v2-density-standard .focus-v2-control-hint,
+.focus-v2-density-standard .focus-v2-mode-rail { display:none !important; }
+.focus-v2-density-coaching .focus-v2-control-hint {
+  border-left: 4px solid color-mix(in srgb, var(--accent, #2f7d4f) 65%, transparent);
+  background: color-mix(in srgb, var(--accent, #2f7d4f) 10%, var(--surface, #ffffff));
+}
+[data-theme="dark"] .focus-v2-intensity-card,
+[data-theme-mode="dark"] .focus-v2-intensity-card {
+  background: color-mix(in srgb, var(--surface, #141a17) 92%, #000 8%);
+  border-color: color-mix(in srgb, var(--border, #35433a) 75%, transparent);
+}
+[data-theme="dark"] .focus-v2-intensity-chip,
+[data-theme-mode="dark"] .focus-v2-intensity-chip {
+  background: color-mix(in srgb, var(--surface-2, #1b241f) 92%, #000 8%);
+  color: var(--text, #eef7ef);
+}
+[data-theme="dark"] .focus-v2-intensity-chip.active,
+[data-theme-mode="dark"] .focus-v2-intensity-chip.active {
+  background: color-mix(in srgb, var(--accent, #6fd18c) 22%, var(--surface, #141a17));
+  color: var(--text, #eef7ef);
+}
+@media (max-width: 560px) {
+  .focus-v2-intensity-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .focus-v2-density-minimal .focus-v2-intensity-card { padding: .65rem; }
+}
+/* end v5.7.77J */
+
+/* v5.7.77L Focus Mode v2 Continuous Session Flow Engine */
+.focus-v2-flow-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(56px, 0.65fr));
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  margin: 6px 0 10px;
+}
+.focus-v2-flow-strip > span {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--border, #d5ded8) 72%, transparent);
+  border-radius: 14px;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--panel, #ffffff) 86%, transparent);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.045);
+}
+.focus-v2-flow-strip.active > span:first-child {
+  border-color: color-mix(in srgb, var(--accent, #2f8f5b) 48%, var(--border, #d5ded8));
+  background: color-mix(in srgb, var(--accent, #2f8f5b) 10%, var(--panel, #ffffff));
+}
+.focus-v2-flow-strip b {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-v2-flow-strip small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  color: var(--muted, #6c7a70);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-v2-flow-strip.compact {
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(54px, 0.6fr));
+}
+.focus-v2-flow-strip.compact > span:nth-child(n+4) { display: none; }
+.focus-v2-density-minimal .focus-v2-flow-strip > span:nth-child(n+4) { display: none; }
+@media (max-width: 720px) {
+  .focus-v2-flow-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .focus-v2-flow-strip > span:first-child { grid-column: 1 / -1; }
+  .focus-v2-flow-strip > span:nth-child(n+5) { display: none; }
+  .focus-v2-flow-strip > span { padding: 8px; border-radius: 12px; }
+}
+html[data-theme-mode="dark"] .focus-v2-flow-strip > span,
+body[data-theme-mode="dark"] .focus-v2-flow-strip > span,
+[data-theme="dark"] .focus-v2-flow-strip > span {
+  background: color-mix(in srgb, var(--panel, #111a16) 84%, #000 16%);
+  border-color: color-mix(in srgb, var(--border, #33443c) 76%, transparent);
+  box-shadow: none;
+}
+html[data-theme-mode="dark"] .focus-v2-flow-strip.active > span:first-child,
+body[data-theme-mode="dark"] .focus-v2-flow-strip.active > span:first-child,
+[data-theme="dark"] .focus-v2-flow-strip.active > span:first-child {
+  background: color-mix(in srgb, var(--accent, #62d394) 16%, var(--panel, #111a16));
+  border-color: color-mix(in srgb, var(--accent, #62d394) 54%, var(--border, #33443c));
+}
+/* end v5.7.77L */

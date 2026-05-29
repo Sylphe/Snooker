@@ -1,20 +1,19 @@
 # Snooker Practice PWA
 
-Version: 5.7.77I-focus-mode-v2-persistent-session-memory
+Version: 5.7.77L-focus-mode-v2-continuous-session-flow-engine
 
-## v5.7.77I — Focus Mode v2 Persistent Session Memory
+## v5.7.77L — Focus Mode v2 Continuous Session Flow Engine
 
-This release keeps the original Focus Mode untouched and updates only the parallel Focus Mode v2 test path.
+This release keeps the original Focus Mode untouched and updates only the parallel Focus Mode v2 test path. It adds a continuous execution loop so practice can flow from log to next attempt without modal interruptions or dead-end review states.
 
 ### Included
 
-- Persistent Focus Mode v2 session memory stored locally.
-- Last score, session best, attempt continuity and recent v2 draft entries.
-- Table memory and adaptive input-mode memory per routine.
-- Session memory strip on Pre-shot, Logging and Review screens.
-- PB feedback corrected to compare against the previous session best before updating.
-- v5.7.77H minimal visual language preserved.
-- Existing Focus Mode remains untouched.
+- Continuous Focus Mode v2 flow strip showing last score, next attempt, saved count and elapsed time.
+- Save + next now keeps the user in Logging state by default.
+- Micro-feedback remains visible while the next attempt is already ready.
+- Review remains available as an optional state, not a forced interruption.
+- Repeat attempt, repeat last, undo, gestures, adaptive HUDs, persistent session memory and focus intensity modes preserved.
+- Original Focus Mode remains untouched.
 
 ### Validation
 
