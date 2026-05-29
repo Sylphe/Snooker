@@ -5,6 +5,7 @@ export const DISPLAY_DENSITY_KEY = "snookerPracticePWA.displayDensity";
 export const TIMER_AUTOSTART_KEY = "snookerPracticePWA.timerAutostart";
 export const TIMER_AUTOSTART_DELAY_KEY = "snookerPracticePWA.timerAutostartDelaySeconds";
 export const WAKE_LOCK_KEY = "snookerPracticePWA.wakeLock";
+export const HAPTIC_FEEDBACK_KEY = "snookerPracticePWA.hapticFeedback";
 
 export function normalizeInterfaceThemeMode(value) {
   return ["system", "light", "dark", "contrast"].includes(value) ? value : "system";
