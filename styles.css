@@ -10528,3 +10528,33 @@ html[data-theme-mode="dark"] .focus-v2-mode-card {
   border-color:rgba(148,163,184,.26) !important;
   color:#f8fafc !important;
 }
+
+/* v5.7.77U.9 — Focus Mode v2 logging refinements */
+.focus-v2-session-feel-inline {
+  width: min(100%, 620px);
+  justify-self: center;
+  margin: 0 auto 10px;
+}
+.focus-v2-side-grid.focus-v2-side-grid-three {
+  width: min(100%, 620px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.focus-v2-entry-box-readonly,
+.focus-v2-entry-box-readonly:hover {
+  cursor: default;
+  transform: none;
+}
+.focus-v2-combined-box {
+  border-style: solid;
+}
+.focus-v2-combined-box b {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 680px) {
+  .focus-v2-side-grid.focus-v2-side-grid-three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .focus-v2-side-grid.focus-v2-side-grid-three .focus-v2-combined-box {
+    grid-column: 1 / -1;
+  }
+}

@@ -5509,7 +5509,7 @@ function setReflectionRating(targetId, rating) {
 
 
 
-/* ===== v5.7.77U.2 Focus Mode v2 logging layout correction ===== */
+/* ===== v5.7.77U.9 Focus Mode v2 session-feel logging + left/right combined scoring ===== */
 const FOCUS_V2_STATES = Object.freeze({ PRE: "pre-shot", LOGGING: "logging", REVIEW: "review", REFLECTION: "reflection" });
 const FOCUS_V2_INPUT_MODES = Object.freeze({ NUMERIC: "numeric", SUCCESS: "success-failure", INCREMENTAL: "incremental", BREAK: "break-building", TIME: "time-attack" });
 const FOCUS_V2_INTENSITY_MODES = Object.freeze({ MINIMAL: "minimal", STANDARD: "standard", ANALYTICAL: "analytical", COACHING: "coaching" });
@@ -5936,6 +5936,7 @@ function focusV2HudLabelSafe(type) {
   return "Score HUD";
 }
 function focusV2HudValueSafe(type, stats) {
+  if (focusV2UsesSideSplitSafe(getFocusV2RoutineSafe()) && (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) === FOCUS_V2_INPUT_MODES.NUMERIC) return numText(focusV2SideCombinedScoreSafe());
   if (type === "break") return numText(Number(focusV2Draft.currentBreak || focusV2Draft.score || 0));
   if (type === "timer") return `${numText(focusV2ElapsedMinutesSafe())}m`;
   if (type === "attempt") return `#${numText(focusV2Draft.attempt || 1)}`;
@@ -6039,6 +6040,22 @@ function focusV2DefaultAttemptsSafe(routine) {
 function focusV2IsNumericDefaultModeSafe() {
   return (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) === FOCUS_V2_INPUT_MODES.NUMERIC;
 }
+function focusV2UsesSideSplitSafe(routine) {
+  try { return !!routineUsesSideSplit?.(routine || getFocusV2RoutineSafe()); } catch (_) { return false; }
+}
+function focusV2SideCombinedScoreSafe() {
+  const left = Number(focusV2Draft.leftScore || 0);
+  const right = Number(focusV2Draft.rightScore || 0);
+  return Math.round(((Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0)) * 100) / 100;
+}
+function focusV2EnsureSideEntryFieldSafe(routine) {
+  if (!focusV2UsesSideSplitSafe(routine)) return;
+  const field = focusV2Draft.activeEntryField || "score";
+  if (field === "score" || field === "break" || field === "combined") focusV2Draft.activeEntryField = "left";
+}
+function renderFocusV2SessionFeelInlineSafe() {
+  return `<div class="focus-v2-rating-card focus-v2-session-feel-inline"><strong>How did this session feel?</strong><small>Fast 1–5 signal for ETU, readiness and session quality. You can adjust it while logging.</small>${renderFocusV2RatingTilesSafe("Session feel", focusV2Draft.sessionFeelRating, "focus-v2-session-feel")}</div>`;
+}
 
 function openFocusV2TestSafe() {
   const routine = routineById($("freeRoutineSelect")?.value || "") || data.routines?.[0] || null;
@@ -6074,7 +6091,7 @@ function openFocusV2TestSafe() {
     lastFlowAction: "Ready to start",
     autoReadyAt: 0,
     settingsOpen: false,
-    activeEntryField: "score",
+    activeEntryField: routineUsesSideSplit?.(routine) ? "left" : "score",
     timerStartedAt: 0,
     timerElapsedBeforeStartMs: 0,
     timerAutostartDelayEndsAt: 0,
@@ -6104,6 +6121,7 @@ function setFocusV2StateSafe(state) {
   focusV2Draft.state = state;
   if (state === FOCUS_V2_STATES.LOGGING && !focusV2Draft.loggingStartedAt) focusV2Draft.loggingStartedAt = Date.now();
   if (state === FOCUS_V2_STATES.LOGGING && (focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC) === FOCUS_V2_INPUT_MODES.BREAK) focusV2Draft.activeEntryField = "break";
+  if (state === FOCUS_V2_STATES.LOGGING) focusV2EnsureSideEntryFieldSafe(getFocusV2RoutineSafe());
   if (state === FOCUS_V2_STATES.LOGGING) focusV2MaybeAutoStartTimerSafe();
   renderFocusV2ModalSafe();
 }
@@ -6260,9 +6278,14 @@ function renderFocusV2SideBoxesSafe(routine) {
   if (!sideSplit) {
     return `<div class="focus-v2-variation-row"><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="-5">−5</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="-1">−1</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="1">+1</button><button type="button" class="focus-v2-variation" data-action="focus-v2-adjust" data-delta="5">+5</button></div>`;
   }
-  return `<div class="focus-v2-side-grid">${renderFocusV2EntryBoxSafe("left", "Left side", focusV2Draft.leftScore ?? "")}${renderFocusV2EntryBoxSafe("right", "Right side", focusV2Draft.rightScore ?? "")}</div>`;
+  const combined = focusV2SideCombinedScoreSafe();
+  return `<div class="focus-v2-side-grid focus-v2-side-grid-three">${renderFocusV2EntryBoxSafe("left", "Left score", focusV2Draft.leftScore ?? "", "tap to edit")}${renderFocusV2EntryBoxSafe("right", "Right score", focusV2Draft.rightScore ?? "", "tap to edit")}<div class="focus-v2-entry-box focus-v2-entry-box-readonly focus-v2-combined-box" aria-label="Combined left and right score"><span>Combined</span><b>${htmlText(numText(combined))}</b><small>left + right</small></div></div>`;
 }
 function renderFocusV2NumericInputSafe(routine) {
+  if (routineUsesSideSplit?.(routine)) {
+    focusV2EnsureSideEntryFieldSafe(routine);
+    return `${renderFocusV2SideBoxesSafe(routine)}${renderFocusV2NumpadSafe()}`;
+  }
   return `<div class="focus-v2-score-input focus-v2-score-display" data-action="focus-v2-entry-field" data-field="score" role="button" tabindex="0"><span>Highest score / break</span><strong>${htmlText(focusV2Draft.score === "" || focusV2Draft.score === null || focusV2Draft.score === undefined ? "0" : focusV2Draft.score)}</strong><small>out of ${numText(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine))} attempts</small></div>
     ${renderFocusV2SideBoxesSafe(routine)}
     ${renderFocusV2NumpadSafe()}`;
@@ -6312,6 +6335,7 @@ function renderFocusV2QuickDockSafe() {
 function renderFocusV2LoggingSafe(routine, stats) {
   return `<section class="focus-v2-pane focus-v2-logging score-centric telemetry-compressed hud-simplified hud-density-refined focus-v2-layout-corrected">
     ${renderFocusV2LoggingRoutineContextSafe(routine)}
+    ${renderFocusV2SessionFeelInlineSafe()}
     <div class="focus-v2-logging-top focus-v2-logging-top-compact focus-v2-logging-telemetry-only">${renderFocusV2CompressedTelemetrySafe(stats)}</div>
     ${renderFocusV2ScoreHeroSafe(routine, stats)}
     ${focusV2IntensityAllowsSafe("deepStats") ? renderFocusV2RecentMemorySafe(routine, stats) : ""}
@@ -6348,6 +6372,7 @@ function renderFocusV2ModalSafe() {
 }
 function focusV2CurrentScoreValueSafe() {
   const mode = focusV2Draft.inputMode || FOCUS_V2_INPUT_MODES.NUMERIC;
+  if (mode === FOCUS_V2_INPUT_MODES.NUMERIC && focusV2UsesSideSplitSafe(getFocusV2RoutineSafe())) return String(focusV2SideCombinedScoreSafe());
   if (mode === FOCUS_V2_INPUT_MODES.SUCCESS) return String(Number(focusV2Draft.successCount || 0));
   if (mode === FOCUS_V2_INPUT_MODES.INCREMENTAL) return String(Number(focusV2Draft.incrementalValue || focusV2Draft.score || 0));
   if (mode === FOCUS_V2_INPUT_MODES.BREAK) return String(Number(focusV2Draft.currentBreak || focusV2Draft.score || 0));
@@ -6386,13 +6411,9 @@ function saveFocusV2DraftSafe(options = {}) {
   focusV2SyncInputDraftSafe();
   let score = options.score !== undefined ? String(options.score) : focusV2CurrentScoreValueSafe();
   const routine = getFocusV2RoutineSafe();
-  if (routineUsesSideSplit?.(routine)) {
-    const left = Number(focusV2Draft.leftScore || 0);
-    const right = Number(focusV2Draft.rightScore || 0);
-    if (Number.isFinite(left) && Number.isFinite(right)) score = String(computeSideCombinedScore?.(left, right) ?? Math.round(((left + right) / 2) * 10) / 10);
-  }
+  if (routineUsesSideSplit?.(routine)) score = String(focusV2SideCombinedScoreSafe());
   if (score === "") { showTransientNotice("Enter a score first.", "warn"); return; }
-  const entry = { mode: focusV2Draft.inputMode, score, attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
+  const entry = { mode: focusV2Draft.inputMode, score, leftSideScore: focusV2Draft.leftScore || "", rightSideScore: focusV2Draft.rightScore || "", combinedScore: routineUsesSideSplit?.(routine) ? focusV2SideCombinedScoreSafe() : "", attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
   const numericScore = Number(score || 0);
   const previousBest = Number(focusV2Draft.sessionBestScore || 0);
   const stats = focusV2StatsSafe(routine);
