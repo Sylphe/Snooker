@@ -1,6 +1,12 @@
 # Snooker Practice PWA
 
-Version: 5.7.77U.5-smart-engine-explanation-integrity
+Version: 5.7.77U.6-etu-decomposition-panel
+
+## v5.7.77U.6 — ETU Decomposition Panel
+- Adds clickable Session ETU timeline rows in Stats → Predictions.
+- Selecting a session opens an ETU decomposition panel showing raw exposure, final ETU, logs/routines, subtype mix and component-level effects.
+- Decomposition table explains duration, diversity, density, pressure, transfer, adaptive, challenge, quality and fatigue adjustments.
+- Preserves existing ETU load-management, Smart Engine and prediction logic.
 
 ## v5.7.77U.5 — Smart Engine Explanation Integrity Patch
 
