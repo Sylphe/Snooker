@@ -1,24 +1,13 @@
 # Snooker Practice PWA
 
-Version: 5.7.77S-focus-mode-v2-semantic-ball-controls-auto-save-feedback-overlay
+Version: 5.7.77T-focus-mode-v2-pre-shot-compression-review-reduction
 
-## v5.7.77S — Focus Mode v2 Semantic Ball Controls + Automatic Save + Micro Feedback Overlay
+## v5.7.77T/R — Focus Mode v2 Pre-Shot Compression + Review Reduction
 
-Build timestamp: 2026-05-29 09:20 CEST
-
-This release extends Focus Mode v2 with snooker-native semantic ball controls, automatic save flow for break/outcome actions, and a non-blocking micro-feedback overlay. Existing Focus Mode remains untouched.
-
-Included:
-- semantic red/yellow/green/brown/blue/pink/black break buttons;
-- miss, foul and end-break actions auto-save and immediately prepare the next attempt;
-- success/miss quick logging flow preserved;
-- micro-feedback overlay for save, miss, PB, undo and ball-add events;
-- dark-mode-safe styling for semantic buttons and feedback overlay;
-- header/build/cache metadata updated.
-
-# Snooker Practice PWA
-
-Version: 5.7.77O.1-focus-mode-v2-density-gear-numpad-entry-fix
+- Compresses the Focus Mode v2 pre-shot screen into a single-screen setup flow.
+- Condenses last / best / target / reach into one compact strip.
+- Reduces Review from a normal flow state to an exception state for PB, target or benchmark events, plus manual review.
+- Normal saves stay in continuous Logging flow with micro-feedback instead of interrupting practice rhythm.
 
 ## v5.7.77O.1 — Focus Mode v2 Density Gear + Numpad Entry Fix
 

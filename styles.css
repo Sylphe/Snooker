@@ -9671,147 +9671,131 @@ html[data-theme-mode="dark"] .focus-v2-numpad-target strong {
 }
 /* ===== end v5.7.77O.1 Focus Mode v2 density gear + numpad field entry fix ===== */
 
-/* ===== v5.7.77S Focus Mode v2 Semantic Ball Controls + Automatic Save + Micro Feedback Overlay ===== */
-.focus-v2-break-grid.semantic-balls {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: stretch;
+/* ===== v5.7.77T/R Focus Mode v2 pre-shot compression + review reduction ===== */
+.focus-v2-pre-single-screen {
+  gap: 10px;
+  padding-block: 4px 10px;
 }
-.focus-v2-break-grid.semantic-balls .focus-v2-break-ball {
-  min-height: 72px;
-  display: grid;
-  place-items: center;
-  gap: 4px;
-  border-width: 1px;
-  box-shadow: inset 0 -1px 0 rgba(255,255,255,.12), 0 8px 18px rgba(15,23,42,.08);
-  overflow: hidden;
-}
-.focus-v2-break-ball span {
-  font-size: .72rem;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-weight: 950;
-}
-.focus-v2-break-ball strong {
-  font-size: clamp(1.35rem, 5vw, 2.1rem);
-  line-height: .9;
-}
-.focus-v2-ball-red { background: linear-gradient(145deg, #ef4444, #991b1b); color: #fff; border-color: rgba(248,113,113,.65); }
-.focus-v2-ball-yellow { background: linear-gradient(145deg, #fde047, #ca8a04); color: #241a00; border-color: rgba(250,204,21,.75); }
-.focus-v2-ball-green { background: linear-gradient(145deg, #22c55e, #166534); color: #fff; border-color: rgba(74,222,128,.65); }
-.focus-v2-ball-brown { background: linear-gradient(145deg, #a16207, #422006); color: #fff7ed; border-color: rgba(180,83,9,.65); }
-.focus-v2-ball-blue { background: linear-gradient(145deg, #3b82f6, #1e3a8a); color: #eff6ff; border-color: rgba(96,165,250,.65); }
-.focus-v2-ball-pink { background: linear-gradient(145deg, #f472b6, #9d174d); color: #fff; border-color: rgba(244,114,182,.70); }
-.focus-v2-ball-black { background: linear-gradient(145deg, #1f2937, #020617); color: #f8fafc; border-color: rgba(148,163,184,.55); }
-.focus-v2-break-actions.automatic-save {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.focus-v2-break-actions.automatic-save .focus-v2-variation {
-  display: grid;
-  gap: 2px;
-  align-content: center;
-  justify-items: center;
-  min-height: 54px;
-}
-.focus-v2-break-actions.automatic-save .focus-v2-variation span { font-weight: 950; }
-.focus-v2-break-actions.automatic-save .focus-v2-variation small {
-  font-size: .64rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--muted, #64748b);
-}
-.focus-v2-danger { border-color: color-mix(in srgb, #ef4444 44%, var(--border, rgba(148,163,184,.28))); background: color-mix(in srgb, #ef4444 12%, var(--surface, #fff)); }
-.focus-v2-danger.muted { background: color-mix(in srgb, #f97316 10%, var(--surface, #fff)); border-color: color-mix(in srgb, #f97316 38%, var(--border, rgba(148,163,184,.28))); }
-.focus-v2-primary-lite { border-color: color-mix(in srgb, var(--accent, #2563eb) 48%, var(--border, rgba(148,163,184,.28))); background: color-mix(in srgb, var(--accent, #2563eb) 14%, var(--surface, #fff)); }
-.focus-v2-auto-save-hint {
-  margin: -2px auto 0;
-  width: min(100%, 520px);
+.focus-v2-pre-identity {
   text-align: center;
-  color: var(--muted, #64748b);
-  font-size: .78rem;
-  line-height: 1.35;
+  display: grid;
+  gap: 3px;
 }
-.focus-v2-control-hint.compact small {
+.focus-v2-pre-identity span {
+  color: var(--muted, #64748b);
+  font-size: .72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.focus-v2-pre-identity h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 7vw, 3rem);
+  line-height: 1;
+}
+.focus-v2-pre-identity p {
+  margin: 0;
+  color: var(--muted, #64748b);
+  font-weight: 800;
+}
+.focus-v2-pre-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.focus-v2-pre-summary-strip span {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, .2);
+  border-radius: 16px;
+  padding: 8px 6px;
+  background: rgba(15, 23, 42, .05);
+  text-align: center;
+}
+.focus-v2-pre-summary-strip b {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text, #0f172a);
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-v2-pre-summary-strip small {
   display: block;
   margin-top: 3px;
   color: var(--muted, #64748b);
-  font-weight: 750;
+  font-size: .58rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 900;
 }
-.focus-v2-feedback-overlay {
-  position: fixed;
-  left: 50%;
-  top: max(14px, env(safe-area-inset-top));
-  transform: translateX(-50%);
-  z-index: 1255;
-  width: min(calc(100vw - 28px), 420px);
-  border-radius: 999px;
-  padding: 11px 16px;
-  text-align: center;
-  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 32%, var(--border, rgba(148,163,184,.28)));
-  background: color-mix(in srgb, var(--surface, #ffffff) 88%, rgba(37,99,235,.16));
-  color: var(--text, #0f172a);
-  box-shadow: 0 16px 46px rgba(15,23,42,.24);
-  pointer-events: none;
-  animation: focusV2FeedbackOverlay 2.65s ease both;
+.focus-v2-pre-controls {
+  display: grid;
+  gap: 8px;
 }
-.focus-v2-feedback-overlay span { font-weight: 950; letter-spacing: .01em; }
-.focus-v2-feedback-overlay.pb { border-color: rgba(234,179,8,.72); background: linear-gradient(135deg, rgba(254,243,199,.98), rgba(253,230,138,.92)); color: #422006; }
-.focus-v2-feedback-overlay.miss { border-color: rgba(248,113,113,.66); background: linear-gradient(135deg, rgba(254,226,226,.98), rgba(252,165,165,.86)); color: #450a0a; }
-.focus-v2-feedback-overlay.undo { border-color: rgba(148,163,184,.60); }
-.focus-v2-feedback-overlay.score { border-color: rgba(96,165,250,.68); }
-.focus-v2-feedback-overlay.stale { display: none; }
-@keyframes focusV2FeedbackOverlay {
-  0% { opacity: 0; transform: translate(-50%, -12px) scale(.98); }
-  12% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  78% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -10px) scale(.985); }
+.focus-v2-pre-controls .focus-v2-table-select-card.compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
 }
-body[data-theme="dark"] .focus-v2-feedback-overlay,
-body[data-theme-mode="dark"] .focus-v2-feedback-overlay,
-:root[data-theme="dark"] .focus-v2-feedback-overlay {
-  background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.94));
+.focus-v2-pre-controls .focus-v2-table-select-card.compact span {
+  color: var(--muted, #64748b);
+  font-size: .7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.focus-v2-pre-controls .focus-v2-mode-card.compact {
+  padding: 8px 10px;
+}
+.focus-v2-state-rail-reduced {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 420px;
+  margin-inline: auto;
+}
+.focus-v2-state-rail-reduced .focus-v2-state-chip-review {
+  grid-column: 1 / -1;
+}
+.focus-v2-thumb-dock-reduced .focus-v2-manual-review {
+  opacity: .74;
+}
+.focus-v2-review .focus-v2-review-card {
+  border-color: rgba(250, 204, 21, .28);
+  background: rgba(250, 204, 21, .08);
+}
+body[data-theme="dark"] .focus-v2-pre-summary-strip span,
+body[data-theme-mode="dark"] .focus-v2-pre-summary-strip span,
+html[data-theme="dark"] .focus-v2-pre-summary-strip span,
+html[data-theme-mode="dark"] .focus-v2-pre-summary-strip span {
+  background: rgba(15, 23, 42, .72);
+  border-color: rgba(148, 163, 184, .24);
+}
+body[data-theme="dark"] .focus-v2-pre-summary-strip b,
+body[data-theme-mode="dark"] .focus-v2-pre-summary-strip b,
+html[data-theme="dark"] .focus-v2-pre-summary-strip b,
+html[data-theme-mode="dark"] .focus-v2-pre-summary-strip b {
   color: #f8fafc;
-  border-color: rgba(148,163,184,.36);
-  box-shadow: 0 18px 58px rgba(0,0,0,.48);
 }
-body[data-theme="dark"] .focus-v2-feedback-overlay.pb,
-body[data-theme-mode="dark"] .focus-v2-feedback-overlay.pb,
-:root[data-theme="dark"] .focus-v2-feedback-overlay.pb {
-  background: linear-gradient(135deg, rgba(113,63,18,.98), rgba(180,83,9,.90));
-  color: #fefce8;
+@media (max-width: 520px) {
+  .focus-v2-pre-summary-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .focus-v2-pre-summary-strip span {
+    padding: 7px 3px;
+    border-radius: 13px;
+  }
+  .focus-v2-pre-summary-strip b {
+    font-size: .98rem;
+  }
+  .focus-v2-pre-summary-strip small {
+    font-size: .52rem;
+  }
+  .focus-v2-pre-controls .focus-v2-table-select-card.compact {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
 }
-body[data-theme="dark"] .focus-v2-feedback-overlay.miss,
-body[data-theme-mode="dark"] .focus-v2-feedback-overlay.miss,
-:root[data-theme="dark"] .focus-v2-feedback-overlay.miss {
-  background: linear-gradient(135deg, rgba(69,10,10,.98), rgba(127,29,29,.92));
-  color: #fff1f2;
-}
-body[data-theme="dark"] .focus-v2-danger,
-body[data-theme-mode="dark"] .focus-v2-danger,
-:root[data-theme="dark"] .focus-v2-danger {
-  background: rgba(127,29,29,.30);
-  border-color: rgba(248,113,113,.42);
-  color: #fee2e2;
-}
-body[data-theme="dark"] .focus-v2-danger.muted,
-body[data-theme-mode="dark"] .focus-v2-danger.muted,
-:root[data-theme="dark"] .focus-v2-danger.muted {
-  background: rgba(124,45,18,.32);
-  border-color: rgba(251,146,60,.38);
-  color: #ffedd5;
-}
-body[data-theme="dark"] .focus-v2-primary-lite,
-body[data-theme-mode="dark"] .focus-v2-primary-lite,
-:root[data-theme="dark"] .focus-v2-primary-lite {
-  background: rgba(37,99,235,.24);
-  border-color: rgba(96,165,250,.44);
-  color: #dbeafe;
-}
-@media (max-width: 640px) {
-  .focus-v2-break-grid.semantic-balls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-  .focus-v2-break-grid.semantic-balls .focus-v2-break-ball { min-height: 62px; border-radius: 16px; }
-  .focus-v2-break-ball span { font-size: .62rem; }
-  .focus-v2-break-actions.automatic-save { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .focus-v2-feedback-overlay { top: max(10px, env(safe-area-inset-top)); width: min(calc(100vw - 20px), 390px); }
-}
-/* ===== end v5.7.77S Focus Mode v2 Semantic Ball Controls + Automatic Save + Micro Feedback Overlay ===== */
+/* ===== end v5.7.77T/R Focus Mode v2 pre-shot compression + review reduction ===== */
