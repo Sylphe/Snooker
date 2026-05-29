@@ -1,4 +1,4 @@
-const CACHE_VERSION = "5.7.77U-7-focus-v2-session-reflection";
+const CACHE_VERSION = "5.7.77U-8-focus-v2-numeric-reflection-fix";
 const CACHE_NAME = `snooker-practice-log-${CACHE_VERSION}`;
 const ASSETS = [
   "./index.html?v=5.7.77U-7",
