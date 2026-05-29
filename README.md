@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.8.6-logging-analytics-builder-hardening
+Version: 5.8.7-exercise-edit-metadata-preservation
 
-## v5.8.6 — Logging Analytics Builder Hardening
+## v5.8.7 — Exercise Edit Metadata Preservation
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.

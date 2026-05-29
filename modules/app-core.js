@@ -5203,6 +5203,67 @@ function deleteRoutine(id) {
     saveData({allowReadOnlyCleanup:true});
   });
 }
+
+
+/* v5.8.7 Exercise Database edit preservation guard
+   The standard Exercise Database form intentionally edits core exercise fields only.
+   Routine Studio owns richer semantic metadata (ETU subtype profiles, transfer graph,
+   dependency chains, archetypes, provenance, repeat semantics, etc.). Before v5.8.7,
+   saving an exercise from the regular database rebuilt the routine object from form
+   fields and dropped those Routine Studio-only properties. This helper preserves them
+   unless the Exercise Database form explicitly owns and rewrites that field. */
+const ROUTINE_STUDIO_METADATA_PRESERVE_FIELDS_SAFE = [
+  "etuProfile", "etuSource", "technicalEtu", "cognitiveEtu", "emotionalEtu", "confidenceEtu", "pressureEtu",
+  "transferProfile", "dependencyProfile",
+  "semanticPreset", "routineArchetype", "archetypeSource",
+  "volatilityProfile", "recoverySuitability", "pressureSuitability", "acquisitionSuitability",
+  "confidenceRisk", "cognitiveLoad", "benchmarkDensity", "transferIntensity", "transferStrength",
+  "derivedRecoverySuitability", "derivedConfidenceRisk", "derivedCognitiveLoad", "derivedBenchmarkDensity", "derivedTransferIntensity", "derivedMetadataSource",
+  "repeatOnClear", "setupCycleValue", "completionSize",
+  "metadataConfidence", "metadataProvenance", "metadataRepairHistory",
+  "knowledgeGraphProfile", "routineGraphProfile", "semanticReadiness", "validationProfile",
+  "recoveryFit", "pressureFit", "acquisitionFit", "benchmarkFit"
+];
+function cloneRoutineMetadataValueSafe(value) {
+  try {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (Array.isArray(value) || (typeof value === "object" && value)) return JSON.parse(JSON.stringify(value));
+    return value;
+  } catch (_) {
+    try { return Array.isArray(value) ? [...value] : (value && typeof value === "object" ? {...value} : value); }
+    catch (_) { return value; }
+  }
+}
+function preserveRoutineStudioMetadataOnExerciseEditSafe(nextRoutine, oldRoutine) {
+  try {
+    if (!nextRoutine || !oldRoutine) return nextRoutine;
+    ROUTINE_STUDIO_METADATA_PRESERVE_FIELDS_SAFE.forEach(field => {
+      if (oldRoutine[field] !== undefined && nextRoutine[field] === undefined) {
+        nextRoutine[field] = cloneRoutineMetadataValueSafe(oldRoutine[field]);
+      }
+    });
+    // Keep provenance nested objects additive: the Exercise Database form should not erase
+    // prior Routine Studio provenance or repair history when only core fields changed.
+    if (oldRoutine.metadataProvenance && typeof oldRoutine.metadataProvenance === "object") {
+      nextRoutine.metadataProvenance = {
+        ...cloneRoutineMetadataValueSafe(oldRoutine.metadataProvenance),
+        ...(nextRoutine.metadataProvenance && typeof nextRoutine.metadataProvenance === "object" ? nextRoutine.metadataProvenance : {})
+      };
+    }
+    if (oldRoutine.metadataConfidence && typeof oldRoutine.metadataConfidence === "object") {
+      nextRoutine.metadataConfidence = {
+        ...cloneRoutineMetadataValueSafe(oldRoutine.metadataConfidence),
+        ...(nextRoutine.metadataConfidence && typeof nextRoutine.metadataConfidence === "object" ? nextRoutine.metadataConfidence : {})
+      };
+    }
+    return nextRoutine;
+  } catch (err) {
+    try { logAppError(err, "preserveRoutineStudioMetadataOnExerciseEditSafe"); } catch (_) {}
+    return nextRoutine;
+  }
+}
+
 safeOn("saveRoutineBtn", "click", () => {
   const name = $("routineName").value.trim();
   if (!name) return alert("Enter an exercise name.");
@@ -5320,6 +5381,7 @@ Cancel = stop so you can archive/duplicate the routine and keep historical logs 
       }
       const activeProfile = getActiveTargetProfile(routine);
       if (activeProfile) activeProfile.difficultyLabel = routine.difficultyLabel || activeProfile.difficultyLabel || "Base target";
+      preserveRoutineStudioMetadataOnExerciseEditSafe(routine, oldRoutine);
     }
     data.routines = data.routines.map(r => r.id === routine.id ? routine : r);
   } else {
