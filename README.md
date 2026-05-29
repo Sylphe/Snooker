@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.8.5-stats-prediction-decay-maintenance
+Version: 5.8.6-logging-analytics-builder-hardening
 
-## v5.8.5 — Stats Prediction Decay Maintenance
+## v5.8.6 — Logging Analytics Builder Hardening
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.

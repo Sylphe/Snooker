@@ -34,7 +34,8 @@ export function safePercentChange(recent, prior) {
   const p = Number(prior);
   if (!Number.isFinite(r) || !Number.isFinite(p)) return 0;
   if (p === 0) return r > 0 ? 100 : r < 0 ? -100 : 0;
-  return ((r - p) / Math.abs(p)) * 100;
+  const pct = ((r - p) / Math.abs(p)) * 100;
+  return Math.max(-500, Math.min(500, pct));
 }
 
 export function rollingAverage(values, windowSize) {

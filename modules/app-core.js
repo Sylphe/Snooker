@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.5";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.5";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.6";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.6";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.8.5";
+} from "./utils.js?v=5.8.6";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.8.5";
+} from "./settings.js?v=5.8.6";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.8.5";
+} from "./analytics.js?v=5.8.6";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -72,7 +72,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.8.5";
+} from "./bayesian.js?v=5.8.6";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -81,7 +81,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.8.5";
+} from "./session.js?v=5.8.6";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -89,7 +89,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.8.5";
+} from "./pressure.js?v=5.8.6";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -101,7 +101,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.8.5";
+} from "./recommendations.js?v=5.8.6";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -115,7 +115,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.8.5";
+} from "./store.js?v=5.8.6";
 
 
 
@@ -4728,11 +4728,27 @@ function computeSideCombinedScore(left, right) {
   const r = Number(right || 0);
   return Math.round((l + r) * 100) / 100;
 }
+function blankSafeNumber(value) {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  if (raw === "") return null;
+  const n = Number(raw.replace?.(",", ".") ?? raw);
+  return Number.isFinite(n) ? n : null;
+}
+function focusV2SideScoreInputsPresentSafe() {
+  const leftRaw = String(focusV2Draft.leftScore ?? "").trim();
+  const rightRaw = String(focusV2Draft.rightScore ?? "").trim();
+  return leftRaw !== "" && rightRaw !== "";
+}
+function focusV2AverageBreakValueSafe() {
+  const n = blankSafeNumber(focusV2Draft.averageBreak);
+  return n !== null && n >= 0 ? Math.round(n * 100) / 100 : "";
+}
 
 function breakConsistencyTypicalValue(log) {
   const raw = log?.commonBreakBandAtLog ?? log?.commonBreakBand ?? log?.typicalBreakBand ?? log?.mostCommonBreakBand ?? log?.mostCommonBreak ?? "";
-  const n = Number(raw);
-  if (Number.isFinite(n) && n >= 0) return n;
+  const n = blankSafeNumber(raw);
+  if (n !== null && n >= 0) return n;
   return Number(effectiveLogScore(log) || 0);
 }
 function normalizeBreakTargetConsistency(log) {
@@ -6476,9 +6492,8 @@ async function focusV2PersistRealLogSafe(entry, routine, numericScore) {
     const leftSideScore = sideSplitEnabled ? Number(entry.leftSideScore || 0) : "";
     const rightSideScore = sideSplitEnabled ? Number(entry.rightSideScore || 0) : "";
     const score = Number.isFinite(Number(numericScore)) ? Number(numericScore) : Number(entry.score || 0);
-    const rawAverageBreak = entry.averageBreakPerAttempt ?? entry.averageBreak ?? "";
-    const averageBreakValue = rawAverageBreak === "" || rawAverageBreak === null || rawAverageBreak === undefined ? "" : Number(rawAverageBreak);
-    const safeAverageBreak = Number.isFinite(averageBreakValue) && averageBreakValue >= 0 ? Math.round(averageBreakValue * 100) / 100 : "";
+    const averageBreakValue = blankSafeNumber(entry.averageBreakPerAttempt ?? entry.averageBreak ?? "");
+    const safeAverageBreak = averageBreakValue !== null && averageBreakValue >= 0 ? Math.round(averageBreakValue * 100) / 100 : "";
     const attempts = Math.max(1, Math.round(Number(entry.attemptsPlanned || entry.attempt || focusV2DefaultAttemptsSafe(routine) || 10)));
     let timeMinutes = Number(entry.timeMinutes || focusV2ElapsedMinutesSafe() || routine.duration || 0);
     if (!Number.isFinite(timeMinutes) || timeMinutes < 0) timeMinutes = Number(routine.duration || 0) || 0;
@@ -6575,9 +6590,14 @@ async function saveFocusV2DraftSafe(options = {}) {
   focusV2SyncInputDraftSafe();
   let score = options.score !== undefined ? String(options.score) : focusV2CurrentScoreValueSafe();
   const routine = getFocusV2RoutineSafe();
-  if (routineUsesSideSplit?.(routine)) score = String(focusV2SideCombinedScoreSafe());
+  const isSideSplit = !!routineUsesSideSplit?.(routine);
+  if (isSideSplit) {
+    if (!focusV2SideScoreInputsPresentSafe()) { showTransientNotice("Enter both left and right scores first.", "warn"); return; }
+    score = String(focusV2SideCombinedScoreSafe());
+  }
   if (score === "") { showTransientNotice("Enter a score first.", "warn"); return; }
-  const entry = { mode: focusV2Draft.inputMode, score, averageBreak: focusV2Draft.averageBreak || "", averageBreakPerAttempt: focusV2Draft.averageBreak || "", leftSideScore: focusV2Draft.leftScore || "", rightSideScore: focusV2Draft.rightScore || "", combinedScore: routineUsesSideSplit?.(routine) ? focusV2SideCombinedScoreSafe() : "", attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
+  const avgBreakValue = focusV2AverageBreakValueSafe();
+  const entry = { mode: focusV2Draft.inputMode, score, averageBreak: avgBreakValue, averageBreakPerAttempt: avgBreakValue, leftSideScore: focusV2Draft.leftScore || "", rightSideScore: focusV2Draft.rightScore || "", combinedScore: isSideSplit ? focusV2SideCombinedScoreSafe() : "", attempt: Number(focusV2Draft.attempt || 1), attemptsPlanned: Number(focusV2Draft.attempt || focusV2DefaultAttemptsSafe(routine) || 10), timeMinutes: focusV2Draft.timeMinutes || focusV2ElapsedMinutesSafe(), successCount: Number(focusV2Draft.successCount || 0), missCount: Number(focusV2Draft.missCount || 0), currentBreak: Number(focusV2Draft.currentBreak || 0) };
   const numericScore = Number(score || 0);
   const previousBest = Number(focusV2Draft.sessionBestScore || 0);
   const stats = focusV2StatsSafe(routine);
@@ -7233,7 +7253,7 @@ async function saveCurrentRoutine() {
     leftSideScore,
     rightSideScore,
     sideScores: sideSplitEnabled ? {left:leftSideScore, right:rightSideScore} : "",
-    timeMinutes: Math.round(timeMinutes * 10) / 10,
+    timeMinutes: roundStoredMinutes(timeMinutes),
     normalizedScore: 0,
     bestAttempt: wholeNumberOrNull($("bestAttemptValue")?.value || "") ?? "",
     completionCount: wholeNumberOrNull($("completionCountValue")?.value || "") ?? "",
@@ -8445,7 +8465,7 @@ function smartBuilderApplyDurationDisciplineSafe(blocks, ranked, policy) {
     const before = adaptivePlanExpectedMinutes(out);
     const reasons = [];
     const maxMinutes = Number(policy?.maxMinutes || policy?.targetMinutes || 60);
-    const minPicks = String(policy?.key || "") === "recovery" ? 3 : 4;
+    const minPicks = Number(policy?.hardCapMode ? 1 : (String(policy?.key || "") === "recovery" ? 3 : 4));
     let guard = 0;
     while (adaptivePlanExpectedMinutes(out) > maxMinutes && guard < 60) {
       const candidates = out
@@ -8476,9 +8496,11 @@ function smartBuilderApplyDurationDisciplineSafe(blocks, ranked, policy) {
       let fillGuard = 0;
       while (after < Number(policy?.minMinutes || 0) && fillGuard < 10) break;
     }
-    if (before > maxMinutes && after <= maxMinutes) reasons.push(`Duration discipline: trimmed planned load from ${formatDurationHuman(before)} to ${formatDurationHuman(after)} within ${formatDurationHuman(maxMinutes)} cap`);
-    else if (before > maxMinutes) reasons.push(`Duration discipline: capped as far as possible; planned ${formatDurationHuman(after)} vs ${formatDurationHuman(maxMinutes)} cap`);
-    return {blocks:out, beforeMinutes:before, afterMinutes:after, reasons, policy};
+    const constraintViolated = before > maxMinutes && after > maxMinutes;
+    if (constraintViolated) out.constraintViolated = true;
+    else if (before > maxMinutes && after <= maxMinutes) reasons.push(`Duration discipline: trimmed planned load from ${formatDurationHuman(before)} to ${formatDurationHuman(after)} within ${formatDurationHuman(maxMinutes)} cap`);
+    if (constraintViolated) reasons.push(`Duration discipline: planned ${formatDurationHuman(after)} remains above ${formatDurationHuman(maxMinutes)} cap after minimum viable trimming`);
+    return {blocks:out, beforeMinutes:before, afterMinutes:after, constraintViolated, reasons, policy};
   } catch (err) {
     try { logAppError(err, "smartBuilderApplyDurationDisciplineSafe"); } catch (_) {}
     return {blocks:blocks || [], beforeMinutes:adaptivePlanExpectedMinutes(blocks || []), afterMinutes:adaptivePlanExpectedMinutes(blocks || []), reasons:[], policy};
@@ -8682,7 +8704,10 @@ function smartBuilderEtuSessionBudgetPolicySafe(template, effectiveGoal="stabili
     else if (goal === "progression") { min = 2.8; max = 5.0; label = "Acquisition ETU budget"; }
     if (String(strictness || "normal") === "high") max *= 0.9;
     if (String(strictness || "normal") === "low") max *= 1.12;
-    return {label, min:Math.round(min * scale * 10) / 10, max:Math.round(max * scale * 10) / 10, target:Math.round(((min + max) / 2) * scale * 10) / 10, scale};
+    const scaledMin = Math.round(min * scale * 10) / 10;
+    const scaledMax = Math.max(scaledMin, Math.round(max * scale * 10) / 10);
+    const scaledTarget = Math.max(scaledMin, Math.min(scaledMax, Math.round(((min + max) / 2) * scale * 10) / 10));
+    return {label, min:scaledMin, max:scaledMax, target:scaledTarget, scale};
   } catch (_) { return {label:"ETU budget", min:1.5, max:3.5, target:2.5, scale:1}; }
 }
 function smartBuilderPickEtuEstimateSafe(pick, block) {
@@ -8752,7 +8777,8 @@ function smartBuilderApplyEtuSessionBudgetSafe(blocks, policy) {
     let guard = 0;
     while (max > 0 && smartBuilderBlocksEtuUsageSafe(out).total > max && guard < 50) {
       const totalPicks = out.reduce((sum,b)=>sum+(b.picks || []).reduce((s,p)=>s+Math.max(1, Number(p.reps || 1)),0),0);
-      if (totalPicks <= 3) break;
+      const minPicks = Number(policy?.hardCapMode ? 1 : 3);
+      if (totalPicks <= minPicks) break;
       const candidates = out
         .map((block, index) => ({block, index, priority:smartBuilderEtuTrimPrioritySafe(block)}))
         .filter(x => (x.block.picks || []).length > 0)
@@ -8774,9 +8800,10 @@ function smartBuilderApplyEtuSessionBudgetSafe(blocks, policy) {
       guard += 1;
     }
     const after = smartBuilderBlocksEtuUsageSafe(out);
+    const constraintViolated = max > 0 && before.total > max && after.total > max;
     if (before.total > max && after.total <= max) reasons.push(`ETU session budget: trimmed planned load from ${numText(before.total)} to ${numText(after.total)} ETU within ${numText(max)} ETU cap`);
-    else if (before.total > max) reasons.push(`ETU session budget: planned ${numText(after.total)} ETU remains above ${numText(max)} ETU cap; keep execution light`);
-    return {blocks:out, before, after, policy, reasons};
+    else if (constraintViolated) reasons.push(`ETU session budget: planned ${numText(after.total)} ETU remains above ${numText(max)} ETU cap after minimum viable trimming; keep execution light`);
+    return {blocks:out, before, after, constraintViolated, policy, reasons};
   } catch (err) {
     try { logAppError(err, "smartBuilderApplyEtuSessionBudgetSafe"); } catch (_) {}
     return {blocks:blocks || [], before:smartBuilderBlocksEtuUsageSafe(blocks || []), after:smartBuilderBlocksEtuUsageSafe(blocks || []), policy, reasons:[]};
@@ -10605,7 +10632,7 @@ function smartBuilderEnforceTemplateHardCapsSafe(blocks, ranked=[], template=nul
     const maxEtu = Number(policy?.max || t.maxEtu || 0);
     const beforeEtu = smartBuilderBlocksEtuUsageSafe(out);
     if (maxEtu > 0 && beforeEtu.total > maxEtu) {
-      const trimmed = smartBuilderApplyEtuSessionBudgetSafe(out, {label:"Template hard-cap ETU budget", max:maxEtu, min:Math.min(maxEtu, Number(policy?.min || 0)), target:Math.min(maxEtu, Number(policy?.target || maxEtu))});
+      const trimmed = smartBuilderApplyEtuSessionBudgetSafe(out, {label:"Template hard-cap ETU budget", max:maxEtu, min:Math.min(maxEtu, Number(policy?.min || 0)), target:Math.min(maxEtu, Number(policy?.target || maxEtu)), hardCapMode:true});
       out = trimmed.blocks || out;
       if (trimmed?.after?.total < beforeEtu.total) reasons.push(`Template ETU cap enforced: trimmed ${numText(beforeEtu.total)} to ${numText(trimmed.after.total)} ETU`);
     }
@@ -10954,7 +10981,7 @@ function smartBuilderOptimizeSessionCompositionSafe(plan) {
   try {
     const template = smartBuilderFormalizeTemplateSafe(plan?.sessionTemplate || {});
     const policy = plan?.etuSessionBudget?.policy || smartBuilderEtuSessionBudgetPolicySafe?.(template, plan?.effectiveGoal, plan?.targetMinutes, "normal") || {};
-    const context = {...plan, template, etuCap:Number(policy?.max || template?.maxEtu || 999)};
+    const context = {...plan, template, etuCap:Number(policy?.max || template?.maxEtu || 999), durationCap:Number(plan?.durationDiscipline?.policy?.maxMinutes || plan?.targetMinutes || 999)};
     let blocks = smartBuilderCloneBlocksForOptimizationSafe(plan?.blocks || []);
     const ranked = Array.isArray(plan?.ranked) ? plan.ranked : [];
     const before = smartBuilderOptimizationObjectiveSafe(blocks, context);
@@ -10978,6 +11005,9 @@ function smartBuilderOptimizeSessionCompositionSafe(plan) {
             if ((cand.templateHardFlags || []).length && template?.key !== "pressure") continue;
             const trial = smartBuilderCloneBlocksForOptimizationSafe(blocks);
             trial[bi].picks[pi] = normalizeAdaptivePick(cand, Math.max(1, Number(oldPick.reps || 1)));
+            const trialEtu = smartBuilderBlocksEtuUsageSafe(trial);
+            if (Number(context.etuCap || 0) > 0 && trialEtu.total > Number(context.etuCap || 0)) continue;
+            if (Number(context.durationCap || 0) > 0 && adaptivePlanExpectedMinutes(trial) > Number(context.durationCap || 0)) continue;
             const obj = smartBuilderOptimizationObjectiveSafe(trial, context);
             const gain = obj.score - current.score;
             if (gain > 1.15 && (!best || gain > best.gain)) best = {gain, blocks:trial, from:oldPick.state || oldPick, to:cand, block:block.name || block.blockType || "Block", obj};
@@ -11886,7 +11916,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   }
   blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
   const durationPolicy = smartBuilderDurationDisciplinePolicySafe(sessionTemplate, effectiveGoal, targetMinutes, strictness);
-  const durationDiscipline = smartBuilderApplyDurationDisciplineSafe(blocks, ranked, durationPolicy);
+  let durationDiscipline = smartBuilderApplyDurationDisciplineSafe(blocks, ranked, durationPolicy);
   blocks = durationDiscipline.blocks;
   (durationDiscipline.reasons || []).forEach(r => globalReasons.push(r));
   const etuSessionBudgetPolicy = smartBuilderEtuSessionBudgetPolicySafe(sessionTemplate, effectiveGoal, targetMinutes, strictness);
@@ -11904,6 +11934,15 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   etuSessionBudget = smartBuilderApplyEtuSessionBudgetSafe(blocks, etuSessionBudgetPolicy);
   blocks = etuSessionBudget.blocks || blocks;
   blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
+  const finalDurationDiscipline = smartBuilderApplyDurationDisciplineSafe(blocks, ranked, {...durationPolicy, hardCapMode:true});
+  if (finalDurationDiscipline?.constraintViolated) globalReasons.push("duration hard cap remains constrained after final normalization");
+  blocks = finalDurationDiscipline.blocks || blocks;
+  const finalEtuSessionBudget = smartBuilderApplyEtuSessionBudgetSafe(blocks, {...etuSessionBudgetPolicy, hardCapMode:true});
+  if (finalEtuSessionBudget?.constraintViolated) globalReasons.push("ETU hard cap remains constrained after final normalization");
+  blocks = finalEtuSessionBudget.blocks || blocks;
+  blocks.forEach(b => { b.minutes = Math.max(5, Math.round(adaptiveBlockExpectedMinutes(b))); });
+  durationDiscipline = finalDurationDiscipline || durationDiscipline;
+  etuSessionBudget = finalEtuSessionBudget || etuSessionBudget;
   const routineIds = flattenAdaptiveRoutineIds(blocks);
   const estimatedMinutes = adaptivePlanExpectedMinutes(blocks);
   const budgets = sessionBudgetsForGoal(effectiveGoal, targetMinutes);
@@ -16259,6 +16298,12 @@ function parseOptionalNumber(value) {
   const n = Number(raw);
   return Number.isFinite(n) ? n : NaN;
 }
+function csvRowValue(row, ...keys) {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== null && row[key] !== undefined) return row[key];
+  }
+  return "";
+}
 
 function routineCsvImportRecord(row) {
   const canonicalId = normalizeRoutineCanonicalId(row.canonicalid || row.canonical_id || row.catalogueid || row.catalogue_id || row.id || row.name || "");
@@ -16274,7 +16319,7 @@ function routineCsvImportRecord(row) {
   });
   const numericFields = ["attempts", "duration", "target", "stretchtarget", "totalunits", "attemptspersession", "benchmarkjunior", "benchmarkclub", "benchmarksenior", "benchmarkpro"];
   const nums = Object.create(null);
-  numericFields.forEach(key => { nums[key] = parseOptionalNumber(row[key] || row[key.replace(/([a-z])([A-Z])/g, "$1_$2")] || ""); });
+  numericFields.forEach(key => { nums[key] = parseOptionalNumber(csvRowValue(row, key, key.replace(/([a-z])([A-Z])/g, "$1_$2"))); });
   return {
     canonicalId,
     name,
