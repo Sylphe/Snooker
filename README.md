@@ -1,9 +1,9 @@
 # Snooker Practice PWA
 
-Version: 5.9.8-baseline-exploration-candidate-layer
+Version: 5.9.9-routine-duplicate-usage-lineage-audit
 
 
-## v5.9.8 — Baseline Exploration Candidate Layer
+## v5.9.9 — Routine Duplicate Usage / Lineage Audit
 
 Adds proximity-adjusted Bayesian evidence so close same-day sessions are treated as partially dependent observations in current-form, target-range and success-rate Bayesian calculations.
 
@@ -146,7 +146,7 @@ Focus Mode v2 now prioritizes a single dominant score surface in the logging sta
 - Existing Load into Plan Builder remains available.
 
 
-## v5.9.8 notes
+## v5.9.9 notes
 - Converts ETU from fatigue/cap logic into a training rotation layer.
 - Disables ETU caps/trimming/warnings globally; duration remains the hard cap.
 - Penalizes exact routine repeats over a 2-3 day freshness window.

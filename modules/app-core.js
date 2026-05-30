@@ -22529,6 +22529,146 @@ function routineConsoleRowsSafe() {
     });
   } catch (err) { try { logAppError(err, "routineConsoleRowsSafe"); } catch (_) {}; return []; }
 }
+
+
+/* ===== v5.9.9 Routine Duplicate Usage / Lineage Audit ===== */
+function routineLineageNormalizeNameSafe(name="") {
+  try {
+    return String(name || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\b(copy|duplicate|dupe|imported|backup)\b/g, "")
+      .replace(/[’'`]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  } catch (_) { return String(name || "").toLowerCase().trim(); }
+}
+function routineLineageCanonicalScoreSafe(row, usage) {
+  try {
+    const r = row?.routine || routineById(row?.id) || {};
+    const pack = String(row?.packSource || r.packSource || r.routinePackSource || "app").toLowerCase();
+    let score = 0;
+    score += Number(usage?.logCount || 0) * 12;
+    score += Number(usage?.sessionCount || 0) * 4;
+    score += String(r.recommendationMode || "active") === "active" ? 20 : 0;
+    score += pack === "app" ? 10 : 0;
+    score += String(r.id || "").startsWith("nolan-") ? 6 : 0;
+    score += Number(row?.validity || 0) / 10;
+    score += Number(row?.completeness || 0) / 20;
+    return score;
+  } catch (_) { return 0; }
+}
+function routineLineageLogUsageByIdSafe(logsArg=null) {
+  try {
+    const map = new Map();
+    const logs = Array.isArray(logsArg) ? logsArg : (data.logs || []);
+    logs.forEach(log => {
+      const id = String(log?.routineId || log?.exerciseId || "").trim();
+      if (!id) return;
+      if (!map.has(id)) map.set(id, {routineId:id, logCount:0, sessionIds:new Set(), minutes:0, lastLogged:"", totalScore:0, scoreCount:0, targetHits:0, targetCount:0});
+      const rec = map.get(id);
+      rec.logCount += 1;
+      const sid = String(log.sessionId || log.session || "").trim();
+      if (sid) rec.sessionIds.add(sid);
+      const mins = Number(log.timeMinutes ?? log.minutes ?? log.durationMinutes ?? 0);
+      if (Number.isFinite(mins)) rec.minutes += mins;
+      const created = String(log.createdAt || log.date || log.timestamp || "");
+      if (created && (!rec.lastLogged || new Date(created) > new Date(rec.lastLogged))) rec.lastLogged = created;
+      const score = Number(typeof effectiveLogScore === "function" ? effectiveLogScore(log) : (log.score ?? log.value ?? log.result));
+      if (Number.isFinite(score)) { rec.totalScore += score; rec.scoreCount += 1; }
+      const hit = log.targetHit ?? log.hitTarget ?? log.success;
+      if (hit !== undefined && hit !== null && hit !== "") { rec.targetCount += 1; if (hit === true || String(hit).toLowerCase() === "true" || Number(hit) > 0) rec.targetHits += 1; }
+    });
+    const out = new Map();
+    map.forEach((rec, id) => out.set(id, {...rec, sessionCount:rec.sessionIds.size, avgScore:rec.scoreCount ? rec.totalScore/rec.scoreCount : null, targetHitRate:rec.targetCount ? (rec.targetHits/rec.targetCount)*100 : null, sessionIds:undefined}));
+    return out;
+  } catch (err) { try { logAppError(err, "routineLineageLogUsageByIdSafe"); } catch (_) {}; return new Map(); }
+}
+function routineLineageGroupsSafe(rowsArg=null) {
+  try {
+    const rows = Array.isArray(rowsArg) ? rowsArg : routineConsoleRowsSafe();
+    const usageById = routineLineageLogUsageByIdSafe();
+    const groups = new Map();
+    rows.forEach(row => {
+      const r = row.routine || routineById(row.id) || {};
+      const explicit = String(r.duplicateGroupKey || r.routineLineageKey || "").trim();
+      const key = explicit || routineLineageNormalizeNameSafe(row.name || r.name || row.id);
+      if (!key) return;
+      if (!groups.has(key)) groups.set(key, {key, displayName:row.name || r.name || key, rows:[], ids:[], packSources:new Set(), logCount:0, sessionCount:0, minutes:0, lastLogged:"", avgScore:null, targetHitRate:null, canonicalId:"", duplicateRisk:"low"});
+      const g = groups.get(key);
+      const usage = usageById.get(String(row.id)) || {logCount:0, sessionCount:0, minutes:0};
+      const item = {row, routine:r, usage, canonicalScore:routineLineageCanonicalScoreSafe(row, usage)};
+      g.rows.push(item);
+      g.ids.push(String(row.id));
+      g.packSources.add(String(row.packSource || r.packSource || r.routinePackSource || "app"));
+      g.logCount += Number(usage.logCount || 0);
+      g.sessionCount += Number(usage.sessionCount || 0);
+      g.minutes += Number(usage.minutes || 0);
+      if (usage.lastLogged && (!g.lastLogged || new Date(usage.lastLogged) > new Date(g.lastLogged))) g.lastLogged = usage.lastLogged;
+    });
+    const arr = Array.from(groups.values()).map(g => {
+      g.rows.sort((a,b) => b.canonicalScore - a.canonicalScore || String(a.row.name).localeCompare(String(b.row.name)));
+      g.canonicalId = String(g.rows[0]?.row?.id || "");
+      const scoreVals = g.rows.map(x => x.usage.avgScore).filter(Number.isFinite);
+      const hitVals = g.rows.map(x => x.usage.targetHitRate).filter(Number.isFinite);
+      g.avgScore = scoreVals.length ? scoreVals.reduce((a,b)=>a+b,0)/scoreVals.length : null;
+      g.targetHitRate = hitVals.length ? hitVals.reduce((a,b)=>a+b,0)/hitVals.length : null;
+      const activeIds = g.rows.filter(x => String(x.routine.recommendationMode || "active") === "active").length;
+      if (g.rows.length > 1 && g.logCount > 0) g.duplicateRisk = "high";
+      else if (g.rows.length > 1) g.duplicateRisk = "medium";
+      else if (g.logCount > 0 && !routineById(g.ids[0])) g.duplicateRisk = "historical";
+      else g.duplicateRisk = "low";
+      g.activeIds = activeIds;
+      g.packSourceText = Array.from(g.packSources).filter(Boolean).join(", ") || "app";
+      return g;
+    });
+    return arr.sort((a,b) => (b.rows.length - a.rows.length) || (b.logCount - a.logCount) || a.displayName.localeCompare(b.displayName));
+  } catch (err) { try { logAppError(err, "routineLineageGroupsSafe"); } catch (_) {}; return []; }
+}
+function routineLineageRiskChipSafe(risk) {
+  const r = String(risk || "low");
+  const label = r === "high" ? "High duplicate risk" : r === "medium" ? "Duplicate candidate" : r === "historical" ? "Historical only" : "Single routine";
+  return routineConsoleChipSafe(label, "validation", r === "high" ? "risk" : r === "medium" ? "watch" : "ok");
+}
+function renderRoutineLineageAuditSafe(rowsArg=null) {
+  try {
+    const host = $("routineLineageAudit");
+    if (!host) return;
+    const groups = routineLineageGroupsSafe(rowsArg || routineConsoleRowsSafe());
+    const duplicateGroups = groups.filter(g => g.rows.length > 1);
+    const highRisk = groups.filter(g => g.duplicateRisk === "high");
+    const totalLogs = groups.reduce((sum,g)=>sum+Number(g.logCount||0),0);
+    const body = groups.filter(g => g.rows.length > 1 || g.logCount > 0).slice(0,80).map(g => {
+      const detail = g.rows.map(item => {
+        const row = item.row;
+        const u = item.usage || {};
+        const isCanon = String(row.id) === String(g.canonicalId);
+        return `<tr class="routine-lineage-detail-row"><td>${isCanon ? "★" : ""}</td><td><button type="button" class="link-button" data-action="routine-console-select" data-id="${attrText(row.id)}">${escapeHtml(row.name)}</button><div class="muted small">${escapeHtml(row.id)}</div></td><td>${escapeHtml(row.packSource || item.routine.packSource || item.routine.routinePackSource || "app")}</td><td>${escapeHtml(item.routine.recommendationMode || "active")}</td><td>${numText(u.logCount || 0)}</td><td>${numText(u.sessionCount || 0)}</td><td>${numText(u.minutes || 0)}</td><td>${u.lastLogged ? escapeHtml(new Date(u.lastLogged).toLocaleDateString()) : "—"}</td></tr>`;
+      }).join("");
+      return `<details class="routine-lineage-group" ${g.duplicateRisk === "high" ? "open" : ""}><summary><span><strong>${escapeHtml(g.displayName)}</strong><small>${numText(g.rows.length)} ID(s) · ${numText(g.logCount)} log(s) · ${escapeHtml(g.packSourceText)}</small></span><span>${routineLineageRiskChipSafe(g.duplicateRisk)}</span></summary><div class="routine-lineage-actions"><span class="muted small">Suggested canonical: ${escapeHtml(g.rows[0]?.row?.name || "—")}</span><button type="button" class="secondary small" data-action="routine-lineage-apply-canonical" data-id="${attrText(g.key)}">Mark aliases to suggested canonical</button></div><div class="routine-console-scroll compact"><table class="routine-console-table routine-lineage-table"><thead><tr><th>Canon</th><th>Routine ID</th><th>Source</th><th>Eligibility</th><th>Logs</th><th>Sessions</th><th>Minutes</th><th>Last logged</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
+    }).join("");
+    host.innerHTML = `<div class="routine-console-kpis compact"><div class="kpi-card"><strong>${numText(groups.length)}</strong><span>name groups</span></div><div class="kpi-card"><strong>${numText(duplicateGroups.length)}</strong><span>duplicate groups</span></div><div class="kpi-card"><strong>${numText(highRisk.length)}</strong><span>usage conflicts</span></div><div class="kpi-card"><strong>${numText(totalLogs)}</strong><span>logs mapped</span></div></div><div class="analytics-note"><strong>Duplicate lineage audit.</strong> Groups routines by normalized name and shows all historical logs ever attached to each routine ID. Marking aliases adds canonical metadata only; it does not rewrite historical logs.</div>${body || `<p class="muted">No duplicate or logged routine lineage groups found.</p>`}`;
+  } catch (err) { try { logAppError(err, "renderRoutineLineageAuditSafe"); } catch (_) {} }
+}
+function routineLineageApplyCanonicalSafe(groupKey) {
+  try {
+    const groups = routineLineageGroupsSafe();
+    const group = groups.find(g => String(g.key) === String(groupKey));
+    if (!group || group.rows.length < 2) return alert("No duplicate lineage group found for this key.");
+    const canonicalId = group.canonicalId;
+    const aliasIds = group.ids.filter(id => String(id) !== String(canonicalId));
+    data.routines = (data.routines || []).map(r => {
+      if (!group.ids.includes(String(r.id))) return r;
+      return {...r, canonicalRoutineId:canonicalId, aliasRoutineIds:aliasIds, duplicateGroupKey:group.key, lineageUpdatedAt:new Date().toISOString(), metadataVersion:Number(r.metadataVersion || 1) + 1, updatedAt:new Date().toISOString()};
+    });
+    data.updatedAt = new Date().toISOString();
+    saveData({render:"all", immediateIDB:true});
+    renderRoutineStudioLite();
+    showTransientNotice?.(`Canonical routine marked for ${group.displayName}. Historical logs were not rewritten.`, "success");
+  } catch (err) { try { logAppError(err, "routineLineageApplyCanonicalSafe"); } catch (_) {}; alert("Could not mark canonical routine metadata."); }
+}
+/* ===== end v5.9.9 Routine Duplicate Usage / Lineage Audit ===== */
 function routineConsoleRowMatchesFilterSafe(row, filter, query) {
   const text = `${row.name} ${row.folder} ${row.subfolder} ${row.category} ${row.primarySkill} ${row.secondarySkills} ${row.transferTags} ${row.transferGraph} ${row.dependencyChain} ${row.semanticPreset} ${row.routineArchetype} ${(row.issues||[]).map(x=>`${x.label||""} ${x.detail||""} ${x.code||""}`).join(" ")}`.toLowerCase();
   const q = String(query || "").trim().toLowerCase();
@@ -22712,6 +22852,7 @@ function routineConsoleWorkspaceConfigSafe(workspace) {
     validation: {view:"validation", filter:"validation", hint:"Validation workspace: issue queue, contextual dock and selected-row repair operations."},
     benchmark: {view:"benchmark", filter:"benchmark", hint:"Benchmark workspace: benchmark mode, strictness, exposure weight and benchmark readiness triage."},
     analytics: {view:"derived", filter:"all", hint:"Analytics workspace: readiness dashboard, packs, coverage and semantic-assistant diagnostics."},
+    lineage: {view:"minimal", filter:"all", hint:"Duplicate lineage workspace: routine ID aliases, pack-source duplicates and historical usage counts."},
     routine: {view:"archetype", filter:"all", hint:"Routine workspace: detailed metadata editing, semantic presets, archetypes and ETU fields."}
   };
   return {key:map[clean] ? clean : "grid", ...(map[clean] || map.grid)};
@@ -22725,6 +22866,7 @@ function routineConsoleWorkspaceRailHtmlSafe() {
     {key:"validation", label:"Validation", icon:"!", hint:"Schema repair queue"},
     {key:"benchmark", label:"Benchmark", icon:"◎", hint:"Benchmark semantics"},
     {key:"analytics", label:"Analytics", icon:"▤", hint:"Coverage and readiness"},
+    {key:"lineage", label:"Lineage", icon:"≋", hint:"Duplicate usage and aliases"},
     {key:"routine", label:"Routine", icon:"✎", hint:"Selected routine editor"}
   ];
   return `<nav class="routine-console-left-rail" aria-label="Routine Console left navigation">
@@ -22743,7 +22885,7 @@ function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
     const root = document.querySelector(".routine-studio-lite-card");
     if (root) {
       root.dataset.workspace = cfg.key;
-      root.classList.remove("workspace-grid","workspace-graph","workspace-validation","workspace-benchmark","workspace-analytics","workspace-routine");
+      root.classList.remove("workspace-grid","workspace-graph","workspace-validation","workspace-benchmark","workspace-analytics","workspace-lineage","workspace-routine");
       root.classList.add(`workspace-${cfg.key}`);
     }
     document.querySelectorAll(".routine-console-workspace-btn").forEach(btn => {
@@ -22772,6 +22914,7 @@ function routineConsoleApplyWorkspaceModeSafe(workspace, options = {}) {
       document.querySelector(".routine-pack-manager")?.setAttribute("open", "");
       document.querySelector(".routine-semantic-assistant-card")?.setAttribute("open", "");
     }
+    if (cfg.key === "lineage") document.querySelector(".routine-lineage-audit-card")?.setAttribute("open", "");
     if (cfg.key === "routine") document.querySelector(".routine-semantic-assistant-card")?.setAttribute("open", "");
     if (!options.silent) showTransientNotice?.(cfg.hint, "info");
   } catch (err) { try { logAppError(err, "routineConsoleApplyWorkspaceModeSafe"); } catch (_) {} }
@@ -23364,6 +23507,7 @@ function renderRoutineStudioLite() {
     if (railHost) railHost.innerHTML = routineConsoleWorkspaceRailHtmlSafe();
     renderRoutinePackManagerSafe(allRows);
     renderRoutineConsoleValidationDashboardSafe(allRows);
+    renderRoutineLineageAuditSafe(allRows);
     renderRoutineConsoleSemanticEditorSummarySafe(allRows);
     const filter = $("routineStudioAuditFilter")?.value || "all";
     const query = $("routineStudioSearch")?.value || "";
@@ -23372,7 +23516,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.9.2</strong><span>Routine Family / Alternative Linkage</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Adds routine-family and alternative-link metadata. Same-day exposure guard can now block exact repeats while boosting linked variants as alternatives.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.9.9</strong><span>Duplicate Usage / Lineage Audit</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Adds duplicate routine usage auditing, historical log counts across routine IDs, and canonical alias metadata without rewriting historical logs.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -23895,6 +24039,7 @@ function handleDelegatedUIAction(event) {
     case "routine-console-focus-editor-section": return routineConsoleFocusEditorSectionSafe(actionEl.dataset.section || "core");
     case "routine-console-save": return routineConsoleSaveSelected();
     case "routine-console-export-visible": return routineConsoleExportVisibleJson();
+    case "routine-lineage-apply-canonical": return routineLineageApplyCanonicalSafe(id);
     case "routine-pack-refresh": return renderRoutineStudioLite();
     case "routine-pack-select": return selectRoutinePackManagerPack(id);
     case "routine-pack-assign-selected": return routinePackAssignSelectedSafe();

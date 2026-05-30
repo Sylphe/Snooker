@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log 5.9.8</title>
+  <title>Snooker Practice Log 5.9.9</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.9.8"></script>
-  <link rel="manifest" href="manifest.json?v=5.9.8" />
-  <link rel="stylesheet" href="styles.css?v=5.9.8" />
-  <link rel="icon" href="icon.svg?v=5.9.8" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.9.9"></script>
+  <link rel="manifest" href="manifest.json?v=5.9.9" />
+  <link rel="stylesheet" href="styles.css?v=5.9.9" />
+  <link rel="icon" href="icon.svg?v=5.9.9" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.9.8 · Build 2026-05-30 17:10 CEST — Baseline Exploration Candidate Layer</p>
+      <p>5.9.9 · Build 2026-05-30 17:35 CEST — Routine Duplicate Usage / Lineage Audit</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -225,7 +225,7 @@
                 <input id="smartBuilderEtuConstraints" type="checkbox" />
                 Legacy ETU caps disabled
               </label>
-              <p class="muted small" style="margin-top:4px;">v5.9.8: ETU caps are disabled. ETU now steers 2–3 day routine rotation and alternative selection; time limit remains the hard cap.</p>
+              <p class="muted small" style="margin-top:4px;">v5.9.9: ETU caps are disabled. ETU now steers 2–3 day routine rotation and alternative selection; time limit remains the hard cap.</p>
               <label style="margin-top:10px;display:block;">Same-day exposure guard</label>
               <select id="smartBuilderSameDayGuard">
                 <option value="allow">Allow repeats today</option>
@@ -880,6 +880,7 @@
               <button type="button" class="routine-console-workspace-btn" data-action="routine-console-workspace" data-id="validation" role="tab" aria-selected="false"><span class="workspace-icon">!</span><span>Validation</span></button>
               <button type="button" class="routine-console-workspace-btn" data-action="routine-console-workspace" data-id="benchmark" role="tab" aria-selected="false"><span class="workspace-icon">◎</span><span>Benchmark</span></button>
               <button type="button" class="routine-console-workspace-btn" data-action="routine-console-workspace" data-id="analytics" role="tab" aria-selected="false"><span class="workspace-icon">▤</span><span>Analytics</span></button>
+              <button type="button" class="routine-console-workspace-btn" data-action="routine-console-workspace" data-id="lineage" role="tab" aria-selected="false"><span class="workspace-icon">≋</span><span>Lineage</span></button>
               <button type="button" class="routine-console-workspace-btn" data-action="routine-console-workspace" data-id="routine" role="tab" aria-selected="false"><span class="workspace-icon">✎</span><span>Routine</span></button>
             </div>
           </div>
@@ -1045,6 +1046,14 @@
               <div id="routineConsoleSemanticEditorSummary" class="muted small"></div>
             </div>
           </div>
+            </div>
+          </details>
+
+          <details class="routine-console-accordion routine-lineage-audit-card" data-console-workspace="lineage" open>
+            <summary><span>Duplicate / Lineage Audit</span><small>Historical usage across duplicate routine IDs</small></summary>
+            <div class="routine-console-accordion-body">
+              <p class="muted">Use this view to find routines that exist multiple times because of app creation, pack import/export, or duplicated names. It counts every historical log linked to every routine ID in the group.</p>
+              <div id="routineLineageAudit" class="routine-lineage-audit"></div>
             </div>
           </details>
 
@@ -1856,7 +1865,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.9.8"></script>
+  <script type="module" src="app.js?v=5.9.9"></script>
 </body>
 
 
