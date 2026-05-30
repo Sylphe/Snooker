@@ -1,9 +1,9 @@
 # Snooker Practice PWA
 
-Version: 5.9.5-training-rotation-layer
+Version: 5.9.6-training-rotation-layer-polish
 
 
-## v5.9.5 — Training Rotation Layer
+## v5.9.6 — Training Rotation Layer Polish
 
 Adds proximity-adjusted Bayesian evidence so close same-day sessions are treated as partially dependent observations in current-form, target-range and success-rate Bayesian calculations.
 
@@ -146,7 +146,7 @@ Focus Mode v2 now prioritizes a single dominant score surface in the logging sta
 - Existing Load into Plan Builder remains available.
 
 
-## v5.9.5 notes
+## v5.9.6 notes
 - Converts ETU from fatigue/cap logic into a training rotation layer.
 - Disables ETU caps/trimming/warnings globally; duration remains the hard cap.
 - Penalizes exact routine repeats over a 2-3 day freshness window.
