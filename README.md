@@ -1,10 +1,10 @@
 # Snooker Practice PWA
 
-Version: 5.9.10-prediction-layer-alignment
+Version: 5.9.11-prediction-display-cleanup
 
 
 
-## v5.9.10 — Prediction Layer Alignment
+## v5.9.11 — Prediction Display Cleanup
 
 - Aligned Predictions with the rotation-first ETU model.
 - Reframed ETU as development exposure / rotation context, not a daily or weekly cap.
