@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snooker Practice Log 5.9.2</title>
+  <title>Snooker Practice Log 5.9.5</title>
   <meta name="theme-color" content="#102b22" id="themeColorMeta" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
-  <script src="early-theme.js?v=5.9.2"></script>
-  <link rel="manifest" href="manifest.json?v=5.9.2" />
-  <link rel="stylesheet" href="styles.css?v=5.9.2" />
-  <link rel="icon" href="icon.svg?v=5.9.2" type="image/svg+xml" />
+  <script src="early-theme.js?v=5.9.5"></script>
+  <link rel="manifest" href="manifest.json?v=5.9.5" />
+  <link rel="stylesheet" href="styles.css?v=5.9.5" />
+  <link rel="icon" href="icon.svg?v=5.9.5" type="image/svg+xml" />
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Snooker Practice Log</h1>
-      <p>5.9.2 · Build 2026-05-30 15:05 CEST — Routine Family / Alternative Linkage</p>
+      <p>5.9.5 · Build 2026-05-30 16:20 CEST — Training Rotation Layer</p>
     </div>
     <button id="installBtn" class="secondary hidden">Install App</button>
   </header>
@@ -216,16 +216,16 @@
               </select>
             </div>
             <div>
-              <label>ETU / load layer <button type="button" class="stat-help" data-action="field-help" data-help-key="smartBuilderEtuLayer">?</button></label>
+              <label>ETU / rotation layer <button type="button" class="stat-help" data-action="field-help" data-help-key="smartBuilderEtuLayer">?</button></label>
               <select id="smartBuilderEtuLayer">
-                <option value="on" selected>Use ETU load layer</option>
-                <option value="off">Bypass ETU layer</option>
+                <option value="on" selected>Use ETU / rotation layer</option>
+                <option value="off">Bypass ETU / rotation layer</option>
               </select>
               <label class="inline-check" style="margin-top:8px;display:flex;align-items:center;gap:8px;font-weight:700;">
                 <input id="smartBuilderEtuConstraints" type="checkbox" />
-                Enforce ETU caps / constraints
+                Legacy ETU caps disabled
               </label>
-              <p class="muted small" style="margin-top:4px;">Unchecked: ETU remains visible for audit, but Smart Builder will not trim, reject, or warn because of ETU caps. Time limit still applies.</p>
+              <p class="muted small" style="margin-top:4px;">v5.9.5: ETU caps are disabled. ETU now steers 2–3 day routine rotation and alternative selection; time limit remains the hard cap.</p>
               <label style="margin-top:10px;display:block;">Same-day exposure guard</label>
               <select id="smartBuilderSameDayGuard">
                 <option value="allow">Allow repeats today</option>
@@ -240,6 +240,7 @@
           <div class="row primary-action-row">
             <button id="generateAdaptiveSessionBtn" type="button" class="primary-start-btn" data-action="build-smart-session" onclick="window.SnookerSmartSessionBuild && window.SnookerSmartSessionBuild(event)">Build Smart Session</button>
             <button id="loadAdaptiveSessionBtn" type="button" class="secondary">Load into Plan Builder</button>
+            <button id="saveStartAdaptiveSessionBtn" type="button" class="primary-start-btn" data-action="save-start-smart-session">Save &amp; Start Focus V2</button>
           </div>
           <div id="adaptiveEngineOutput" class="orchestrator-box">Build a smart session to see the recommended training structure.</div>
           <div id="orchestratorBox" class="orchestrator-box hidden">Legacy orchestrator output is hidden in the unified builder.</div>
@@ -1855,7 +1856,7 @@
     <span>Local-first PWA. No account. No backend. Export JSON backups regularly.</span>
   </footer>
 
-  <script type="module" src="app.js?v=5.9.2"></script>
+  <script type="module" src="app.js?v=5.9.5"></script>
 </body>
 
 

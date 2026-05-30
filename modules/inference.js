@@ -219,7 +219,8 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
       daysGap: Math.max(0, Number(row && row.daysGap) || 0),
       fatigue: Number(row && row.fatigue),
       focus: Number(row && row.focus),
-      confidence: Number(row && row.confidence)
+      confidence: Number(row && row.confidence),
+      proximityWeight: clampNumber(row && row.proximityWeight, 0.15, 1, 1)
     }))
     .filter(row => Number.isFinite(row.score));
 
@@ -255,7 +256,8 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
     const contextNoiseMultiplier = Math.max(0.25, 1 + fatiguePenalty + focusNoise + confidenceNoise);
     const gapInflation = Math.min(5, Math.max(0, row.daysGap || 0)) * processNoiseBase;
     P = Number.isFinite(P) ? P + processNoiseBase + gapInflation : lastValidP + processNoiseBase + gapInflation;
-    const R = Math.max(0.0001, baseObservationNoise * contextNoiseMultiplier);
+    const proximityNoiseMultiplier = 1 / Math.max(0.15, Number(row.proximityWeight || 1));
+    const R = Math.max(0.0001, baseObservationNoise * contextNoiseMultiplier * proximityNoiseMultiplier);
     const denominator = P + R;
     const K = Number.isFinite(denominator) && denominator > 0 ? P / denominator : 0;
     const score = Number.isFinite(row.score) ? row.score : lastValidX;
@@ -270,7 +272,7 @@ export function kalmanCurrentFormEstimate(observations = [], options = {}) {
     }
     const uncertainty = Math.sqrt(Math.max(Number.isFinite(P) ? P : lastValidP, 0));
     const observationNoise = Math.sqrt(Math.max(Number.isFinite(R) ? R : baseObservationNoise, 0));
-    trajectory.push({state: x, uncertainty, gain: Number.isFinite(K) ? K : 0, observationNoise, score});
+    trajectory.push({state: x, uncertainty, gain: Number.isFinite(K) ? K : 0, observationNoise, score, proximityWeight: row.proximityWeight});
   });
 
   const current = Number.isFinite(trajectory.length ? trajectory[trajectory.length - 1].state : x) ? (trajectory.length ? trajectory[trajectory.length - 1].state : x) : lastValidX;

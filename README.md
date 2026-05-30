@@ -1,9 +1,12 @@
 # Snooker Practice PWA
 
-Version: 5.9.2-routine-family-alternative-linkage
+Version: 5.9.5-training-rotation-layer
 
 
-## v5.9.2 — Routine Family / Alternative Linkage
+## v5.9.5 — Training Rotation Layer
+
+Adds proximity-adjusted Bayesian evidence so close same-day sessions are treated as partially dependent observations in current-form, target-range and success-rate Bayesian calculations.
+
 
 - Adds Smart Builder same-day exposure guard with Allow / Avoid / Do not allow modes.
 - Uses all logs from the current training day, not only the active session.
@@ -127,9 +130,24 @@ Focus Mode v2 now prioritizes a single dominant score surface in the logging sta
 - Time/duration limit remains enforced.
 
 
-## v5.9.2 — Routine Family / Alternative Linkage
+## v5.9.3 — Save & Start Smart Session
 
 - Adds routine-family metadata in Routine Console.
 - Adds variant role, alternative-for, linked alternatives and progression siblings.
 - Same-day exposure guard now blocks exact repeats but boosts linked alternatives when available.
 - Preserves v5.9.1 same-day guard behavior for unlinked routines.
+
+
+## v5.9.3 — Save & Start Smart Session
+
+- Added Smart Builder Save & Start Focus V2 flow.
+- Smart sessions are auto-named and saved as plans before launch.
+- Saved plan records include smartSessionMeta for source/template/goal context.
+- Existing Load into Plan Builder remains available.
+
+
+## v5.9.5 notes
+- Converts ETU from fatigue/cap logic into a training rotation layer.
+- Disables ETU caps/trimming/warnings globally; duration remains the hard cap.
+- Penalizes exact routine repeats over a 2-3 day freshness window.
+- Lightly penalizes same-family/domain repetition and boosts linked alternatives.

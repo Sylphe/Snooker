@@ -53,6 +53,55 @@ function bayesianEffectiveAttempts(log) {
 
 export const BAYESIAN_DECAY_HALF_LIFE_DAYS = 30;
 
+export function bayesianProximityWeights(logs = [], options = {}) {
+  const sorted = (logs || [])
+    .map((log, originalIndex) => ({ log, originalIndex, t: Date.parse(log?.createdAt || 0) }))
+    .filter(row => Number.isFinite(row.t))
+    .sort((a, b) => a.t - b.t);
+  const weightsByIndex = new Map();
+  let previous = null;
+  let sameDayClusters = 0;
+  let closeSessionLinks = 0;
+  const sameSessionFactor = Number.isFinite(Number(options.sameSessionFactor)) ? Number(options.sameSessionFactor) : 0.38;
+  const twoHourFactor = Number.isFinite(Number(options.twoHourFactor)) ? Number(options.twoHourFactor) : 0.48;
+  const fourHourFactor = Number.isFinite(Number(options.fourHourFactor)) ? Number(options.fourHourFactor) : 0.65;
+  const sameDayFactor = Number.isFinite(Number(options.sameDayFactor)) ? Number(options.sameDayFactor) : 0.82;
+  const dayKey = t => {
+    const d = new Date(t);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+  sorted.forEach(row => {
+    let factor = 1;
+    if (previous) {
+      const hoursGap = Math.max(0, (row.t - previous.t) / 3600000);
+      const sameDay = dayKey(row.t) === dayKey(previous.t);
+      const sameSession = row.log?.sessionId && previous.log?.sessionId && row.log.sessionId === previous.log.sessionId;
+      if (sameSession) { factor = Math.min(factor, sameSessionFactor); closeSessionLinks += 1; }
+      else if (sameDay && hoursGap <= 2) { factor = Math.min(factor, twoHourFactor); closeSessionLinks += 1; }
+      else if (sameDay && hoursGap <= 4) { factor = Math.min(factor, fourHourFactor); closeSessionLinks += 1; }
+      else if (sameDay) { factor = Math.min(factor, sameDayFactor); sameDayClusters += 1; }
+    }
+    weightsByIndex.set(row.originalIndex, Math.max(0.15, Math.min(1, factor)));
+    previous = row;
+  });
+  const weights = (logs || []).map((_, index) => weightsByIndex.get(index) ?? 1);
+  const effectiveN = weights.reduce((a, b) => a + b, 0);
+  const rawN = (logs || []).length;
+  return {
+    weights,
+    rawN,
+    effectiveN,
+    independenceRatio: rawN ? effectiveN / rawN : 0,
+    closeSessionLinks,
+    sameDayClusters,
+    label: rawN ? `${effectiveN.toFixed(1)} effective observations from ${rawN} logs` : "No observations",
+    detail: closeSessionLinks || sameDayClusters
+      ? "Same-day and close-session logs are down-weighted because they are not fully independent evidence."
+      : "Logs are treated as broadly independent for Bayesian evidence weighting."
+  };
+}
+
+
 export function aggregateSuccessRateLogs(logs, options = {}) {
   const nowRaw = Number(options.now || Date.now());
   const now = Number.isFinite(nowRaw) ? nowRaw : Date.now();
@@ -60,7 +109,9 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
   const halfLifeDays = Number.isFinite(halfLifeRaw) && halfLifeRaw > 0 ? halfLifeRaw : BAYESIAN_DECAY_HALF_LIFE_DAYS;
   const cutoffRaw = Number(options.decayCutoffDays ?? (halfLifeDays * 8));
   const decayCutoffDays = Number.isFinite(cutoffRaw) && cutoffRaw > 0 ? cutoffRaw : halfLifeDays * 8;
-  return (logs || []).reduce((acc, l) => {
+  const proximity = bayesianProximityWeights(logs || [], options.proximity || {});
+  return (logs || []).reduce((acc, l, index) => {
+    const proximityWeight = Math.max(0.15, Math.min(1, Number(proximity.weights?.[index] ?? 1)));
     const attempts = bayesianEffectiveAttempts(l);
     const scoreRaw = Number(l?.score ?? 0);
     const score = Number.isFinite(scoreRaw) ? Math.max(0, scoreRaw) : 0;
@@ -70,16 +121,18 @@ export function aggregateSuccessRateLogs(logs, options = {}) {
       const daysOld = Math.max(0, (now - safeDate) / 86400000);
       if (daysOld > decayCutoffDays) return acc;
       const weightRaw = Math.pow(0.5, daysOld / halfLifeDays);
-      const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : 1;
+      const decayWeight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : 1;
+      const weight = decayWeight * proximityWeight;
       acc.attempts += attempts * weight;
       acc.successes += Math.min(score, attempts) * weight;
       acc.rawAttempts += attempts;
       acc.rawSuccesses += Math.min(score, attempts);
       acc.sessions += 1;
       acc.effectiveWeight += weight;
+      acc.proximityEffectiveN += proximityWeight;
     }
     return acc;
-  }, {successes:0, attempts:0, rawSuccesses:0, rawAttempts:0, sessions:0, effectiveWeight:0, halfLifeDays, decayCutoffDays});
+  }, {successes:0, attempts:0, rawSuccesses:0, rawAttempts:0, sessions:0, effectiveWeight:0, proximityEffectiveN:0, proximity, halfLifeDays, decayCutoffDays});
 }
 
 export function bayesianReliabilityLabel(posterior) {
