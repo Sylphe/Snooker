@@ -1,7 +1,18 @@
 # Snooker Practice PWA
 
-Version: 5.9.9-routine-duplicate-usage-lineage-audit
+Version: 5.9.10-prediction-layer-alignment
 
+
+
+## v5.9.10 — Prediction Layer Alignment
+
+- Aligned Predictions with the rotation-first ETU model.
+- Reframed ETU as development exposure / rotation context, not a daily or weekly cap.
+- Renamed recovery/load modules to readiness/session-style and Training Rotation & Exposure.
+- Split domain displays into direct evidence vs inferred level context.
+- Prevented domains with zero direct logs from showing as high direct-evidence domains.
+- Reconciled benchmark forecast wording to use one roadmap ETU estimator.
+- Added explanation that positive current form does not automatically equal benchmark readiness.
 
 ## v5.9.9 — Routine Duplicate Usage / Lineage Audit
 
