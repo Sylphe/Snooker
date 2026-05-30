@@ -1,8 +1,8 @@
 # Snooker Practice PWA
 
-Version: 5.8.8-routine-console-benchmark-validation-fix
+Version: 5.8.9-smart-builder-etu-constraint-toggle
 
-## v5.8.8 — Routine Console Benchmark Validation Fix
+## v5.8.9 — Smart Builder ETU Constraint Toggle
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.
@@ -110,3 +110,9 @@ This release keeps the original Focus Mode untouched and updates only the parall
 ## v5.7.77O — Focus Mode v2 Telemetry Compression + Smart HUD Simplification
 
 Focus Mode v2 now prioritizes a single dominant score surface in the logging state. Duplicate break/HUD cards are suppressed, live telemetry is compressed, and the logging hierarchy is simplified around current score → input controls → save/next. Existing Focus Mode remains untouched.
+
+
+## v5.8.9 — Smart Builder ETU Constraint Toggle
+- Adds separate Smart Builder checkbox: Enforce ETU caps / constraints.
+- Default is off: ETU remains visible for audit, but no ETU trimming, rejection, or ETU cap warnings are applied.
+- Time/duration limit remains enforced.

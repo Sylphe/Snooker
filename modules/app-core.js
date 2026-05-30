@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.8";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.8.9";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.8.9";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.8.8";
+} from "./utils.js?v=5.8.9";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.8.8";
+} from "./settings.js?v=5.8.9";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.8.8";
+} from "./analytics.js?v=5.8.9";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -72,7 +72,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.8.8";
+} from "./bayesian.js?v=5.8.9";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -81,7 +81,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.8.8";
+} from "./session.js?v=5.8.9";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -89,7 +89,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.8.8";
+} from "./pressure.js?v=5.8.9";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -101,7 +101,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.8.8";
+} from "./recommendations.js?v=5.8.9";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -115,7 +115,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.8.8";
+} from "./store.js?v=5.8.9";
 
 
 
@@ -8758,6 +8758,9 @@ function smartBuilderEtuSessionBudgetPolicySafe(template, effectiveGoal="stabili
     const goal = String(effectiveGoal || "stability").toLowerCase();
     const scale = Math.max(0.75, Math.min(1.35, Math.sqrt(Math.max(30, Number(targetMinutes || 60)) / 60)));
     let min = 2.0, max = 3.6, label = "Balanced ETU budget";
+    if (!smartBuilderEtuConstraintsEnabled()) {
+      return {label:"ETU constraints disabled — audit only", min:0, max:999, target:0, scale, disabled:true};
+    }
     if (smartBuilderIsOverrideGoalSafe(goal) || String(template?.templateSelectionSource || "") === "override") { min = 0; max = 999; label = "Override mode — ETU cap disabled except duration"; }
     else if (tpl === "recovery" || goal === "recovery") { min = 1.2; max = 2.4; label = "Recovery ETU budget"; }
     else if (tpl === "consolidation" || goal === "stability") { min = 1.8; max = 3.2; label = "Consolidation ETU budget"; }
@@ -8834,6 +8837,9 @@ function smartBuilderApplyEtuSessionBudgetSafe(blocks, policy) {
   try {
     let out = (blocks || []).map(block => ({...block, picks:[...(block.picks || [])]})).filter(b => b.picks.length);
     const before = smartBuilderBlocksEtuUsageSafe(out);
+    if (!smartBuilderEtuConstraintsEnabled() || policy?.disabled) {
+      return {blocks:out, before, after:before, constraintViolated:false, policy:{...(policy || {}), disabled:true, max:999, min:0, label:(policy?.label || "ETU constraints disabled — audit only")}, reasons:["ETU caps/constraints disabled: no ETU trimming applied; duration limit still applies"]};
+    }
     const max = Number(policy?.max || 0);
     const reasons = [];
     let guard = 0;
@@ -8878,12 +8884,14 @@ function renderSmartBuilderEtuSessionBudgetSafe(plan) {
     const total = Number(b.after?.total ?? b.before?.total ?? 0);
     const min = Number(b.policy.min || 0);
     const max = Number(b.policy.max || 0);
-    const status = total < min ? "below target load" : total <= max ? "inside ETU budget" : "above ETU budget";
-    const cls = total <= max ? "adaptive-ok" : "adaptive-risk";
+    const disabled = b.policy?.disabled || !smartBuilderEtuConstraintsEnabled();
+    const status = disabled ? "ETU constraints disabled" : total < min ? "below target load" : total <= max ? "inside ETU budget" : "above ETU budget";
+    const cls = disabled || total <= max ? "adaptive-ok" : "adaptive-risk";
     const subtypeText = formatEtuSubtypeProfileSafe(b.after?.subtypes || b.before?.subtypes || {});
     const sourceBadge = renderEtuSourceBadgeSafe(b.after?.etuSource || b.before?.etuSource || "estimated_from_routine", {long:true});
     const blocks = (b.after?.byBlock || []).map(x => `${x.name}: ${numText(x.etu)} ETU [${etuSourceMetaSafe(x.etuSource || "estimated_from_routine").short}]${x.subtypes ? ` (${formatEtuSubtypeProfileSafe(x.subtypes)})` : ""}`).join(" · ");
-    return `<div class="adaptive-rationale ${cls}"><strong>ETU session budget:</strong> ${escapeHtml(b.policy.label || "ETU budget")} · target ${numText(min)}–${numText(max)} ETU · planned ${numText(total)} ETU · ${escapeHtml(status)} · ${sourceBadge}.${subtypeText ? `<br><span class="muted small"><strong>Subtype mix:</strong> ${escapeHtml(subtypeText)}</span>` : ""}${blocks ? `<br><span class="muted small">${escapeHtml(blocks)}</span>` : ""}</div>`;
+    const budgetText = disabled ? "audit only · no ETU cap applied" : `target ${numText(min)}–${numText(max)} ETU`;
+    return `<div class="adaptive-rationale ${cls}"><strong>ETU session budget:</strong> ${escapeHtml(b.policy.label || "ETU budget")} · ${budgetText} · planned ${numText(total)} ETU · ${escapeHtml(status)} · ${sourceBadge}.${subtypeText ? `<br><span class="muted small"><strong>Subtype mix:</strong> ${escapeHtml(subtypeText)}</span>` : ""}${blocks ? `<br><span class="muted small">${escapeHtml(blocks)}</span>` : ""}</div>`;
   } catch (_) { return ""; }
 }
 
@@ -8932,7 +8940,7 @@ function smartBuilderRecommendationSanityLayerSafe(plan) {
     const plannedMinutes = Number(plan?.estimatedMinutes || adaptivePlanExpectedMinutes(blocks));
     const durationCap = Number(plan?.durationDiscipline?.policy?.maxMinutes || 0);
     const plannedEtu = Number(plan?.etuSessionBudget?.after?.total || smartBuilderBlocksEtuUsageSafe(blocks).total || 0);
-    const etuCap = Number(plan?.etuSessionBudget?.policy?.max || 0);
+    const etuCap = smartBuilderEtuConstraintsEnabled() ? Number(plan?.etuSessionBudget?.policy?.max || 0) : 0;
     if (durationCap && plannedMinutes > durationCap + 1) add("risk", "Duration cap breach", `Planned ${formatDurationHuman(plannedMinutes)} exceeds ${formatDurationHuman(durationCap)} cap.`);
     if (etuCap && plannedEtu > etuCap + 0.05) add("risk", "ETU budget breach", `Planned ${numText(plannedEtu)} ETU exceeds ${numText(etuCap)} ETU cap.`);
     if (isRecovery) {
@@ -8996,7 +9004,7 @@ function smartBuilderContradictionEngineSafe(plan) {
     const isRecovery = templateKey === "recovery" || effectiveGoal === "recovery";
     const etuUsage = plan?.etuSessionBudget?.after || smartBuilderBlocksEtuUsageSafe(blocks);
     const plannedEtu = Number(etuUsage?.total || 0);
-    const etuCap = Number(plan?.etuSessionBudget?.policy?.max || template?.maxEtu || 0);
+    const etuCap = smartBuilderEtuConstraintsEnabled() ? Number(plan?.etuSessionBudget?.policy?.max || template?.maxEtu || 0) : 0;
     const subtype = etuUsage?.subtypes || blankEtuSubtypeProfileSafe();
     const pressureRows = rows.filter(x => smartBuilderPressureLikeStateSafe(x.state, x.block));
     const benchmarkRows = rows.filter(x => smartBuilderIsBenchmarkTestRoutineSafe(x.state));
@@ -9042,7 +9050,7 @@ function smartBuilderContradictionEngineSafe(plan) {
     if (highRiskRows.length > Number(template.maxHighRiskDrills ?? 99)) add("risk", "risk_stack", "Confidence/cognitive risk stacking", `${highRiskRows.length} high-risk drills exceeds the ${template.maxHighRiskDrills} template cap.`, "Reduce high cognitive or confidence-risk items.");
     if (pressureRows.length > Number(template.maxPressureDrills ?? 99)) add("risk", "pressure_cap_breach", "Pressure-drill cap breach", `${pressureRows.length} pressure-like drill${pressureRows.length === 1 ? "" : "s"} exceeds the ${template.maxPressureDrills} cap.`, "Cap pressure work and move extra pressure to another session.");
     if (explorationDensity > 0.62 && String(plan?.orchestratorStrategy || "balanced") !== "explore" && templateKey !== "acquisition") add("watch", "exploration_overload", "Exploration overload", `${Math.round(explorationDensity * 100)}% of drills are acquisition/pressure/benchmark-oriented without an exploration template.`, "Reduce uncertain picks or switch the template to acquisition intentionally.");
-    if (pressureDensity >= 0.45 && benchmarkDensity >= 0.30 && plannedEtu > Math.max(2.8, etuCap * 0.85 || 2.8)) add("risk", "pressure_benchmark_etu_stack", "Pressure + benchmark + ETU stack", "Pressure density, benchmark density and total ETU are all elevated in the same generated session.", "Split benchmark testing from pressure training or reduce volume.");
+    if (smartBuilderEtuConstraintsEnabled() && pressureDensity >= 0.45 && benchmarkDensity >= 0.30 && plannedEtu > Math.max(2.8, etuCap * 0.85 || 2.8)) add("risk", "pressure_benchmark_etu_stack", "Pressure + benchmark + ETU stack", "Pressure density, benchmark density and total ETU are all elevated in the same generated session.", "Split benchmark testing from pressure training or reduce volume.");
 
     const status = smartBuilderContradictionStatusSafe(findings);
     return {
@@ -9874,6 +9882,25 @@ function setSmartBuilderEtuLayerMode(value) {
 function smartBuilderEtuLayerEnabled() {
   return getSmartBuilderEtuLayerMode() !== "off";
 }
+function getSmartBuilderEtuConstraintMode() {
+  try {
+    const el = $("smartBuilderEtuConstraints");
+    const stored = localStorage.getItem("snooker_smart_builder_etu_constraints");
+    if (el) return el.checked ? "on" : "off";
+    return stored === "on" ? "on" : "off";
+  } catch (_) { return "off"; }
+}
+function setSmartBuilderEtuConstraintMode(value) {
+  try {
+    const mode = value === true || String(value || "").toLowerCase() === "on" ? "on" : "off";
+    localStorage.setItem("snooker_smart_builder_etu_constraints", mode);
+    if ($("smartBuilderEtuConstraints")) $("smartBuilderEtuConstraints").checked = mode === "on";
+    return mode;
+  } catch (_) { return "off"; }
+}
+function smartBuilderEtuConstraintsEnabled() {
+  return getSmartBuilderEtuConstraintMode() === "on";
+}
 function blankSmartBuilderLayerModifiers() {
   return {etuLoad:0, readiness:0, benchmark:0, prediction:0, lastSession:0, template:0, sportDiversity:0, transferGraph:0};
 }
@@ -10631,7 +10658,7 @@ function smartBuilderTemplateSessionComplianceSafe(plan) {
     if (pressureRows.length > Number(template.maxPressureDrills ?? 99)) add("risk", "Template pressure cap", `${pressureRows.length} pressure-like drills exceeds ${template.maxPressureDrills} cap.`);
     if (highRiskRows.length > Number(template.maxHighRiskDrills ?? 99)) add("watch", "Template risk stacking", `${highRiskRows.length} high cognitive/confidence-risk drills exceeds ${template.maxHighRiskDrills} cap.`);
     if (recoveryRows.length < Number(template.requiredRecoveryDrills || 0)) add("watch", "Template recovery floor", `${recoveryRows.length} recovery-compatible drills vs ${template.requiredRecoveryDrills} required.`);
-    if (etuTotal > Number(template.maxEtu || 999)) add("risk", "Template ETU cap", `${numText(etuTotal)} ETU exceeds ${numText(template.maxEtu)} template cap.`);
+    if (smartBuilderEtuConstraintsEnabled() && etuTotal > Number(template.maxEtu || 999)) add("risk", "Template ETU cap", `${numText(etuTotal)} ETU exceeds ${numText(template.maxEtu)} template cap.`);
     if (Number(usage.switches || 0) > Number(template.maxSwitchingCost || 999)) add("watch", "Template switching cap", `${usage.switches} switching cost exceeds ${template.maxSwitchingCost} cap.`);
     (template.requiredBlockTypes || []).forEach(bt => { if (!blockTypes.has(bt)) add("info", "Template block structure", `${bt} block not present after trimming/fallback.`); });
     return {template, findings, benchmarkDensity:Math.round(benchmarkDensity * 100) / 100, pressureCount:pressureRows.length, highRiskCount:highRiskRows.length, recoveryCount:recoveryRows.length, etuTotal, switchingCost:Number(usage.switches || 0)};
@@ -10697,7 +10724,7 @@ function smartBuilderEnforceTemplateHardCapsSafe(blocks, ranked=[], template=nul
       if (!changed) break;
     }
     out = out.filter(b => (b.picks || []).length);
-    const maxEtu = Number(policy?.max || t.maxEtu || 0);
+    const maxEtu = smartBuilderEtuConstraintsEnabled() ? Number(policy?.max || t.maxEtu || 0) : 0;
     const beforeEtu = smartBuilderBlocksEtuUsageSafe(out);
     if (maxEtu > 0 && beforeEtu.total > maxEtu) {
       const trimmed = smartBuilderApplyEtuSessionBudgetSafe(out, {label:"Template hard-cap ETU budget", max:maxEtu, min:Math.min(maxEtu, Number(policy?.min || 0)), target:Math.min(maxEtu, Number(policy?.target || maxEtu)), hardCapMode:true});
@@ -10716,7 +10743,8 @@ function renderSmartBuilderFormalTemplateSafe(template) {
     const t = smartBuilderFormalizeTemplateSafe(template || {});
     const domains = (t.allowedDomains || []).slice(0,5).map(predictionDomainLabelSafe).join(", ") || "all core domains";
     const forbidden = (t.forbiddenDomains || []).map(predictionDomainLabelSafe).join(", ") || "none";
-    return `<details class="smart-builder-why-details template-schema-card"><summary>Template schema constraints</summary><div class="adaptive-rationale"><strong>${escapeHtml(t.label || "Session template")}</strong> · max ETU ${numText(t.maxEtu)} · max benchmark density ${Math.round(Number(t.maxBenchmarkDensity || 0) * 100)}% · max volatility ${escapeHtml(t.maxVolatility || "high")} · max switching ${numText(t.maxSwitchingCost)}.</div><div class="adaptive-rationale muted small"><strong>Allowed:</strong> ${escapeHtml(domains)} · <strong>Forbidden:</strong> ${escapeHtml(forbidden)} · <strong>Recovery floor:</strong> ${numText(t.requiredRecoveryDrills || 0)} drill(s) · <strong>Pressure cap:</strong> ${numText(t.maxPressureDrills)} drill(s).</div></details>`;
+    const etuText = smartBuilderEtuConstraintsEnabled() ? `max ETU ${numText(t.maxEtu)}` : "ETU caps disabled";
+    return `<details class="smart-builder-why-details template-schema-card"><summary>Template schema constraints</summary><div class="adaptive-rationale"><strong>${escapeHtml(t.label || "Session template")}</strong> · ${etuText} · max benchmark density ${Math.round(Number(t.maxBenchmarkDensity || 0) * 100)}% · max volatility ${escapeHtml(t.maxVolatility || "high")} · max switching ${numText(t.maxSwitchingCost)}.</div><div class="adaptive-rationale muted small"><strong>Allowed:</strong> ${escapeHtml(domains)} · <strong>Forbidden:</strong> ${escapeHtml(forbidden)} · <strong>Recovery floor:</strong> ${numText(t.requiredRecoveryDrills || 0)} drill(s) · <strong>Pressure cap:</strong> ${numText(t.maxPressureDrills)} drill(s).</div></details>`;
   } catch (_) { return ""; }
 }
 function renderSmartBuilderTemplateComplianceSafe(plan) {
@@ -11014,7 +11042,7 @@ function smartBuilderOptimizationConstraintPenaltySafe(blocks, context={}) {
     const target = Number(context.targetMinutes || duration || 60);
     const usage = smartBuilderBlocksEtuUsageSafe ? smartBuilderBlocksEtuUsageSafe(blocks) : null;
     const etuTotal = Number(usage?.total || 0);
-    const etuCap = Number(context.etuCap || template?.maxEtu || target / 18 || 999);
+    const etuCap = smartBuilderEtuConstraintsEnabled() ? Number(context.etuCap || template?.maxEtu || target / 18 || 999) : 999;
     const benchmarkCount = rows.filter(x => smartBuilderIsBenchmarkTestRoutineSafe(x.state)).length;
     const pressureCount = rows.filter(x => smartBuilderPressureLikeStateSafe(x.state, x.block)).length;
     const highVolCount = rows.filter(x => smartBuilderOptimizationVolatilityScoreSafe(x.state) >= 3).length;
@@ -11023,7 +11051,7 @@ function smartBuilderOptimizationConstraintPenaltySafe(blocks, context={}) {
     const topShare = Math.max(0, ...Array.from(domains.values()).map(v => v / total));
     let penalty = 0;
     penalty += Math.max(0, Math.abs(duration - target) - Math.max(5, target * 0.08)) * 0.35;
-    penalty += Math.max(0, etuTotal - etuCap) * 14;
+    if (smartBuilderEtuConstraintsEnabled()) penalty += Math.max(0, etuTotal - etuCap) * 14;
     penalty += Math.max(0, benchmarkCount / total - Number(template?.maxBenchmarkDensity ?? 1)) * 60;
     penalty += Math.max(0, pressureCount - Number(template?.maxPressureDrills ?? 99)) * 9;
     const maxVol = String(template?.maxVolatility || "high");
@@ -11050,7 +11078,7 @@ function smartBuilderOptimizeSessionCompositionSafe(plan) {
   try {
     const template = smartBuilderFormalizeTemplateSafe(plan?.sessionTemplate || {});
     const policy = plan?.etuSessionBudget?.policy || smartBuilderEtuSessionBudgetPolicySafe?.(template, plan?.effectiveGoal, plan?.targetMinutes, "normal") || {};
-    const context = {...plan, template, etuCap:Number(policy?.max || template?.maxEtu || 999), durationCap:Number(plan?.durationDiscipline?.policy?.maxMinutes || plan?.targetMinutes || 999)};
+    const context = {...plan, template, etuCap:smartBuilderEtuConstraintsEnabled() ? Number(policy?.max || template?.maxEtu || 999) : 999, durationCap:Number(plan?.durationDiscipline?.policy?.maxMinutes || plan?.targetMinutes || 999)};
     let blocks = smartBuilderCloneBlocksForOptimizationSafe(plan?.blocks || []);
     const ranked = Array.isArray(plan?.ranked) ? plan.ranked : [];
     const before = smartBuilderOptimizationObjectiveSafe(blocks, context);
@@ -11075,7 +11103,7 @@ function smartBuilderOptimizeSessionCompositionSafe(plan) {
             const trial = smartBuilderCloneBlocksForOptimizationSafe(blocks);
             trial[bi].picks[pi] = normalizeAdaptivePick(cand, Math.max(1, Number(oldPick.reps || 1)));
             const trialEtu = smartBuilderBlocksEtuUsageSafe(trial);
-            if (Number(context.etuCap || 0) > 0 && trialEtu.total > Number(context.etuCap || 0)) continue;
+            if (smartBuilderEtuConstraintsEnabled() && Number(context.etuCap || 0) > 0 && trialEtu.total > Number(context.etuCap || 0)) continue;
             if (Number(context.durationCap || 0) > 0 && adaptivePlanExpectedMinutes(trial) > Number(context.durationCap || 0)) continue;
             const obj = smartBuilderOptimizationObjectiveSafe(trial, context);
             const gain = obj.score - current.score;
@@ -12679,13 +12707,15 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
   if (el) el.addEventListener("change", () => { if (id !== "compareToggle") saveABCompareCustomDatesSafe(); renderABComparison(); });
 });
 
-["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer"].forEach(id => {
+["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer","smartBuilderEtuConstraints"].forEach(id => {
   safeOn(id, "change", event => {
     if (id === "smartBuilderEtuLayer") setSmartBuilderEtuLayerMode(event?.target?.value || "on");
+    if (id === "smartBuilderEtuConstraints") setSmartBuilderEtuConstraintMode(event?.target?.checked ? "on" : "off");
     if ($("adaptiveEngineOutput")) renderAdaptiveSession();
   });
 });
 if ($("smartBuilderEtuLayer")) $("smartBuilderEtuLayer").value = getSmartBuilderEtuLayerMode();
+if ($("smartBuilderEtuConstraints")) $("smartBuilderEtuConstraints").checked = getSmartBuilderEtuConstraintMode() === "on";
 
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
 safeOn("statsDateSelect", "change", renderStats);
@@ -19566,7 +19596,7 @@ FIELD_HELP.smartBuilderEtuLayer = {
   title:"ETU / load layer",
   body:`
   <p><strong>Use ETU load layer:</strong> lets recent training load, domain ETU balance and readiness modify the dose, intensity and session structure.</p>
-  <p><strong>Bypass ETU layer:</strong> removes ETU/load modifiers while keeping Bayesian ranking, strategy, session-template constraints and normal drill evidence.</p>
+  <p><strong>Bypass ETU layer:</strong> removes ETU/load modifiers while keeping Bayesian ranking, strategy, session-template constraints and normal drill evidence.</p><p><strong>Enforce ETU caps / constraints:</strong> when unchecked, ETU remains visible for audit only. Smart Builder will not trim, reject, or flag a session because of ETU caps. The selected time limit is still enforced.</p>
   <div class="example"><strong>Use bypass</strong> when you want to audit whether ETU is making the recommendation too conservative or too recovery-biased.</div>`
 };
 
@@ -19651,7 +19681,7 @@ FIELD_HELP.adaptiveSessionGoal = {
 };
 FIELD_HELP.adaptiveSessionTemplate = {
   title:"Session template",
-  body:`<p><strong>What it controls:</strong> the hard composition rules for Smart Builder: benchmark density, max ETU, volatility cap, pressure cap, recovery floor, domain admissibility and switching cost.</p><p><strong>Decision logic:</strong> Session goal tells the ranking engine what you want to achieve. Session template tells the builder what type of session is allowed. If template is Auto, readiness and ETU can override the visible goal; if you force Recovery, the recovery template should dominate composition even when the goal is not recovery.</p><div class="example"><strong>Example:</strong> choose goal Progression + template Recovery only when you want light acquisition. Choose goal Recovery + template Recovery for a true deload session.</div>`
+  body:`<p><strong>What it controls:</strong> the hard composition rules for Smart Builder: benchmark density, max ETU, volatility cap, pressure cap, recovery floor, domain admissibility and switching cost.</p><p><strong>Decision logic:</strong> Session goal tells the ranking engine what you want to achieve. Session template tells the builder what type of session is allowed. If template is Auto, readiness and ETU can override the visible goal; if you force Recovery, the recovery template should dominate composition even when the goal is not recovery.</p><p><strong>Current ETU override:</strong> if “Enforce ETU caps / constraints” is unchecked, template ETU caps are ignored. Other template constraints remain active unless separately changed.</p><div class="example"><strong>Example:</strong> choose goal Progression + template Recovery only when you want light acquisition. Choose goal Recovery + template Recovery for a true deload session.</div>`
 };
 FIELD_HELP.adaptiveStrictness = {
   title:"Adaptive Engine — Strictness",
@@ -22614,7 +22644,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.8.8</strong><span>Metadata Validation UX Patch</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Benchmark mode help, benchmark-weight normalization, scoring-rule editing, scroll-position preservation, and corrected duplicate/self-transfer validation checks.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.8.9</strong><span>Smart Builder ETU Constraint Toggle</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Adds a separate Smart Builder ETU cap/constraint toggle. ETU can now remain visible for audit while all ETU trimming, cap rejection and ETU cap warnings are disabled.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
