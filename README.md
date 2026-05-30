@@ -1,8 +1,17 @@
 # Snooker Practice PWA
 
-Version: 5.8.9-smart-builder-etu-constraint-toggle
+Version: 5.9.2-routine-family-alternative-linkage
 
-## v5.8.9 — Smart Builder ETU Constraint Toggle
+
+## v5.9.2 — Routine Family / Alternative Linkage
+
+- Adds Smart Builder same-day exposure guard with Allow / Avoid / Do not allow modes.
+- Uses all logs from the current training day, not only the active session.
+- Avoid mode down-weights exact same routine repeats.
+- Block mode excludes exact same routine repeats while preserving alternatives.
+- Training Day Context remains visible and feeds the guard.
+
+## v5.9.0 — Training Day Context Layer
 
 - Added Smart Session goal override: Maximize ETU.
 - Added Smart Session goal override: Fastest level progression.
@@ -112,7 +121,15 @@ This release keeps the original Focus Mode untouched and updates only the parall
 Focus Mode v2 now prioritizes a single dominant score surface in the logging state. Duplicate break/HUD cards are suppressed, live telemetry is compressed, and the logging hierarchy is simplified around current score → input controls → save/next. Existing Focus Mode remains untouched.
 
 
-## v5.8.9 — Smart Builder ETU Constraint Toggle
+## v5.9.0 — Training Day Context Layer
 - Adds separate Smart Builder checkbox: Enforce ETU caps / constraints.
 - Default is off: ETU remains visible for audit, but no ETU trimming, rejection, or ETU cap warnings are applied.
 - Time/duration limit remains enforced.
+
+
+## v5.9.2 — Routine Family / Alternative Linkage
+
+- Adds routine-family metadata in Routine Console.
+- Adds variant role, alternative-for, linked alternatives and progression siblings.
+- Same-day exposure guard now blocks exact repeats but boosts linked alternatives when available.
+- Preserves v5.9.1 same-day guard behavior for unlinked routines.

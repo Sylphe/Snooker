@@ -8309,6 +8309,7 @@ function renderPeriodization() {
   const phase = getPeriodizationPhase();
   const s = phaseSettings(phase);
   const horizon = Number($("periodizationHorizon")?.value || 4);
+  const dayContext = buildTrainingDayContextSafe();
   box.innerHTML = `<div class="phase-card">
     <strong>Active phase: ${escapeHtml(s.label)}</strong>
     <span class="phase-pill">Horizon: ${horizon} week${horizon>1?"s":""}</span>
@@ -8316,7 +8317,7 @@ function renderPeriodization() {
     <span class="phase-pill">Target aggression: ${escapeHtml(s.targetAggression)}</span>
     <div class="adaptive-rationale">${escapeHtml(s.mix)}</div>
     <div class="adaptive-rationale">${escapeHtml(s.rationale)}</div>
-  </div>`;
+  </div>${renderTrainingDayContextSafe(dayContext)}`;
 }
 
 function applyPeriodizationToAdaptiveInputs() {
@@ -9900,6 +9901,156 @@ function setSmartBuilderEtuConstraintMode(value) {
 }
 function smartBuilderEtuConstraintsEnabled() {
   return getSmartBuilderEtuConstraintMode() === "on";
+}
+
+
+function routineFamilyKeySafe(routine) {
+  try {
+    const r = routine || {};
+    const explicit = String(r.routineFamilyId || r.familyId || r.alternativeFor || "").trim();
+    if (explicit) return explicit;
+    return String(r.id || "").trim();
+  } catch (_) { return ""; }
+}
+function routineAlternativeIdsSafe(routine) {
+  try {
+    const arr = [
+      ...(Array.isArray(routine?.alternativeRoutineIds) ? routine.alternativeRoutineIds : routineConsoleParseListSafe(routine?.alternativeRoutineIds || "")),
+      ...(Array.isArray(routine?.progressionSiblingIds) ? routine.progressionSiblingIds : routineConsoleParseListSafe(routine?.progressionSiblingIds || ""))
+    ];
+    return Array.from(new Set(arr.map(x => String(x || "").trim()).filter(Boolean)));
+  } catch (_) { return []; }
+}
+function routineIsLinkedAlternativeForTodaySafe(state, trainedIdsSet, trainedFamilySet) {
+  try {
+    const r = state?.routine || state || {};
+    const rid = String(r.id || "");
+    if (!rid || trainedIdsSet?.has?.(rid)) return false;
+    const family = routineFamilyKeySafe(r);
+    if (family && trainedFamilySet?.has?.(family)) return true;
+    const alternatives = routineAlternativeIdsSafe(r);
+    return alternatives.some(id => trainedIdsSet?.has?.(String(id)));
+  } catch (_) { return false; }
+}
+function smartBuilderSameDayRoutineFamilyIdsSafe(trainingDayContext = null) {
+  try {
+    const trained = smartBuilderSameDayRoutineIdsSafe(trainingDayContext);
+    const families = new Set();
+    trained.forEach(id => {
+      const r = routineById(id);
+      const family = routineFamilyKeySafe(r);
+      if (family) families.add(family);
+    });
+    return families;
+  } catch (_) { return new Set(); }
+}
+
+function getSmartBuilderSameDayGuardMode() {
+  try {
+    const el = $("smartBuilderSameDayGuard");
+    const stored = localStorage.getItem("snooker_smart_builder_same_day_guard") || "avoid";
+    const value = el?.value || stored || "avoid";
+    return ["allow","avoid","block"].includes(value) ? value : "avoid";
+  } catch (_) { return "avoid"; }
+}
+function setSmartBuilderSameDayGuardMode(value) {
+  try {
+    const mode = ["allow","avoid","block"].includes(String(value || "")) ? String(value) : "avoid";
+    localStorage.setItem("snooker_smart_builder_same_day_guard", mode);
+    if ($("smartBuilderSameDayGuard")) $("smartBuilderSameDayGuard").value = mode;
+    return mode;
+  } catch (_) { return "avoid"; }
+}
+function smartBuilderSameDayGuardLabelSafe(mode) {
+  if (mode === "block") return "Do not allow same exercise today";
+  if (mode === "avoid") return "Avoid same exercise today";
+  return "Allow repeats today";
+}
+function smartBuilderSameDayRoutineIdsSafe(trainingDayContext = null) {
+  try {
+    const ctx = trainingDayContext || buildTrainingDayContextSafe();
+    return new Set((ctx.routineIds || []).map(id => String(id || "")).filter(Boolean));
+  } catch (_) { return new Set(); }
+}
+function smartBuilderRoutineAlreadyTrainedTodaySafe(state, trainingDayContext = null) {
+  try {
+    const rid = String((state?.routine || state || {}).id || "");
+    if (!rid) return false;
+    return smartBuilderSameDayRoutineIdsSafe(trainingDayContext).has(rid);
+  } catch (_) { return false; }
+}
+function smartBuilderApplySameDayExposureGuardSafe(ranked, trainingDayContext = null, mode = getSmartBuilderSameDayGuardMode()) {
+  try {
+    const list = Array.isArray(ranked) ? ranked : [];
+    const ctx = trainingDayContext || buildTrainingDayContextSafe();
+    const trained = smartBuilderSameDayRoutineIdsSafe(ctx);
+    const trainedFamilies = smartBuilderSameDayRoutineFamilyIdsSafe(ctx);
+    if (!trained.size || mode === "allow") return {ranked:list, mode:"allow", blocked:[], penalized:[], alternatives:[], active:false, label:"Same-day repeats allowed"};
+    const exactTouched = list.filter(s => trained.has(String(s?.routine?.id || "")));
+    const linkedAlternatives = list.filter(s => routineIsLinkedAlternativeForTodaySafe(s, trained, trainedFamilies));
+    if (!exactTouched.length && !linkedAlternatives.length) return {ranked:list, mode, blocked:[], penalized:[], alternatives:[], active:false, label:smartBuilderSameDayGuardLabelSafe(mode)};
+    const boostAlternative = s => ({
+      ...s,
+      adaptiveScore:Number(s.adaptiveScore || 0) + 22,
+      sameDayAlternativeBoost:true,
+      reasons:[...(s.reasons || []), "Same-day alternative: linked variant for a routine already trained today"],
+      recommendationAudit:{...(s.recommendationAudit || {}), constraintsApplied:[...((s.recommendationAudit || {}).constraintsApplied || []), "Same-day alternative linkage boost"]}
+    });
+    if (mode === "block") {
+      const kept = list
+        .filter(s => !trained.has(String(s?.routine?.id || "")))
+        .map(s => routineIsLinkedAlternativeForTodaySafe(s, trained, trainedFamilies) ? boostAlternative(s) : s)
+        .sort((a,b)=>Number(b.adaptiveScore||0)-Number(a.adaptiveScore||0));
+      const blocked = exactTouched.map(s => ({routineId:s?.routine?.id || "", routineName:s?.routine?.name || "Exercise"}));
+      const alternatives = linkedAlternatives.map(s => ({routineId:s?.routine?.id || "", routineName:s?.routine?.name || "Exercise", familyId:routineFamilyKeySafe(s?.routine)}));
+      if (kept.length) return {ranked:kept, mode, blocked, penalized:[], alternatives, active:true, label:"Same-day exact-repeat block active"};
+      // If every candidate has already been trained, fail soft rather than returning an empty builder pool.
+      const penalized = list.map(s => ({
+        ...s,
+        adaptiveScore:Number(s.adaptiveScore || 0) - 80,
+        sameDayRepeatPenalty:true,
+        reasons:[...(s.reasons || []), "Same-day exposure guard fallback: all candidates were already trained today"],
+        recommendationAudit:{...(s.recommendationAudit || {}), constraintsApplied:[...((s.recommendationAudit || {}).constraintsApplied || []), "Same-day guard fallback: no untrained alternatives available"]}
+      })).sort((a,b)=>Number(b.adaptiveScore||0)-Number(a.adaptiveScore||0));
+      return {ranked:penalized, mode, blocked:[], penalized:exactTouched.map(s => ({routineId:s?.routine?.id || "", routineName:s?.routine?.name || "Exercise"})), alternatives:[], active:true, fallback:true, label:"Same-day block fallback — no alternatives"};
+    }
+    const penalized = list.map(s => {
+      const hit = trained.has(String(s?.routine?.id || ""));
+      if (hit) return {
+        ...s,
+        adaptiveScore:Number(s.adaptiveScore || 0) - 55,
+        sameDayRepeatPenalty:true,
+        reasons:[...(s.reasons || []), "Same-day exposure guard: exact routine already trained today"],
+        recommendationAudit:{...(s.recommendationAudit || {}), constraintsApplied:[...((s.recommendationAudit || {}).constraintsApplied || []), "Same-day exposure guard: repeat down-weighted"]}
+      };
+      return routineIsLinkedAlternativeForTodaySafe(s, trained, trainedFamilies) ? boostAlternative(s) : s;
+    }).sort((a,b)=>Number(b.adaptiveScore||0)-Number(a.adaptiveScore||0));
+    return {
+      ranked:penalized,
+      mode,
+      blocked:[],
+      penalized:exactTouched.map(s => ({routineId:s?.routine?.id || "", routineName:s?.routine?.name || "Exercise"})),
+      alternatives:linkedAlternatives.map(s => ({routineId:s?.routine?.id || "", routineName:s?.routine?.name || "Exercise", familyId:routineFamilyKeySafe(s?.routine)})),
+      active:true,
+      label:"Same-day repeat avoidance active"
+    };
+  } catch (err) {
+    try { logAppError(err, "smartBuilderApplySameDayExposureGuardSafe"); } catch (_) {}
+    return {ranked:Array.isArray(ranked)?ranked:[], mode:"allow", blocked:[], penalized:[], alternatives:[], active:false, error:String(err?.message || err || "same-day guard error")};
+  }
+}
+function renderSmartBuilderSameDayExposureGuardSafe(guard) {
+  try {
+    if (!guard) return "";
+    const mode = guard.mode || "allow";
+    const cls = mode === "block" ? "adaptive-watch" : mode === "avoid" ? "adaptive-rationale" : "";
+    const affected = [...(guard.blocked || []), ...(guard.penalized || [])].slice(0, 5).map(x => escapeHtml(x.routineName || "Exercise")).join(" · ");
+    const alternatives = (guard.alternatives || []).slice(0, 5).map(x => escapeHtml(x.routineName || "Alternative")).join(" · ");
+    const detail = guard.active
+      ? `${escapeHtml(guard.label || smartBuilderSameDayGuardLabelSafe(mode))}${affected ? `: ${affected}` : ""}${alternatives ? ` · linked alternatives boosted: ${alternatives}` : ""}${guard.fallback ? " · fallback used because no untrained alternatives were available" : ""}`
+      : `${escapeHtml(smartBuilderSameDayGuardLabelSafe(mode))}: no exact same-day routine conflict in the candidate pool.`;
+    return `<div class="adaptive-rationale ${cls}"><strong>Same-day exposure guard:</strong> ${detail}</div>`;
+  } catch (_) { return ""; }
 }
 function blankSmartBuilderLayerModifiers() {
   return {etuLoad:0, readiness:0, benchmark:0, prediction:0, lastSession:0, template:0, sportDiversity:0, transferGraph:0};
@@ -11836,6 +11987,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const strategy = $("orchestratorStrategy")?.value || "balanced";
   const intensity = $("orchestratorIntensity")?.value || "balanced";
   const routinePool = smartSessionRoutinePool(focusOverride);
+  const trainingDayContext = periodization?.trainingDayContext || buildTrainingDayContextSafe();
   const adaptiveLogMap = getLogsByRoutineMap(data.logs || []);
   let states = routinePool.map(r => adaptiveRoutineState(r, adaptiveLogMap));
   if (!states.length) states = smartSessionRoutinePool("all").map(r => adaptiveRoutineState(r, adaptiveLogMap));
@@ -11886,6 +12038,8 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     return enrichedState;
   }).sort((a,b)=>b.adaptiveScore-a.adaptiveScore);
   ranked = smartBuilderApplyOverrideGoalRankingSafe(ranked, goal, targetMinutes, etuContext);
+  const sameDayExposureGuard = smartBuilderApplySameDayExposureGuardSafe(ranked, trainingDayContext, getSmartBuilderSameDayGuardMode());
+  ranked = sameDayExposureGuard.ranked || ranked;
   const fatigueAll = cachedFatigueSlope(data.logs || []);
   const recentLoad = trainingLoadByDay ? trainingLoadByDay(14) : [];
   const last7 = recentLoad.slice(-7).reduce((a,b)=>a+Number(b.time||0),0);
@@ -11893,6 +12047,10 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   let effectiveGoal = goal;
   const globalReasons = [];
   const contextualState = inferTrainingStateMode();
+  if (sameDayExposureGuard?.active) {
+    const affected = [...(sameDayExposureGuard.blocked || []), ...(sameDayExposureGuard.penalized || [])].length;
+    globalReasons.push(`${sameDayExposureGuard.label || "same-day exposure guard active"}${affected ? ` (${affected} routine${affected===1?"":"s"})` : ""}`);
+  }
 
   if (smartBuilderIsOverrideGoalSafe(goal)) {
     effectiveGoal = goal;
@@ -12053,7 +12211,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const skillDomainDetails = smartBuilderSkillDomainDetailPagesSafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
   const skillLevelHistory = smartBuilderSkillLevelHistorySafe(skillProgressionLedger, {etuContext, effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
   const routineSchemaAudit = smartBuilderRoutineSchemaAuditSafe({effectiveGoal, sessionTemplate, blocks, ranked, logs:data.logs || []});
-  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateHardCapEnforcement, templateCompliance, recommendationSanity, contradictionEngine, calibrationLock, skillProgressionLedger, skillDomainDetails, skillLevelHistory, routineSchemaAudit};
+  const plan = {effectiveGoal, targetMinutes, estimatedMinutes, horizonWeeks, daysToCompetition, globalReasons, blocks, routineIds, ranked, budgets, budgetUsage, etuContext, trainingDayContext, sameDayExposureGuard, sessionTemplate, durationDiscipline, etuSessionBudget, compositionOptimization, templateHardCapEnforcement, templateCompliance, recommendationSanity, contradictionEngine, calibrationLock, skillProgressionLedger, skillDomainDetails, skillLevelHistory, routineSchemaAudit};
   plan.transferGraphSummary = smartBuilderPlanTransferGraphSummarySafe(plan);
   return smartBuilderAttachRecommendationConfidenceSafe(plan);
 }
@@ -12249,8 +12407,11 @@ function renderAdaptiveSessionInternal() {
   const sessionTemplateOverride = $("adaptiveSessionTemplate")?.value || "auto";
   let plan;
   try {
-    plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || "", sessionTemplate: sessionTemplateOverride});
+    const trainingDayContext = buildTrainingDayContextSafe();
+    plan = adaptiveSessionStructure(goal, duration, strictness, {phase: phaseInfo.phase, horizonWeeks: Number($("periodizationHorizon")?.value || 4), competitionDate: $("competitionDate")?.value || "", sessionTemplate: sessionTemplateOverride, trainingDayContext});
+    plan.trainingDayContext = trainingDayContext;
     plan = normalizeSmartSessionPlan(plan, goal, duration);
+    plan.trainingDayContext = trainingDayContext;
   } catch(error) {
     logAppError?.(error, "renderAdaptiveSession build");
     plan = smartSessionFallbackPlan(goal, duration, error?.message || "builder error");
@@ -12276,6 +12437,8 @@ function renderAdaptiveSessionInternal() {
     <div>${plan.globalReasons.map(r=>`<span class="adaptive-pill">${escapeHtml(r)}</span>`).join("")}</div>
     <div class="adaptive-rationale">${escapeHtml(uiLabel("targetDuration"))}: ${formatDurationHuman(plan.targetMinutes)} · ${escapeHtml(uiLabel("loadedEstimate"))}: ${formatDurationHuman(plan.estimatedMinutes || plan.targetMinutes)} · ${plan.routineIds.length} ${escapeHtml(uiLabel("drillSlots"))} · ${escapeHtml(uiLabel("recommendationMode"))}: ${escapeHtml(smartRecommendationModeLabel(mode))}</div>
     ${renderSmartBuilderEtuContextSafe(plan.etuContext)}
+    ${renderTrainingDayContextSafe(plan.trainingDayContext)}
+    ${renderSmartBuilderSameDayExposureGuardSafe(plan.sameDayExposureGuard)}
     ${renderSmartBuilderTemplateSafe(plan.sessionTemplate)}
     ${renderSmartBuilderGoalTemplateOverrideSafe(plan)}
     ${renderSmartBuilderTemplateComplianceSafe(plan)}
@@ -12707,15 +12870,17 @@ document.addEventListener("DOMContentLoaded", bindStatsNavigation);
   if (el) el.addEventListener("change", () => { if (id !== "compareToggle") saveABCompareCustomDatesSafe(); renderABComparison(); });
 });
 
-["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer","smartBuilderEtuConstraints"].forEach(id => {
+["adaptiveGoal","adaptiveSessionTemplate","adaptiveDuration","adaptiveStrictness","periodizationPhase","periodizationHorizon","competitionDate","orchestratorStrategy","orchestratorIntensity","orchestratorFocus","smartRecommendationMode","smartBuilderEtuLayer","smartBuilderEtuConstraints","smartBuilderSameDayGuard"].forEach(id => {
   safeOn(id, "change", event => {
     if (id === "smartBuilderEtuLayer") setSmartBuilderEtuLayerMode(event?.target?.value || "on");
     if (id === "smartBuilderEtuConstraints") setSmartBuilderEtuConstraintMode(event?.target?.checked ? "on" : "off");
+    if (id === "smartBuilderSameDayGuard") setSmartBuilderSameDayGuardMode(event?.target?.value || "avoid");
     if ($("adaptiveEngineOutput")) renderAdaptiveSession();
   });
 });
 if ($("smartBuilderEtuLayer")) $("smartBuilderEtuLayer").value = getSmartBuilderEtuLayerMode();
 if ($("smartBuilderEtuConstraints")) $("smartBuilderEtuConstraints").checked = getSmartBuilderEtuConstraintMode() === "on";
+if ($("smartBuilderSameDayGuard")) $("smartBuilderSameDayGuard").value = getSmartBuilderSameDayGuardMode();
 
 safeOn("statsRoutineSelect", "change", (event) => { setStatsRoutineFilter(event.target.value); });
 safeOn("statsDateSelect", "change", renderStats);
@@ -13632,6 +13797,122 @@ function estimateEffectiveTrainingLoadSafe(logs) {
     etuSource: mergeEtuSourceKeysSafe(sortedRows.map(r => r.etuSource)),
     rows: sortedRows
   };
+}
+
+
+/* v5.9.0 Training Day Context Layer — day-level exposure, ETU and remaining work */
+function trainingDayContextDateKeySafe(dateLike = new Date()) {
+  return localDateKey(dateLike || new Date()) || localDateKey();
+}
+function trainingDayLogsSafe(dateKey = trainingDayContextDateKeySafe()) {
+  const key = String(dateKey || trainingDayContextDateKeySafe());
+  return (data.logs || []).filter(log => localDateKey(log?.createdAt || log?.date || log?.loggedAt) === key);
+}
+function trainingDaySessionsSafe(dateKey = trainingDayContextDateKeySafe()) {
+  const key = String(dateKey || trainingDayContextDateKeySafe());
+  return (data.sessions || []).filter(session => localDateKey(session?.startedAt || session?.createdAt || session?.date || session?.endedAt) === key);
+}
+function trainingDayRoutineLabelSafe(routineId, fallback = "Unknown routine") {
+  const r = routineById?.(routineId);
+  return r?.name || fallback;
+}
+function trainingDayRoutineDomainSafe(routineId, fallback = "general") {
+  const r = routineById?.(routineId);
+  if (r) {
+    try { return smartBuilderRoutineDomainKeySafe(r) || r.primarySkill || r.category || fallback; } catch (_) {}
+    return r.primarySkill || r.category || fallback;
+  }
+  const log = (data.logs || []).find(l => String(l.routineId || "") === String(routineId || ""));
+  return log?.primarySkill || log?.skill || log?.category || fallback;
+}
+function buildTrainingDayContextSafe(dateKey = trainingDayContextDateKeySafe()) {
+  try {
+    const key = trainingDayContextDateKeySafe(dateKey);
+    const logs = trainingDayLogsSafe(key);
+    const sessions = trainingDaySessionsSafe(key);
+    const load = estimateEffectiveTrainingLoadSafe(logs);
+    const routineMap = new Map();
+    const domainMap = new Map();
+    logs.forEach(log => {
+      const rid = String(log?.routineId || log?.routineName || log?.routine || "unknown");
+      const routineName = trainingDayRoutineLabelSafe(log?.routineId, log?.routineName || log?.routine || "Unknown routine");
+      const minutes = Math.max(0, Number(log?.timeMinutes || log?.minutes || 0));
+      const score = Number(log?.normalizedScore ?? normalizeScore(log));
+      const prev = routineMap.get(rid) || {routineId:rid, routineName, count:0, minutes:0, scores:[], lastAt:null};
+      prev.count += 1;
+      prev.minutes += minutes;
+      if (Number.isFinite(score)) prev.scores.push(score);
+      const at = Date.parse(log?.createdAt || log?.date || "");
+      if (Number.isFinite(at) && (!prev.lastAt || at > prev.lastAt)) prev.lastAt = at;
+      routineMap.set(rid, prev);
+      const domain = trainingDayRoutineDomainSafe(log?.routineId, log?.primarySkill || log?.skill || log?.category || "general");
+      const d = domainMap.get(domain) || {domain, count:0, minutes:0, etu:0};
+      d.count += 1;
+      d.minutes += minutes;
+      domainMap.set(domain, d);
+    });
+    const routineIds = Array.from(routineMap.keys()).filter(Boolean);
+    const routines = Array.from(routineMap.values()).map(x => ({
+      ...x,
+      averageScore:x.scores.length ? avg(x.scores) : null,
+      lastAtIso:x.lastAt ? new Date(x.lastAt).toISOString() : null
+    })).sort((a,b)=>(b.minutes-a.minutes)||(b.count-a.count)||String(a.routineName).localeCompare(String(b.routineName)));
+    const domainLoads = estimatePredictionDomainEtuSafe(logs);
+    const domainEtuMap = new Map((domainLoads || []).map(x => [String(x.id || x.domain || x.skill || "general"), Number(x.etu || x.effectiveEtu || 0)]));
+    const domains = Array.from(domainMap.values()).map(x => ({...x, etu:domainEtuMap.get(String(x.domain)) || 0}))
+      .sort((a,b)=>(b.etu-a.etu)||(b.minutes-a.minutes)||String(a.domain).localeCompare(String(b.domain)));
+    const allDomainKeys = Array.from(new Set((activeRoutines() || []).map(r => { try { return smartBuilderRoutineDomainKeySafe(r); } catch (_) { return r.primarySkill || r.category || "general"; } }).filter(Boolean)));
+    const trainedDomains = new Set(domains.map(x => String(x.domain)));
+    const remainingDomains = allDomainKeys.filter(k => !trainedDomains.has(String(k))).slice(0, 8);
+    const alternatives = remainingDomains.map(domain => {
+      const r = (activeRoutines() || []).find(x => {
+        try { return String(smartBuilderRoutineDomainKeySafe(x)) === String(domain); } catch (_) { return String(x.primarySkill || x.category || "") === String(domain); }
+      });
+      return {domain, routineId:r?.id || null, routineName:r?.name || skillLabel(domain) || domain};
+    });
+    return {
+      dateKey:key,
+      logs,
+      sessions,
+      logCount:logs.length,
+      sessionCount:sessions.length || new Set(logs.map(l => l.sessionId).filter(Boolean)).size,
+      minutes:roundStoredMinutes(logs.reduce((sum,l)=>sum+Math.max(0,Number(l?.timeMinutes||l?.minutes||0)),0)),
+      load,
+      totalEtu:roundStoredMinutes(load?.totalEtu || 0),
+      rawEtu:roundStoredMinutes(load?.totalRawEtu || 0),
+      etuSubtypes:load?.etuSubtypes || null,
+      routineIds,
+      routines,
+      domains,
+      trainedDomains:Array.from(trainedDomains),
+      remainingDomains,
+      alternatives,
+      hasTraining:logs.length > 0
+    };
+  } catch (err) {
+    try { logAppError(err, "buildTrainingDayContextSafe"); } catch (_) {}
+    return {dateKey:trainingDayContextDateKeySafe(dateKey), logs:[], sessions:[], logCount:0, sessionCount:0, minutes:0, totalEtu:0, rawEtu:0, routines:[], domains:[], trainedDomains:[], remainingDomains:[], alternatives:[], hasTraining:false};
+  }
+}
+function renderTrainingDayContextSafe(context = buildTrainingDayContextSafe()) {
+  try {
+    const ctx = context || buildTrainingDayContextSafe();
+    const topRoutines = (ctx.routines || []).slice(0, 5).map(r => `<span class="adaptive-pill" title="${attrText(`${r.count} log(s), ${numText(r.minutes)} min today`)}">${escapeHtml(r.routineName)}</span>`).join("");
+    const domainHtml = (ctx.domains || []).slice(0, 6).map(d => `<span class="adaptive-pill">${escapeHtml(skillLabel(d.domain) || d.domain)} ${numText(d.etu || 0)} ETU</span>`).join("");
+    const remaining = (ctx.alternatives || []).slice(0, 5).map(x => `<span class="adaptive-pill adaptive-watch">${escapeHtml(skillLabel(x.domain) || x.domain)}${x.routineName ? ` · ${escapeHtml(x.routineName)}` : ""}</span>`).join("");
+    const subtype = ctx.etuSubtypes ? ` · ${escapeHtml(formatEtuSubtypeProfileSafe(ctx.etuSubtypes))}` : "";
+    return `<div class="phase-card training-day-context-card">
+      <strong>Training day context</strong>
+      <span class="phase-pill">${escapeHtml(ctx.dateKey || localDateKey())}</span>
+      <span class="phase-pill">${ctx.sessionCount || 0} session${(ctx.sessionCount||0)===1?"":"s"}</span>
+      <span class="phase-pill">${ctx.logCount || 0} log${(ctx.logCount||0)===1?"":"s"}</span>
+      <span class="phase-pill">${formatDurationHuman(ctx.minutes || 0)}</span>
+      <span class="phase-pill">${numText(ctx.totalEtu || 0)} ETU today${subtype}</span>
+      <div class="adaptive-rationale"><strong>Already trained today:</strong> ${topRoutines || "No routines logged yet today."}</div>
+      <div class="adaptive-rationale"><strong>Day domain exposure:</strong> ${domainHtml || "No domain exposure yet."}</div>
+      <div class="adaptive-rationale"><strong>Still useful today:</strong> ${remaining || "All major logged domains are still open, or routine metadata is not yet specific enough."}</div>
+    </div>`;
+  } catch (err) { try { logAppError(err, "renderTrainingDayContextSafe"); } catch (_) {} return ""; }
 }
 
 
@@ -19596,7 +19877,7 @@ FIELD_HELP.smartBuilderEtuLayer = {
   title:"ETU / load layer",
   body:`
   <p><strong>Use ETU load layer:</strong> lets recent training load, domain ETU balance and readiness modify the dose, intensity and session structure.</p>
-  <p><strong>Bypass ETU layer:</strong> removes ETU/load modifiers while keeping Bayesian ranking, strategy, session-template constraints and normal drill evidence.</p><p><strong>Enforce ETU caps / constraints:</strong> when unchecked, ETU remains visible for audit only. Smart Builder will not trim, reject, or flag a session because of ETU caps. The selected time limit is still enforced.</p>
+  <p><strong>Bypass ETU layer:</strong> removes ETU/load modifiers while keeping Bayesian ranking, strategy, session-template constraints and normal drill evidence.</p><p><strong>Enforce ETU caps / constraints:</strong> when unchecked, ETU remains visible for audit only. Smart Builder will not trim, reject, or flag a session because of ETU caps. The selected time limit is still enforced.</p><p><strong>Same-day exposure guard:</strong> uses all logs from today. Allow repeats ignores same-day exposure; Avoid repeats down-weights exact same routines; Do not allow repeats excludes exact same routines and pushes the builder toward alternatives.</p>
   <div class="example"><strong>Use bypass</strong> when you want to audit whether ETU is making the recommendation too conservative or too recovery-biased.</div>`
 };
 
@@ -21799,6 +22080,11 @@ function routineConsoleRoutineMetaSafe(r) {
     derivedTransferIntensity: r?.derivedMetadata?.transferIntensity || "preview",
     derivedMetadataSource: r?.derivedMetadata?.source || "preview",
     metadataVersion: r?.metadataVersion || 1,
+    routineFamilyId: r?.routineFamilyId || "",
+    variantRole: r?.variantRole || "standalone",
+    alternativeFor: r?.alternativeFor || "",
+    alternativeRoutineIds: routineConsoleArrayTextSafe(r?.alternativeRoutineIds || []),
+    progressionSiblingIds: routineConsoleArrayTextSafe(r?.progressionSiblingIds || []),
     packSource: r?.packSource || r?.routinePackSource || "app"
   };
 }
@@ -22548,6 +22834,18 @@ function bindRoutineConsoleGridEngineSafe() {
     showTransientNotice?.("Pasted spreadsheet values into Routine Console.", "success");
   });
 }
+
+function routineConsoleRoutineSelectOptionsSafe(selectedId = "", excludeId = "") {
+  try {
+    return (data.routines || [])
+      .filter(r => String(r.id || "") && String(r.id) !== String(excludeId || ""))
+      .slice()
+      .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
+      .map(r => `<option value="${attrText(r.id)}"${String(r.id)===String(selectedId)?" selected":""}>${escapeHtml(r.name || "Unnamed routine")}</option>`)
+      .join("");
+  } catch (_) { return ""; }
+}
+
 function renderRoutineConsoleEditor(id) {
   try {
     const host = $("routineConsoleEditor");
@@ -22577,6 +22875,17 @@ function renderRoutineConsoleEditor(id) {
             <div><label>Semantic preset</label><select id="routineConsoleSemanticPreset">${routineSemanticPresetOptionsHtmlSafe(m.semanticPreset)}</select></div>
             <div><label>Routine archetype</label><select id="routineConsoleArchetype">${routineArchetypeOptionsHtmlSafe(m.routineArchetype)}</select></div>
           </div>
+          <details class="routine-editor-family" open>
+            <summary>Routine family / alternatives</summary>
+            <p class="muted small">Use this to link variants of the same training idea. Same-day blocking excludes the exact routine but can boost linked alternatives, e.g. T line-up pink / blue / black.</p>
+            <div class="grid four routine-console-editor-grid">
+              <div><label>Family ID</label><input id="routineConsoleRoutineFamilyId" value="${attrText(m.routineFamilyId)}" placeholder="e.g. t-line-up" /></div>
+              <div><label>Variant role</label><select id="routineConsoleVariantRole"><option value="standalone">Standalone</option><option value="main">Main</option><option value="easier">Easier variant</option><option value="harder">Harder variant</option><option value="colour_variant">Colour variant</option><option value="side_variant">Side variant</option><option value="pressure_variant">Pressure variant</option><option value="alternative">Alternative</option></select></div>
+              <div><label>Alternative for</label><select id="routineConsoleAlternativeFor"><option value="">None</option>${routineConsoleRoutineSelectOptionsSafe(m.alternativeFor, m.id)}</select></div>
+              <div><label>Linked alternatives</label><textarea id="routineConsoleAlternativeRoutineIds" rows="2" placeholder="Routine IDs, comma separated">${escapeHtml(m.alternativeRoutineIds)}</textarea></div>
+              <div class="span-two"><label>Progression siblings</label><textarea id="routineConsoleProgressionSiblingIds" rows="2" placeholder="Routine IDs, comma separated">${escapeHtml(m.progressionSiblingIds)}</textarea></div>
+            </div>
+          </details>
           <details class="routine-editor-advanced-tags">
             <summary>Advanced legacy tags</summary>
             <div class="grid two routine-console-editor-grid">
@@ -22617,6 +22926,8 @@ function renderRoutineConsoleEditor(id) {
     setVal("routineConsoleRecommendation", m.recommendationMode);
     setVal("routineConsoleSemanticPreset", m.semanticPreset || "");
     setVal("routineConsoleArchetype", m.routineArchetype || "");
+    setVal("routineConsoleVariantRole", m.variantRole || "standalone");
+    setVal("routineConsoleAlternativeFor", m.alternativeFor || "");
     setVal("routineConsoleBenchmarkMode", normalizeBenchmarkMode(m.benchmarkMode || "support"));
     setVal("routineConsoleBenchmarkStrictness", normalizeBenchmarkStrictness(m.benchmarkStrictness || "normal"));
     setVal("routineConsoleVolatility", m.volatilityProfile);
@@ -22644,7 +22955,7 @@ function renderRoutineStudioLite() {
     const avgCompleteness = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.completeness||0),0)/allRows.length : 0;
     const avgValidity = allRows.length ? allRows.reduce((sum,r)=>sum+Number(r.validity||100),0)/allRows.length : 100;
     if (summaryHost) {
-      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.8.9</strong><span>Smart Builder ETU Constraint Toggle</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Adds a separate Smart Builder ETU cap/constraint toggle. ETU can now remain visible for audit while all ETU trimming, cap rejection and ETU cap warnings are disabled.</p></details>`;
+      summaryHost.innerHTML = `<div class="routine-summary-line"><strong>Routine Management Console v5.9.2</strong><span>Routine Family / Alternative Linkage</span><span class="muted small">Completeness ${numText(avgCompleteness)}% · validation ${numText(avgValidity)}% · rows ${numText(rows.length)} / ${numText(allRows.length)}</span></div><details class="routine-summary-about"><summary>Release note</summary><p class="muted small">Adds routine-family and alternative-link metadata. Same-day exposure guard can now block exact repeats while boosting linked variants as alternatives.</p></details>`;
     }
     if (!host) return;
     bindRoutineConsoleGridEngineSafe();
@@ -22729,6 +23040,11 @@ function routineConsoleSaveSelected() {
       next.semanticPreset = val("routineConsoleSemanticPreset") || next.semanticPreset || "";
       next.routineArchetype = val("routineConsoleArchetype") || next.routineArchetype || "";
       next.archetypeSource = next.routineArchetype ? "manual" : (next.archetypeSource || "unassigned");
+      next.routineFamilyId = String(val("routineConsoleRoutineFamilyId") || "").trim();
+      next.variantRole = String(val("routineConsoleVariantRole") || "standalone").trim() || "standalone";
+      next.alternativeFor = String(val("routineConsoleAlternativeFor") || "").trim();
+      next.alternativeRoutineIds = routineConsoleParseListSafe(val("routineConsoleAlternativeRoutineIds"));
+      next.progressionSiblingIds = routineConsoleParseListSafe(val("routineConsoleProgressionSiblingIds"));
       next.etuProfile = {
         ...(next.etuProfile || {}),
         technical: clampNumber(Number(val("routineConsoleTechnicalEtu") || 0), 0, 8),
