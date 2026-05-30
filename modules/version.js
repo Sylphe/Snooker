@@ -1,3 +1,3 @@
-export const APP_VERSION = "5.9.7-smart-builder-mode-assignment-polish";
-export const APP_BUILD_TIMESTAMP = "2026-05-30 16:45 CEST";
-export const APP_BUILD_LABEL = "v5.9.7 — Smart Builder Mode Assignment Polish";
+export const APP_VERSION = "5.9.8-baseline-exploration-candidate-layer";
+export const APP_BUILD_TIMESTAMP = "2026-05-30 17:10 CEST";
+export const APP_BUILD_LABEL = "v5.9.8 — Baseline Exploration Candidate Layer";

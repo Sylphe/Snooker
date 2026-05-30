@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.7";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.7";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.8";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.8";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.9.7";
+} from "./utils.js?v=5.9.8";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.9.7";
+} from "./settings.js?v=5.9.8";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.9.7";
+} from "./analytics.js?v=5.9.8";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -73,7 +73,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.9.7";
+} from "./bayesian.js?v=5.9.8";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -82,7 +82,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.9.7";
+} from "./session.js?v=5.9.8";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -90,7 +90,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.9.7";
+} from "./pressure.js?v=5.9.8";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -102,7 +102,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.9.7";
+} from "./recommendations.js?v=5.9.8";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -116,7 +116,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.9.7";
+} from "./store.js?v=5.9.8";
 
 
 
@@ -10022,7 +10022,7 @@ function setSmartBuilderEtuConstraintMode(value) {
   } catch (_) { return "off"; }
 }
 function smartBuilderEtuConstraintsEnabled() {
-  // v5.9.7: ETU is rotation/audit context only. Hard ETU caps are disabled globally; duration remains enforced.
+  // v5.9.8: ETU is rotation/audit context only. Hard ETU caps are disabled globally; duration remains enforced.
   return false;
 }
 
@@ -10163,7 +10163,7 @@ function smartBuilderTrainingRotationContextSafe(days = 3) {
       });
     });
     return {
-      version:"5.9.7",
+      version:"5.9.8",
       horizonDays:Number(days || 3),
       logs,
       routineMap,
@@ -10175,7 +10175,7 @@ function smartBuilderTrainingRotationContextSafe(days = 3) {
     };
   } catch (err) {
     try { logAppError(err, "smartBuilderTrainingRotationContextSafe"); } catch (_) {}
-    return {version:"5.9.7", horizonDays:Number(days || 3), logs:[], routineMap:new Map(), familyMap:new Map(), domainMap:new Map(), routineCount:0, familyCount:0, domainCount:0};
+    return {version:"5.9.8", horizonDays:Number(days || 3), logs:[], routineMap:new Map(), familyMap:new Map(), domainMap:new Map(), routineCount:0, familyCount:0, domainCount:0};
   }
 }
 function smartBuilderTrainingRotationAdjustmentSafe(state, rotationContext = null) {
@@ -10218,6 +10218,108 @@ function smartBuilderTrainingRotationAdjustmentSafe(state, rotationContext = nul
   } catch (err) {
     try { logAppError(err, "smartBuilderTrainingRotationAdjustmentSafe"); } catch (_) {}
     return {adjustment:0, reasons:[], exact:false, family:false, domains:[]};
+  }
+}
+
+
+function smartBuilderBaselineExplorationEligibleSafe(state, rotationContext = null) {
+  try {
+    const routine = state?.routine || state || {};
+    if (!routine?.id || routine.active === false || routine.recommendation === "inactive") return false;
+    const logCount = Number(state?.n ?? (Array.isArray(state?.logs) ? state.logs.length : 0));
+    if (logCount > 0) return false;
+    const bm = String(smartBuilderBenchmarkModeSafe(state) || routine.benchmarkMode || "").toLowerCase().replace(/-/g,"_");
+    const weight = Number(smartBuilderBenchmarkExposureWeightSafe(state) || routine.benchmarkWeight || routine.benchmarkExposureWeight || 0);
+    const hasBenchmarkIntent = ["test","pressure_test","support","calibration"].includes(bm) || weight >= 70 || smartBuilderRoutineHasBenchmarkIntentSafe(routine);
+    if (!hasBenchmarkIntent) return false;
+    const ctx = rotationContext || smartBuilderTrainingRotationContextSafe(3);
+    if (ctx?.routineMap?.has?.(String(routine.id))) return false;
+    return true;
+  } catch (_) { return false; }
+}
+function smartBuilderBaselineExplorationScoreSafe(state, etuContext = null) {
+  try {
+    if (!smartBuilderBaselineExplorationEligibleSafe(state, etuContext?.rotationContext || null)) return -Infinity;
+    const routine = state?.routine || {};
+    const weight = Number(smartBuilderBenchmarkExposureWeightSafe(state) || routine.benchmarkWeight || routine.benchmarkExposureWeight || 0);
+    const transfer = Number(routineTransferValue(routine) || 0);
+    const domain = smartBuilderRoutineDomainKeySafe(routine);
+    const under = new Set(((etuContext?.undertrained || [])).map(x => String(x.key || "")));
+    const bm = String(smartBuilderBenchmarkModeSafe(state) || "").toLowerCase();
+    let score = 0;
+    score += Math.min(40, Math.max(0, weight) * 0.35);
+    score += Math.min(25, Math.max(0, transfer) * 0.18);
+    if (under.has(domain)) score += 16;
+    if (bm === "pressure_test") score += 8;
+    if (bm === "test") score += 7;
+    if (bm === "calibration") score += 5;
+    if (bm === "support") score += 4;
+    if (String(routine.name || "").toLowerCase().includes("v routine")) score += 4;
+    return Math.round(score * 10) / 10;
+  } catch (_) { return -Infinity; }
+}
+function smartBuilderBaselineExplorationTargetIdsSafe(states = [], etuContext = null, limit = 1) {
+  try {
+    const rows = (states || [])
+      .filter(s => smartBuilderBaselineExplorationEligibleSafe(s, etuContext?.rotationContext || null))
+      .map(s => ({id:String(s?.routine?.id || ""), score:smartBuilderBaselineExplorationScoreSafe(s, etuContext), state:s}))
+      .filter(x => x.id && Number.isFinite(x.score))
+      .sort((a,b) => b.score - a.score);
+    return new Set(rows.slice(0, Math.max(0, Number(limit || 1))).map(x => x.id));
+  } catch (_) { return new Set(); }
+}
+function smartBuilderApplyBaselineExplorationBoostSafe(state, baselineTargetIds = new Set()) {
+  try {
+    const rid = String(state?.routine?.id || "");
+    if (!rid || !baselineTargetIds?.has?.(rid)) return {boost:0, reasons:[], active:false};
+    const boost = 35;
+    return {
+      boost,
+      active:true,
+      reasons:["baseline exploration: zero-log benchmark routine selected to collect first evidence"]
+    };
+  } catch (_) { return {boost:0, reasons:[], active:false}; }
+}
+function smartBuilderLimitBaselineExplorationPicksSafe(blocks, ranked = [], limit = 1) {
+  try {
+    const out = (blocks || []).map(block => ({...block, picks:[...(block.picks || [])]}));
+    const keepLimit = Math.max(0, Number(limit || 1));
+    if (keepLimit <= 0) return out;
+    const used = new Set();
+    const zeroRows = [];
+    out.forEach((block, blockIndex) => {
+      (block.picks || []).forEach((pick, pickIndex) => {
+        const state = pick.state || pick;
+        const rid = String(state?.routine?.id || "");
+        if (rid) used.add(rid);
+        const logCount = Number(state?.n ?? (Array.isArray(state?.logs) ? state.logs.length : 0));
+        if (rid && logCount <= 0) zeroRows.push({blockIndex, pickIndex, pick, state, rid});
+      });
+    });
+    if (zeroRows.length <= keepLimit) return out;
+    const extras = zeroRows.slice(keepLimit);
+    const replacementPool = (ranked || []).filter(s => {
+      const rid = String(s?.routine?.id || "");
+      const logCount = Number(s?.n ?? (Array.isArray(s?.logs) ? s.logs.length : 0));
+      return rid && !used.has(rid) && logCount > 0;
+    });
+    let pi = 0;
+    extras.forEach(row => {
+      const block = out[row.blockIndex];
+      if (!block || !Array.isArray(block.picks)) return;
+      const replacement = replacementPool[pi++];
+      if (replacement?.routine?.id) {
+        used.add(String(replacement.routine.id));
+        block.picks[row.pickIndex] = normalizeAdaptivePick(replacement, Math.max(1, Number(row.pick?.reps || 1)));
+        block.baselineExplorationLimitApplied = true;
+      } else {
+        block.picks.splice(row.pickIndex, 1);
+      }
+    });
+    return out.filter(b => (b.picks || []).length);
+  } catch (err) {
+    try { logAppError(err, "smartBuilderLimitBaselineExplorationPicksSafe"); } catch (_) {}
+    return blocks || [];
   }
 }
 
@@ -10743,7 +10845,7 @@ function smartBuilderEtuAdjustmentSafe(state, etuContext, sessionTemplate=null) 
     let adj = 0;
     const reasons = [];
 
-    // v5.9.7: ETU is no longer a fatigue/brake cap. It acts as a rotation/freshness layer.
+    // v5.9.8: ETU is no longer a fatigue/brake cap. It acts as a rotation/freshness layer.
     const rotation = smartBuilderTrainingRotationAdjustmentSafe(state, ctx.rotationContext || smartBuilderTrainingRotationContextSafe(3));
     if (rotation && Number(rotation.adjustment || 0)) {
       adj += addLayer("etuLoad", rotation.adjustment, (rotation.reasons || [])[0] || "rotation: recent exposure adjustment");
@@ -12189,6 +12291,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   const recommendationProfiles = new Map(rankRoutinesByMode(focusOverride, strategy, recommendationModeForBuilder).map(x => [x.routine.id, x]));
   const etuContext = smartBuilderEtuContextSafe(data.logs || []);
   etuContext.rotationContext = smartBuilderTrainingRotationContextSafe(3);
+  const baselineExplorationTargetIds = smartBuilderBaselineExplorationTargetIdsSafe(states, etuContext, 1);
   let ranked = states.map(s => {
     let boost = 0;
     const profile = recommendationProfiles.get(s.routine.id);
@@ -12199,6 +12302,8 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     if (intensity === "pressure" && ["safety","mental","break-building"].includes(s.routine.category)) boost += 8;
     if (intensity === "technical" && ["potting","cue-ball","technique"].includes(s.routine.category)) boost += 8;
     if (profile?.selectionType === "exploration") boost += 4;
+    const baselineExploration = smartBuilderApplyBaselineExplorationBoostSafe(s, baselineExplorationTargetIds);
+    if (baselineExploration.active) boost += baselineExploration.boost;
     const etuAdjustment = smartBuilderEtuAdjustmentSafe(s, etuContext);
     const transferGraphProfile = smartBuilderTransferGraphFitSafe(s, {goal, strategy, intensity});
     const strategyModifier = boost;
@@ -12216,6 +12321,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
       bayesianScore:roundSmartAuditNumber(recommendationScore),
       bayesianContribution:roundSmartAuditNumber(bayesianContribution),
       strategyModifier:roundSmartAuditNumber(strategyModifier),
+      baselineExplorationModifier:roundSmartAuditNumber(baselineExploration?.boost || 0),
       etuModifier:roundSmartAuditNumber(layerModifiers.etuLoad),
       readinessModifier:roundSmartAuditNumber(layerModifiers.readiness),
       benchmarkModifier:roundSmartAuditNumber(layerModifiers.benchmark),
@@ -12224,10 +12330,10 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
       sportDiversityModifier:roundSmartAuditNumber(layerModifiers.sportDiversity),
       transferGraphModifier:roundSmartAuditNumber(transferGraphProfile.modifier || layerModifiers.transferGraph || 0),
       finalScore:roundSmartAuditNumber(smartScore),
-      selectedReason:(etuAdjustment.reasons || [])[0] || (profile?.reasons || [])[0] || "Base Bayesian / adaptive ranking",
-      constraintsApplied:[...(etuAdjustment.reasons || []), ...(transferGraphProfile.reasons || []).map(r => `Transfer graph: ${r}`)]
+      selectedReason:(baselineExploration.reasons || [])[0] || (etuAdjustment.reasons || [])[0] || (profile?.reasons || [])[0] || "Base Bayesian / adaptive ranking",
+      constraintsApplied:[...(baselineExploration.reasons || []), ...(etuAdjustment.reasons || []), ...(transferGraphProfile.reasons || []).map(r => `Transfer graph: ${r}`)]
     };
-    const enrichedState = {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, transferGraphProfile, recommendationAudit, etuReasons:(etuAdjustment.reasons || []), reasons:[...(s.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(transferGraphProfile.reasons || []).map(r => `transfer graph: ${r}`), ...(etuAdjustment.reasons || []), buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
+    const enrichedState = {...s, adaptiveScore: smartScore, transferValue, energyProfile, blockType:blockTypeForState(s, goal), recommendationProfile:profile, transferGraphProfile, baselineExploration, recommendationAudit, etuReasons:(etuAdjustment.reasons || []), reasons:[...(s.reasons || []), ...(baselineExploration.reasons || []), `transfer value ${transferValue}/100`, `energy load C${energyProfile.cognitive}/F${energyProfile.fatigue}/Conf${energyProfile.confidence}`, ...(transferGraphProfile.reasons || []).map(r => `transfer graph: ${r}`), ...(etuAdjustment.reasons || []), buildContextAwareReason(profile || {contextualFit:contextualFitForRoutine(s.routine, {logs:s.logs||[], vals:(s.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:s.hit})}), ...(profile?.reasons || []).slice(0,3)]};
     enrichedState.recommendationConfidence = smartBuilderRecommendationConfidenceSafe(enrichedState, profile, {});
     enrichedState.recommendationAudit.confidence = enrichedState.recommendationConfidence;
     return enrichedState;
@@ -12247,6 +12353,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
     globalReasons.push(`${sameDayExposureGuard.label || "same-day exposure guard active"}${affected ? ` (${affected} routine${affected===1?"":"s"})` : ""}`);
   }
   if (etuContext?.rotationContext?.routineCount) globalReasons.push(`training rotation active: ${etuContext.rotationContext.routineCount} recent routines considered over 3 days`);
+  if (baselineExplorationTargetIds?.size) globalReasons.push(`baseline exploration active: ${baselineExplorationTargetIds.size} zero-log benchmark candidate allowed`);
 
   if (smartBuilderIsOverrideGoalSafe(goal)) {
     effectiveGoal = goal;
@@ -12367,6 +12474,7 @@ function adaptiveSessionStructure(goal, duration, strictness, periodization = {}
   }
   blocks = fillAdaptiveSessionToDuration(blocks, ranked, targetMinutes);
   blocks = smartBuilderDeduplicatePlanPicksSafe(blocks, ranked);
+  blocks = smartBuilderLimitBaselineExplorationPicksSafe(blocks, ranked, 1);
   const durationPolicy = smartBuilderDurationDisciplinePolicySafe(sessionTemplate, effectiveGoal, targetMinutes, strictness);
   let durationDiscipline = smartBuilderApplyDurationDisciplineSafe(blocks, ranked, durationPolicy);
   blocks = durationDiscipline.blocks;
@@ -12745,7 +12853,7 @@ function saveSmartSessionPlanSafe({start=false} = {}) {
     updatedAt: now,
     source: "smart_session_builder",
     smartSessionMeta: {
-      version: "5.9.7",
+      version: "5.9.8",
       generatedAt: now,
       effectiveGoal: plan?.effectiveGoal || $("adaptiveGoal")?.value || "auto",
       targetMinutes: Number(plan?.targetMinutes || $("adaptiveDuration")?.value || 0) || "",
@@ -20184,7 +20292,7 @@ FIELD_HELP.smartBuilderEtuLayer = {
   title:"ETU / rotation layer",
   body:`
   <p><strong>Use ETU / rotation layer:</strong> uses ETU as exposure context, not as a fatigue cap. The builder looks at what routines, routine families and skill domains were trained today and during the last 2–3 days, then steers variety.</p>
-  <p><strong>No ETU caps:</strong> daily and weekly ETU caps are disabled in v5.9.7. Smart Builder will not trim, reject, or warn because ETU is high. The selected time limit remains the hard volume constraint.</p>
+  <p><strong>No ETU caps:</strong> daily and weekly ETU caps are disabled in v5.9.8. Smart Builder will not trim, reject, or warn because ETU is high. The selected time limit remains the hard volume constraint.</p>
   <p><strong>Rotation logic:</strong> exact routine repeats are penalized most, same-family repeats are penalized less, and linked alternatives are boosted. This lets you train daily while avoiding stale repetition of the same stimulus.</p>
   <p><strong>Same-day exposure guard:</strong> uses all logs from today. Allow repeats ignores same-day exposure; Avoid repeats down-weights exact same routines; Do not allow repeats excludes exact same routines and pushes the builder toward alternatives.</p>
   <div class="example"><strong>Example:</strong> if you trained T Line-Up Pink yesterday, the app should prefer T Line-Up Black, 5 Reds Under Black, or another linked break-building variant rather than repeating the same drill.</div>`
