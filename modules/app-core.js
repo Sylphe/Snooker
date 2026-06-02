@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.8";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.8";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.1";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.1";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.9.8";
+} from "./utils.js?v=5.9.14.1";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.9.8";
+} from "./settings.js?v=5.9.14.1";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.9.8";
+} from "./analytics.js?v=5.9.14.1";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -73,7 +73,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.9.8";
+} from "./bayesian.js?v=5.9.14.1";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -82,7 +82,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.9.8";
+} from "./session.js?v=5.9.14.1";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -90,7 +90,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.9.8";
+} from "./pressure.js?v=5.9.14.1";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -102,7 +102,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.9.8";
+} from "./recommendations.js?v=5.9.14.1";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -116,7 +116,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.9.8";
+} from "./store.js?v=5.9.14.1";
 
 
 
@@ -9776,7 +9776,7 @@ function applySmartBuilderTemplateConstraintsSafe(ranked, template, etuContext, 
       if (benchmarkDiscount) constraintsApplied.push("Benchmark influence discounted outside benchmark-prep mode");
       const recommendationAudit = {
         ...currentAudit,
-        version:"5.9.14",
+        version:"5.9.14.1",
         templateModifier:roundSmartAuditNumber(c.modifier),
         benchmarkDiscountModifier:roundSmartAuditNumber(benchmarkDiscount),
         benchmarkModifier:roundSmartAuditNumber(Number(currentAudit.benchmarkModifier || 0) + benchmarkDiscount),
@@ -10050,6 +10050,349 @@ function smartBuilderFlattenPlanPicksSafe(blocks = []) {
     return rows;
   } catch (_) { return []; }
 }
+
+
+
+
+/* v5.9.14.1 ETU subtype helper restore. */
+function smartBuilderEtuSubtypeLabelsSafe() {
+  return {
+    technical:{label:"Technical ETU", short:"Tech"},
+    cognitive:{label:"Cognitive ETU", short:"Cog"},
+    emotional:{label:"Confidence ETU", short:"Conf"},
+    pressure:{label:"Pressure ETU", short:"Pressure"}
+  };
+}
+function blankEtuSubtypeProfileSafe() {
+  return {technical:0, cognitive:0, emotional:0, pressure:0};
+}
+function roundEtuSubtypeProfileSafe(profile) {
+  const out = blankEtuSubtypeProfileSafe();
+  Object.keys(out).forEach(k => { out[k] = Math.round(Math.max(0, Number(profile?.[k] || 0)) * 100) / 100; });
+  return out;
+}
+function addEtuSubtypeProfilesSafe(a, b) {
+  const out = blankEtuSubtypeProfileSafe();
+  Object.keys(out).forEach(k => { out[k] = Math.max(0, Number(a?.[k] || 0)) + Math.max(0, Number(b?.[k] || 0)); });
+  return roundEtuSubtypeProfileSafe(out);
+}
+function normalizeEtuSubtypeSharesSafe(raw) {
+  const base = blankEtuSubtypeProfileSafe();
+  Object.keys(base).forEach(k => { base[k] = Math.max(0, Number(raw?.[k] || 0)); });
+  const total = Object.values(base).reduce((a,b)=>a+b,0) || 1;
+  Object.keys(base).forEach(k => { base[k] = base[k] / total; });
+  return base;
+}
+function allocateEtuSubtypeLoadSafe(totalEtu, rawShares) {
+  const total = Math.max(0, Number(totalEtu || 0));
+  const shares = normalizeEtuSubtypeSharesSafe(rawShares);
+  const out = blankEtuSubtypeProfileSafe();
+  Object.keys(out).forEach(k => { out[k] = total * shares[k]; });
+  return roundEtuSubtypeProfileSafe(out);
+}
+function formatEtuSubtypeProfileSafe(profile, options = {}) {
+  try {
+    const labels = smartBuilderEtuSubtypeLabelsSafe();
+    const min = Number(options.min || 0.01);
+    return Object.keys(labels)
+      .map(k => ({key:k, value:Number(profile?.[k] || 0), label:labels[k].short}))
+      .filter(x => x.value >= min)
+      .sort((a,b)=>b.value-a.value)
+      .map(x => `${x.label} ${numText(x.value)}`)
+      .join(" · ");
+  } catch (_) { return ""; }
+}
+
+/* v5.7.74 ETU Source Labelling — make every ETU display explicit about whether the value is defined, estimated or fallback-derived. */
+const ETU_SOURCE_META_SAFE = Object.freeze({
+  routine_defined:{key:"routine_defined", label:"Routine-defined", short:"Defined", cls:"good", detail:"ETU comes from explicit routine metadata or a populated routine ETU profile."},
+  estimated_from_routine:{key:"estimated_from_routine", label:"Estimated from routine", short:"Routine estimate", cls:"watch", detail:"ETU is inferred from routine duration, reps, block type, energy profile and semantic tags."},
+  estimated_from_session:{key:"estimated_from_session", label:"Estimated from session", short:"Session estimate", cls:"watch", detail:"ETU is inferred from logged session duration, routine diversity, density, pressure, transfer, quality and fatigue."},
+  fallback:{key:"fallback", label:"Fallback", short:"Fallback", cls:"risk", detail:"ETU uses a defensive fallback because explicit routine/session evidence is missing or incomplete."}
+});
+function etuSourceMetaSafe(source) {
+  const key = String(source || "").trim() || "fallback";
+  return ETU_SOURCE_META_SAFE[key] || ETU_SOURCE_META_SAFE.fallback;
+}
+function routineDefinedEtuTotalSafe(routine) {
+  try {
+    const direct = Number(routine?.etu ?? routine?.effectiveEtu ?? routine?.etuValue ?? routine?.trainingLoadEtu ?? routine?.expectedEtu);
+    const profile = routine?.etuProfile || routine?.etuSubtypes || routine?.loadProfile || null;
+    const profileTotal = profile && typeof profile === "object"
+      ? ["technical","cognitive","emotional","confidence","pressure"].reduce((sum, k) => sum + Math.max(0, Number(profile[k] || 0)), 0)
+      : 0;
+    if (Number.isFinite(direct) && direct > 0) return direct;
+    if (profileTotal > 0) return profileTotal;
+  } catch (_) {}
+  return 0;
+}
+function routineEtuSourceKeySafe(routine, block=null) {
+  try {
+    if (routineDefinedEtuTotalSafe(routine) > 0) return "routine_defined";
+    const hasRoutineSignals = !!(routine?.duration || routine?.target || routine?.attempts || routine?.attemptsPerSession || routine?.difficultyLabel || routine?.category || routine?.folder || routine?.subfolder || routine?.scoring || routine?.setupMeta || routine?.metadata || block);
+    return hasRoutineSignals ? "estimated_from_routine" : "fallback";
+  } catch (_) { return "fallback"; }
+}
+function sessionEtuSourceKeySafe(sessionLogs, minutes=0) {
+  try {
+    const arr = Array.isArray(sessionLogs) ? sessionLogs : [];
+    const explicit = arr.some(log => Number(log?.effectiveEtu ?? log?.etu ?? log?.trainingLoadEtu ?? log?.sessionEtu) > 0);
+    if (explicit) return "routine_defined";
+    if (Number(minutes || 0) > 0 || arr.length > 1) return "estimated_from_session";
+    return arr.length ? "fallback" : "fallback";
+  } catch (_) { return "fallback"; }
+}
+function mergeEtuSourceKeysSafe(keys) {
+  const list = (Array.isArray(keys) ? keys : []).map(k => String(k || "")).filter(Boolean);
+  if (list.includes("fallback")) return "fallback";
+  if (list.includes("estimated_from_session")) return "estimated_from_session";
+  if (list.includes("estimated_from_routine")) return "estimated_from_routine";
+  if (list.includes("routine_defined")) return "routine_defined";
+  return "fallback";
+}
+function renderEtuSourceBadgeSafe(source, options={}) {
+  const meta = etuSourceMetaSafe(source);
+  const text = options.long ? meta.label : meta.short;
+  return `<span class="etu-source-badge ${escapeHtml(meta.cls)}" title="${escapeHtml(meta.detail)}">${escapeHtml(text)}</span>`;
+}
+function renderEtuSourceTableSafe() {
+  const rows = [
+    ["Routine-defined", "Routine Studio / routine metadata", "Uses explicit ETU or populated ETU subtype profile. This is the cleanest future state once routines have calibrated ETU metadata.", "Routine schema, future calibrated drill load, audit quality"],
+    ["Estimated from routine", "Smart Builder generated plan", "Used when routine ETU is zero. The app estimates planned load from expected minutes, reps, block type, energy profile, transfer value, pressure/benchmark context and template constraints.", "Planned-session ETU budget, optimizer, contradiction checks"],
+    ["Estimated from session", "Logged sessions", "Used for historical analytics. The app estimates effective ETU from duration, routine diversity, log density, pressure/transfer/adaptive content, challenge band, subjective quality and session feel. Fatigue affects interpretation, not permission to train.", "Predictions, readiness, ETU history, skill ledger"],
+    ["Fallback", "Defensive default", "Used when neither routine metadata nor usable session signals are available. It prevents the analytics from breaking but should be treated as low-confidence.", "Safety fallback only; should decline as metadata improves"]
+  ];
+  return `<div class="debug-table-wrap etu-source-table-wrap"><table class="debug-table etu-source-table"><thead><tr><th>ETU source label</th><th>Origin</th><th>How ETU is created</th><th>Primary use</th></tr></thead><tbody>${rows.map(r => `<tr><td><strong>${escapeHtml(r[0])}</strong></td><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td><td>${escapeHtml(r[3])}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function renderEtuHelperBoxSafe() {
+  return `<div class="analytics-note etu-helper-box"><p><strong>ETU = Effective Training Unit.</strong> It converts very different practice sessions into one comparable development-load unit. Raw ETU is roughly table-time exposure; effective ETU is the calibrated load used by predictions and readiness.</p><p>The app starts from duration and applies diminishing returns after about 90 minutes, so a two-hour session is not treated as double a one-hour session. It then adjusts for routine diversity, drill density, pressure/transfer content, adaptive or recommendation-led work, productive target difficulty, subjective quality and session feel. Fatigue is kept as context for interpreting exposure quality, not as a rule that prevents daily training.</p><p>The important distinction is source quality. Routine ETU may still be zero because routine metadata has not yet been calibrated. Historical sessions can still accumulate ETU because the app estimates load from actual logged behavior. Planned Smart Builder sessions can also show ETU because the builder estimates expected load from routine duration, reps, block type and semantic context.</p>${renderEtuSourceTableSafe()}<p>Do not maximize ETU mechanically: the useful target is productive exposure and smart rotation, not volume. Forecasts use accumulated effective ETU and a conservative forecast ETU/week pace, because a temporary training burst should not imply unrealistic calendar predictions. Higher milestones are nonlinear: stable 50+, stable 70+ and century-capable profiles require consolidation, automaticity, pressure stability and variance reduction, not just extra minutes.</p></div>`;
+}
+
+function etuSubtypeDominanceSafe(profile) {
+  try {
+    const labels = smartBuilderEtuSubtypeLabelsSafe();
+    const rows = Object.keys(labels).map(k => ({key:k, label:labels[k].short, value:Number(profile?.[k] || 0)})).sort((a,b)=>b.value-a.value);
+    return rows[0] || {key:"technical", label:"Tech", value:0};
+  } catch (_) { return {key:"technical", label:"Tech", value:0}; }
+}
+function smartBuilderRoutineEtuSubtypesSafe(stateOrRoutine, block=null) {
+  try {
+    const state = stateOrRoutine?.routine ? stateOrRoutine : {routine:stateOrRoutine || {}};
+    const r = state.routine || {};
+    const explicit = r.etuProfile || r.etuSubtypes || r.loadProfile || null;
+    if (explicit && typeof explicit === "object") return roundEtuSubtypeProfileSafe(explicit);
+    const energy = routineEnergyProfile(state);
+    const total = Math.max(0.2, Number(state.expectedEtu || adaptiveRoutineExpectedMinutes(r) / 10 || 1));
+    const raw = {
+      technical: 0.55 + Math.max(0, 3 - Number(energy.fatigue || 2)) * 0.03,
+      cognitive: 0.22 + Math.max(0, Number(energy.cognitive || 2) - 2) * 0.06,
+      emotional: 0.12 + Math.max(0, Number(energy.confidence || 2) - 2) * 0.06,
+      pressure: 0.11 + (smartBuilderPressureLikeStateSafe(state, block) ? 0.18 : 0)
+    };
+    return allocateEtuSubtypeLoadSafe(total, raw);
+  } catch (_) { return blankEtuSubtypeProfileSafe(); }
+}
+
+/* v5.9.14.1 Smart Builder runtime restore: functions accidentally dropped during v5.9.12-v5.9.14 patch chain. */
+function smartSessionCopy(key){
+  return uiLabel(key);
+}
+
+function smartBlockName(blockType, fallback=""){
+  const map = {warmup:"warmupCalibration", primary:"primarySkillBlock", transfer:"carryoverBlock", pressure:"pressureBlock", confidence:"finishStrong", completion:"completionBlock"};
+  const key = map[blockType];
+  return key ? uiLabel(key) : (fallback || blockType || "Block");
+}
+
+function smartBlockPurpose(blockType, fallback=""){
+  if(getInsightLanguageSetting() !== "friendly") return fallback;
+  const copy = {
+    warmup:"Get calibrated before the main work.",
+    primary:"Focus on the skill that matters most today.",
+    transfer:"Use a related drill that carries over into the main skill.",
+    pressure:"Add controlled match pressure without overloading the session.",
+    confidence:"Finish on a familiar drill and leave the table clean.",
+    completion:"Use remaining time on the next useful priority."
+  };
+  return copy[blockType] || fallback;
+}
+
+function smartGoalLabel(goal){
+  if(getInsightLanguageSetting() !== "friendly") return goal;
+  return ({recovery:"Recovery", progression:"Progress", stability:"Stability", variety:"Balanced", auto:"Auto", maximize_etu:"Maximize ETU", level_progression:"Fastest level progression"})[goal] || goal;
+}
+
+function renderSmartBuilderDurationDisciplineSafe(plan) {
+  try {
+    const d = plan?.durationDiscipline;
+    if (!d?.policy) return "";
+    const target = Number(d.policy.targetMinutes || plan?.targetMinutes || 0);
+    const cap = Number(d.policy.maxMinutes || target || 0);
+    const planned = Number(plan?.estimatedMinutes || d.afterMinutes || 0);
+    const status = planned <= cap ? "inside cap" : "above cap";
+    return `<div class="adaptive-rationale"><strong>Duration discipline:</strong> target ${formatDurationHuman(target)} · cap ${formatDurationHuman(cap)} · planned ${formatDurationHuman(planned)} · ${escapeHtml(status)}.</div>`;
+  } catch (_) { return ""; }
+}
+
+function renderSmartBuilderEtuSessionBudgetSafe(plan) {
+  try {
+    const b = plan?.etuSessionBudget;
+    if (!b?.policy) return "";
+    const total = Number(b.after?.total ?? b.before?.total ?? 0);
+    const min = Number(b.policy.min || 0);
+    const max = Number(b.policy.max || 0);
+    const disabled = b.policy?.disabled || !smartBuilderEtuConstraintsEnabled();
+    const status = disabled ? "ETU constraints disabled" : total < min ? "below target load" : total <= max ? "inside ETU budget" : "above ETU budget";
+    const cls = disabled || total <= max ? "adaptive-ok" : "adaptive-risk";
+    const subtypeText = formatEtuSubtypeProfileSafe(b.after?.subtypes || b.before?.subtypes || {});
+    const sourceBadge = renderEtuSourceBadgeSafe(b.after?.etuSource || b.before?.etuSource || "estimated_from_routine", {long:true});
+    const blocks = (b.after?.byBlock || []).map(x => `${x.name}: ${numText(x.etu)} ETU [${etuSourceMetaSafe(x.etuSource || "estimated_from_routine").short}]${x.subtypes ? ` (${formatEtuSubtypeProfileSafe(x.subtypes)})` : ""}`).join(" · ");
+    const budgetText = disabled ? "audit only · no ETU cap applied" : `target ${numText(min)}–${numText(max)} ETU`;
+    return `<div class="adaptive-rationale ${cls}"><strong>ETU session budget:</strong> ${escapeHtml(b.policy.label || "ETU budget")} · ${budgetText} · planned ${numText(total)} ETU · ${escapeHtml(status)} · ${sourceBadge}.${subtypeText ? `<br><span class="muted small"><strong>Subtype mix:</strong> ${escapeHtml(subtypeText)}</span>` : ""}${blocks ? `<br><span class="muted small">${escapeHtml(blocks)}</span>` : ""}</div>`;
+  } catch (_) { return ""; }
+}
+
+function smartBuilderDebugRowsSafe(plan) {
+  try {
+    const selected = new Set();
+    (plan?.blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+      const state = pick?.state || pick;
+      const id = state?.routine?.id;
+      if (id) selected.add(id);
+    }));
+    const ranked = Array.isArray(plan?.ranked) ? plan.ranked : [];
+    const selectedRows = [];
+    (plan?.blocks || []).forEach(block => (block.picks || []).forEach(pick => {
+      const state = pick?.state || pick;
+      const audit = state?.recommendationAudit || {};
+      selectedRows.push({
+        block:block?.name || "Block",
+        name:state?.routine?.name || "Exercise",
+        domain:predictionDomainLabelSafe(smartBuilderRoutineDomainKeySafe(state?.routine || {})),
+        mode:smartBuilderNormalizeVisibleModeSafe(state, block)?.label || smartBuilderTaxonomyLabelSafe(state?.taxonomyMode || "consolidation"),
+        fit:roundSmartAuditNumber(state?.adaptiveScore || 0),
+        bayes:roundSmartAuditNumber(audit.bayesianScore ?? audit.baseBayesianScore ?? 0),
+        etu:roundSmartAuditNumber(audit.etuModifier ?? audit.etuLoadModifier ?? 0),
+        ready:roundSmartAuditNumber(audit.readinessModifier ?? 0),
+        template:roundSmartAuditNumber(audit.templateModifier ?? 0),
+        sport:roundSmartAuditNumber(audit.sportDiversityModifier ?? 0),
+        exposure:benchmarkExposureLabel(smartBuilderBenchmarkExposureSafe(state)),
+        benchmarkMode:benchmarkModeLabel(smartBuilderBenchmarkModeSafe(state)),
+        benchmarkWeight:smartBuilderBenchmarkExposureWeightSafe(state),
+        etuSource:routineEtuSourceKeySafe(state?.routine || {}, block),
+        constraints:Array.isArray(audit.constraintsApplied) ? audit.constraintsApplied.slice(0,4) : []
+      });
+    }));
+    const rejectedRows = ranked
+      .filter(state => state?.routine?.id && !selected.has(state.routine.id))
+      .slice(0,10)
+      .map(state => {
+        const audit = state?.recommendationAudit || {};
+        const constraints = Array.isArray(audit.constraintsApplied) ? audit.constraintsApplied : [];
+        const reason = (state?.templateHardFlags || []).slice(0,1)[0]
+          || constraints.find(x => /template|duration|ETU|loaded|suppresses|risk|volatility/i.test(String(x)))
+          || "Lower final rank after template, rotation, diversity and duration constraints";
+        return {
+          name:state?.routine?.name || "Exercise",
+          domain:predictionDomainLabelSafe(smartBuilderRoutineDomainKeySafe(state?.routine || {})),
+          fit:roundSmartAuditNumber(state?.adaptiveScore || 0),
+          template:roundSmartAuditNumber(audit.templateModifier ?? 0),
+          etu:roundSmartAuditNumber(audit.etuModifier ?? audit.etuLoadModifier ?? 0),
+          etuSource:routineEtuSourceKeySafe(state?.routine || {}, null),
+          reason
+        };
+      });
+    return {selectedRows, rejectedRows};
+  } catch (err) {
+    try { logAppError(err, "smartBuilderDebugRowsSafe"); } catch (_) {}
+    return {selectedRows:[], rejectedRows:[]};
+  }
+}
+
+function renderSmartBuilderDebugConsoleSafe(plan) {
+  try {
+    const rows = smartBuilderDebugRowsSafe(plan);
+    const selectedRows = rows.selectedRows || [];
+    const rejectedRows = rows.rejectedRows || [];
+    const sanity = plan?.recommendationSanity || {};
+    const etuBudget = plan?.etuSessionBudget || {};
+    const duration = plan?.durationDiscipline || {};
+    const headerRows = [
+      ["Template", plan?.sessionTemplate?.label || plan?.sessionTemplate?.key || "—"],
+      ["Goal", smartGoalLabel(plan?.effectiveGoal || "stability")],
+      ["Duration", `${formatDurationHuman(plan?.targetMinutes || 0)} target · ${formatDurationHuman(plan?.estimatedMinutes || 0)} planned`],
+      ["Duration cap", duration?.policy ? formatDurationHuman(duration.policy.maxMinutes || 0) : "—"],
+      ["ETU budget", etuBudget?.policy ? `${numText(etuBudget.policy.min)}–${numText(etuBudget.policy.max)} ETU · planned ${numText(etuBudget.after?.total ?? etuBudget.before?.total ?? 0)} · ${etuSourceMetaSafe(etuBudget.after?.etuSource || etuBudget.before?.etuSource || "estimated_from_routine").short}` : "—"],
+      ["Sanity", sanity?.label || "—"]
+    ];
+    const headerHtml = headerRows.map(([k,v]) => `<div class="debug-kv"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(v))}</strong></div>`).join("");
+    const selectedHtml = selectedRows.length ? `<div class="debug-table-wrap"><table class="debug-table"><thead><tr><th>Selected drill</th><th>Block</th><th>Mode</th><th>Fit</th><th>Bayes</th><th>Rotation</th><th>Ready</th><th>Template</th><th>Sport</th><th>Benchmark mode</th></tr></thead><tbody>${selectedRows.map(r => `<tr><td><strong>${escapeHtml(r.name)}</strong><br><span class="muted small">${escapeHtml(r.domain)}</span></td><td>${escapeHtml(r.block)}</td><td>${escapeHtml(r.mode)}</td><td>${numText(r.fit)}</td><td>${numText(r.bayes)}</td><td>${numText(r.etu)}<br>${renderEtuSourceBadgeSafe(r.etuSource || "estimated_from_routine")}</td><td>${numText(r.ready)}</td><td>${numText(r.template)}</td><td>${numText(r.sport)}</td><td>${escapeHtml(r.benchmarkMode || r.exposure || "—")}<br><span class="muted small">weight ${numText(r.benchmarkWeight || 0)}</span></td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">No selected-drill trace available.</p>`;
+    const rejectedHtml = rejectedRows.length ? `<div class="debug-table-wrap"><table class="debug-table"><thead><tr><th>Rejected / not selected</th><th>Fit</th><th>Template</th><th>Rotation</th><th>Primary reason</th></tr></thead><tbody>${rejectedRows.map(r => `<tr><td><strong>${escapeHtml(r.name)}</strong><br><span class="muted small">${escapeHtml(r.domain)}</span></td><td>${numText(r.fit)}</td><td>${numText(r.template)}</td><td>${numText(r.etu)}<br>${renderEtuSourceBadgeSafe(r.etuSource || "estimated_from_routine")}</td><td>${escapeHtml(String(r.reason || ""))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">No rejected-drill trace available.</p>`;
+    const sanityFindings = Array.isArray(sanity?.findings) ? sanity.findings : [];
+    const sanityHtml = sanityFindings.length ? `<ul class="reason-list">${sanityFindings.map(f => `<li><strong>${escapeHtml(f.severity || "watch")} · ${escapeHtml(f.label || "Finding")}:</strong> ${escapeHtml(f.detail || "")}</li>`).join("")}</ul>` : `<p class="muted">No material sanity findings.</p>`;
+    return `<details class="smart-builder-debug-console"><summary>Builder Debug Console</summary><div class="analytics-note"><strong>Developer audit console.</strong> Shows decision trace only; it does not change the generated session. Use this to audit Bayesian ranking, rotation, readiness, template constraints, sport-domain mix and sanity findings.</div><div class="debug-grid">${headerHtml}</div><details class="smart-builder-why-details"><summary>Selected drill trace</summary>${selectedHtml}</details><details class="smart-builder-why-details"><summary>Rejected / not selected drill trace</summary>${rejectedHtml}</details><details class="smart-builder-why-details"><summary>Sanity findings and guardrails</summary>${sanityHtml}</details></details>`;
+  } catch (err) {
+    try { logAppError(err, "renderSmartBuilderDebugConsoleSafe"); } catch (_) {}
+    return `<details class="smart-builder-debug-console"><summary>Builder Debug Console</summary><div class="analytics-note warn">Debug console unavailable for this generated session.</div></details>`;
+  }
+}
+
+function skillGroupForRoutine(routine) {
+  const map = getRoutineSkillMap(routine);
+  const skill = DEFAULT_SKILLS.find(s => s.id === map.primarySkill);
+  return skill?.group || routine?.category || "Uncategorized";
+}
+
+function routineTransferValue(routine) {
+  const map = getRoutineSkillMap(routine);
+  let value = 50;
+  const primary = map.primarySkill || "";
+  const secondaries = new Set((map.secondarySkills || []).filter(skill => skill && skill !== primary));
+  const transfers = new Set((map.transferTags || []).filter(skill => skill && skill !== primary && !secondaries.has(skill)));
+  const uniqueSkills = new Set([primary, ...secondaries, ...transfers].filter(Boolean));
+  if (["cueing","cue_ball_control","cue_ball_speed","pace_control","long_potting","safety","break_building","positional_play"].some(skill => uniqueSkills.has(skill))) value += 18;
+  if (["pressure_resilience","confidence_stability","focus_consistency","stamina"].some(skill => uniqueSkills.has(skill))) value += 10;
+  value += Math.min(14, secondaries.size * 3);
+  value += Math.min(10, transfers.size * 3);
+  const graph = routineGraphTransferProfile(routine);
+  value += Math.min(12, graph.totalWeight * 4);
+  value += Math.min(8, graph.breadth * 1.5);
+  if (routine?.isAnchor) value += 10;
+  const category = String(routine?.category || "").toLowerCase();
+  if (["potting","cue-ball","technique","safety","break-building"].includes(category)) value += 6;
+  if (String(routine?.name || "").toLowerCase().match(/line|long|safety|cue.?ball|black|blue|position|rest|pressure/)) value += 4;
+  return Math.max(20, Math.min(100, Math.round(value)));
+}
+
+function routineVolatilityProfile(routine, stats) {
+  const vals = (stats?.vals || routineStats(routine?.id).vals || []).filter(Number.isFinite);
+  const globalVals = (data.logs || []).map(safeLogScoreForTargetInterval).filter(Number.isFinite);
+  const globalFallback = globalVals.length >= 8 ? Math.max(6, Math.min(18, stdDev(globalVals))) : 10;
+  const sd = vals.length >= 3 ? stdDev(vals) : globalFallback;
+  const map = getRoutineSkillMap(routine);
+  const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+  let base = sd;
+  if (skills.has("pressure_resilience") || skills.has("long_potting") || skills.has("escape_shots")) base += 4;
+  if (routine?.isAnchor) base -= 4;
+  const level = base >= 18 ? "high" : base >= 10 ? "medium" : "low";
+  return {score:Math.max(0, Math.round(base)), level};
+}
+
+
+/* v5.9.14.1 Smart Builder defensive wrappers. */
+function smartBuilderBenchmarkModeForRoutineSafe(routine) {
+  try { return routineBenchmarkModeSafe(routine || {}) || "support"; } catch (_) { return "support"; }
+}
+function smartBuilderRoutineEtuProfileSafe(routine, context={}) {
+  try {
+    const r = routine || {};
+    const profile = r.etuProfile || r.etuSubtypes || r.loadProfile || null;
+    if (profile && typeof profile === "object") return roundEtuSubtypeProfileSafe(profile);
+    const state = context?.state || {routine:r};
+    return smartBuilderRoutineEtuSubtypesSafe(state, null);
+  } catch (_) { return blankEtuSubtypeProfileSafe(); }
+}
+
 function routineEnergyProfile(stateOrRoutine = {}) {
   try {
     const state = stateOrRoutine?.routine ? stateOrRoutine : {routine:stateOrRoutine};
@@ -10221,8 +10564,8 @@ function smartBuilderRecommendationSanityLayerSafe(plan = {}) {
     const selectedKeys = rows.map(r => smartBuilderCanonicalStateKeySafe(r.state)).filter(Boolean);
     if (new Set(selectedKeys).size < selectedKeys.length) findings.push({severity:"risk", code:"duplicate_canonical_routine", label:"Duplicate routine lineage", detail:"The same canonical routine appears more than once."});
     const label = findings.some(f=>f.severity==="risk") ? "Risk flags" : findings.length ? "Watch flags" : "Passed";
-    return {version:"5.9.14", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
-  } catch (_) { return {version:"5.9.14", label:"Sanity unavailable", status:"watch", findings:[]}; }
+    return {version:"5.9.14.1", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
+  } catch (_) { return {version:"5.9.14.1", label:"Sanity unavailable", status:"watch", findings:[]}; }
 }
 function renderSmartBuilderRecommendationSanitySafe(plan) {
   try {
@@ -10250,8 +10593,8 @@ function smartBuilderContradictionEngineSafe(plan = {}) {
     }
     const status = findings.some(f=>f.severity==="critical") ? "critical" : findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed";
     const label = status === "passed" ? "No contradictions" : status === "watch" ? "Watch contradictions" : status === "risk" ? "Risk contradictions" : "Critical contradiction";
-    return {version:"5.9.14", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
-  } catch (_) { return {version:"5.9.14", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
+    return {version:"5.9.14.1", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
+  } catch (_) { return {version:"5.9.14.1", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
 }
 function renderSmartBuilderContradictionEngineSafe(plan) {
   try {
@@ -12194,7 +12537,7 @@ function saveSmartSessionPlanSafe({start=false} = {}) {
     updatedAt: now,
     source: "smart_session_builder",
     smartSessionMeta: {
-      version: "5.9.14",
+      version: "5.9.14.1",
       generatedAt: now,
       effectiveGoal: plan?.effectiveGoal || $("adaptiveGoal")?.value || "auto",
       targetMinutes: Number(plan?.targetMinutes || $("adaptiveDuration")?.value || 0) || "",
