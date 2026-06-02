@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.4";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.4";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.15";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.15";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.9.14.4";
+} from "./utils.js?v=5.9.15";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.9.14.4";
+} from "./settings.js?v=5.9.15";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.9.14.4";
+} from "./analytics.js?v=5.9.15";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -73,7 +73,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.9.14.4";
+} from "./bayesian.js?v=5.9.15";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -82,7 +82,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.9.14.4";
+} from "./session.js?v=5.9.15";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -90,7 +90,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.9.14.4";
+} from "./pressure.js?v=5.9.15";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -102,7 +102,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.9.14.4";
+} from "./recommendations.js?v=5.9.15";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -116,7 +116,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.9.14.4";
+} from "./store.js?v=5.9.15";
 
 
 
@@ -9776,7 +9776,7 @@ function applySmartBuilderTemplateConstraintsSafe(ranked, template, etuContext, 
       if (benchmarkDiscount) constraintsApplied.push("Benchmark influence discounted outside benchmark-prep mode");
       const recommendationAudit = {
         ...currentAudit,
-        version:"5.9.14.4",
+        version:"5.9.15",
         templateModifier:roundSmartAuditNumber(c.modifier),
         benchmarkDiscountModifier:roundSmartAuditNumber(benchmarkDiscount),
         benchmarkModifier:roundSmartAuditNumber(Number(currentAudit.benchmarkModifier || 0) + benchmarkDiscount),
@@ -10010,6 +10010,8 @@ function smartSessionFallbackPlan(goal="auto", duration=60, reason="fallback") {
     horizonWeeks:Number($("periodizationHorizon")?.value || 4),
     daysToCompetition:null,
     globalReasons:[`fallback: ${reason}`],
+    isFallback:true,
+    fallbackReason:String(reason || "fallback"),
     blocks,
     routineIds: flattenAdaptiveRoutineIds(blocks),
     ranked,
@@ -10378,7 +10380,7 @@ function routineVolatilityProfile(routine, stats) {
   return {score:Math.max(0, Math.round(base)), level};
 }
 
-/* v5.9.14.2 Smart Builder restored scoring helpers. These helpers were present before the v5.9.12-5.9.14 patch chain and are required by the advanced builder. */
+/* v5.9.15 Smart Builder restored scoring helpers. These helpers were present before the v5.9.12-5.9.14 patch chain and are required by the advanced builder. */
 function recentReflectionContext() {
   try {
     const sessions = (data.sessions || []).slice().sort((a,b) => new Date(a.createdAt || a.date || 0) - new Date(b.createdAt || b.date || 0));
@@ -10791,8 +10793,8 @@ function smartBuilderRecommendationSanityLayerSafe(plan = {}) {
     const selectedKeys = rows.map(r => smartBuilderCanonicalStateKeySafe(r.state)).filter(Boolean);
     if (new Set(selectedKeys).size < selectedKeys.length) findings.push({severity:"risk", code:"duplicate_canonical_routine", label:"Duplicate routine lineage", detail:"The same canonical routine appears more than once."});
     const label = findings.some(f=>f.severity==="risk") ? "Risk flags" : findings.length ? "Watch flags" : "Passed";
-    return {version:"5.9.14.4", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
-  } catch (_) { return {version:"5.9.14.4", label:"Sanity unavailable", status:"watch", findings:[]}; }
+    return {version:"5.9.15", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
+  } catch (_) { return {version:"5.9.15", label:"Sanity unavailable", status:"watch", findings:[]}; }
 }
 function renderSmartBuilderRecommendationSanitySafe(plan) {
   try {
@@ -10820,8 +10822,8 @@ function smartBuilderContradictionEngineSafe(plan = {}) {
     }
     const status = findings.some(f=>f.severity==="critical") ? "critical" : findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed";
     const label = status === "passed" ? "No contradictions" : status === "watch" ? "Watch contradictions" : status === "risk" ? "Risk contradictions" : "Critical contradiction";
-    return {version:"5.9.14.4", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
-  } catch (_) { return {version:"5.9.14.4", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
+    return {version:"5.9.15", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
+  } catch (_) { return {version:"5.9.15", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
 }
 function renderSmartBuilderContradictionEngineSafe(plan) {
   try {
@@ -12118,6 +12120,47 @@ function smartBuilderPressureDowngradePolicySafe(etuContext, effectiveGoal="stab
     return {active:false};
   } catch (_) { return {active:false}; }
 }
+
+/* v5.9.15 Smart Builder runtime integrity: block classifiers and fallback isolation. */
+function blockTypeForState(state, goal="auto") {
+  try {
+    const routine = state?.routine || state || {};
+    const goalKey = String(goal || "auto").toLowerCase();
+    const mode = String(smartBuilderBenchmarkModeForRoutineSafe?.(routine) || smartBuilderBenchmarkModeSafe?.(state) || routine.benchmarkMode || "").toLowerCase();
+    const category = String(routine.category || routine.folder || "").toLowerCase();
+    const phase = String(state?.phase || "").toLowerCase();
+    if (goalKey === "recovery" || phase.includes("recover")) return "recovery";
+    if (goalKey === "pressure" || mode === "pressure_test" || category.includes("pressure")) return "pressure";
+    if (goalKey === "benchmark" || goalKey === "benchmark_prep" || mode === "test") return "benchmark";
+    if (mode === "calibration") return "calibration";
+    if (phase.includes("explor") || Number(state?.n || 0) <= 1) return "exploration";
+    if (phase.includes("stabil") || phase.includes("consolid")) return "consolidation";
+    if (goalKey === "progression" || goalKey === "level_progression" || goalKey === "fastest_level_progression") return "progression";
+    return "primary";
+  } catch (_) {
+    return "primary";
+  }
+}
+function smartBuilderIsFallbackPlanSafe(plan) {
+  return !!(plan && (plan.isFallback || String((plan.globalReasons || []).join(" ")).toLowerCase().includes("fallback")));
+}
+function renderSmartBuilderFallbackPlanSafe(plan) {
+  try {
+    const reason = (plan?.fallbackReason || (plan?.globalReasons || []).join(" · ") || "advanced builder unavailable").replace(/^fallback:\s*/i, "");
+    const blocks = Array.isArray(plan?.blocks) ? plan.blocks : [];
+    const rows = blocks.map(block => `<div class="adaptive-phase smart-block-card"><h4>${escapeHtml(block.name || "Fallback block")} · ${formatDurationHuman(block.minutes || plan?.targetMinutes || 0)}</h4><div class="adaptive-rationale">${escapeHtml(block.purpose || "Fallback plan generated from active routines.")}</div>${(block.picks || []).map(pick => {
+      const s = pick?.state || pick || {};
+      const routine = s.routine || {};
+      const energy = s.energyProfile || routineEnergyProfile(s);
+      return `<div class="routine-row"><div><strong>${escapeHtml(routine.name || "Exercise")}</strong><div class="adaptive-rationale">Fallback pick · ${escapeHtml((s.reasons || []).slice(0,2).join(" · ") || "active routine")}</div><div class="adaptive-rationale muted small">${escapeHtml(uiLabel("mentalLoad"))} ${numText(energy.cognitive)} · ${escapeHtml(uiLabel("energyCost"))} ${numText(energy.fatigue)} · ${escapeHtml(uiLabel("confidenceRisk"))} ${numText(energy.confidence)}</div></div></div>`;
+    }).join("")}</div>`).join("");
+    return `<div class="adaptive-phase adaptive-watch"><h4>Smart Session fallback</h4><div class="adaptive-rationale"><strong>Advanced builder unavailable.</strong> Generated from active routines only.<br><span class="muted small">Reason: ${escapeHtml(reason || "unknown")}</span></div></div>${rows || "<p>No active exercises available.</p>"}`;
+  } catch (err) {
+    try { logAppError(err, "renderSmartBuilderFallbackPlanSafe"); } catch (_) {}
+    return `<div class="adaptive-phase adaptive-watch"><h4>Smart Session fallback</h4><div class="adaptive-rationale">Fallback renderer unavailable.</div></div>`;
+  }
+}
+
 function adaptiveSessionStructure(goal, duration, strictness, periodization = {}) {
   const targetMinutes = Number(duration || 60);
   const horizonWeeks = Math.max(0.25, Number(periodization.horizonWeeks || $("periodizationHorizon")?.value || 4));
@@ -12393,7 +12436,7 @@ function smartBuilderPlanCacheKeySafe(goal, duration, strictness, phaseInfo, ses
     const routines = activeRoutines?.() || [];
     const lastLog = logs.length ? logs[logs.length - 1] : null;
     return JSON.stringify({
-      v:"5.9.14.4",
+      v:"5.9.15",
       goal,
       duration:Number(duration || 0),
       strictness:String(strictness || ""),
@@ -12442,7 +12485,7 @@ function renderAdaptiveSession(event) {
       const fallback = smartSessionFallbackPlan($("adaptiveGoal")?.value || "stability", Number($("adaptiveDuration")?.value || 60), error?.message || "builder exception");
       adaptivePlanDraft = validRoutineIds(fallback.routineIds);
       const rows = (fallback.blocks || []).map(block => `<div class="adaptive-phase smart-block-card"><h4>${escapeHtml(block.name)} · ${formatDurationHuman(block.minutes)}</h4><div class="adaptive-rationale">${escapeHtml(block.purpose)}</div>${(block.picks || []).map(pick => { const s = pick.state || pick; return `<div class="routine-row"><div><strong>${escapeHtml(s?.routine?.name || "Exercise")}</strong><div class="adaptive-rationale">Fallback pick · ${escapeHtml((s?.reasons || []).slice(0,2).join(" · ") || "active routine")}</div></div></div>`; }).join("")}</div>`).join("");
-      if (adaptiveHost) adaptiveHost.innerHTML = `<div class="adaptive-phase adaptive-watch"><h4>Smart Session fallback</h4><div class="adaptive-rationale">The advanced builder hit an error and used the active-routine fallback. Error: ${escapeHtml(error?.message || String(error || "unknown"))}</div></div>${rows || "<p>No active exercises available.</p>"}`;
+      if (adaptiveHost) adaptiveHost.innerHTML = renderSmartBuilderFallbackPlanSafe(fallback);
       showTransientNotice?.("Smart Session generated with fallback logic.", "warn");
     } catch(fallbackError) {
       logAppError?.(fallbackError, "renderAdaptiveSession fallback");
@@ -12643,6 +12686,12 @@ function renderAdaptiveSessionInternal() {
     adaptivePlanDraft = (plan.routineIds || []).filter(id => routineById(id) && !routineById(id).isDeleted);
   }
 
+  if (smartBuilderIsFallbackPlanSafe(plan)) {
+    const adaptiveHost = $("adaptiveEngineOutput");
+    if (adaptiveHost) adaptiveHost.innerHTML = renderSmartBuilderFallbackPlanSafe(plan);
+    return;
+  }
+
   const mode = getSmartRecommendationMode();
   const usage = plan.budgetUsage || {cognitive:0,fatigue:0,confidence:0,switches:0};
   const budgets = plan.budgets || sessionBudgetsForGoal(plan.effectiveGoal, plan.targetMinutes);
@@ -12764,7 +12813,7 @@ function saveSmartSessionPlanSafe({start=false} = {}) {
     updatedAt: now,
     source: "smart_session_builder",
     smartSessionMeta: {
-      version: "5.9.14.4",
+      version: "5.9.15",
       generatedAt: now,
       effectiveGoal: plan?.effectiveGoal || $("adaptiveGoal")?.value || "auto",
       targetMinutes: Number(plan?.targetMinutes || $("adaptiveDuration")?.value || 0) || "",
