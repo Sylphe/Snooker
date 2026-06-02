@@ -10378,6 +10378,176 @@ function routineVolatilityProfile(routine, stats) {
   return {score:Math.max(0, Math.round(base)), level};
 }
 
+/* v5.9.14.2 Smart Builder restored scoring helpers. These helpers were present before the v5.9.12-5.9.14 patch chain and are required by the advanced builder. */
+function recentReflectionContext() {
+  try {
+    const sessions = (data.sessions || []).slice().sort((a,b) => new Date(a.createdAt || a.date || 0) - new Date(b.createdAt || b.date || 0));
+    const recentSessions = sessions.slice(-6);
+    const recentLogs = (data.logs || []).slice().sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)).slice(-24);
+    const ratings = (field) => recentSessions
+      .map(s => Number((s.reflection || {})[field]))
+      .filter(Number.isFinite);
+    const mean = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+    const scoreVals = recentLogs.map(l => Number(l.normalizedScore ?? l.score ?? 0)).filter(Number.isFinite);
+    return {
+      recent: recentLogs,
+      recentSessions,
+      focus: mean(ratings("focus")),
+      confidence: mean(ratings("confidence")),
+      fatigue: mean(ratings("fatigue")),
+      cueing: mean(ratings("cueing")),
+      mental: mean(ratings("mentalSharpness")),
+      recentAvg: scoreVals.length ? mean(scoreVals.slice(-Math.min(4, scoreVals.length))) : null,
+      priorAvg: scoreVals.length > 4 ? mean(scoreVals.slice(0, -4)) : null,
+      volatility: scoreVals.length >= 3 ? stdDev(scoreVals) : null,
+      goodScoreBadFeel: 0,
+      badScoreGoodFeel: 0
+    };
+  } catch (_) {
+    return {recent:[], recentSessions:[], focus:null, confidence:null, fatigue:null, cueing:null, mental:null, recentAvg:null, priorAvg:null, volatility:null, goodScoreBadFeel:0, badScoreGoodFeel:0};
+  }
+}
+function inferTrainingStateMode(context = recentReflectionContext()) {
+  try {
+    const fatigue = Number(context.fatigue || 0);
+    const confidence = Number(context.confidence || 0);
+    const focus = Number(context.focus || 0);
+    const volatility = Number(context.volatility || 0);
+    if ((fatigue >= 4 && confidence && confidence <= 3) || (focus && focus <= 2.5) || Number(context.goodScoreBadFeel || 0) >= 2) {
+      return {mode:"recovery", label:"Recovery", reason:"fatigue/focus/confidence context is fragile"};
+    }
+    if (Number(context.badScoreGoodFeel || 0) >= 2 || (confidence >= 4 && context.recentAvg !== null && Number(context.recentAvg) < 55)) {
+      return {mode:"acquisition", label:"Acquisition", reason:"process feel is positive while scores still need consolidation"};
+    }
+    if (confidence >= 4 && focus >= 4 && fatigue <= 3 && volatility < 14) {
+      return {mode:"performance", label:"Performance", reason:"confidence/focus are strong and volatility is controlled"};
+    }
+    return {mode:"consolidation", label:"Consolidation", reason:"stable enough for skill transfer and medium pressure"};
+  } catch (_) { return {mode:"consolidation", label:"Consolidation", reason:"default training context"}; }
+}
+function ensureRecommendationFeedbackStore(){
+  data.recommendationFeedback = Array.isArray(data.recommendationFeedback) ? data.recommendationFeedback : [];
+  return data.recommendationFeedback;
+}
+function recommendationFeedbackSummary(routineId="") {
+  const rows = ensureRecommendationFeedbackStore().filter(x => !routineId || x.routineId === routineId).slice(-80);
+  const counts = rows.reduce((acc,x)=>{ acc[x.action]=(acc[x.action]||0)+1; return acc; },{});
+  return {rows, counts, accepted:counts.accepted||0, skipped:counts.skipped||0, completed:counts.completed||0};
+}
+function recommendationLearningProfile(routineId) {
+  try {
+    const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === routineId && !x.toggledOffAt).slice(-60);
+    if (!rows.length) return {score:0, label:"no recommendation learning yet", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]};
+    const accepted = rows.filter(x => x.action === "accepted" || x.action === "completed").length;
+    const skipped = rows.filter(x => x.action === "skipped").length;
+    const completedRows = rows.filter(x => x.action === "completed" && x.improvementAfterRecommendation !== null);
+    const completed = completedRows.length;
+    const totalDecision = accepted + skipped;
+    const skipRate = totalDecision ? skipped / totalDecision : 0;
+    const completionRate = accepted ? completed / accepted : 0;
+    const avgImprovement = completedRows.length ? avg(completedRows.map(x => Number(x.improvementAfterRecommendation || 0))) : null;
+    const evidence = evidenceStrength(rows.length);
+    const reasons = [];
+    let score = 0;
+    if (avgImprovement !== null) { score += Math.max(-12, Math.min(16, avgImprovement * 0.32)); reasons.push(`post-recommendation outcome ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)}`); }
+    if (completed >= 3 && completionRate >= 0.55) { score += 5; reasons.push("usually completed after acceptance"); }
+    if (skipped >= 3 && skipRate >= 0.55) { score -= 10; reasons.push("often skipped by user"); }
+    score = Math.max(-16, Math.min(18, score * Math.max(0.35, evidence.factor || 0.35)));
+    const label = avgImprovement === null ? `${accepted} accepted · ${skipped} skipped · ${completed} completed` : `${accepted} accepted · ${skipped} skipped · ${completed} completed · ${avgImprovement >= 0 ? "+" : ""}${avgImprovement.toFixed(1)} after`;
+    return {score:Math.round(score*10)/10, label, evidence:evidence.label, accepted, skipped, completed, skipRate, completionRate, avgImprovement, reasons:reasons.slice(0,4)};
+  } catch (_) { return {score:0, label:"recommendation learning unavailable", evidence:"low evidence", accepted:0, skipped:0, completed:0, skipRate:0, completionRate:0, avgImprovement:null, reasons:[]}; }
+}
+function recommendationLearningReasonForRoutine(routineId) {
+  const p = recommendationLearningProfile(routineId);
+  if (!p || (!p.accepted && !p.skipped && !p.completed)) return "recommendation learning: no personal feedback yet";
+  if (p.skipRate >= 0.55 && p.skipped >= 3) return "recommendation learning: frequently skipped, down-weighted";
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) > 0) return `recommendation learning: completed recommendations improved by ${p.avgImprovement.toFixed(1)} on average`;
+  if (p.completed >= 3 && Number(p.avgImprovement || 0) < 0) return `recommendation learning: completed recommendations underperformed by ${Math.abs(p.avgImprovement).toFixed(1)} on average`;
+  return `recommendation learning: ${p.label}`;
+}
+function contextualFitForRoutine(routine, stats, stateModeObj = inferTrainingStateMode()) {
+  try {
+    const map = getRoutineSkillMap(routine);
+    const skills = new Set([map.primarySkill, ...(map.secondarySkills || []), ...(map.transferTags || [])].filter(Boolean));
+    const energy = routineEnergyProfile({routine, phase:"maintain"});
+    const volatility = routineVolatilityProfile(routine, stats);
+    const transfer = routineTransferValue(routine);
+    const mode = stateModeObj.mode;
+    let score = 0;
+    const reasons = [];
+    if (mode === "recovery") {
+      if (routine?.isAnchor || Number(stats?.logs?.length || 0) >= 6) { score += 12; reasons.push("familiar recovery fit"); }
+      if (volatility.level === "low") { score += 8; reasons.push("low volatility"); }
+      score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.25;
+      if (skills.has("confidence_stability") || skills.has("cueing") || skills.has("pace_control")) { score += 5; reasons.push("confidence-preserving skill"); }
+    } else if (mode === "acquisition") {
+      if (["cueing","cue_ball_control","pace_control","positional_play"].some(s => skills.has(s))) { score += 9; reasons.push("high-feedback acquisition fit"); }
+      if (volatility.level === "high") { score -= 5; reasons.push("reduced for high volatility"); }
+      if (transfer >= 70) { score += 6; reasons.push("foundational transfer"); }
+    } else if (mode === "performance") {
+      if (skills.has("pressure_resilience") || skills.has("safety") || skills.has("break_building") || volatility.level !== "low") { score += 10; reasons.push("performance-test fit"); }
+      if (transfer >= 65) { score += 4; reasons.push("match-relevant transfer"); }
+    } else {
+      if (transfer >= 65) { score += 8; reasons.push("consolidation transfer value"); }
+      if (volatility.level === "medium") { score += 3; reasons.push("controlled variability"); }
+    }
+    const formAdj = currentFormAdjustmentForRoutine(routine);
+    score += Number(formAdj.score || 0);
+    reasons.push(...(formAdj.reasons || []));
+    return {score:Math.round(score), reasons, volatility, energy, stateMode:stateModeObj, transfer, currentForm:formAdj.form};
+  } catch (_) { return {score:0, reasons:["context fit unavailable"], volatility:{level:"medium", score:10}, energy:{cognitive:2,fatigue:2,confidence:2}, stateMode:stateModeObj, transfer:50, currentForm:null}; }
+}
+function buildContextAwareReason(profile) {
+  const fit = profile?.contextualFit;
+  if (!fit) return "context-aware fit unavailable";
+  const mode = fit.stateMode?.label || "Context";
+  const reason = fit.reasons?.[0] || fit.stateMode?.reason || "routine fits current training context";
+  const volatility = fit.volatility?.level ? ` · volatility ${fit.volatility.level}` : "";
+  const transfer = Number.isFinite(Number(fit.transfer)) ? ` · transfer ${Math.round(fit.transfer)}/100` : "";
+  return `${mode}: ${reason}${volatility}${transfer}`;
+}
+function scoreWithSmartSessionArchitecture(state, baseScore, goal) {
+  const transfer = routineTransferValue(state.routine);
+  const energy = routineEnergyProfile(state);
+  const ctx = contextualFitForRoutine(state.routine, {logs:state.logs || [], vals:(state.logs||[]).map(l=>Number(l.normalizedScore||0)), hit:state.hit}, inferTrainingStateMode());
+  let score = baseScore + transfer * 0.18 + ctx.score * 0.65;
+  if (goal === "recovery") {
+    if (["maintain","recover","stabilize"].includes(state.phase)) score += 8;
+    score -= (energy.cognitive + energy.fatigue + energy.confidence) * 1.45;
+    if (ctx.volatility.level === "low") score += 6;
+  } else if (goal === "progression") {
+    if (state.phase === "progress" || state.upgrade) score += 9;
+    score += transfer * 0.08;
+  } else if (goal === "stability") {
+    if (["stabilize","maintain"].includes(state.phase)) score += 8;
+    if (ctx.volatility.level === "high") score -= 3;
+  } else if (goal === "variety") {
+    if (["vary","refresh","baseline"].includes(state.phase)) score += 7;
+  }
+  return score;
+}
+function aggregateEtuSubtypesFromRowsSafe(rows) {
+  try { return roundEtuSubtypeProfileSafe((rows || []).reduce((acc, row) => addEtuSubtypeProfilesSafe(acc, row.etuSubtypes || row.subtypes), blankEtuSubtypeProfileSafe())); }
+  catch (_) { return blankEtuSubtypeProfileSafe(); }
+}
+function estimateHistoricalEtuSubtypeProfileSafe(effectiveEtu, components = {}, avgQuality = null, avgFatigue = null) {
+  try {
+    const pressureShare = Math.max(0, Math.min(1, Number(components.pressureShare || 0)));
+    const transferShare = Math.max(0, Math.min(1, Number(components.transferShare || 0)));
+    const adaptiveShare = Math.max(0, Math.min(1, Number(components.adaptiveShare || 0)));
+    const fatigue = Number.isFinite(Number(avgFatigue)) ? Number(avgFatigue) : 2.5;
+    const quality = Number.isFinite(Number(avgQuality)) ? Number(avgQuality) : 3.2;
+    const raw = {technical:0.54 + transferShare * 0.12, cognitive:0.22 + adaptiveShare * 0.08 + transferShare * 0.04, emotional:0.14 + Math.max(0, 3.2 - quality) * 0.035 + Math.max(0, fatigue - 2.5) * 0.035, pressure:0.10 + pressureShare * 0.24};
+    return allocateEtuSubtypeLoadSafe(effectiveEtu, raw);
+  } catch (_) { return blankEtuSubtypeProfileSafe(); }
+}
+function budgetBadgeClass(value, limit) {
+  const v = Number(value || 0), l = Number(limit || 0);
+  if (!l) return "";
+  return v <= l ? "adaptive-ok" : v <= l * 1.2 ? "adaptive-watch" : "adaptive-risk";
+}
+
+
 
 /* v5.9.14.1 Smart Builder defensive wrappers. */
 function smartBuilderBenchmarkModeForRoutineSafe(routine) {

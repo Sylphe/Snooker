@@ -1,17 +1,17 @@
 # Snooker Practice PWA
 
-Version: 5.9.14.1-smart-builder-click-runtime-hotfix
+Version: 5.9.14.2-smart-builder-click-runtime-hotfix
 
-## v5.9.14.1 — Smart Builder Click Runtime Hotfix
+## v5.9.14.2 — Smart Builder Click Runtime Hotfix
 
 - Restores Smart Builder helper functions accidentally dropped during the v5.9.12-v5.9.14 patch chain.
 - Restores `smartGoalLabel`, `smartBlockPurpose`, routine transfer/volatility helpers, duration/ETU budget renderers and debug-console renderer.
-- Updates internal module cache query strings from stale `5.9.8` to `5.9.14.1`.
+- Updates internal module cache query strings from stale `5.9.8` to `5.9.14.2`.
 - Preserves v5.9.14 runtime-integrity fixes.
 
 # Snooker Practice PWA
 
-Version: 5.9.14.1-smart-builder-click-runtime-hotfix
+Version: 5.9.14.2-smart-builder-click-runtime-hotfix
 
 ## v5.9.14 — Smart Builder Runtime Integrity Fix
 
