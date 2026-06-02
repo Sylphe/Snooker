@@ -1,5 +1,16 @@
 # Snooker Practice PWA
 
+Version: 5.9.14.3-smart-builder-render-helper-hotfix
+
+## v5.9.14.3 — Smart Builder Render Helper Hotfix
+
+- Restores `renderFeedbackButtons()` used by Smart Builder drill cards and recommendation cards.
+- Restores `trackRecommendationFeedback()` used by the delegated recommendation-feedback click action.
+- Scans Smart Builder render helper calls and confirms no missing render helper declarations remain in the Smart Builder render path.
+- Bumps module cache query strings to `5.9.14.3`.
+
+# Snooker Practice PWA
+
 Version: 5.9.14.2-smart-builder-click-runtime-hotfix
 
 ## v5.9.14.2 — Smart Builder Click Runtime Hotfix

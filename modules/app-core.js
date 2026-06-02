@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.1";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.1";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.3";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.3";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.9.14.1";
+} from "./utils.js?v=5.9.14.3";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.9.14.1";
+} from "./settings.js?v=5.9.14.3";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.9.14.1";
+} from "./analytics.js?v=5.9.14.3";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -73,7 +73,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.9.14.1";
+} from "./bayesian.js?v=5.9.14.3";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -82,7 +82,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.9.14.1";
+} from "./session.js?v=5.9.14.3";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -90,7 +90,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.9.14.1";
+} from "./pressure.js?v=5.9.14.3";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -102,7 +102,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.9.14.1";
+} from "./recommendations.js?v=5.9.14.3";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -116,7 +116,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.9.14.1";
+} from "./store.js?v=5.9.14.3";
 
 
 
@@ -9776,7 +9776,7 @@ function applySmartBuilderTemplateConstraintsSafe(ranked, template, etuContext, 
       if (benchmarkDiscount) constraintsApplied.push("Benchmark influence discounted outside benchmark-prep mode");
       const recommendationAudit = {
         ...currentAudit,
-        version:"5.9.14.1",
+        version:"5.9.14.3",
         templateModifier:roundSmartAuditNumber(c.modifier),
         benchmarkDiscountModifier:roundSmartAuditNumber(benchmarkDiscount),
         benchmarkModifier:roundSmartAuditNumber(Number(currentAudit.benchmarkModifier || 0) + benchmarkDiscount),
@@ -10434,6 +10434,46 @@ function recommendationFeedbackSummary(routineId="") {
   const counts = rows.reduce((acc,x)=>{ acc[x.action]=(acc[x.action]||0)+1; return acc; },{});
   return {rows, counts, accepted:counts.accepted||0, skipped:counts.skipped||0, completed:counts.completed||0};
 }
+
+function renderFeedbackButtons(routineId, source="smart_session_builder") {
+  try {
+    const id = escapeAttr(String(routineId || ""));
+    if (!id) return "";
+    const src = escapeAttr(String(source || "smart_session_builder"));
+    return `<div class="recommendation-feedback-row" data-feedback-routine="${id}">
+      <button type="button" class="tiny secondary" data-action="recommendation-feedback" data-id="${id}" data-feedback="accepted" data-source="${src}">Accept</button>
+      <button type="button" class="tiny secondary" data-action="recommendation-feedback" data-id="${id}" data-feedback="skipped" data-source="${src}">Skip</button>
+    </div>`;
+  } catch (_) { return ""; }
+}
+
+function trackRecommendationFeedback(routineId, action="accepted", options={}) {
+  try {
+    const id = String(routineId || "");
+    if (!id) return false;
+    const cleanAction = ["accepted","skipped","completed"].includes(String(action || "")) ? String(action) : "accepted";
+    const rows = ensureRecommendationFeedbackStore();
+    rows.push({
+      id: uuid(),
+      routineId: id,
+      action: cleanAction,
+      source: String(options?.source || "smart_session_builder"),
+      createdAt: new Date().toISOString(),
+      scoreAfterRecommendation: options?.scoreAfterRecommendation ?? null,
+      improvementAfterRecommendation: options?.improvementAfterRecommendation ?? null
+    });
+    data.recommendationFeedback = rows.slice(-500);
+    try { saveData({render:"none", idbSync:"skip"}); } catch (_) { try { saveData(); } catch (__) {} }
+    const label = cleanAction === "skipped" ? "Recommendation skipped." : cleanAction === "completed" ? "Recommendation completed." : "Recommendation accepted.";
+    try { showTransientNotice(label, cleanAction === "skipped" ? "info" : "ok"); } catch (_) {}
+    try { renderSmartRecommendation(); } catch (_) {}
+    try { if ($("adaptiveEngineOutput")) renderAdaptiveSessionDebounced(); } catch (_) {}
+    return true;
+  } catch (error) {
+    try { logAppError(error, "trackRecommendationFeedback"); } catch (_) {}
+    return false;
+  }
+}
 function recommendationLearningProfile(routineId) {
   try {
     const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === routineId && !x.toggledOffAt).slice(-60);
@@ -10734,8 +10774,8 @@ function smartBuilderRecommendationSanityLayerSafe(plan = {}) {
     const selectedKeys = rows.map(r => smartBuilderCanonicalStateKeySafe(r.state)).filter(Boolean);
     if (new Set(selectedKeys).size < selectedKeys.length) findings.push({severity:"risk", code:"duplicate_canonical_routine", label:"Duplicate routine lineage", detail:"The same canonical routine appears more than once."});
     const label = findings.some(f=>f.severity==="risk") ? "Risk flags" : findings.length ? "Watch flags" : "Passed";
-    return {version:"5.9.14.1", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
-  } catch (_) { return {version:"5.9.14.1", label:"Sanity unavailable", status:"watch", findings:[]}; }
+    return {version:"5.9.14.3", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
+  } catch (_) { return {version:"5.9.14.3", label:"Sanity unavailable", status:"watch", findings:[]}; }
 }
 function renderSmartBuilderRecommendationSanitySafe(plan) {
   try {
@@ -10763,8 +10803,8 @@ function smartBuilderContradictionEngineSafe(plan = {}) {
     }
     const status = findings.some(f=>f.severity==="critical") ? "critical" : findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed";
     const label = status === "passed" ? "No contradictions" : status === "watch" ? "Watch contradictions" : status === "risk" ? "Risk contradictions" : "Critical contradiction";
-    return {version:"5.9.14.1", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
-  } catch (_) { return {version:"5.9.14.1", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
+    return {version:"5.9.14.3", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
+  } catch (_) { return {version:"5.9.14.3", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
 }
 function renderSmartBuilderContradictionEngineSafe(plan) {
   try {
@@ -12336,7 +12376,7 @@ function smartBuilderPlanCacheKeySafe(goal, duration, strictness, phaseInfo, ses
     const routines = activeRoutines?.() || [];
     const lastLog = logs.length ? logs[logs.length - 1] : null;
     return JSON.stringify({
-      v:"5.9.14",
+      v:"5.9.14.3",
       goal,
       duration:Number(duration || 0),
       strictness:String(strictness || ""),
@@ -12707,7 +12747,7 @@ function saveSmartSessionPlanSafe({start=false} = {}) {
     updatedAt: now,
     source: "smart_session_builder",
     smartSessionMeta: {
-      version: "5.9.14.1",
+      version: "5.9.14.3",
       generatedAt: now,
       effectiveGoal: plan?.effectiveGoal || $("adaptiveGoal")?.value || "auto",
       targetMinutes: Number(plan?.targetMinutes || $("adaptiveDuration")?.value || 0) || "",
