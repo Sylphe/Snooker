@@ -2,8 +2,8 @@ const STORAGE_KEY = "snookerPracticePWA.v3";
 const OLD_KEYS = ["snookerPracticePWA.v1", "snookerPracticePWA.v2"];
 const QUICK_RESUME_COLLAPSED_KEY = "snookerQuickResumeCollapsed";
 const SMART_RECOMMENDATION_MODE_KEY = "snookerSmartRecommendationMode";
-import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.3";
-import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.3";
+import { APP_VERSION, APP_BUILD_TIMESTAMP } from "./version.js?v=5.9.14.4";
+import { smoothEvidence, shrinkageWeight, shrinkTowardPrior, thompsonRecommendationSample, kalmanCurrentFormEstimate, bayesianChangePointEstimate } from "./inference.js?v=5.9.14.4";
 import {
   uuid,
   structuredCloneSafe,
@@ -20,7 +20,7 @@ import {
   sortedBy,
   safeMax,
   safeMin
-} from "./utils.js?v=5.9.14.3";
+} from "./utils.js?v=5.9.14.4";
 import {
   THEME_MODE_KEY,
   SESSION_FOCUS_MODE_KEY,
@@ -39,7 +39,7 @@ import {
   getRawStoredThemeMode,
   resolveThemeMode,
   applyThemeToDocument
-} from "./settings.js?v=5.9.14.3";
+} from "./settings.js?v=5.9.14.4";
 import {
   avg,
   stdDev,
@@ -62,7 +62,7 @@ import {
   recommendedAllocationFocus,
   computePredictorContributions,
   predictorRecommendationLabel
-} from "./analytics.js?v=5.9.14.3";
+} from "./analytics.js?v=5.9.14.4";
 import {
   betaPosterior,
   BAYESIAN_DECAY_HALF_LIFE_DAYS,
@@ -73,7 +73,7 @@ import {
   bayesianAdvice,
   bayesianRecommendationSignal,
   bayesianActionPolicy
-} from "./bayesian.js?v=5.9.14.3";
+} from "./bayesian.js?v=5.9.14.4";
 import {
   makeTimerState,
   elapsedMsFromState,
@@ -82,7 +82,7 @@ import {
   readActiveSessionDraft,
   writeActiveSessionDraft,
   clearActiveSessionDraft
-} from "./session.js?v=5.9.14.3";
+} from "./session.js?v=5.9.14.4";
 import {
   createPressureSession,
   recordPressureEvent,
@@ -90,7 +90,7 @@ import {
   calculatePressureScore,
   pressureSummary,
   pressureLevelLabel
-} from "./pressure.js?v=5.9.14.3";
+} from "./pressure.js?v=5.9.14.4";
 import {
   recommendationMode,
   isRecommendationEligible,
@@ -102,7 +102,7 @@ import {
   adaptiveActionForState,
   scoreAdaptivePriority,
   scoreMixedStrategyRoutine
-} from "./recommendations.js?v=5.9.14.3";
+} from "./recommendations.js?v=5.9.14.4";
 import {
   INDEXEDDB_LOG_STORE,
   INDEXEDDB_SESSION_STORE,
@@ -116,7 +116,7 @@ import {
   idbPut,
   idbPutBundle,
   idbDelete
-} from "./store.js?v=5.9.14.3";
+} from "./store.js?v=5.9.14.4";
 
 
 
@@ -9776,7 +9776,7 @@ function applySmartBuilderTemplateConstraintsSafe(ranked, template, etuContext, 
       if (benchmarkDiscount) constraintsApplied.push("Benchmark influence discounted outside benchmark-prep mode");
       const recommendationAudit = {
         ...currentAudit,
-        version:"5.9.14.3",
+        version:"5.9.14.4",
         templateModifier:roundSmartAuditNumber(c.modifier),
         benchmarkDiscountModifier:roundSmartAuditNumber(benchmarkDiscount),
         benchmarkModifier:roundSmartAuditNumber(Number(currentAudit.benchmarkModifier || 0) + benchmarkDiscount),
@@ -10474,6 +10474,23 @@ function trackRecommendationFeedback(routineId, action="accepted", options={}) {
     return false;
   }
 }
+
+function recommendationOutcomeSignal(routineId) {
+  try {
+    const rows = ensureRecommendationFeedbackStore()
+      .filter(x => String(x?.routineId || "") === String(routineId || "") && x.scoreAfter !== null && x.improvementAfterRecommendation !== null)
+      .slice(-12);
+    if (!rows.length) return {score:0, label:"no outcome evidence"};
+    const improvement = avg(rows.map(x => Number(x.improvementAfterRecommendation || 0)));
+    const completionRate = rows.filter(x => x.completedAt).length / rows.length;
+    const score = Math.max(-10, Math.min(14, improvement * 0.25 + completionRate * 6));
+    return {score:Math.round(score * 10) / 10, label:`recommendation outcomes ${improvement >= 0 ? "+" : ""}${improvement.toFixed(1)} avg`};
+  } catch (err) {
+    try { logAppError(err, "recommendationOutcomeSignal"); } catch (_) {}
+    return {score:0, label:"outcome evidence unavailable"};
+  }
+}
+
 function recommendationLearningProfile(routineId) {
   try {
     const rows = ensureRecommendationFeedbackStore().filter(x => x.routineId === routineId && !x.toggledOffAt).slice(-60);
@@ -10774,8 +10791,8 @@ function smartBuilderRecommendationSanityLayerSafe(plan = {}) {
     const selectedKeys = rows.map(r => smartBuilderCanonicalStateKeySafe(r.state)).filter(Boolean);
     if (new Set(selectedKeys).size < selectedKeys.length) findings.push({severity:"risk", code:"duplicate_canonical_routine", label:"Duplicate routine lineage", detail:"The same canonical routine appears more than once."});
     const label = findings.some(f=>f.severity==="risk") ? "Risk flags" : findings.length ? "Watch flags" : "Passed";
-    return {version:"5.9.14.3", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
-  } catch (_) { return {version:"5.9.14.3", label:"Sanity unavailable", status:"watch", findings:[]}; }
+    return {version:"5.9.14.4", label, status:findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed", findings};
+  } catch (_) { return {version:"5.9.14.4", label:"Sanity unavailable", status:"watch", findings:[]}; }
 }
 function renderSmartBuilderRecommendationSanitySafe(plan) {
   try {
@@ -10803,8 +10820,8 @@ function smartBuilderContradictionEngineSafe(plan = {}) {
     }
     const status = findings.some(f=>f.severity==="critical") ? "critical" : findings.some(f=>f.severity==="risk") ? "risk" : findings.length ? "watch" : "passed";
     const label = status === "passed" ? "No contradictions" : status === "watch" ? "Watch contradictions" : status === "risk" ? "Risk contradictions" : "Critical contradiction";
-    return {version:"5.9.14.3", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
-  } catch (_) { return {version:"5.9.14.3", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
+    return {version:"5.9.14.4", status, label, findings, metrics:{benchmarkDensity:benchmarkRows.length/Math.max(1, rows.length), pressureDensity:pressureRows.length/Math.max(1, rows.length), highRiskDensity:highRiskRows.length/Math.max(1, rows.length)}};
+  } catch (_) { return {version:"5.9.14.4", status:"watch", label:"Contradiction engine unavailable", findings:[], metrics:{}}; }
 }
 function renderSmartBuilderContradictionEngineSafe(plan) {
   try {
@@ -12376,7 +12393,7 @@ function smartBuilderPlanCacheKeySafe(goal, duration, strictness, phaseInfo, ses
     const routines = activeRoutines?.() || [];
     const lastLog = logs.length ? logs[logs.length - 1] : null;
     return JSON.stringify({
-      v:"5.9.14.3",
+      v:"5.9.14.4",
       goal,
       duration:Number(duration || 0),
       strictness:String(strictness || ""),
@@ -12747,7 +12764,7 @@ function saveSmartSessionPlanSafe({start=false} = {}) {
     updatedAt: now,
     source: "smart_session_builder",
     smartSessionMeta: {
-      version: "5.9.14.3",
+      version: "5.9.14.4",
       generatedAt: now,
       effectiveGoal: plan?.effectiveGoal || $("adaptiveGoal")?.value || "auto",
       targetMinutes: Number(plan?.targetMinutes || $("adaptiveDuration")?.value || 0) || "",

@@ -1,2 +1,2 @@
-// Snooker Practice Log v5.9.14.3 module bootstrap
-import "./modules/app-core.js?v=5.9.14.3";
+// Snooker Practice Log v5.9.14.4 module bootstrap
+import "./modules/app-core.js?v=5.9.14.4";

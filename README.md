@@ -1,13 +1,23 @@
 # Snooker Practice PWA
 
-Version: 5.9.14.3-smart-builder-render-helper-hotfix
+Version: 5.9.14.4-smart-builder-outcome-helper-hotfix
 
-## v5.9.14.3 — Smart Builder Render Helper Hotfix
+## v5.9.14.4 — Smart Builder Outcome Helper Hotfix
+
+- Restores `recommendationOutcomeSignal`, which was still causing the advanced Smart Builder to fall back with zero-scored picks.
+- Keeps v5.9.14.3 render helper fixes.
+- Bumps module cache query strings to `5.9.14.4`.
+
+# Snooker Practice PWA
+
+Version: 5.9.14.4-smart-builder-render-helper-hotfix
+
+## v5.9.14.4 — Smart Builder Render Helper Hotfix
 
 - Restores `renderFeedbackButtons()` used by Smart Builder drill cards and recommendation cards.
 - Restores `trackRecommendationFeedback()` used by the delegated recommendation-feedback click action.
 - Scans Smart Builder render helper calls and confirms no missing render helper declarations remain in the Smart Builder render path.
-- Bumps module cache query strings to `5.9.14.3`.
+- Bumps module cache query strings to `5.9.14.4`.
 
 # Snooker Practice PWA
 
