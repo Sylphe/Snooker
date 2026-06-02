@@ -1,5 +1,18 @@
 # Snooker Practice PWA
 
+Version: 5.9.14-smart-builder-runtime-integrity-fix
+
+## v5.9.14 — Smart Builder Runtime Integrity Fix
+
+- Restores missing Smart Builder orchestration primitives used by the advanced builder: budget usage, duration discipline, ETU audit policy, sanity layer and contradiction engine.
+- Adds context-aware override semantics: override goals bypass composition caps, but duration, canonical deduplication and explicit same-day block mode remain active.
+- Discounts benchmark weighting outside benchmark-prep / benchmark contexts so progression modes are not dominated by benchmark metadata.
+- Adds context-aware sanity and contradiction rendering that suppresses misleading override-mode warnings.
+- Adds debounced Smart Builder parameter-change rendering to reduce UI freezes during rapid setting changes.
+- Keeps v5.9.12 canonical routine guard, same-day block mode, and guaranteed baseline exploration slot.
+
+# Snooker Practice PWA
+
 Version: 5.9.11-prediction-display-cleanup
 
 
